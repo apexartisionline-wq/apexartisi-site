@@ -16,6 +16,11 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
     include: { booking: { include: { member: { select: { name: true } }, note: { select: { id: true } } } } },
     orderBy: [{ hour: "asc" }, { position: "asc" }],
   });
+  const week = await prisma.slot.findMany({
+    where: { therapistId: user.id, date: { gt: date, lte: addDays(date, 7) }, booking: { isNot: null } },
+    include: { booking: { include: { member: { select: { name: true } } } } },
+    orderBy: [{ date: "asc" }, { hour: "asc" }],
+  });
   const numbers = await Promise.all(
     slots.map((x) => (x.booking ? sessionNumber({ cycleId: x.booking.cycleId, slot: x }) : null)),
   );
@@ -36,7 +41,7 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
               <div>
                 {x.booking ? (
                   <>
-                    {x.booking.member.name} <span className="muted">{numbers[i] && `· ${numbers[i]}`}</span>
+                    <Link href={`/t/members/${x.booking.memberId}`}>{x.booking.member.name}</Link> <span className="muted">{numbers[i] && `· ${numbers[i]}`}</span>
                   </>
                 ) : (
                   <span className="muted">ελεύθερη</span>
@@ -56,6 +61,19 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
           </div>
         </section>
       ))}
+
+      <h2>Τις επόμενες 7 μέρες</h2>
+      <div className="card">
+        {week.length === 0 ? <span className="muted">Κανένα ραντεβού.</span> : (
+          <ul>
+            {week.map((x) => (
+              <li key={x.id}>
+                <Link href={`/t?date=${x.date}`}>{formatDate(x.date)} {formatHour(x.hour)}</Link> · {x.booking?.member.name}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </main>
   );
 }

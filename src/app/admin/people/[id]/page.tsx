@@ -6,6 +6,7 @@ import { getSettings } from "@/lib/settings";
 import { addDays, formatDate, localParts } from "@/lib/time";
 import { newCycle, updatePerson } from "../actions";
 import { ResetCodeForm } from "../CodeForms";
+import { MemberSessions } from "@/components/MemberSessions";
 
 const SELF_HARM = { NO: "όχι", PASSING: "πέρασε μια σκέψη", YES: "ναι", UNSURE: "δεν είμαι σίγουρος/η" } as const;
 
@@ -71,6 +72,9 @@ export default async function PersonPage({ params, searchParams }: { params: Pro
               <button type="submit">Νέος κύκλος</button>
             </span>
           </form>
+
+          <h2>Ατομικές και σημειώματα</h2>
+          <MemberSessions memberId={p.id} />
 
           <h2>Παρουσίες στην ομάδα (30 μέρες): {attendance.length}</h2>
           <div className="card small">{attendance.map((a) => formatDate(a.date)).join(" · ") || <span className="muted">Καμία.</span>}</div>

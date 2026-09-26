@@ -1,11 +1,12 @@
 import { Nav } from "@/components/Nav";
 import { requireRole } from "@/lib/auth";
+import { navLinks } from "@/lib/nav";
 
 export default async function TherapistLayout({ children }: { children: React.ReactNode }) {
-  await requireRole("THERAPIST", "ADMIN");
+  const user = await requireRole("THERAPIST", "ADMIN");
   return (
     <>
-      <Nav links={[{ href: "/t", label: "Το πρόγραμμά μου" }]} />
+      <Nav links={navLinks(user.role)} />
       {children}
     </>
   );
