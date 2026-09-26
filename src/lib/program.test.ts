@@ -1,7 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_SETTINGS as S } from "./settings";
 import { athensToUtc, localParts, mondayOf } from "./time";
-import { bookingWindow, canBook, groupJoinable, helpNeedsEscalation, programDay, sessionJoinable } from "./program";
+import {
+  bookingWindow,
+  canBook,
+  canRequestChange,
+  groupJoinable,
+  helpNeedsEscalation,
+  neededKind,
+  pickSlot,
+  programDay,
+  rotationCoordinator,
+  sessionJoinable,
+} from "./program";
 
 const at = (date: string, h: number, m = 0) => athensToUtc(date, h, m);
 
@@ -44,12 +55,43 @@ describe("program", () => {
   });
 
   it("opens the join buttons at the right time", () => {
-    const start = at("2026-09-30", 17);
-    expect(sessionJoinable(start, at("2026-09-30", 16, 49), S)).toBe(false);
-    expect(sessionJoinable(start, at("2026-09-30", 16, 50), S)).toBe(true);
-    expect(sessionJoinable(start, at("2026-09-30", 17, 51), S)).toBe(false);
-    expect(groupJoinable(at("2026-09-30", 17, 50), S)).toBe(true); // Τετάρτη
-    expect(groupJoinable(at("2026-10-01", 18), S)).toBe(false); // Πέμπτη
+    const start = at("2026-09-29", 10);
+    expect(sessionJoinable(start, at("2026-09-29", 9, 49), S)).toBe(false);
+    expect(sessionJoinable(start, at("2026-09-29", 9, 50), S)).toBe(true);
+    expect(sessionJoinable(start, at("2026-09-29", 10, 41), S)).toBe(false); // 40 λεπτά
+    expect(groupJoinable(at("2026-09-30", 20, 50), S)).toBe(true); // Τετάρτη 21:00
+    expect(groupJoinable(at("2026-09-30", 18), S)).toBe(false);
+    expect(groupJoinable(at("2026-10-03", 17, 50), S)).toBe(true); // Σάββατο 18:00
+    expect(groupJoinable(at("2026-10-01", 21), S)).toBe(false); // Πέμπτη
+  });
+
+  it("rotates the Friday coordinator every week", () => {
+    const fri = { weekday: 5, time: "21:00", rotation: ["tzino", "christiana"] };
+    expect(rotationCoordinator(fri, "2026-10-02", S)).toBe("tzino");
+    expect(rotationCoordinator(fri, "2026-10-09", S)).toBe("christiana");
+    expect(rotationCoordinator(fri, "2026-10-16", S)).toBe("tzino");
+    expect(rotationCoordinator(fri, "2026-09-25", S)).toBe("christiana"); // πριν την αρχή μέτρησης
+    expect(rotationCoordinator({ ...fri, rotation: [] }, "2026-10-02", S)).toBeNull();
+  });
+
+  it("alternates experiential and clinical therapists", () => {
+    expect(neededKind("BIOMATIC")).toBe("CLINICAL");
+    expect(neededKind("CLINICAL")).toBe("BIOMATIC");
+    expect(neededKind(null)).toBeNull();
+    const b = { id: "b", therapistKind: "BIOMATIC" as const };
+    const c = { id: "c", therapistKind: "CLINICAL" as const };
+    const both = { id: "m", therapistKind: "BOTH" as const };
+    expect(pickSlot([b, c], "CLINICAL")).toMatchObject({ slot: c, kind: "CLINICAL", ok: true });
+    expect(pickSlot([b, both], "CLINICAL")).toMatchObject({ slot: both, kind: "CLINICAL", ok: true });
+    expect(pickSlot([b], "CLINICAL")).toMatchObject({ slot: b, kind: "BIOMATIC", ok: false });
+    expect(pickSlot([both, c], null)).toMatchObject({ slot: c, ok: true });
+    expect(pickSlot([], "CLINICAL")).toBeNull();
+  });
+
+  it("allows change requests until 12 hours before", () => {
+    const start = at("2026-10-01", 18);
+    expect(canRequestChange(start, at("2026-10-01", 6), S)).toBe(true);
+    expect(canRequestChange(start, at("2026-10-01", 6, 1), S)).toBe(false);
   });
 
   it("escalates an unclaimed red-button request after 10 minutes", () => {

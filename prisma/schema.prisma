@@ -21,6 +21,28 @@ enum MemberSource {
   AUTOGNOSIA_PLUS
 }
 
+enum TherapistKind {
+  BIOMATIC // βιωματικός σύμβουλος
+  CLINICAL // κλινικός ψυχολόγος
+  BOTH
+}
+
+enum SlotKind {
+  INDIVIDUAL
+  PAIR // Therapair: δύο μέλη με έναν θεραπευτή
+}
+
+enum RequestKind {
+  CANCEL
+  CHANGE
+}
+
+enum RequestStatus {
+  PENDING
+  DONE
+  DECLINED
+}
+
 enum SelfHarm {
   NO
   PASSING
@@ -40,6 +62,7 @@ model User {
   createdAt        DateTime      @default(now())
 
   // Μόνο για μέλη
+  memberCode       String?       @unique // ψευδώνυμο για τα Google Forms (όχι όνομα)
   source           MemberSource?
   programStartDate String? // YYYY-MM-DD (ώρα Ελλάδας)
   selfMessage      Bytes?
@@ -47,6 +70,9 @@ model User {
 
   // Μόνο για θεραπευτές: αντιστοίχιση με τον λογαριασμό Telegram
   telegramUserId   String?       @unique
+  therapistKind    TherapistKind?
+
+  notifyPrefs      Json          @default("{}")
 
   sessions         Session[]
   cycles           Cycle[]
@@ -57,6 +83,10 @@ model User {
   journal          JournalEntry[]
   helpRequests     HelpRequest[] @relation("HelpMember")
   helpClaims       HelpRequest[] @relation("HelpClaimer")
+  requests         ChangeRequest[]
+  pushSubs         PushSubscription[]
+  groupSessions    GroupSession[]
+  groupMentions    GroupMention[]
 }
 
 model Session {
@@ -82,6 +112,8 @@ model Cycle {
   length    Int
   startedAt DateTime  @default(now())
   closedAt  DateTime?
+  // Πότε τακτοποιήθηκε (συμφωνητικό/πληρωμή, που μένουν εκτός app). Κενό = εκκρεμεί.
+  settledAt DateTime?
   bookings  Booking[]
 
   @@index([memberId])
@@ -93,10 +125,13 @@ model Slot {
   date        String // YYYY-MM-DD (ώρα Ελλάδας)
   hour        Int // 0-23 (ώρα Ελλάδας)
   position    Int // 1..4 → δωμάτιο
+  kind        SlotKind @default(INDIVIDUAL)
   startsAt    DateTime
   therapistId String?
   therapist   User?    @relation("TherapistSlots", fields: [therapistId], references: [id])
-  booking     Booking?
+  bookings    Booking[]
+  // Ένα σημείωμα ανά θέση: στο Therapair είναι κοινό για τα δύο μέλη.
+  note        SessionNote?
 
   @@unique([date, hour, position])
   @@index([startsAt])
@@ -104,7 +139,7 @@ model Slot {
 
 model Booking {
   id              String       @id @default(cuid())
-  slotId          String       @unique
+  slotId          String
   slot            Slot         @relation(fields: [slotId], references: [id], onDelete: Cascade)
   memberId        String
   member          User         @relation("MemberBookings", fields: [memberId], references: [id], onDelete: Cascade)
@@ -112,16 +147,20 @@ model Booking {
   cycle           Cycle?       @relation(fields: [cycleId], references: [id])
   joinedAt        DateTime?
   durationMinutes Int? // από τις αναφορές του Zoom
+  // Εναλλαγή βιωματικού/κλινικού: ποιον τύπο «μέτρησε» η συνεδρία και αν τηρήθηκε το μοτίβο.
+  kind            TherapistKind?
+  alternationOk   Boolean      @default(true)
   createdAt       DateTime     @default(now())
-  note            SessionNote?
+  requests        ChangeRequest[]
 
+  @@unique([slotId, memberId])
   @@index([memberId])
 }
 
 model SessionNote {
   id          String   @id @default(cuid())
-  bookingId   String   @unique
-  booking     Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  slotId      String   @unique
+  slot        Slot     @relation(fields: [slotId], references: [id], onDelete: Cascade)
   therapistId String
   therapist   User     @relation(fields: [therapistId], references: [id])
   content     String
@@ -191,4 +230,66 @@ model HelpRequest {
   resolvedAt         DateTime?
 
   @@index([createdAt])
+}
+
+// Αίτημα αλλαγής/ακύρωσης ραντεβού· το εκτελεί η Εύα.
+model ChangeRequest {
+  id        String        @id @default(cuid())
+  bookingId String?
+  booking   Booking?      @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  memberId  String
+  member    User          @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  kind      RequestKind
+  message   String        @default("")
+  // Για να μένει ιστορικό και όταν σβηστεί η κράτηση.
+  sessionAt DateTime
+  status    RequestStatus @default(PENDING)
+  reply     String        @default("")
+  createdAt DateTime      @default(now())
+  handledAt DateTime?
+
+  @@index([status])
+}
+
+// Μία ομάδα σε συγκεκριμένη μέρα/ώρα: αλλαγή συντονιστή (εκτός απροόπτου) και σημείωμα.
+model GroupSession {
+  id            String         @id @default(cuid())
+  date          String // YYYY-MM-DD
+  time          String // HH:MM
+  coordinatorId String?
+  coordinator   User?          @relation(fields: [coordinatorId], references: [id])
+  theme         String         @default("")
+  atmosphere    String         @default("")
+  noteById      String?
+  noteAt        DateTime?
+  mentions      GroupMention[]
+
+  @@unique([date, time])
+}
+
+model GroupMention {
+  id             String       @id @default(cuid())
+  groupSessionId String
+  groupSession   GroupSession @relation(fields: [groupSessionId], references: [id], onDelete: Cascade)
+  memberId       String
+  member         User         @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  text           String
+
+  @@index([memberId])
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+}
+
+// Για να μη σταλεί η ίδια ειδοποίηση δύο φορές.
+model NotificationLog {
+  key    String   @id
+  sentAt DateTime @default(now())
 }

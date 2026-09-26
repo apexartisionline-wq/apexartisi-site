@@ -14,15 +14,25 @@ export async function cycleInfo(memberId: string) {
   const now = new Date();
   const numbers = new Map(cycle.bookings.map((b, i) => [b.id, i + 1]));
   const done = cycle.bookings.filter((b) => b.slot.startsAt <= now).length;
-  return { cycle, length: cycle.length, done, booked: cycle.bookings.length, numbers };
+  // Ομάδες του κύκλου: παρουσίες από την έναρξή του.
+  const groups = await prisma.attendance.count({
+    where: { memberId, date: { gte: localParts(cycle.startedAt).date } },
+  });
+  return { cycle, length: cycle.length, done, booked: cycle.bookings.length, numbers, groups };
 }
 
-/** Ο κύκλος στον οποίο μπαίνει μια νέα κράτηση (ανοίγει νέος αν ο τρέχων γέμισε). */
+/**
+ * Ο κύκλος στον οποίο μπαίνει μια νέα κράτηση. Όταν γεμίσει (8 ατομικές), ανοίγει
+ * νέος μόνος του και μένει «εκκρεμεί τακτοποίηση» μέχρι να τον σημειώσει η Εύα.
+ */
 export async function cycleForNewBooking(memberId: string, s: Settings): Promise<string> {
   const info = await cycleInfo(memberId);
   if (info && info.booked < info.length) return info.cycle.id;
   if (info) await prisma.cycle.update({ where: { id: info.cycle.id }, data: { closedAt: new Date() } });
-  const c = await prisma.cycle.create({ data: { memberId, length: s.cycleLength } });
+  const first = !info && (await prisma.cycle.count({ where: { memberId } })) === 0;
+  const c = await prisma.cycle.create({
+    data: { memberId, length: s.cycleLength, settledAt: first ? new Date() : null },
+  });
   return c.id;
 }
 
