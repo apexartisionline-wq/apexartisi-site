@@ -1,0 +1,194 @@
+// Apex — σχήμα βάσης δεδομένων (πρώτη φάση).
+// Τα δεδομένα είναι δεδομένα υγείας: η βάση πρέπει να φιλοξενείται στην ΕΕ.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  MEMBER
+  THERAPIST
+  ADMIN
+}
+
+enum MemberSource {
+  APEX
+  AUTOGNOSIA_PLUS
+}
+
+enum SelfHarm {
+  NO
+  PASSING
+  YES
+  UNSURE
+}
+
+model User {
+  id               String        @id @default(cuid())
+  name             String
+  username         String        @unique
+  passwordHash     String
+  role             Role
+  active           Boolean       @default(true)
+  failedLogins     Int           @default(0)
+  lockedUntil      DateTime?
+  createdAt        DateTime      @default(now())
+
+  // Μόνο για μέλη
+  source           MemberSource?
+  programStartDate String? // YYYY-MM-DD (ώρα Ελλάδας)
+  selfMessage      Bytes?
+  selfMessageType  String?
+
+  // Μόνο για θεραπευτές: αντιστοίχιση με τον λογαριασμό Telegram
+  telegramUserId   String?       @unique
+
+  sessions         Session[]
+  cycles           Cycle[]
+  bookings         Booking[]     @relation("MemberBookings")
+  slots            Slot[]        @relation("TherapistSlots")
+  notes            SessionNote[]
+  attendances      Attendance[]
+  journal          JournalEntry[]
+  helpRequests     HelpRequest[] @relation("HelpMember")
+  helpClaims       HelpRequest[] @relation("HelpClaimer")
+}
+
+model Session {
+  id        String   @id // sha256 του token του cookie
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Setting {
+  key   String @id
+  value Json
+}
+
+// Κύκλος ατομικών συνεδριών (π.χ. 8). Τα οικονομικά μένουν εκτός app.
+model Cycle {
+  id        String    @id @default(cuid())
+  memberId  String
+  member    User      @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  length    Int
+  startedAt DateTime  @default(now())
+  closedAt  DateTime?
+  bookings  Booking[]
+
+  @@index([memberId])
+}
+
+// Μία θέση = ένα δωμάτιο Zoom σε συγκεκριμένη μέρα/ώρα.
+model Slot {
+  id          String   @id @default(cuid())
+  date        String // YYYY-MM-DD (ώρα Ελλάδας)
+  hour        Int // 0-23 (ώρα Ελλάδας)
+  position    Int // 1..4 → δωμάτιο
+  startsAt    DateTime
+  therapistId String?
+  therapist   User?    @relation("TherapistSlots", fields: [therapistId], references: [id])
+  booking     Booking?
+
+  @@unique([date, hour, position])
+  @@index([startsAt])
+}
+
+model Booking {
+  id              String       @id @default(cuid())
+  slotId          String       @unique
+  slot            Slot         @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  memberId        String
+  member          User         @relation("MemberBookings", fields: [memberId], references: [id], onDelete: Cascade)
+  cycleId         String?
+  cycle           Cycle?       @relation(fields: [cycleId], references: [id])
+  joinedAt        DateTime?
+  durationMinutes Int? // από τις αναφορές του Zoom
+  createdAt       DateTime     @default(now())
+  note            SessionNote?
+
+  @@index([memberId])
+}
+
+model SessionNote {
+  id          String   @id @default(cuid())
+  bookingId   String   @unique
+  booking     Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  therapistId String
+  therapist   User     @relation(fields: [therapistId], references: [id])
+  content     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Attendance {
+  id       String   @id @default(cuid())
+  memberId String
+  member   User     @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  date     String // YYYY-MM-DD
+  joinedAt DateTime @default(now())
+
+  @@unique([memberId, date])
+}
+
+enum ContentKind {
+  DAILY_TEXT
+  FORM
+}
+
+// Κείμενο της ημέρας και φόρμες της θεματικής.
+model Content {
+  id    String      @id @default(cuid())
+  date  String // YYYY-MM-DD
+  kind  ContentKind
+  title String
+  body  String      @default("")
+  url   String?
+
+  @@index([date, kind])
+}
+
+// Ημερολόγιο ανάκαμψης (κάθε βράδυ).
+model JournalEntry {
+  id         String   @id @default(cuid())
+  memberId   String
+  member     User     @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  date       String // YYYY-MM-DD
+  mood       Int // 0-10
+  confidence Int // 0-10 σιγουριά για αύριο
+  craving    Int // 0-10
+  sleepHours Float
+  selfHarm   SelfHarm
+  used       Boolean
+  note       String   @default("")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([memberId, date])
+}
+
+// Κόκκινο κουμπί.
+model HelpRequest {
+  id                 String    @id @default(cuid())
+  memberId           String
+  member             User      @relation("HelpMember", fields: [memberId], references: [id], onDelete: Cascade)
+  createdAt          DateTime  @default(now())
+  lastNotifiedAt     DateTime  @default(now())
+  notifyCount        Int       @default(0)
+  telegramMessageIds Json      @default("[]")
+  claimedById        String?
+  claimedBy          User?     @relation("HelpClaimer", fields: [claimedById], references: [id])
+  claimedByName      String?
+  claimedAt          DateTime?
+  resolvedAt         DateTime?
+
+  @@index([createdAt])
+}

@@ -1,0 +1,109 @@
+:root {
+  --bg: #f6f5f2;
+  --surface: #ffffff;
+  --text: #1f2328;
+  --muted: #5f6670;
+  --line: #e3e1dc;
+  --accent: #2f5d62;
+  --accent-text: #ffffff;
+  --soft: #e8efee;
+  --red: #c0392b;
+  --red-text: #ffffff;
+  --yellow: #b7791f;
+  --ok: #2e7d4f;
+  --radius: 14px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #15181b;
+    --surface: #1e2226;
+    --text: #e8eaed;
+    --muted: #9aa1a9;
+    --line: #2f343a;
+    --accent: #6fb3b8;
+    --accent-text: #0e1a1b;
+    --soft: #22302f;
+    --red: #e05a4b;
+    --red-text: #ffffff;
+    --yellow: #e0a64a;
+    --ok: #5fbf85;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+a { color: var(--accent); }
+main { max-width: 760px; margin: 0 auto; padding: 16px 16px 96px; }
+main.wide { max-width: 1100px; }
+h1 { font-size: 1.5rem; margin: 8px 0 16px; }
+h2 { font-size: 1.1rem; margin: 24px 0 8px; }
+.muted { color: var(--muted); }
+.small { font-size: .875rem; }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin: 12px 0;
+}
+.row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.spread { justify-content: space-between; }
+.stack > * + * { margin-top: 12px; }
+.btn, button {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  border: 1px solid var(--line); background: var(--surface); color: var(--text);
+  border-radius: 10px; padding: 10px 16px; font: inherit; cursor: pointer; text-decoration: none;
+}
+.btn.primary, button.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+.btn.big { width: 100%; padding: 16px; font-size: 1.1rem; font-weight: 600; }
+.btn.red, button.red { background: var(--red); color: var(--red-text); border-color: var(--red); }
+.btn[aria-disabled="true"], button:disabled { opacity: .5; pointer-events: none; }
+input, select, textarea {
+  font: inherit; color: var(--text); background: var(--surface);
+  border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; width: 100%;
+}
+textarea { min-height: 140px; }
+label { display: block; font-size: .9rem; color: var(--muted); margin-bottom: 4px; }
+.field { margin-bottom: 12px; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.badge { display: inline-block; padding: 2px 10px; border-radius: 999px; background: var(--soft); font-size: .8rem; }
+.badge.red { background: var(--red); color: var(--red-text); }
+.badge.yellow { background: var(--yellow); color: #fff; }
+.badge.ok { background: var(--ok); color: #fff; }
+.notice { padding: 12px 16px; border-radius: 10px; background: var(--soft); margin: 12px 0; }
+.error { padding: 12px 16px; border-radius: 10px; background: var(--red); color: var(--red-text); margin: 12px 0; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.table-wrap { overflow-x: auto; }
+nav.top {
+  display: flex; gap: 4px; align-items: center; flex-wrap: wrap;
+  max-width: 1100px; margin: 0 auto; padding: 12px 16px; border-bottom: 1px solid var(--line);
+}
+nav.top a { padding: 6px 10px; border-radius: 8px; text-decoration: none; color: var(--text); }
+nav.top a:hover { background: var(--soft); }
+nav.top .brand { font-weight: 700; margin-right: auto; display: flex; align-items: center; gap: 8px; }
+nav.top img { height: 28px; }
+.redbar {
+  position: fixed; left: 0; right: 0; bottom: 0; padding: 12px 16px;
+  background: linear-gradient(transparent, var(--bg) 30%);
+}
+.redbar .btn { max-width: 728px; margin: 0 auto; display: flex; }
+.whereami { display: flex; gap: 16px; flex-wrap: wrap; }
+.whereami div { flex: 1; min-width: 140px; }
+.whereami strong { display: block; font-size: 1.4rem; }
+.breath {
+  width: 160px; height: 160px; border-radius: 50%; margin: 24px auto;
+  background: var(--soft); border: 3px solid var(--accent);
+  animation: breathe 14s ease-in-out infinite;
+}
+@keyframes breathe {
+  0% { transform: scale(.6); }
+  28% { transform: scale(1); }
+  57% { transform: scale(1); }
+  100% { transform: scale(.6); }
+}
+.body-text { white-space: pre-wrap; }
