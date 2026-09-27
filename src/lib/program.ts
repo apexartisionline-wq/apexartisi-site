@@ -154,12 +154,48 @@ export function canRequestChange(startsAt: Date, now: Date, s: Settings): boolea
   return startsAt.getTime() - now.getTime() >= s.changeRequestHours * 3_600_000;
 }
 
-/** Χρειάζεται νέα ειδοποίηση για κόκκινο κουμπί που δεν το ανέλαβε κανείς; */
-export function helpNeedsEscalation(
-  req: { claimedAt: Date | null; resolvedAt: Date | null; lastNotifiedAt: Date },
-  now: Date,
-  s: Settings,
-): boolean {
-  if (req.claimedAt || req.resolvedAt) return false;
-  return now.getTime() - req.lastNotifiedAt.getTime() >= s.helpEscalateMinutes * 60_000;
+export type HelpLike = {
+  createdAt: Date;
+  lastNotifiedAt: Date;
+  notifyCount: number;
+  claimedAt: Date | null;
+  talkedAt: Date | null;
+  resolvedAt: Date | null;
+  deliveryFailedAt: Date | null;
+};
+
+/**
+ * Η κατάσταση ενός αιτήματος του κόκκινου κουμπιού:
+ * - resend: χρειάζεται νέα ειδοποίηση (κανείς δεν το ανέλαβε σε 10′, ή το ανέλαβε κάποιος
+ *   αλλά δεν δήλωσε «μιλήσαμε» σε 5′), έως helpMaxAlerts φορές·
+ * - showHelpline: το μέλος πρέπει να βλέπει ξανά τις γραμμές βοήθειας και το 112.
+ */
+export function helpState(req: HelpLike, now: Date, s: Settings) {
+  const t = now.getTime();
+  if (req.resolvedAt || req.talkedAt) return { resend: false, showHelpline: false, stage: "done" as const };
+  const sinceNotify = t - req.lastNotifiedAt.getTime();
+  const underMax = req.notifyCount < s.helpMaxAlerts;
+  if (!req.claimedAt) {
+    const late = t - req.createdAt.getTime() >= s.helpEscalateMinutes * 60_000;
+    return {
+      resend: underMax && sinceNotify >= s.helpEscalateMinutes * 60_000,
+      showHelpline: late || Boolean(req.deliveryFailedAt),
+      stage: "waiting" as const,
+    };
+  }
+  const since = t - Math.max(req.claimedAt.getTime(), req.lastNotifiedAt.getTime());
+  const noTalk = t - req.claimedAt.getTime() >= s.helpTalkMinutes * 60_000;
+  return { resend: underMax && since >= s.helpTalkMinutes * 60_000, showHelpline: noTalk, stage: "claimed" as const };
+}
+
+/** Χρειάζεται νέα ειδοποίηση; (συντόμευση του helpState) */
+export function helpNeedsEscalation(req: HelpLike, now: Date, s: Settings): boolean {
+  return helpState(req, now, s).resend;
+}
+
+/** «Νίκος Παπαδόπουλος» → «Νίκος Π.» (στο Telegram δεν πηγαίνει ολόκληρο όνομα). */
+export function shortName(full: string): string {
+  const parts = full.trim().split(/\s+/);
+  if (parts.length < 2) return parts[0] ?? "";
+  return `${parts[0]} ${parts[parts.length - 1].charAt(0)}.`;
 }

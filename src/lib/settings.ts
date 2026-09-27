@@ -42,6 +42,10 @@ export const settingsSchema = z.object({
   rooms: z.array(z.string()).length(4),
   changeRequestHours: z.number().int().min(0),
   helpEscalateMinutes: z.number().int().min(1),
+  helpTalkMinutes: z.number().int().min(1), // μετά την ανάληψη, ως πότε δηλώνεται «μιλήσαμε»
+  helpMaxAlerts: z.number().int().min(1),
+  // Γραμμές βοήθειας, ορατές από την αρχή στο κόκκινο κουμπί και στη σελίδα σύνδεσης.
+  helplines: z.array(z.object({ label: z.string(), number: z.string() })),
   helplineText: z.string(),
 });
 
@@ -80,6 +84,15 @@ export const DEFAULT_SETTINGS: Settings = {
   rooms: ["", "", "", ""],
   changeRequestHours: 12,
   helpEscalateMinutes: 10,
+  helpTalkMinutes: 5,
+  helpMaxAlerts: 6,
+  // Να επιβεβαιωθούν από την Εύα πριν τη δοκιμή.
+  helplines: [
+    { label: "Έκτακτη ανάγκη", number: "112" },
+    { label: "Γραμμή για την αυτοκτονία (Κλίμακα)", number: "1018" },
+    { label: "Γραμμή ψυχοκοινωνικής υποστήριξης", number: "10306" },
+    { label: "Γραμμή για εξαρτήσεις", number: "1031" },
+  ],
   // Ανοιχτό θέμα: ποια γραμμή βοήθειας εμφανίζεται (εκτός από το 112).
   helplineText: "Κάλεσε το 112.",
 };

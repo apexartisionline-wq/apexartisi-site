@@ -7,9 +7,24 @@ import type { Role, User } from "@prisma/client";
 import { prisma } from "./db";
 
 const COOKIE = "apex_session";
-const SESSION_DAYS = 30;
+// Τα μέλη μένουν συνδεδεμένα στο κινητό (το κόκκινο κουμπί «δεν χρειάζεται κωδικό»)·
+// το προσωπικό, που βλέπει φακέλους, αποσυνδέεται πιο γρήγορα.
+const SESSION_HOURS: Record<Role, number> = { MEMBER: 180 * 24, THERAPIST: 12, ADMIN: 12 };
 const MAX_FAILED = 5;
 const LOCK_MINUTES = 15;
+
+// Όριο προσπαθειών ανά διεύθυνση (στη μνήμη του server): 10 λάθη / 15 λεπτά.
+const attempts = new Map<string, { n: number; until: number }>();
+function ipLimited(ip: string): boolean {
+  const a = attempts.get(ip);
+  return Boolean(a && a.n >= 10 && a.until > Date.now());
+}
+function ipFailed(ip: string): void {
+  const a = attempts.get(ip);
+  const now = Date.now();
+  if (!a || a.until < now) attempts.set(ip, { n: 1, until: now + LOCK_MINUTES * 60_000 });
+  else a.n++;
+}
 
 // Για σταθερό χρόνο απάντησης όταν ο χρήστης δεν υπάρχει.
 const DUMMY_HASH = bcrypt.hashSync("not-a-real-code", 12);
@@ -25,28 +40,36 @@ export function generateCode(): string {
   return Array.from(bytes, (b) => alphabet[b % alphabet.length]).join("");
 }
 
-export async function login(username: string, code: string): Promise<User | null> {
+export async function login(username: string, code: string, ip = "unknown"): Promise<User | null> {
+  if (ipLimited(ip)) return null;
   const user = await prisma.user.findUnique({ where: { username: username.trim().toLowerCase() } });
   if (!user || !user.active) {
     await bcrypt.compare(code, DUMMY_HASH);
+    ipFailed(ip);
     return null;
   }
-  if (user.lockedUntil && user.lockedUntil > new Date()) return null;
+  // Κλείδωμα λογαριασμού μόνο για το προσωπικό: ένα μέλος δεν πρέπει ποτέ να μπορεί να
+  // κλειδωθεί έξω από το κόκκινο κουμπί από κάποιον που ξέρει το όνομα χρήστη του.
+  const staff = user.role !== "MEMBER";
+  if (staff && user.lockedUntil && user.lockedUntil > new Date()) return null;
   const ok = await bcrypt.compare(code, user.passwordHash);
   if (!ok) {
-    const failed = user.failedLogins + 1;
-    await prisma.user.update({
-      where: { id: user.id },
-      data: failed >= MAX_FAILED
-        ? { failedLogins: 0, lockedUntil: new Date(Date.now() + LOCK_MINUTES * 60_000) }
-        : { failedLogins: failed },
-    });
+    ipFailed(ip);
+    if (staff) {
+      const failed = user.failedLogins + 1;
+      await prisma.user.update({
+        where: { id: user.id },
+        data: failed >= MAX_FAILED
+          ? { failedLogins: 0, lockedUntil: new Date(Date.now() + LOCK_MINUTES * 60_000) }
+          : { failedLogins: failed },
+      });
+    }
     return null;
   }
   await prisma.user.update({ where: { id: user.id }, data: { failedLogins: 0, lockedUntil: null } });
 
   const token = randomBytes(32).toString("base64url");
-  const expiresAt = new Date(Date.now() + SESSION_DAYS * 86_400_000);
+  const expiresAt = new Date(Date.now() + SESSION_HOURS[user.role] * 3_600_000);
   await prisma.session.create({ data: { id: hashToken(token), userId: user.id, expiresAt } });
   (await cookies()).set(COOKIE, token, {
     httpOnly: true,
@@ -71,6 +94,11 @@ export async function currentUser(): Promise<User | null> {
   const session = await prisma.session.findUnique({ where: { id: hashToken(token) }, include: { user: true } });
   if (!session || session.expiresAt < new Date() || !session.user.active) return null;
   return session.user;
+}
+
+/** Αποσύνδεση από όλες τις συσκευές. */
+export async function logoutEverywhere(userId: string): Promise<void> {
+  await prisma.session.deleteMany({ where: { userId } });
 }
 
 /** Καθένας βλέπει μόνο όσα του αναλογούν. */

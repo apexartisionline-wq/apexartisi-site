@@ -61,6 +61,7 @@ model User {
   lockedUntil      DateTime?
   createdAt        DateTime      @default(now())
 
+  phone            String? // για να καλέσει ο θεραπευτής στο κόκκινο κουμπί
   // Μόνο για μέλη
   memberCode       String?       @unique // ψευδώνυμο για τα Google Forms (όχι όνομα)
   source           MemberSource?
@@ -229,9 +230,60 @@ model HelpRequest {
   claimedBy          User?     @relation("HelpClaimer", fields: [claimedById], references: [id])
   claimedByName      String?
   claimedAt          DateTime?
+  // Ο θεραπευτής δηλώνει ότι μίλησαν, με σύντομη έκβαση.
+  talkedAt           DateTime?
+  outcome            String    @default("")
   resolvedAt         DateTime?
+  deliveryFailedAt   DateTime?
+  isDrill            Boolean   @default(false) // εβδομαδιαία δοκιμή του μηχανισμού
 
   @@index([createdAt])
+}
+
+// Κάθε άνοιγμα του κόκκινου κουμπιού (και όσοι πάτησαν «Είμαι καλύτερα»).
+model HelpOpen {
+  id        String   @id @default(cuid())
+  memberId  String
+  openedAt  DateTime @default(now())
+  @@index([memberId, openedAt])
+}
+
+// Εφημερία: ποιος καλύπτει τη νύχτα που ξεκινά στη συγκεκριμένη ημερομηνία.
+model OnCall {
+  date   String @id // YYYY-MM-DD
+  userId String
+}
+
+// Μηνύματα φροντίδας και άλλες υπενθυμίσεις για το προσωπικό.
+model CareTask {
+  id        String    @id @default(cuid())
+  memberId  String
+  kind      String // "caring_24h" | "caring_7d" | "dropout"
+  dueAt     DateTime
+  doneAt    DateTime?
+  doneById  String?
+  note      String    @default("")
+  createdAt DateTime  @default(now())
+  @@index([doneAt, dueAt])
+}
+
+// Πλάνο ασφάλειας του μέλους (εμφανίζεται μέσα στο κόκκινο κουμπί).
+model SafetyPlan {
+  memberId    String   @id
+  data        Json
+  updatedAt   DateTime @updatedAt
+  updatedById String?
+}
+
+// Καταγραφή πρόσβασης: ποιος άνοιξε ποιον φάκελο/σημείωμα.
+model AccessLog {
+  id       String   @id @default(cuid())
+  userId   String
+  memberId String?
+  action   String
+  at       DateTime @default(now())
+  @@index([memberId, at])
+  @@index([userId, at])
 }
 
 // Αίτημα αλλαγής/ακύρωσης ραντεβού· το εκτελεί η Εύα.

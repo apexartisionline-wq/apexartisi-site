@@ -1,7 +1,7 @@
 import bcrypt from "bcryptjs";
 import { redirect } from "next/navigation";
 import { Nav } from "@/components/Nav";
-import { hashPassword, requireRole } from "@/lib/auth";
+import { hashPassword, logoutEverywhere, requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { navLinks } from "@/lib/nav";
 
@@ -19,6 +19,13 @@ async function changeCode(formData: FormData) {
   if (next !== again) redirect("/account?e=match");
   await prisma.user.update({ where: { id: user.id }, data: { passwordHash: await hashPassword(next) } });
   redirect("/account?ok=1");
+}
+
+async function signOutAll() {
+  "use server";
+  const user = await requireRole("MEMBER", "THERAPIST", "ADMIN");
+  await logoutEverywhere(user.id);
+  redirect("/login");
 }
 
 const ERRORS: Record<string, string> = {
@@ -47,6 +54,11 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
           <div className="field"><label htmlFor="next">Νέος κωδικός (τουλάχιστον 8 χαρακτήρες)</label><input id="next" name="next" type="password" autoComplete="new-password" minLength={8} required /></div>
           <div className="field"><label htmlFor="again">Ξανά ο νέος κωδικός</label><input id="again" name="again" type="password" autoComplete="new-password" minLength={8} required /></div>
           <button className="primary" type="submit">Αλλαγή</button>
+        </form>
+        <h2>Συσκευές</h2>
+        <form action={signOutAll} className="card row spread">
+          <span>Αν χάθηκε ή δόθηκε το κινητό σου, αποσυνδέσου από όλες τις συσκευές.</span>
+          <button type="submit">Αποσύνδεση παντού</button>
         </form>
       </main>
     </>

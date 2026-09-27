@@ -1,9 +1,22 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { groupDays } from "@/lib/groups";
 import { getSettings } from "@/lib/settings";
 import { addDays, formatDate, formatHour, localParts } from "@/lib/time";
+
+async function careDone(formData: FormData) {
+  "use server";
+  const user = await requireRole("THERAPIST", "ADMIN");
+  await prisma.careTask.update({
+    where: { id: String(formData.get("id")) },
+    data: { doneAt: new Date(), doneById: user.id, note: String(formData.get("note") ?? "").slice(0, 500) },
+  });
+  redirect("/t");
+}
+
+const CARE = { caring_24h: "Μήνυμα φροντίδας (24 ώρες μετά από κρίση)", caring_7d: "Μήνυμα φροντίδας (7 μέρες μετά από κρίση)", dropout: "Απώλεια επαφής — τηλεφώνημα" } as Record<string, string>;
 
 export default async function TherapistDay({ searchParams }: { searchParams: Promise<{ date?: string }> }) {
   const user = await requireRole("THERAPIST", "ADMIN");
@@ -11,7 +24,8 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
   const date = sp.date && /^\d{4}-\d{2}-\d{2}$/.test(sp.date) ? sp.date : localParts(new Date()).date;
   const s = await getSettings();
 
-  const [slots, week, groups] = await Promise.all([
+  const [care, slots, week, groups] = await Promise.all([
+    prisma.careTask.findMany({ where: { doneAt: null, dueAt: { lte: new Date() } }, orderBy: { dueAt: "asc" } }),
     prisma.slot.findMany({
       where: { date, therapistId: user.id },
       include: { bookings: { include: { member: { select: { id: true, name: true } } } }, note: { select: { id: true } } },
@@ -25,6 +39,9 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
     groupDays(date, addDays(date, 7), s),
   ]);
   const myGroups = groups.filter((g) => g.coordinatorId === user.id);
+  const careMembers = new Map(
+    (await prisma.user.findMany({ where: { id: { in: care.map((c) => c.memberId) } }, select: { id: true, name: true, phone: true } })).map((m) => [m.id, m]),
+  );
   const todayGroups = myGroups.filter((g) => g.date === date);
   const names = (x: { bookings: { member: { name: string } }[] }) => x.bookings.map((b) => b.member.name).join(" & ");
 
@@ -35,6 +52,28 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
         <h1 style={{ margin: 0 }}>{formatDate(date)}</h1>
         <Link href={`/t?date=${addDays(date, 1)}`}>επόμενη →</Link>
       </div>
+
+      {care.length > 0 && (
+        <section className="card" style={{ borderColor: "var(--yellow)" }}>
+          <strong>Για όποιον το δει πρώτος</strong>
+          {care.map((c) => {
+            const m = careMembers.get(c.memberId);
+            return (
+              <form key={c.id} action={careDone} className="row spread" style={{ marginTop: 8 }}>
+                <input type="hidden" name="id" value={c.id} />
+                <span>
+                  {CARE[c.kind] ?? c.kind}: <Link href={`/t/members/${c.memberId}`}>{m?.name}</Link>
+                  {m?.phone && <> · <a href={`tel:${m.phone}`}>{m.phone}</a></>}
+                </span>
+                <span className="row" style={{ gap: 4 }}>
+                  <input name="note" placeholder="σύντομα: τι έγινε" style={{ width: 180 }} />
+                  <button type="submit" style={{ padding: "6px 10px" }}>Έγινε</button>
+                </span>
+              </form>
+            );
+          })}
+        </section>
+      )}
 
       {todayGroups.map((g) => (
         <section className="card" key={g.time} style={{ borderColor: "var(--accent)" }}>

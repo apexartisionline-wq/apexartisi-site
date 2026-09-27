@@ -23,6 +23,7 @@ export function CreatePersonForm() {
       <div className="grid2">
         <div className="field"><label>Ονοματεπώνυμο</label><input name="name" required /></div>
         <div className="field"><label>Όνομα χρήστη (λατινικά)</label><input name="username" required autoCapitalize="none" /></div>
+        <div className="field"><label>Κινητό (επιβεβαιωμένο)</label><input name="phone" type="tel" /></div>
         <div className="field">
           <label>Ρόλος</label>
           <select name="role" value={role} onChange={(e) => setRole(e.target.value)}>

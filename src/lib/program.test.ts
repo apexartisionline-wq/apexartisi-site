@@ -7,6 +7,8 @@ import {
   canRequestChange,
   groupJoinable,
   helpNeedsEscalation,
+  helpState,
+  shortName,
   neededKind,
   pickSlot,
   programDay,
@@ -94,11 +96,23 @@ describe("program", () => {
     expect(canRequestChange(start, at("2026-10-01", 6, 1), S)).toBe(false);
   });
 
+  it("tracks the red button after a claim", () => {
+    const t0 = new Date("2026-09-26T20:00:00Z");
+    const m = (x: number) => new Date(t0.getTime() + x * 60_000);
+    const base = { createdAt: t0, lastNotifiedAt: t0, notifyCount: 1, claimedAt: m(2), talkedAt: null, resolvedAt: null, deliveryFailedAt: null };
+    expect(helpState(base, m(6), S)).toMatchObject({ resend: false, showHelpline: false });
+    expect(helpState(base, m(7), S)).toMatchObject({ resend: true, showHelpline: true });
+    expect(helpState({ ...base, talkedAt: m(4) }, m(30), S)).toMatchObject({ resend: false, showHelpline: false });
+    expect(helpState({ ...base, claimedAt: null, deliveryFailedAt: t0 }, m(1), S).showHelpline).toBe(true);
+    expect(helpState({ ...base, claimedAt: null, notifyCount: 6 }, m(60), S).resend).toBe(false);
+    expect(shortName("Νίκος Παπαδόπουλος")).toBe("Νίκος Π.");
+  });
+
   it("escalates an unclaimed red-button request after 10 minutes", () => {
     const t0 = new Date("2026-09-26T20:00:00Z");
-    const req = { claimedAt: null, resolvedAt: null, lastNotifiedAt: t0 };
+    const req = { createdAt: t0, notifyCount: 1, claimedAt: null, talkedAt: null, resolvedAt: null, deliveryFailedAt: null, lastNotifiedAt: t0 };
     expect(helpNeedsEscalation(req, new Date(t0.getTime() + 9 * 60_000), S)).toBe(false);
     expect(helpNeedsEscalation(req, new Date(t0.getTime() + 10 * 60_000), S)).toBe(true);
-    expect(helpNeedsEscalation({ ...req, claimedAt: t0 }, new Date(t0.getTime() + 60 * 60_000), S)).toBe(false);
+    expect(helpNeedsEscalation({ ...req, claimedAt: t0, talkedAt: t0 }, new Date(t0.getTime() + 60 * 60_000), S)).toBe(false);
   });
 });

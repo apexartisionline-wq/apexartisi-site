@@ -26,6 +26,7 @@ const personSchema = z.object({
   programStartDate: optionalDate.optional(),
   telegramUserId: z.string().trim().optional().transform((v) => v || null),
   therapistKind: z.enum(["BIOMATIC", "CLINICAL", "BOTH"]).or(z.literal("")).optional().transform((v) => v || null),
+  phone: z.string().trim().max(30).optional().transform((v) => v || null),
 });
 
 export async function createPerson(_: CodeState, formData: FormData): Promise<CodeState> {
@@ -46,6 +47,7 @@ export async function createPerson(_: CodeState, formData: FormData): Promise<Co
         telegramUserId: d.role !== "MEMBER" ? d.telegramUserId : null,
         therapistKind: d.role !== "MEMBER" ? d.therapistKind : null,
         memberCode: d.role === "MEMBER" ? memberCode() : null,
+        phone: d.phone,
       },
     });
   } catch (e) {
@@ -78,6 +80,7 @@ const updateSchema = z.object({
   telegramUserId: z.string().trim().optional().transform((v) => v || null),
   active: z.literal("on").optional(),
   therapistKind: z.enum(["BIOMATIC", "CLINICAL", "BOTH"]).or(z.literal("")).optional(),
+  phone: z.string().trim().max(30).optional(),
 });
 
 export async function updatePerson(formData: FormData) {
@@ -93,6 +96,7 @@ export async function updatePerson(formData: FormData) {
       ...(d.programStartDate !== undefined ? { programStartDate: d.programStartDate } : {}),
       ...(formData.has("telegramUserId") ? { telegramUserId: d.telegramUserId } : {}),
       ...(d.therapistKind !== undefined ? { therapistKind: d.therapistKind || null } : {}),
+      ...(d.phone !== undefined ? { phone: d.phone || null } : {}),
     },
   });
   if (!active) await prisma.session.deleteMany({ where: { userId: user.id } });

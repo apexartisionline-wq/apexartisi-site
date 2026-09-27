@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
+import { logAccess } from "@/lib/audit";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { sessionNumber } from "@/lib/member";
@@ -48,6 +49,7 @@ export default async function SessionPage({
   const [{ id }, sp] = await Promise.all([params, searchParams]);
   const x = await loadSlot(id);
   if (!x) notFound();
+  for (const b of x.bookings) await logAccess(user.id, b.memberId, "session_view");
   const pair = x.kind === "PAIR";
 
   // Τι δουλεύτηκε πριν, για κάθε μέλος (οι θεραπευτές αλλάζουν εναλλάξ).

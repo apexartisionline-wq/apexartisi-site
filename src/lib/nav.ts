@@ -13,7 +13,9 @@ export function navLinks(role: Role): { href: string; label: string }[] {
       { href: "/admin/people", label: "Άνθρωποι" },
       { href: "/admin/content", label: "Κείμενα" },
       { href: "/admin/help", label: "Κόκκινο κουμπί" },
+      { href: "/admin/oncall", label: "Εφημερίες" },
       { href: "/admin/settings", label: "Ρυθμίσεις" },
+      { href: "/admin/audit", label: "Πρόσβαση" },
       { href: "/t", label: "Τα ραντεβού μου" },
       { href: "/account", label: "Λογαριασμός" },
     ];
@@ -29,6 +31,7 @@ export function navLinks(role: Role): { href: string; label: string }[] {
     { href: "/m/book", label: "Ραντεβού" },
     { href: "/m/journal", label: "Ημερολόγιο" },
     { href: "/m/texts", label: "Κείμενα" },
+    { href: "/m/safety", label: "Το πλάνο μου" },
     { href: "/account", label: "Λογαριασμός" },
   ];
 }

@@ -1,4 +1,6 @@
 import { notFound } from "next/navigation";
+import { logAccess } from "@/lib/audit";
+import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { cycleInfo } from "@/lib/member";
 import { programDay } from "@/lib/program";
@@ -14,6 +16,8 @@ export default async function PersonPage({ params, searchParams }: { params: Pro
   const [{ id }, sp, s] = await Promise.all([params, searchParams, getSettings()]);
   const p = await prisma.user.findUnique({ where: { id } });
   if (!p) notFound();
+  const admin = await requireRole("ADMIN");
+  if (p.role === "MEMBER") await logAccess(admin.id, p.id, "journal_view");
   const today = localParts(new Date()).date;
   const isMember = p.role === "MEMBER";
 
@@ -35,6 +39,7 @@ export default async function PersonPage({ params, searchParams }: { params: Pro
         <div className="grid2">
           <div className="field"><label>Ονοματεπώνυμο</label><input name="name" defaultValue={p.name} required /></div>
           <div className="field"><label>Όνομα χρήστη</label><input value={p.username} disabled /></div>
+          <div className="field"><label>Κινητό</label><input name="phone" type="tel" defaultValue={p.phone ?? ""} /></div>
           {isMember && <div className="field"><label>Κωδικός μέλους (για τα Google Forms)</label><input value={p.memberCode ?? "—"} disabled /></div>}
           {isMember ? (
             <>
