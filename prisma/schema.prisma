@@ -350,3 +350,30 @@ model NotificationLog {
   key    String   @id
   sentAt DateTime @default(now())
 }
+
+enum Audience {
+  MEMBERS
+  STAFF
+  ALL
+}
+
+// Ανακοινώσεις της Εύας. Εμφανίζονται πρώτες στην αρχική μέχρι το «Εντάξει» ή τη λήξη.
+model Announcement {
+  id          String             @id @default(cuid())
+  audience    Audience
+  title       String
+  body        String             @default("")
+  expiresAt   DateTime?
+  createdById String
+  createdAt   DateTime           @default(now())
+  acks        AnnouncementAck[]
+  @@index([createdAt])
+}
+
+model AnnouncementAck {
+  announcementId String
+  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  userId         String
+  ackedAt        DateTime     @default(now())
+  @@id([announcementId, userId])
+}

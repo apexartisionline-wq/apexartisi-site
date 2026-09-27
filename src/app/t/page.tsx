@@ -1,3 +1,4 @@
+import { Announcements } from "@/components/Announcements";
 import Link from "next/link";
 import { dec, enc } from "@/lib/crypto";
 import { redirect } from "next/navigation";
@@ -53,6 +54,8 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
         <h1 style={{ margin: 0 }}>{formatDate(date)}</h1>
         <Link href={`/t?date=${addDays(date, 1)}`}>επόμενη →</Link>
       </div>
+
+      <Announcements />
 
       {care.length > 0 && (
         <section className="card" style={{ borderColor: "var(--yellow)" }}>

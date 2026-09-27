@@ -1,3 +1,4 @@
+import { Announcements } from "@/components/Announcements";
 import Link from "next/link";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
@@ -44,6 +45,8 @@ export default async function MemberHome() {
   return (
     <main>
       <h1>Γεια σου, {user.name.split(" ")[0]}</h1>
+
+      <Announcements />
 
       <section className="card whereami" aria-label="Πού βρίσκομαι">
         <div>

@@ -12,6 +12,7 @@ export function navLinks(role: Role): { href: string; label: string }[] {
       { href: "/admin/consistency", label: "Συνέπεια" },
       { href: "/admin/people", label: "Άνθρωποι" },
       { href: "/admin/content", label: "Κείμενα" },
+      { href: "/admin/announcements", label: "Ανακοινώσεις" },
       { href: "/admin/help", label: "Κόκκινο κουμπί" },
       { href: "/admin/oncall", label: "Εφημερίες" },
       { href: "/admin/settings", label: "Ρυθμίσεις" },
