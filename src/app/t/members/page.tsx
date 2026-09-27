@@ -17,7 +17,7 @@ export default async function MembersOverview() {
       cycles: { where: { closedAt: null }, include: { bookings: { include: { slot: true } } } },
       _count: { select: { attendances: { where: { date: { gte: from } } } } },
       bookings: {
-        include: { slot: { include: { therapist: { select: { name: true } } } }, note: { select: { id: true } } },
+        include: { slot: { include: { therapist: { select: { name: true } }, note: { select: { id: true } } } } },
         orderBy: { slot: { startsAt: "desc" } },
         take: 20,
       },
@@ -50,7 +50,7 @@ export default async function MembersOverview() {
                       <>
                         {formatDate(last.slot.date)} · {last.slot.therapist?.name ?? "—"}{" "}
                         {!last.joinedAt && <span className="badge yellow">δεν μπήκε</span>}
-                        {last.joinedAt && !last.note && <span className="badge">χωρίς σημείωμα</span>}
+                        {last.joinedAt && !last.slot.note && <span className="badge">χωρίς σημείωμα</span>}
                       </>
                     ) : "—"}
                   </td>

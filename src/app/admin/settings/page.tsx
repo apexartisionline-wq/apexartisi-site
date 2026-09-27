@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/auth";
+import { prisma } from "@/lib/db";
 import { getSettings, saveSettings, settingsSchema } from "@/lib/settings";
 import { DAY_NAMES } from "@/lib/time";
 
@@ -18,8 +19,18 @@ async function save(formData: FormData) {
     dailyTextTime: g("dailyTextTime"),
     formsDays: formData.getAll("formsDays").map(Number),
     formsTime: g("formsTime"),
-    groupDays: formData.getAll("groupDays").map(Number),
-    groupTime: g("groupTime"),
+    // Ομάδες: γραμμές g0…gN (μέρα, ώρα, εναλλαγή συντονιστών ανά εβδομάδα)· κενή μέρα = διαγραφή.
+    groups: Array.from({ length: n("groupRows") }, (_, i) => ({
+      weekday: formData.get(`g${i}_day`) === "" ? -1 : Number(formData.get(`g${i}_day`)),
+      time: g(`g${i}_time`),
+      rotation: [0, 1, 2, 3].map((r) => g(`g${i}_r${r}`)).filter(Boolean),
+    })).filter((x) => x.weekday >= 0),
+    groupRotationAnchor: g("groupRotationAnchor"),
+    groupsPerCycle: n("groupsPerCycle"),
+    journalFormUrl: g("journalFormUrl"),
+    sessionDays: formData.getAll("sessionDays").map(Number),
+    pairMinutes: n("pairMinutes"),
+    changeRequestHours: n("changeRequestHours"),
     groupJoinBeforeMinutes: n("groupJoinBeforeMinutes"),
     groupDurationMinutes: n("groupDurationMinutes"),
     groupRoomUrl: g("groupRoomUrl"),
@@ -59,7 +70,12 @@ function F({ label, children }: { label: string; children: React.ReactNode }) {
 }
 
 export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ ok?: string; e?: string }> }) {
-  const [s, sp] = await Promise.all([getSettings(), searchParams]);
+  const [s, sp, staff] = await Promise.all([
+    getSettings(),
+    searchParams,
+    prisma.user.findMany({ where: { role: { in: ["THERAPIST", "ADMIN"] }, active: true }, orderBy: { name: "asc" } }),
+  ]);
+  const groupRows = [...s.groups, { weekday: -1, time: "21:00", rotation: [] as string[] }];
   return (
     <>
       <h1>Ρυθμίσεις</h1>
@@ -80,14 +96,54 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           <div className="grid2">
             <F label="Κείμενο της ημέρας"><input name="dailyTextTime" type="time" defaultValue={s.dailyTextTime} /></F>
             <F label="Φόρμες θεματικής — ώρα"><input name="formsTime" type="time" defaultValue={s.formsTime} /></F>
-            <F label="Ομάδα — ώρα"><input name="groupTime" type="time" defaultValue={s.groupTime} /></F>
             <F label="Ημερολόγιο ανάκαμψης"><input name="journalTime" type="time" defaultValue={s.journalTime} /></F>
             <F label="Ομάδα — ανοίγει λεπτά πριν"><input name="groupJoinBeforeMinutes" type="number" defaultValue={s.groupJoinBeforeMinutes} /></F>
             <F label="Ομάδα — διάρκεια (λεπτά)"><input name="groupDurationMinutes" type="number" defaultValue={s.groupDurationMinutes} /></F>
           </div>
           <F label="Φόρμες θεματικής — μέρες"><Days name="formsDays" value={s.formsDays} /></F>
-          <F label="Ομάδα — μέρες"><Days name="groupDays" value={s.groupDays} /></F>
           <F label="Δωμάτιο ομάδας (πάντα το ίδιο)"><input name="groupRoomUrl" type="url" defaultValue={s.groupRoomUrl} /></F>
+          <F label="Ημερολόγιο ανάκαμψης σε Google Form (αφήστε κενό για να γίνεται μέσα στο app· {code} = κωδικός μέλους)">
+            <input name="journalFormUrl" defaultValue={s.journalFormUrl} placeholder="https://docs.google.com/forms/…?entry.123={code}" />
+          </F>
+        </section>
+
+        <section className="card">
+          <h2 style={{ marginTop: 0 }}>Ομάδες και συντονιστές</h2>
+          <p className="muted small">
+            Μία γραμμή ανά ομάδα. Η εναλλαγή: η 1η εβδομάδα παίρνει τον 1ο συντονιστή, η 2η τον 2ο κ.ο.κ. (π.χ. Παρασκευή: Τζίνο, Χριστιάνα).
+            Για αλλαγή μίας μόνο μέρας (εκτός απροόπτου) χρησιμοποιήστε τη σελίδα «Ομάδες». Κενή μέρα = διαγραφή γραμμής.
+          </p>
+          <input type="hidden" name="groupRows" value={groupRows.length} />
+          <div className="table-wrap">
+            <table>
+              <thead><tr><th>Μέρα</th><th>Ώρα</th><th>Εβδ. 1</th><th>Εβδ. 2</th><th>Εβδ. 3</th><th>Εβδ. 4</th></tr></thead>
+              <tbody>
+                {groupRows.map((gr, i) => (
+                  <tr key={i}>
+                    <td>
+                      <select name={`g${i}_day`} defaultValue={gr.weekday >= 0 ? gr.weekday : ""}>
+                        <option value="">—</option>
+                        {[1, 2, 3, 4, 5, 6, 0].map((d) => <option key={d} value={d}>{DAY_NAMES[d]}</option>)}
+                      </select>
+                    </td>
+                    <td><input name={`g${i}_time`} type="time" defaultValue={gr.time} /></td>
+                    {[0, 1, 2, 3].map((r) => (
+                      <td key={r}>
+                        <select name={`g${i}_r${r}`} defaultValue={gr.rotation[r] ?? ""}>
+                          <option value="">—</option>
+                          {staff.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                        </select>
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="grid2">
+            <F label="Αρχή μέτρησης εναλλαγής (μια Δευτέρα)"><input name="groupRotationAnchor" type="date" defaultValue={s.groupRotationAnchor} /></F>
+            <F label="Ομάδες ανά κύκλο"><input name="groupsPerCycle" type="number" min={1} defaultValue={s.groupsPerCycle} /></F>
+          </div>
         </section>
 
         <section className="card">
@@ -105,7 +161,10 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
             <F label="Διάρκεια συνεδρίας (λεπτά)"><input name="sessionMinutes" type="number" min={1} defaultValue={s.sessionMinutes} /></F>
             <F label="Κουμπί ανοίγει λεπτά πριν"><input name="sessionJoinBeforeMinutes" type="number" min={0} defaultValue={s.sessionJoinBeforeMinutes} /></F>
             <F label="Ώρες ατομικών (π.χ. 10, 11, 12)"><input name="sessionHours" defaultValue={s.sessionHours.join(", ")} /></F>
+            <F label="Διάρκεια Therapair (λεπτά)"><input name="pairMinutes" type="number" min={1} defaultValue={s.pairMinutes} /></F>
+            <F label="Αιτήματα αλλαγής έως (ώρες πριν)"><input name="changeRequestHours" type="number" min={0} defaultValue={s.changeRequestHours} /></F>
           </div>
+          <F label="Μέρες ατομικών"><Days name="sessionDays" value={s.sessionDays} /></F>
           <div className="grid2">
             {s.rooms.map((r, i) => (
               <F key={i} label={`Δωμάτιο ${i + 1} (Zoom)`}><input name={`room${i + 1}`} type="url" defaultValue={r} /></F>

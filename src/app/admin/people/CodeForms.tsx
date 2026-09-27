@@ -43,7 +43,18 @@ export function CreatePersonForm() {
             <div className="field"><label>Έναρξη προγράμματος</label><input name="programStartDate" type="date" /></div>
           </>
         ) : (
-          <div className="field"><label>Telegram user ID (για «Το αναλαμβάνω»)</label><input name="telegramUserId" inputMode="numeric" /></div>
+          <>
+            <div className="field">
+              <label>Τύπος (για την εναλλαγή στις ατομικές)</label>
+              <select name="therapistKind" defaultValue="">
+                <option value="">— (δεν κάνει ατομικές)</option>
+                <option value="BIOMATIC">Βιωματικός σύμβουλος</option>
+                <option value="CLINICAL">Κλινικός ψυχολόγος</option>
+                <option value="BOTH">Και τα δύο</option>
+              </select>
+            </div>
+            <div className="field"><label>Telegram user ID (για «Το αναλαμβάνω»)</label><input name="telegramUserId" inputMode="numeric" /></div>
+          </>
         )}
       </div>
       <button className="primary" disabled={pending}>Δημιουργία και κωδικός</button>

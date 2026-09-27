@@ -2,9 +2,9 @@ import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { isAfter } from "@/lib/program";
+import { groupStarted, groupsOn } from "@/lib/program";
 import { getSettings } from "@/lib/settings";
-import { addDays, daysBetween, formatDate, localParts, weekdayOf } from "@/lib/time";
+import { addDays, daysBetween, formatDate, localParts } from "@/lib/time";
 
 // Η Εύα μπορεί να διορθώσει μια παρουσία (π.χ. μπήκε στην ομάδα χωρίς το κουμπί του app).
 async function toggleAttendance(formData: FormData) {
@@ -39,8 +39,8 @@ export async function Consistency({ weeks, basePath, canEdit }: { weeks: number;
   // Μέρες ομάδας στο διάστημα· η σημερινή μετράει μόνο αφού ξεκινήσει η ομάδα.
   const groupDates: string[] = [];
   for (let d = from; d <= today; d = addDays(d, 1)) {
-    if (!s.groupDays.includes(weekdayOf(d))) continue;
-    if (d === today && !isAfter(now, s.groupTime)) continue;
+    if (groupsOn(d, s).length === 0) continue;
+    if (d === today && !groupStarted(d, now, s)) continue;
     groupDates.push(d);
   }
 

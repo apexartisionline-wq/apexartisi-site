@@ -35,6 +35,7 @@ export default async function PersonPage({ params, searchParams }: { params: Pro
         <div className="grid2">
           <div className="field"><label>Ονοματεπώνυμο</label><input name="name" defaultValue={p.name} required /></div>
           <div className="field"><label>Όνομα χρήστη</label><input value={p.username} disabled /></div>
+          {isMember && <div className="field"><label>Κωδικός μέλους (για τα Google Forms)</label><input value={p.memberCode ?? "—"} disabled /></div>}
           {isMember ? (
             <>
               <div className="field">
@@ -50,7 +51,18 @@ export default async function PersonPage({ params, searchParams }: { params: Pro
               </div>
             </>
           ) : (
-            <div className="field"><label>Telegram user ID</label><input name="telegramUserId" defaultValue={p.telegramUserId ?? ""} /></div>
+            <>
+              <div className="field">
+                <label>Τύπος (εναλλαγή ατομικών)</label>
+                <select name="therapistKind" defaultValue={p.therapistKind ?? ""}>
+                  <option value="">— (δεν κάνει ατομικές)</option>
+                  <option value="BIOMATIC">Βιωματικός σύμβουλος</option>
+                  <option value="CLINICAL">Κλινικός ψυχολόγος</option>
+                  <option value="BOTH">Και τα δύο</option>
+                </select>
+              </div>
+              <div className="field"><label>Telegram user ID</label><input name="telegramUserId" defaultValue={p.telegramUserId ?? ""} /></div>
+            </>
           )}
           <label className="row" style={{ gap: 8 }}>
             <input type="checkbox" name="active" defaultChecked={p.active} style={{ width: "auto" }} /> Ενεργός λογαριασμός

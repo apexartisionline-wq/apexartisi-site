@@ -3,10 +3,13 @@ import { prisma } from "./db";
 import type { Settings } from "./settings";
 import { addDays, isAfterLocal, localParts } from "./time";
 
-/** Ο ανοιχτός κύκλος του μέλους και ο αριθμός κάθε συνεδρίας μέσα σε αυτόν. */
+/**
+ * Ο τρέχων κύκλος του μέλους (ο πιο πρόσφατος, ανοιχτός ή μόλις κλεισμένος) και
+ * ο αριθμός κάθε συνεδρίας μέσα σε αυτόν.
+ */
 export async function cycleInfo(memberId: string) {
   const cycle = await prisma.cycle.findFirst({
-    where: { memberId, closedAt: null },
+    where: { memberId },
     orderBy: { startedAt: "desc" },
     include: { bookings: { include: { slot: true }, orderBy: { slot: { startsAt: "asc" } } } },
   });
@@ -21,19 +24,34 @@ export async function cycleInfo(memberId: string) {
   return { cycle, length: cycle.length, done, booked: cycle.bookings.length, numbers, groups };
 }
 
+type Tx = Omit<typeof prisma, "$connect" | "$disconnect" | "$on" | "$transaction" | "$extends">;
+
 /**
- * Ο κύκλος στον οποίο μπαίνει μια νέα κράτηση. Όταν γεμίσει (8 ατομικές), ανοίγει
- * νέος μόνος του και μένει «εκκρεμεί τακτοποίηση» μέχρι να τον σημειώσει η Εύα.
+ * Ο κύκλος στον οποίο μπαίνει μια νέα κράτηση — καλείται μέσα στη συναλλαγή της κράτησης.
+ * Όταν ο κύκλος γεμίσει (8 ατομικές), κλείνει· η επόμενη κράτηση ανοίγει νέο κύκλο, που
+ * μένει «εκκρεμεί τακτοποίηση» μέχρι να τον σημειώσει η Εύα. Ο πρώτος κύκλος ενός μέλους
+ * θεωρείται τακτοποιημένος.
  */
-export async function cycleForNewBooking(memberId: string, s: Settings): Promise<string> {
-  const info = await cycleInfo(memberId);
-  if (info && info.booked < info.length) return info.cycle.id;
-  if (info) await prisma.cycle.update({ where: { id: info.cycle.id }, data: { closedAt: new Date() } });
-  const first = !info && (await prisma.cycle.count({ where: { memberId } })) === 0;
-  const c = await prisma.cycle.create({
-    data: { memberId, length: s.cycleLength, settledAt: first ? new Date() : null },
+export async function cycleForNewBooking(tx: Tx, memberId: string, s: Settings): Promise<string> {
+  const latest = await tx.cycle.findFirst({
+    where: { memberId },
+    orderBy: { startedAt: "desc" },
+    include: { _count: { select: { bookings: true } } },
+  });
+  if (latest && !latest.closedAt && latest._count.bookings < latest.length) return latest.id;
+  if (latest && !latest.closedAt) await tx.cycle.update({ where: { id: latest.id }, data: { closedAt: new Date() } });
+  const c = await tx.cycle.create({
+    data: { memberId, length: s.cycleLength, settledAt: latest ? null : new Date() },
   });
   return c.id;
+}
+
+/** Κλείνει τον κύκλο αν συμπληρώθηκε (καλείται μετά από νέα κράτηση). */
+export async function closeCycleIfFull(tx: Tx, cycleId: string): Promise<void> {
+  const c = await tx.cycle.findUnique({ where: { id: cycleId }, include: { _count: { select: { bookings: true } } } });
+  if (c && !c.closedAt && c._count.bookings >= c.length) {
+    await tx.cycle.update({ where: { id: cycleId }, data: { closedAt: new Date() } });
+  }
 }
 
 /** Η μέρα στην οποία ανήκει το ημερολόγιο ανάκαμψης: απόψε μετά τις 20:00, αλλιώς χθες. */

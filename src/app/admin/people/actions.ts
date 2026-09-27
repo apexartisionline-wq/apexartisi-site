@@ -8,6 +8,12 @@ import { generateCode, hashPassword, requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
 
+// Κωδικός μέλους για τα Google Forms (ψευδώνυμο, όχι όνομα): A-XXXXX χωρίς μπερδέματα.
+function memberCode(): string {
+  const a = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+  return "A-" + Array.from({ length: 5 }, () => a[Math.floor(Math.random() * a.length)]).join("");
+}
+
 export type CodeState = { code?: string; username?: string; error?: string } | null;
 
 const optionalDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).or(z.literal("")).transform((v) => v || null);
@@ -19,6 +25,7 @@ const personSchema = z.object({
   source: z.enum(["APEX", "AUTOGNOSIA_PLUS"]).optional(),
   programStartDate: optionalDate.optional(),
   telegramUserId: z.string().trim().optional().transform((v) => v || null),
+  therapistKind: z.enum(["BIOMATIC", "CLINICAL", "BOTH"]).or(z.literal("")).optional().transform((v) => v || null),
 });
 
 export async function createPerson(_: CodeState, formData: FormData): Promise<CodeState> {
@@ -37,6 +44,8 @@ export async function createPerson(_: CodeState, formData: FormData): Promise<Co
         source: d.role === "MEMBER" ? (d.source ?? "APEX") : null,
         programStartDate: d.role === "MEMBER" ? (d.programStartDate ?? null) : null,
         telegramUserId: d.role !== "MEMBER" ? d.telegramUserId : null,
+        therapistKind: d.role !== "MEMBER" ? d.therapistKind : null,
+        memberCode: d.role === "MEMBER" ? memberCode() : null,
       },
     });
   } catch (e) {
@@ -68,6 +77,7 @@ const updateSchema = z.object({
   programStartDate: optionalDate.optional(),
   telegramUserId: z.string().trim().optional().transform((v) => v || null),
   active: z.literal("on").optional(),
+  therapistKind: z.enum(["BIOMATIC", "CLINICAL", "BOTH"]).or(z.literal("")).optional(),
 });
 
 export async function updatePerson(formData: FormData) {
@@ -82,6 +92,7 @@ export async function updatePerson(formData: FormData) {
       ...(d.source ? { source: d.source } : {}),
       ...(d.programStartDate !== undefined ? { programStartDate: d.programStartDate } : {}),
       ...(formData.has("telegramUserId") ? { telegramUserId: d.telegramUserId } : {}),
+      ...(d.therapistKind !== undefined ? { therapistKind: d.therapistKind || null } : {}),
     },
   });
   if (!active) await prisma.session.deleteMany({ where: { userId: user.id } });
@@ -94,6 +105,7 @@ export async function newCycle(formData: FormData) {
   const memberId = String(formData.get("id"));
   const length = Number(formData.get("length")) || s.cycleLength;
   await prisma.cycle.updateMany({ where: { memberId, closedAt: null }, data: { closedAt: new Date() } });
-  await prisma.cycle.create({ data: { memberId, length } });
+  // Νέος κύκλος από την Εύα = ήδη τακτοποιημένος.
+  await prisma.cycle.create({ data: { memberId, length, settledAt: new Date() } });
   redirect(`/admin/people/${memberId}?ok=1`);
 }

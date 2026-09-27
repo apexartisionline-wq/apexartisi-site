@@ -130,6 +130,8 @@ model Slot {
   therapistId String?
   therapist   User?    @relation("TherapistSlots", fields: [therapistId], references: [id])
   bookings    Booking[]
+  // Therapair: η Εύα εγκρίνει το ζευγάρι πριν επιβεβαιωθεί.
+  pairApprovedAt DateTime?
   // Ένα σημείωμα ανά θέση: στο Therapair είναι κοινό για τα δύο μέλη.
   note        SessionNote?
 

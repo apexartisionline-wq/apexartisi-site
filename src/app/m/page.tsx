@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { withMemberCode } from "@/lib/forms";
 import { cycleInfo, isPublished, journalDate } from "@/lib/member";
-import { bookingWindow, groupJoinable, isAfter, programDay, sessionJoinable } from "@/lib/program";
+import { bookingWindow, canRequestChange, groupsOn, isAfter, joinableGroup, sessionJoinable, slotMinutes } from "@/lib/program";
 import { getSettings } from "@/lib/settings";
 import { formatDate, formatHour, formatTime, localParts } from "@/lib/time";
 
@@ -13,24 +14,32 @@ export default async function MemberHome() {
   const today = localParts(now);
   const window = bookingWindow(now, s);
 
-  const [cycle, contents, upcoming, journal, attended] = await Promise.all([
+  const [cycle, contents, upcoming, journal, attended, requests] = await Promise.all([
     cycleInfo(user.id),
     prisma.content.findMany({ where: { date: today.date }, orderBy: { title: "asc" } }),
     prisma.booking.findMany({
-      where: { memberId: user.id, slot: { startsAt: { gte: new Date(now.getTime() - s.sessionMinutes * 60_000) } } },
+      where: { memberId: user.id, slot: { startsAt: { gte: new Date(now.getTime() - s.pairMinutes * 60_000) } } },
       include: { slot: true },
       orderBy: { slot: { startsAt: "asc" } },
       take: 4,
     }),
-    prisma.journalEntry.findUnique({ where: { memberId_date: { memberId: user.id, date: journalDate(now, s) } } }),
+    s.journalFormUrl
+      ? Promise.resolve(null)
+      : prisma.journalEntry.findUnique({ where: { memberId_date: { memberId: user.id, date: journalDate(now, s) } } }),
     prisma.attendance.findUnique({ where: { memberId_date: { memberId: user.id, date: today.date } } }),
+    prisma.changeRequest.findMany({
+      where: { memberId: user.id, OR: [{ status: "PENDING" }, { handledAt: { gte: new Date(now.getTime() - 3 * 86_400_000) } }] },
+      orderBy: { createdAt: "desc" },
+    }),
   ]);
 
-  const day = programDay(user.programStartDate, today.date);
   const text = contents.find((c) => c.kind === "DAILY_TEXT" && isPublished(c.date, s.dailyTextTime, now));
   const forms = contents.filter((c) => c.kind === "FORM" && isPublished(c.date, s.formsTime, now));
-  const groupToday = s.groupDays.includes(today.weekday);
-  const journalOpen = isAfter(now, s.journalTime) || !journal;
+  const groupsToday = groupsOn(today.date, s);
+  const groupOpen = joinableGroup(now, s);
+  const journalOpen = isAfter(now, s.journalTime);
+  const pendingFor = new Set(requests.filter((r) => r.status === "PENDING").map((r) => r.bookingId));
+  const fresh = cycle && cycle.cycle.closedAt && cycle.booked >= cycle.length && cycle.done >= cycle.length;
 
   return (
     <main>
@@ -38,32 +47,48 @@ export default async function MemberHome() {
 
       <section className="card whereami" aria-label="Πού βρίσκομαι">
         <div>
-          <span className="muted small">Μέρα του προγράμματος</span>
-          <strong>{day ?? "—"}</strong>
+          <span className="muted small">Ατομικές</span>
+          <strong>{cycle ? `${Math.min(cycle.done, cycle.length)} από ${cycle.length}` : "—"}</strong>
         </div>
         <div>
-          <span className="muted small">Συνεδρίες στον κύκλο</span>
-          <strong>{cycle ? `${cycle.done} από ${cycle.length}` : "—"}</strong>
+          <span className="muted small">Ομάδες</span>
+          <strong>{cycle ? `${cycle.groups} από ${s.groupsPerCycle}` : "—"}</strong>
         </div>
       </section>
+      {fresh && <p className="muted small">Ο κύκλος σου ολοκληρώθηκε — ο επόμενος ξεκινά με το επόμενο ραντεβού σου.</p>}
+
+      {requests.filter((r) => r.status !== "PENDING").map((r) => (
+        <div className="notice" key={r.id}>
+          Απάντηση στο αίτημά σου: {r.status === "DONE" ? "έγινε ✓" : "δεν ήταν δυνατό"}{r.reply && ` — ${r.reply}`}
+        </div>
+      ))}
 
       {upcoming.map((b) => {
-        const joinable = sessionJoinable(b.slot.startsAt, now, s);
+        const minutes = slotMinutes(b.slot.kind, s);
+        const joinable = sessionJoinable(b.slot.startsAt, now, s, minutes);
+        const canAsk = canRequestChange(b.slot.startsAt, now, s) && !pendingFor.has(b.id);
         return (
           <section className="card" key={b.id}>
             <div className="row spread">
               <div>
-                <strong>Η συνεδρία σου</strong>
+                <strong>{b.slot.kind === "PAIR" ? "Το Therapair σου" : "Η συνεδρία σου"}</strong>
                 <div className="muted">
                   {formatDate(b.slot.date)} στις {formatHour(b.slot.hour)}
-                  {cycle?.numbers.get(b.id) && ` · συνεδρία ${cycle.numbers.get(b.id)} από ${cycle.length}`}
+                  {cycle?.numbers.get(b.id) && ` · ατομική ${cycle.numbers.get(b.id)} από ${cycle.length}`}
                 </div>
               </div>
               <form action={`/m/join/${b.id}`} method="post">
                 <button className="primary" disabled={!joinable}>Μπες στη συνεδρία σου</button>
               </form>
             </div>
-            {!joinable && <p className="muted small">Το κουμπί ανοίγει {s.sessionJoinBeforeMinutes} λεπτά πριν.</p>}
+            <div className="row spread small" style={{ marginTop: 8 }}>
+              <span className="muted">{!joinable && `Το κουμπί ανοίγει ${s.sessionJoinBeforeMinutes} λεπτά πριν.`}</span>
+              {pendingFor.has(b.id) ? (
+                <span className="badge">αίτημα αλλαγής: σε αναμονή</span>
+              ) : canAsk ? (
+                <Link href={`/m/request/${b.id}`}>Αίτημα αλλαγής ή ακύρωσης</Link>
+              ) : null}
+            </div>
           </section>
         );
       })}
@@ -91,7 +116,13 @@ export default async function MemberHome() {
           {forms.length ? (
             <ul>
               {forms.map((f) => (
-                <li key={f.id}><Link href={`/m/texts/${f.id}`}>{f.title}</Link></li>
+                <li key={f.id}>
+                  {f.url ? (
+                    <a href={withMemberCode(f.url, user.memberCode)} target="_blank" rel="noopener noreferrer">{f.title}</a>
+                  ) : (
+                    <Link href={`/m/texts/${f.id}`}>{f.title}</Link>
+                  )}
+                </li>
               ))}
             </ul>
           ) : (
@@ -100,15 +131,18 @@ export default async function MemberHome() {
         </section>
       )}
 
-      {groupToday && (
+      {groupsToday.length > 0 && (
         <section className="card">
           <div className="row spread">
             <div>
               <strong>Ομάδα</strong>
-              <div className="muted">Σήμερα στις {s.groupTime}{attended && " · μπήκες ✓"}</div>
+              <div className="muted">
+                Σήμερα στις {groupsToday.map((g) => g.time).join(", ")}
+                {attended && " · μπήκες ✓"}
+              </div>
             </div>
             <form action="/m/join/group" method="post">
-              <button className="primary" disabled={!groupJoinable(now, s)}>Μπες στην ομάδα</button>
+              <button className="primary" disabled={!groupOpen}>Μπες στην ομάδα</button>
             </form>
           </div>
         </section>
@@ -116,13 +150,17 @@ export default async function MemberHome() {
 
       <section className="card">
         <strong>Ημερολόγιο ανάκαμψης</strong>
-        {journal ? (
+        {s.journalFormUrl ? (
+          journalOpen ? (
+            <p><a className="btn primary" href={withMemberCode(s.journalFormUrl, user.memberCode)} target="_blank" rel="noopener noreferrer">Συμπλήρωσέ το</a></p>
+          ) : (
+            <p className="muted">Ανοίγει στις {s.journalTime}.</p>
+          )
+        ) : journal ? (
           <p className="muted">Το συμπλήρωσες ✓ <Link href="/m/journal">Άλλαξέ το</Link></p>
-        ) : journalOpen ? (
+        ) : journalOpen || !journal ? (
           <p><Link className="btn primary" href="/m/journal">Συμπλήρωσέ το</Link></p>
-        ) : (
-          <p className="muted">Ανοίγει στις {s.journalTime}.</p>
-        )}
+        ) : null}
       </section>
     </main>
   );

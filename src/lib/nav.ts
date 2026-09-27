@@ -7,6 +7,8 @@ export function navLinks(role: Role): { href: string; label: string }[] {
       { href: "/admin", label: "Σήμερα" },
       { href: "/admin/slots", label: "Θέσεις" },
       { href: "/admin/bookings", label: "Ραντεβού" },
+      { href: "/admin/requests", label: "Αιτήματα" },
+      { href: "/admin/groups", label: "Ομάδες" },
       { href: "/admin/consistency", label: "Συνέπεια" },
       { href: "/admin/people", label: "Άνθρωποι" },
       { href: "/admin/content", label: "Κείμενα" },
