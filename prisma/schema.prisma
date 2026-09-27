@@ -377,3 +377,48 @@ model AnnouncementAck {
   ackedAt        DateTime     @default(now())
   @@id([announcementId, userId])
 }
+
+enum LibraryKind {
+  PDF
+  AUDIO
+  VIDEO
+  LINK
+}
+
+// Κοινή βιβλιοθήκη (βίντεο, ήχος, PDF). Μόνο προβολή μέσα στο app.
+model LibraryItem {
+  id          String      @id @default(cuid())
+  kind        LibraryKind
+  title       String
+  description String      @default("")
+  mime        String?
+  data        Bytes? // το αρχείο (όχι για LINK)
+  size        Int         @default(0)
+  url         String? // μόνο για LINK (π.χ. βίντεο μεγάλο για τη βάση)
+  published   Boolean     @default(true)
+  createdById String
+  createdAt   DateTime    @default(now())
+  @@index([published, createdAt])
+}
+
+// Προσωπική βιβλιοθήκη: εργασία που δίνει ο θεραπευτής, απάντηση του μέλους με κείμενο ή φωτογραφίες.
+model Assignment {
+  id           String            @id @default(cuid())
+  memberId     String
+  title        String
+  instructions String            @default("")
+  createdById  String
+  createdAt    DateTime          @default(now())
+  answer       String            @default("") // κρυπτογραφημένο
+  answeredAt   DateTime?
+  photos       AssignmentPhoto[]
+  @@index([memberId, createdAt])
+}
+
+model AssignmentPhoto {
+  id           String     @id @default(cuid())
+  assignmentId String
+  assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  data         Bytes // JPEG χωρίς EXIF, κρυπτογραφημένο
+  createdAt    DateTime   @default(now())
+}

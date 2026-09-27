@@ -107,3 +107,12 @@ nav.top img { height: 28px; }
   100% { transform: scale(.6); }
 }
 .body-text { white-space: pre-wrap; }
+
+/* Βιβλιοθήκη: το κωδικό του μέλους πάνω στην προβολή. */
+.watermarked { position: relative; }
+.watermarked::after {
+  content: attr(data-mark);
+  position: absolute; top: 8px; right: 8px;
+  font-size: 0.75rem; opacity: 0.55; pointer-events: none;
+  background: var(--bg, #fff); padding: 2px 6px; border-radius: 4px;
+}

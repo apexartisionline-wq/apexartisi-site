@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { logAccess } from "@/lib/audit";
+import { MemberAssignments } from "@/components/MemberAssignments";
 import { MemberSessions } from "@/components/MemberSessions";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
@@ -33,6 +34,8 @@ export default async function TherapistMemberPage({ params }: { params: Promise<
       <p className="small"><Link href={`/t/members/${id}/safety`}>Πλάνο ασφάλειας</Link>{member.phone && <> · Τηλ. <a href={`tel:${member.phone}`}>{member.phone}</a></>}</p>
       <h2>Ατομικές και σημειώματα</h2>
       <MemberSessions memberId={id} />
+      <h2>Εργασίες</h2>
+      <MemberAssignments memberId={id} />
     </main>
   );
 }
