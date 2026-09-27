@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { dec, enc } from "@/lib/crypto";
 import { notFound, redirect } from "next/navigation";
 import { logAccess } from "@/lib/audit";
 import { requireRole } from "@/lib/auth";
@@ -54,7 +55,7 @@ export default async function HelpRequestPage({ params, searchParams }: { params
       {req.talkedAt ? (
         <div className="card">
           <strong>Μίλησαν</strong> · {req.claimedByName} · {fmt(req.talkedAt)}
-          <div className="body-text">{req.outcome}</div>
+          <div className="body-text">{dec(req.outcome)}</div>
         </div>
       ) : !req.claimedAt ? (
         <form action={doClaim} className="card">

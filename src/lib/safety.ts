@@ -1,4 +1,5 @@
 import "server-only";
+import { dec, enc } from "./crypto";
 import { z } from "zod";
 import { prisma } from "./db";
 
@@ -16,15 +17,18 @@ export type PlanData = Partial<Record<(typeof PLAN_FIELDS)[number]["key"], strin
 
 export async function getPlan(memberId: string): Promise<PlanData | null> {
   const row = await prisma.safetyPlan.findUnique({ where: { memberId } });
-  return (row?.data as PlanData) ?? null;
+  if (!row) return null;
+  const d = row.data as { enc?: string } & PlanData;
+  return d.enc !== undefined ? (JSON.parse(dec(d.enc)) as PlanData) : d;
 }
 
 export async function savePlan(memberId: string, formData: FormData, byId: string): Promise<void> {
   const data: PlanData = {};
   for (const f of PLAN_FIELDS) data[f.key] = z.string().max(3000).parse(String(formData.get(f.key) ?? "")).trim();
+  const stored = { enc: enc(JSON.stringify(data)) };
   await prisma.safetyPlan.upsert({
     where: { memberId },
-    create: { memberId, data, updatedById: byId },
-    update: { data, updatedById: byId },
+    create: { memberId, data: stored, updatedById: byId },
+    update: { data: stored, updatedById: byId },
   });
 }

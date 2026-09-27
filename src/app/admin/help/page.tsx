@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { dec, enc } from "@/lib/crypto";
 import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
@@ -43,7 +44,7 @@ export default async function HelpLog({ searchParams }: { searchParams: Promise<
                 <td>{h.claimedByName ?? <span className="badge red">κανείς</span>}</td>
                 <td>{mins(h.createdAt, h.claimedAt)}</td>
                 <td>{mins(h.createdAt, h.talkedAt)}</td>
-                <td className="small">{h.outcome}</td>
+                <td className="small">{dec(h.outcome)}</td>
               </tr>
             ))}
             {items.length === 0 && <tr><td colSpan={7} className="muted">Κανένα.</td></tr>}

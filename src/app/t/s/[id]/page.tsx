@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { dec, enc } from "@/lib/crypto";
 import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
 import { logAccess } from "@/lib/audit";
@@ -32,8 +33,8 @@ async function saveNote(formData: FormData) {
   if (!x || !canWrite(x, user)) notFound();
   await prisma.sessionNote.upsert({
     where: { slotId: id },
-    create: { slotId: id, therapistId: user.id, content },
-    update: { content },
+    create: { slotId: id, therapistId: user.id, content: enc(content) },
+    update: { content: enc(content) },
   });
   redirect(`/t/s/${id}?saved=1`);
 }
@@ -95,7 +96,7 @@ export default async function SessionPage({
                 {formatDate(n.slot.date)} · {n.therapist.name}
                 {n.slot.kind === "PAIR" && " · Therapair"}
               </div>
-              <div className="body-text">{n.content}</div>
+              <div className="body-text">{dec(n.content)}</div>
             </div>
           ))}
         </section>
@@ -105,11 +106,11 @@ export default async function SessionPage({
       {pair && <p className="muted small">Φαίνεται στους φακέλους και των δύο μελών.</p>}
       {sp.saved && <div className="notice">Αποθηκεύτηκε ✓</div>}
       {!canWrite(x, user) ? (
-        x.note ? <div className="card body-text">{x.note.content}</div> : <p className="muted">Δεν έχει γραφτεί σημείωμα ακόμα.</p>
+        x.note ? <div className="card body-text">{dec(x.note.content)}</div> : <p className="muted">Δεν έχει γραφτεί σημείωμα ακόμα.</p>
       ) : past && x.bookings.length > 0 ? (
         <form action={saveNote} className="card">
           <input type="hidden" name="slotId" value={x.id} />
-          <textarea name="content" defaultValue={x.note?.content} required style={{ minHeight: 240 }} />
+          <textarea name="content" defaultValue={dec(x.note?.content)} required style={{ minHeight: 240 }} />
           <div className="row spread" style={{ marginTop: 12 }}>
             <span className="muted small">
               {x.note && `Τελευταία αλλαγή ${x.note.updatedAt.toLocaleString("el-GR", { timeZone: "Europe/Athens" })} · ${x.note.therapist.name}`}

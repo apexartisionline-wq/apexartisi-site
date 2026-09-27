@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { dec, enc } from "@/lib/crypto";
 import { logAccess } from "@/lib/audit";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
@@ -110,7 +111,7 @@ export default async function PersonPage({ params, searchParams }: { params: Pro
                     <td>{j.sleepHours}</td>
                     <td>{j.selfHarm === "YES" || j.selfHarm === "UNSURE" ? <span className="badge red">{SELF_HARM[j.selfHarm]}</span> : SELF_HARM[j.selfHarm]}</td>
                     <td>{j.used ? <span className="badge red">ναι</span> : "όχι"}</td>
-                    <td className="small">{j.note}</td>
+                    <td className="small">{dec(j.note)}</td>
                   </tr>
                 ))}
                 {journal.length === 0 && <tr><td colSpan={8} className="muted">Καμία εγγραφή.</td></tr>}

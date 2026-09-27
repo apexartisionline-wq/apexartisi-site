@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { dec, enc } from "@/lib/crypto";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireRole } from "@/lib/auth";
@@ -26,8 +27,8 @@ async function save(formData: FormData) {
   const data = schema.parse(Object.fromEntries(formData));
   await prisma.journalEntry.upsert({
     where: { memberId_date: { memberId: user.id, date } },
-    create: { memberId: user.id, date, ...data },
-    update: data,
+    create: { memberId: user.id, date, ...data, note: enc(data.note) },
+    update: { ...data, note: enc(data.note) },
   });
   const concern = data.used || data.selfHarm === "YES" || data.selfHarm === "UNSURE";
   redirect(`/m/journal?saved=${concern ? "care" : "1"}`);
@@ -99,7 +100,7 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
         </fieldset>
         <div className="field">
           <label htmlFor="note"><strong>Κάτι που θέλεις να γράψεις</strong> (προαιρετικό)</label>
-          <textarea id="note" name="note" defaultValue={entry?.note} />
+          <textarea id="note" name="note" defaultValue={dec(entry?.note)} />
         </div>
         <button className="primary big" type="submit">Αποθήκευση</button>
       </form>

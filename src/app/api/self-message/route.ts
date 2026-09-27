@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { currentUser } from "@/lib/auth";
+import { decryptBytes, encryptBytes } from "@/lib/crypto";
 import { prisma } from "@/lib/db";
 
 const MAX_BYTES = 8 * 1024 * 1024;
@@ -10,7 +11,7 @@ export async function GET() {
   if (!user || user.role !== "MEMBER") return new NextResponse(null, { status: 401 });
   const row = await prisma.user.findUnique({ where: { id: user.id }, select: { selfMessage: true, selfMessageType: true } });
   if (!row?.selfMessage) return new NextResponse(null, { status: 404 });
-  return new NextResponse(row.selfMessage, {
+  return new NextResponse(new Uint8Array(decryptBytes(Buffer.from(row.selfMessage))), {
     headers: { "content-type": row.selfMessageType ?? "audio/webm", "cache-control": "private, no-store" },
   });
 }
@@ -22,6 +23,6 @@ export async function POST(req: Request) {
   if (!type.startsWith("audio/")) return NextResponse.json({ error: "Μόνο ήχος." }, { status: 400 });
   const buf = Buffer.from(await req.arrayBuffer());
   if (buf.length === 0 || buf.length > MAX_BYTES) return NextResponse.json({ error: "Πολύ μεγάλο αρχείο." }, { status: 400 });
-  await prisma.user.update({ where: { id: user.id }, data: { selfMessage: buf, selfMessageType: type } });
+  await prisma.user.update({ where: { id: user.id }, data: { selfMessage: new Uint8Array(encryptBytes(buf)), selfMessageType: type } });
   return NextResponse.json({ ok: true });
 }

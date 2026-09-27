@@ -1,4 +1,5 @@
 import "server-only";
+import { enc } from "./crypto";
 import { prisma } from "./db";
 import { notifyRole, notifyUsers } from "./notify";
 import { helpState, shortName } from "./program";
@@ -94,7 +95,7 @@ export async function claim(requestId: string, userId: string): Promise<{ ok: bo
 export async function markTalked(requestId: string, userId: string, outcome: string): Promise<void> {
   const req = await prisma.helpRequest.findUnique({ where: { id: requestId } });
   if (!req || req.talkedAt) return;
-  await prisma.helpRequest.update({ where: { id: requestId }, data: { talkedAt: new Date(), outcome: outcome.slice(0, 2000), resolvedAt: new Date(), ...(req.claimedAt ? {} : { claimedAt: new Date(), claimedById: userId }) } });
+  await prisma.helpRequest.update({ where: { id: requestId }, data: { talkedAt: new Date(), outcome: enc(outcome.slice(0, 2000)), resolvedAt: new Date(), ...(req.claimedAt ? {} : { claimedAt: new Date(), claimedById: userId }) } });
   if (!req.isDrill) {
     const now = Date.now();
     await prisma.careTask.createMany({

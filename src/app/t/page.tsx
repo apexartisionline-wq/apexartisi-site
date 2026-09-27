@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { dec, enc } from "@/lib/crypto";
 import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
@@ -11,7 +12,7 @@ async function careDone(formData: FormData) {
   const user = await requireRole("THERAPIST", "ADMIN");
   await prisma.careTask.update({
     where: { id: String(formData.get("id")) },
-    data: { doneAt: new Date(), doneById: user.id, note: String(formData.get("note") ?? "").slice(0, 500) },
+    data: { doneAt: new Date(), doneById: user.id, note: enc(String(formData.get("note") ?? "").slice(0, 500)) },
   });
   redirect("/t");
 }

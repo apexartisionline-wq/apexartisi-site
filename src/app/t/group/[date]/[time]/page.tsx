@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { dec, enc } from "@/lib/crypto";
 import { notFound, redirect } from "next/navigation";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
@@ -35,14 +36,14 @@ async function save(formData: FormData) {
     prisma.groupSession.update({
       where: { id: session.id },
       data: {
-        theme: String(formData.get("theme") ?? "").trim().slice(0, 2000),
-        atmosphere: String(formData.get("atmosphere") ?? "").trim().slice(0, 2000),
+        theme: enc(String(formData.get("theme") ?? "").trim().slice(0, 2000)),
+        atmosphere: enc(String(formData.get("atmosphere") ?? "").trim().slice(0, 2000)),
         noteById: user.id,
         noteAt: new Date(),
       },
     }),
     prisma.groupMention.deleteMany({ where: { groupSessionId: session.id } }),
-    prisma.groupMention.createMany({ data: mentions.map((m) => ({ ...m, groupSessionId: session.id })) }),
+    prisma.groupMention.createMany({ data: mentions.map((m) => ({ ...m, text: enc(m.text), groupSessionId: session.id })) }),
   ]);
   redirect(`/t/group/${date}/${time.replace(":", "")}?saved=1`);
 }
@@ -92,11 +93,11 @@ export default async function GroupNotePage({
           <input type="hidden" name="time" value={key.time} />
           <div className="field">
             <label htmlFor="theme"><strong>Θέμα</strong> — τι δουλέψαμε</label>
-            <textarea id="theme" name="theme" defaultValue={session?.theme} style={{ minHeight: 80 }} />
+            <textarea id="theme" name="theme" defaultValue={dec(session?.theme)} style={{ minHeight: 80 }} />
           </div>
           <div className="field">
             <label htmlFor="atmosphere"><strong>Ατμόσφαιρα</strong> — πώς ήταν η ομάδα</label>
-            <textarea id="atmosphere" name="atmosphere" defaultValue={session?.atmosphere} style={{ minHeight: 80 }} />
+            <textarea id="atmosphere" name="atmosphere" defaultValue={dec(session?.atmosphere)} style={{ minHeight: 80 }} />
           </div>
           <label><strong>Προσοχή σε…</strong> — μία γραμμή για όποιο μέλος χρειάζεται (φαίνεται στον φάκελό του)</label>
           {Array.from({ length: MENTION_ROWS }, (_, i) => (
@@ -105,18 +106,18 @@ export default async function GroupNotePage({
                 <option value="">—</option>
                 {members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
               </select>
-              <input name={`t${i}`} defaultValue={mentions[i]?.text ?? ""} placeholder="π.χ. μίλησε για υποτροπή" />
+              <input name={`t${i}`} defaultValue={dec(mentions[i]?.text)} placeholder="π.χ. μίλησε για υποτροπή" />
             </div>
           ))}
           <button className="primary" type="submit">Αποθήκευση</button>
         </form>
       ) : session?.noteAt ? (
         <div className="card stack">
-          <div><strong>Θέμα</strong><div className="body-text">{session.theme || "—"}</div></div>
-          <div><strong>Ατμόσφαιρα</strong><div className="body-text">{session.atmosphere || "—"}</div></div>
+          <div><strong>Θέμα</strong><div className="body-text">{dec(session.theme) || "—"}</div></div>
+          <div><strong>Ατμόσφαιρα</strong><div className="body-text">{dec(session.atmosphere) || "—"}</div></div>
           {mentions.length > 0 && (
             <div><strong>Προσοχή σε</strong>
-              <ul>{mentions.map((m) => <li key={m.id}>{m.member.name}: {m.text}</li>)}</ul>
+              <ul>{mentions.map((m) => <li key={m.id}>{m.member.name}: {dec(m.text)}</li>)}</ul>
             </div>
           )}
         </div>
