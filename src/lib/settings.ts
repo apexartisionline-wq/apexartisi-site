@@ -45,6 +45,8 @@ export const settingsSchema = z.object({
   helpEscalateMinutes: z.number().int().min(1),
   helpTalkMinutes: z.number().int().min(1), // μετά την ανάληψη, ως πότε δηλώνεται «μιλήσαμε»
   helpMaxAlerts: z.number().int().min(1),
+  // Αποχή: τόσες μέρες χωρίς ομάδα, ημερολόγιο ή κράτηση → τηλεφώνημα από όποιον θεραπευτή το δει.
+  dropoutDays: z.number().int().min(1),
   // Γραμμές βοήθειας, ορατές από την αρχή στο κόκκινο κουμπί και στη σελίδα σύνδεσης.
   helplines: z.array(z.object({ label: z.string(), number: z.string() })),
   helplineText: z.string(),
@@ -88,6 +90,7 @@ export const DEFAULT_SETTINGS: Settings = {
   helpEscalateMinutes: 10,
   helpTalkMinutes: 5,
   helpMaxAlerts: 6,
+  dropoutDays: 3,
   // Να επιβεβαιωθούν από την Εύα πριν τη δοκιμή.
   helplines: [
     { label: "Έκτακτη ανάγκη", number: "112" },

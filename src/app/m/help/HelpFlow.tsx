@@ -9,7 +9,17 @@ type Line = { label: string; number: string };
 // Κόκκινο κουμπί. «Το πατάς και τελείωσε»: το «Θέλω άνθρωπο» και οι γραμμές βοήθειας
 // είναι ορατά από την πρώτη στιγμή. Μετά: το πλάνο ασφάλειας, το μήνυμα από τον εαυτό
 // σου (χωρίς αυτόματη αναπαραγωγή) και η αναπνοή.
-export function HelpFlow({ hasSelfMessage, helplines, plan }: { hasSelfMessage: boolean; helplines: Line[]; plan: ReactNode }) {
+export function HelpFlow({
+  hasSelfMessage,
+  helplines,
+  plan,
+  autoAsk = false,
+}: {
+  hasSelfMessage: boolean;
+  helplines: Line[];
+  plan: ReactNode;
+  autoAsk?: boolean;
+}) {
   const [requestId, setRequestId] = useState<string | null>(null);
   const [status, setStatus] = useState<Status | null>(null);
   const [sending, setSending] = useState(false);
@@ -18,6 +28,9 @@ export function HelpFlow({ hasSelfMessage, helplines, plan }: { hasSelfMessage: 
 
   useEffect(() => {
     fetch("/api/help/open", { method: "POST" }).catch(() => undefined);
+    // Από το ημερολόγιο: το μέλος απάντησε ήδη «Ναι, να με πάρει κάποιος».
+    if (autoAsk) askHuman();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function askHuman() {

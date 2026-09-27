@@ -63,9 +63,14 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
       <p className="muted">{formatDate(date)}</p>
       {sp.saved === "1" && <div className="notice">Αποθηκεύτηκε ✓</div>}
       {sp.saved === "care" && (
-        <div className="notice">
-          Αποθηκεύτηκε. Ευχαριστούμε που το έγραψες. Αν θέλεις κάποιον τώρα, πάτα το{" "}
-          <Link href="/m/help">κόκκινο κουμπί</Link>.
+        <div className="card" style={{ borderColor: "var(--red)" }}>
+          <p style={{ marginTop: 0 }}>Αποθηκεύτηκε. Ευχαριστούμε που το έγραψες ειλικρινά.</p>
+          <p><strong>Θέλεις να σε πάρει κάποιος από την ομάδα τώρα;</strong></p>
+          <div className="stack">
+            <Link className="btn red" href="/m/help?ask=1">Ναι, να με πάρει κάποιος</Link>
+            <Link className="btn" href="/m">Όχι τώρα</Link>
+          </div>
+          <p className="muted small">Η απάντησή σου στο ημερολόγιο δεν ειδοποιεί κανέναν από μόνη της. Αν αλλάξεις γνώμη, το κόκκινο κουμπί είναι πάντα εδώ.</p>
         </div>
       )}
       <form action={save} className="card">

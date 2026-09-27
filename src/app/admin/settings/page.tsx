@@ -47,6 +47,7 @@ async function save(formData: FormData) {
     helpEscalateMinutes: n("helpEscalateMinutes"),
     helpTalkMinutes: n("helpTalkMinutes"),
     helpMaxAlerts: n("helpMaxAlerts"),
+    dropoutDays: n("dropoutDays"),
     requireStaff2FA: formData.get("requireStaff2FA") === "on",
     helplines: [0, 1, 2, 3, 4, 5]
       .map((i) => ({ label: g(`hl${i}_label`).trim(), number: g(`hl${i}_number`).trim() }))
@@ -186,6 +187,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           <div className="grid2">
             <F label="Μετά την ανάληψη, «μιλήσαμε» μέσα σε (λεπτά)"><input name="helpTalkMinutes" type="number" min={1} defaultValue={s.helpTalkMinutes} /></F>
             <F label="Μέγιστες επαναλήψεις ειδοποίησης"><input name="helpMaxAlerts" type="number" min={1} defaultValue={s.helpMaxAlerts} /></F>
+            <F label="Ειδοποίηση αποχής μετά από (μέρες χωρίς ομάδα, ημερολόγιο ή κράτηση)"><input name="dropoutDays" type="number" min={1} defaultValue={s.dropoutDays} /></F>
           </div>
           <label><strong>Γραμμές βοήθειας</strong> (φαίνονται από την αρχή στο κόκκινο κουμπί και στη σύνδεση — να επιβεβαιωθούν)</label>
           {[0, 1, 2, 3, 4, 5].map((i) => (

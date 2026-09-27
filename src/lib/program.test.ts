@@ -5,6 +5,8 @@ import {
   bookingWindow,
   canBook,
   canRequestChange,
+  dropoutSince,
+  isDropout,
   groupJoinable,
   helpNeedsEscalation,
   helpState,
@@ -114,5 +116,18 @@ describe("program", () => {
     expect(helpNeedsEscalation(req, new Date(t0.getTime() + 9 * 60_000), S)).toBe(false);
     expect(helpNeedsEscalation(req, new Date(t0.getTime() + 10 * 60_000), S)).toBe(true);
     expect(helpNeedsEscalation({ ...req, claimedAt: t0, talkedAt: t0 }, new Date(t0.getTime() + 60 * 60_000), S)).toBe(false);
+  });
+
+  it("flags a member with no contact for 3 days, once", () => {
+    const now = at("2026-10-10", 10);
+    const since = dropoutSince(now, 3);
+    const base = { programStartDate: "2026-09-01", today: "2026-10-10", days: 3, since, openTask: false, recentTask: false };
+    expect(isDropout({ ...base, lastContact: at("2026-10-07", 9) })).toBe(true);
+    expect(isDropout({ ...base, lastContact: at("2026-10-07", 11) })).toBe(false);
+    expect(isDropout({ ...base, lastContact: null })).toBe(true);
+    expect(isDropout({ ...base, lastContact: null, openTask: true })).toBe(false);
+    expect(isDropout({ ...base, lastContact: null, recentTask: true })).toBe(false);
+    expect(isDropout({ ...base, lastContact: null, programStartDate: "2026-10-08" })).toBe(false); // μόλις ξεκίνησε
+    expect(isDropout({ ...base, lastContact: null, programStartDate: null })).toBe(false);
   });
 });

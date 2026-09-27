@@ -199,3 +199,23 @@ export function shortName(full: string): string {
   if (parts.length < 2) return parts[0] ?? "";
   return `${parts[0]} ${parts[parts.length - 1].charAt(0)}.`;
 }
+
+/** Πότε ξεκινά το «παράθυρο» αποχής: `days` μέρες πίσω από τώρα. */
+export function dropoutSince(now: Date, days: number): Date {
+  return new Date(now.getTime() - days * 24 * 3600_000);
+}
+
+/** Το μέλος χρειάζεται τηλεφώνημα αν έχει ξεκινήσει πριν από το παράθυρο και δεν υπάρχει καμία επαφή μέσα σε αυτό. */
+export function isDropout(input: {
+  programStartDate: string | null;
+  today: string;
+  days: number;
+  lastContact: Date | null;
+  since: Date;
+  openTask: boolean;
+  recentTask: boolean;
+}): boolean {
+  if (!input.programStartDate || input.programStartDate > addDays(input.today, -input.days)) return false;
+  if (input.openTask || input.recentTask) return false;
+  return !input.lastContact || input.lastContact < input.since;
+}
