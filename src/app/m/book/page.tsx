@@ -37,7 +37,7 @@ async function undo(formData: FormData) {
     where: { id: String(formData.get("id")), memberId: user.id },
     include: { slot: true },
   });
-  if (!w.open || !b || b.slot.date < w.weekStart || b.slot.date > w.weekEnd) redirect("/m/book");
+  if (!w.open || !b || b.slot.startsAt <= new Date() || b.slot.date < w.weekStart || b.slot.date > w.weekEnd) redirect("/m/book");
   await cancelBooking(b.id);
   revalidatePath("/m");
   redirect("/m/book?undone=1");
@@ -89,7 +89,7 @@ export default async function BookPage({
               {formatDate(b.slot.date)} στις {formatHour(b.slot.hour)} · {KINDS[b.slot.kind]}
               {cycle?.numbers.get(b.id) && <span className="muted"> · ατομική {cycle.numbers.get(b.id)} από {cycle.length}</span>}
             </span>
-            {w.open && (
+            {w.open && b.slot.startsAt > now && (
               <form action={undo}>
                 <input type="hidden" name="id" value={b.id} />
                 <button type="submit" style={{ padding: "6px 10px" }}>Αναίρεση</button>
