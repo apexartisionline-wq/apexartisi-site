@@ -49,6 +49,8 @@ async function save(formData: FormData) {
     helpMaxAlerts: n("helpMaxAlerts"),
     dropoutDays: n("dropoutDays"),
     requireStaff2FA: formData.get("requireStaff2FA") === "on",
+    requireIntake: formData.get("requireIntake") === "on",
+    consentVersion: g("consentVersion").trim() || "σχέδιο",
     helplines: [0, 1, 2, 3, 4, 5]
       .map((i) => ({ label: g(`hl${i}_label`).trim(), number: g(`hl${i}_number`).trim() }))
       .filter((l) => l.number),
@@ -207,6 +209,13 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
             <input type="checkbox" name="requireStaff2FA" defaultChecked={s.requireStaff2FA} style={{ width: "auto" }} />
             Υποχρεωτικός δεύτερος κωδικός (2FA) για όλο το προσωπικό
           </label>
+          <label className="row" style={{ gap: 8 }}>
+            <input type="checkbox" name="requireIntake" defaultChecked={s.requireIntake} style={{ width: "auto" }} />
+            Το μέλος μπαίνει στο app μόνο μετά την ολοκλήρωση της έναρξης συνεργασίας
+          </label>
+          <F label="Έκδοση εγγράφων συγκατάθεσης (γράφεται σε κάθε συγκατάθεση)">
+            <input name="consentVersion" defaultValue={s.consentVersion} />
+          </F>
         </section>
 
         <button className="primary big" type="submit">Αποθήκευση</button>

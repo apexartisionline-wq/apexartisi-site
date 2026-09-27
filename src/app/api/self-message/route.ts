@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { currentUser } from "@/lib/auth";
 import { decryptBytes, encryptBytes } from "@/lib/crypto";
 import { prisma } from "@/lib/db";
+import { hasConsent } from "@/lib/intake";
 
 const MAX_BYTES = 8 * 1024 * 1024;
 
@@ -19,6 +20,7 @@ export async function GET() {
 export async function POST(req: Request) {
   const user = await currentUser();
   if (!user || user.role !== "MEMBER") return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  if (!(await hasConsent(user.id, "self_message"))) return NextResponse.json({ error: "Χρειάζεται συγκατάθεση." }, { status: 403 });
   const type = (req.headers.get("content-type") ?? "").split(";")[0];
   if (!type.startsWith("audio/")) return NextResponse.json({ error: "Μόνο ήχος." }, { status: 400 });
   const buf = Buffer.from(await req.arrayBuffer());

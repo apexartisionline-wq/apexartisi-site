@@ -4,6 +4,7 @@ import { prisma } from "./db";
 import { notifyRole, notifyUsers } from "./notify";
 import { helpState, shortName } from "./program";
 import { getSettings } from "./settings";
+import { hasConsent } from "./intake";
 import { markClaimed, sendHelpAlert, telegramConfigured } from "./telegram";
 import { addDays, localParts } from "./time";
 
@@ -30,7 +31,10 @@ export async function sendAlert(requestId: string): Promise<void> {
   if (!req) return;
   const who = req.isDrill ? "Δοκιμαστικό μέλος" : shortName(req.member.name);
   const repeat = req.notifyCount;
-  let failed = !telegramConfigured();
+  // Χωρίς συγκατάθεση για Telegram (01β·4) η ειδοποίηση πηγαίνει μόνο μέσα από το app·
+  // μετράει όπως μια αποτυχία Telegram, ώστε το μέλος να βλέπει αμέσως τις γραμμές βοήθειας.
+  const telegramOk = req.isDrill || (await hasConsent(req.memberId, "telegram"));
+  let failed = !telegramConfigured() || !telegramOk;
   let ids = (req.telegramMessageIds as number[]) ?? [];
   if (!failed) {
     try {

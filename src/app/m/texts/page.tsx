@@ -1,12 +1,12 @@
 import Link from "next/link";
-import { requireRole } from "@/lib/auth";
+import { requireMember } from "@/lib/intake";
 import { prisma } from "@/lib/db";
 import { isPublished } from "@/lib/member";
 import { getSettings } from "@/lib/settings";
 import { addDays, formatDate, localParts } from "@/lib/time";
 
 export default async function TextsPage() {
-  await requireRole("MEMBER");
+  await requireMember();
   const s = await getSettings();
   const now = new Date();
   const today = localParts(now).date;

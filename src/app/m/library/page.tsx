@@ -1,12 +1,12 @@
 import Link from "next/link";
-import { requireRole } from "@/lib/auth";
+import { requireMember } from "@/lib/intake";
 import { prisma } from "@/lib/db";
 import { formatDate, localParts } from "@/lib/time";
 
 const KIND = { PDF: "PDF", AUDIO: "Ήχος", VIDEO: "Βίντεο", LINK: "Βίντεο" } as const;
 
 export default async function MemberLibrary() {
-  const user = await requireRole("MEMBER");
+  const user = await requireMember();
   const [mine, shared] = await Promise.all([
     prisma.assignment.findMany({ where: { memberId: user.id }, orderBy: { createdAt: "desc" }, select: { id: true, title: true, createdAt: true, answeredAt: true } }),
     prisma.libraryItem.findMany({ where: { published: true }, orderBy: { createdAt: "desc" }, select: { id: true, kind: true, title: true, description: true } }),

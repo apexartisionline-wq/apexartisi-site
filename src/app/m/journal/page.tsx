@@ -2,7 +2,7 @@ import Link from "next/link";
 import { dec, enc } from "@/lib/crypto";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { requireRole } from "@/lib/auth";
+import { hasConsent, requireMember } from "@/lib/intake";
 import { prisma } from "@/lib/db";
 import { journalDate } from "@/lib/member";
 import { getSettings } from "@/lib/settings";
@@ -21,7 +21,8 @@ const schema = z.object({
 
 async function save(formData: FormData) {
   "use server";
-  const user = await requireRole("MEMBER");
+  const user = await requireMember();
+  if (!(await hasConsent(user.id, "journal"))) redirect("/m/journal");
   const s = await getSettings();
   const date = journalDate(new Date(), s);
   const data = schema.parse(Object.fromEntries(formData));
@@ -52,9 +53,17 @@ function Scale({ name, label, low, high, value }: { name: string; label: string;
 }
 
 export default async function JournalPage({ searchParams }: { searchParams: Promise<{ saved?: string }> }) {
-  const user = await requireRole("MEMBER");
+  const user = await requireMember();
   const [s, sp] = await Promise.all([getSettings(), searchParams]);
   const date = journalDate(new Date(), s);
+  if (!(await hasConsent(user.id, "journal"))) {
+    return (
+      <main>
+        <h1>Ημερολόγιο ανάκαμψης</h1>
+        <p>Το ημερολόγιο δεν είναι ενεργό για σένα, γιατί δεν έχεις δώσει συγκατάθεση γι' αυτό. Αν το θέλεις, μίλα με την ομάδα.</p>
+      </main>
+    );
+  }
   const entry = await prisma.journalEntry.findUnique({ where: { memberId_date: { memberId: user.id, date } } });
 
   return (

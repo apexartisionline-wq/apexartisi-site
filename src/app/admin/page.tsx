@@ -1,3 +1,4 @@
+import { memberIntake } from "@/lib/intake";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/auth";
@@ -39,6 +40,11 @@ export default async function AdminToday() {
     prisma.slot.count({ where: { date: { gte: today, lte: addDays(today, 7) }, therapistId: null } }),
   ]);
 
+  // Μέλη χωρίς ολοκληρωμένη έναρξη συνεργασίας (λίστα 01–04).
+  const activeMembers = await prisma.user.findMany({ where: { role: "MEMBER", active: true }, select: { id: true, name: true, source: true } });
+  const intakes = await Promise.all(activeMembers.map(async (m) => ({ m, status: (await memberIntake(m)).status })));
+  const intakePending = intakes.filter((x) => !x.status.complete);
+
   const todo = [
     requests && { href: "/admin/requests", text: `${requests} αιτήματα αλλαγής ραντεβού` },
     flags && { href: "/admin/bookings", text: `${flags} ραντεβού θέλουν έλεγχο εναλλαγής βιωματικού/κλινικού` },
@@ -67,11 +73,17 @@ export default async function AdminToday() {
 
       <section className="card">
         <strong>Εκκρεμότητες</strong>
-        {todo.length === 0 && unsettled.length === 0 ? (
+        {todo.length === 0 && unsettled.length === 0 && intakePending.length === 0 ? (
           <p className="muted">Τίποτα δεν περιμένει ✓</p>
         ) : (
           <ul>
             {todo.map((t) => <li key={t.text}><Link href={t.href}>{t.text}</Link></li>)}
+            {intakePending.map(({ m, status }) => (
+              <li key={`intake-${m.id}`}>
+                Έναρξη συνεργασίας: <Link href={`/t/members/${m.id}/start`}>{m.name}</Link>{" "}
+                <span className="small muted">(λείπουν {[...status.missingSteps.map((x) => x.doc), ...status.missingConsents.map((x) => x.doc)].join(", ")})</span>
+              </li>
+            ))}
             {unsettled.map((c) => (
               <li key={c.id} className="row" style={{ gap: 8 }}>
                 <span>Νέος κύκλος — εκκρεμεί τακτοποίηση: <Link href={`/admin/people/${c.member.id}`}>{c.member.name}</Link> (από {formatDate(localParts(c.startedAt).date)})</span>

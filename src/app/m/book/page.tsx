@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requireRole } from "@/lib/auth";
+import { requireMember } from "@/lib/intake";
 import { bookHour, cancelBooking, openHours } from "@/lib/booking";
 import { prisma } from "@/lib/db";
 import { cycleInfo } from "@/lib/member";
@@ -15,7 +15,7 @@ const isKind = (k: unknown): k is K => k === "INDIVIDUAL" || k === "PAIR";
 
 async function book(formData: FormData) {
   "use server";
-  const user = await requireRole("MEMBER");
+  const user = await requireMember();
   const kind = String(formData.get("kind"));
   const res = await bookHour({
     memberId: user.id,
@@ -30,7 +30,7 @@ async function book(formData: FormData) {
 // Αναίρεση: μόνο όσο είναι ανοιχτές οι κρατήσεις και μόνο για ραντεβού αυτής της εβδομάδας.
 async function undo(formData: FormData) {
   "use server";
-  const user = await requireRole("MEMBER");
+  const user = await requireMember();
   const s = await getSettings();
   const w = bookingWindow(new Date(), s);
   const b = await prisma.booking.findFirst({
@@ -48,7 +48,7 @@ export default async function BookPage({
 }: {
   searchParams: Promise<{ ok?: string; e?: string; undone?: string; c?: string }>;
 }) {
-  const user = await requireRole("MEMBER");
+  const user = await requireMember();
   const [s, sp] = await Promise.all([getSettings(), searchParams]);
   const now = new Date();
   const w = bookingWindow(now, s);

@@ -9,6 +9,8 @@ import { PushToggle } from "@/components/PushToggle";
 import { vapidPublicKey } from "@/lib/push";
 import { MEMBER_PREFS, type Prefs } from "@/lib/schedule";
 import { newSecret, qrFor, verifyTotp } from "@/lib/totp";
+import { memberConsents } from "@/lib/intake";
+import { CHOICE_LABEL, PURPOSES } from "@/lib/intake-rules";
 
 const ROLE = { MEMBER: "Μέλος", THERAPIST: "Θεραπευτής", ADMIN: "Διαχείριση" } as const;
 
@@ -42,6 +44,18 @@ async function savePrefs(formData: FormData) {
   redirect("/account?okp=1");
 }
 
+// Ανάκληση προαιρετικής συγκατάθεσης από το ίδιο το μέλος (01β, Μέρος Δ).
+async function withdraw(formData: FormData) {
+  "use server";
+  const user = await requireRole("MEMBER");
+  const purpose = PURPOSES.find((p) => p.key === String(formData.get("purpose")));
+  if (!purpose || purpose.required || !purpose.choices.includes("NO")) redirect("/account");
+  const s = await getSettings();
+  await prisma.consent.create({ data: { memberId: user.id, purpose: purpose.key, choice: "NO", version: s.consentVersion, recordedById: user.id } });
+  if (purpose.key === "self_message") await prisma.user.update({ where: { id: user.id }, data: { selfMessage: null, selfMessageType: null } });
+  redirect("/account?okc=1");
+}
+
 async function start2fa() {
   "use server";
   const user = await requireRole("THERAPIST", "ADMIN");
@@ -65,11 +79,12 @@ const ERRORS: Record<string, string> = {
   otp: "Ο 6ψήφιος κωδικός δεν ταιριάζει. Δοκίμασε ξανά.",
 };
 
-export default async function AccountPage({ searchParams }: { searchParams: Promise<{ ok?: string; e?: string; setup2fa?: string; ok2fa?: string; okp?: string }> }) {
+export default async function AccountPage({ searchParams }: { searchParams: Promise<{ ok?: string; e?: string; setup2fa?: string; ok2fa?: string; okp?: string; okc?: string }> }) {
   const user = await requireRole("MEMBER", "THERAPIST", "ADMIN");
   const sp = await searchParams;
   const staff = user.role !== "MEMBER";
   const s = await getSettings();
+  const consents = staff ? {} : await memberConsents(user.id);
   const qr = staff && !user.totpEnabled && user.totpSecret ? await qrFor(user.totpSecret, user.username, s.appName) : null;
   return (
     <>
@@ -135,6 +150,28 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
           <div className="field"><label htmlFor="again">Ξανά ο νέος κωδικός</label><input id="again" name="again" type="password" autoComplete="new-password" minLength={8} required /></div>
           <button className="primary" type="submit">Αλλαγή</button>
         </form>
+        {!staff && Object.keys(consents).length > 0 && (
+          <>
+            <h2>Οι συγκαταθέσεις μου</h2>
+            <div className="card stack">
+              {sp.okc && <div className="notice">Η συγκατάθεση ανακλήθηκε ✓</div>}
+              {PURPOSES.filter((p) => consents[p.key]).map((p) => (
+                <div key={p.key} className="row spread">
+                  <span>{p.label}: <strong>{CHOICE_LABEL[consents[p.key]]}</strong></span>
+                  {!p.required && consents[p.key] === "YES" && p.choices.includes("NO") && (
+                    <form action={withdraw}>
+                      <input type="hidden" name="purpose" value={p.key} />
+                      <button type="submit" style={{ padding: "4px 8px" }}>Ανάκληση</button>
+                    </form>
+                  )}
+                </div>
+              ))}
+              <p className="muted small">
+                Για να πεις «ναι» σε κάτι που είχες πει «όχι», ή για τα απαραίτητα, μίλα με την ομάδα. Η ανάκληση ισχύει από τώρα και μετά.
+              </p>
+            </div>
+          </>
+        )}
         <h2>Συσκευές</h2>
         <form action={signOutAll} className="card row spread">
           <span>Αν χάθηκε ή δόθηκε το κινητό σου, αποσυνδέσου από όλες τις συσκευές.</span>

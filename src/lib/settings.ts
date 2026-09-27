@@ -42,6 +42,9 @@ export const settingsSchema = z.object({
   rooms: z.array(z.string()).length(4),
   changeRequestHours: z.number().int().min(0),
   requireStaff2FA: z.boolean(),
+  // Η λίστα έναρξης συνεργασίας «κλειδώνει» το app του μέλους μέχρι να ολοκληρωθεί.
+  requireIntake: z.boolean(),
+  consentVersion: z.string().min(1),
   helpEscalateMinutes: z.number().int().min(1),
   helpTalkMinutes: z.number().int().min(1), // μετά την ανάληψη, ως πότε δηλώνεται «μιλήσαμε»
   helpMaxAlerts: z.number().int().min(1),
@@ -87,6 +90,8 @@ export const DEFAULT_SETTINGS: Settings = {
   rooms: ["", "", "", ""],
   changeRequestHours: 12,
   requireStaff2FA: true,
+  requireIntake: true,
+  consentVersion: "σχέδιο 2026-09",
   helpEscalateMinutes: 10,
   helpTalkMinutes: 5,
   helpMaxAlerts: 6,

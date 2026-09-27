@@ -422,3 +422,27 @@ model AssignmentPhoto {
   data         Bytes // JPEG χωρίς EXIF, κρυπτογραφημένο
   createdAt    DateTime   @default(now())
 }
+
+// Λίστα έναρξης συνεργασίας (docs/clinical, README): κάθε βήμα σημειώνεται από επαγγελματία.
+model IntakeCheck {
+  memberId String
+  key      String // online_consent | agreement | assessment | risk | safety_plan | autognosia_summary
+  value    String? // π.χ. επίπεδο κινδύνου
+  note     String   @default("") // κρυπτογραφημένο
+  doneAt   DateTime @default(now())
+  doneById String
+  @@id([memberId, key])
+}
+
+// Συγκαταθέσεις ανά σκοπό (01β, 01δ). Μόνο προσθήκες: κάθε αλλαγή είναι νέα γραμμή· ισχύει η τελευταία.
+model Consent {
+  id           String   @id @default(cuid())
+  memberId     String
+  purpose      String
+  choice       String // YES | NO | NA | LATER
+  detail       String   @default("") // κρυπτογραφημένο (π.χ. επαφή έκτακτης ανάγκης)
+  version      String
+  recordedById String
+  recordedAt   DateTime @default(now())
+  @@index([memberId, purpose, recordedAt])
+}

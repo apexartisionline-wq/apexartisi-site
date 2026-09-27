@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { requireRole } from "@/lib/auth";
+import { requireMember } from "@/lib/intake";
 import { dec, enc } from "@/lib/crypto";
 import { prisma } from "@/lib/db";
 import { PHOTOS_PER_ASSIGNMENT } from "@/lib/library";
@@ -15,7 +15,7 @@ const ERR: Record<string, string> = {
 
 async function saveAnswer(formData: FormData) {
   "use server";
-  const user = await requireRole("MEMBER");
+  const user = await requireMember();
   const id = String(formData.get("id"));
   const answer = String(formData.get("answer") ?? "").slice(0, 20000);
   const a = await prisma.assignment.findFirst({ where: { id, memberId: user.id } });
@@ -26,7 +26,7 @@ async function saveAnswer(formData: FormData) {
 }
 
 export default async function AssignmentPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ ok?: string; e?: string }> }) {
-  const user = await requireRole("MEMBER");
+  const user = await requireMember();
   const [{ id }, sp] = await Promise.all([params, searchParams]);
   const a = await prisma.assignment.findFirst({
     where: { id, memberId: user.id },

@@ -1,6 +1,6 @@
 import { Announcements } from "@/components/Announcements";
 import Link from "next/link";
-import { requireRole } from "@/lib/auth";
+import { memberConsents, requireMember } from "@/lib/intake";
 import { prisma } from "@/lib/db";
 import { withMemberCode } from "@/lib/forms";
 import { cycleInfo, isPublished, journalDate } from "@/lib/member";
@@ -9,13 +9,13 @@ import { getSettings } from "@/lib/settings";
 import { formatDate, formatHour, formatTime, localParts } from "@/lib/time";
 
 export default async function MemberHome() {
-  const user = await requireRole("MEMBER");
+  const user = await requireMember();
   const s = await getSettings();
   const now = new Date();
   const today = localParts(now);
   const window = bookingWindow(now, s);
 
-  const [cycle, contents, upcoming, journal, attended, requests] = await Promise.all([
+  const [cycle, contents, upcoming, journal, attended, requests, consents] = await Promise.all([
     cycleInfo(user.id),
     prisma.content.findMany({ where: { date: today.date }, orderBy: { title: "asc" } }),
     prisma.booking.findMany({
@@ -32,6 +32,7 @@ export default async function MemberHome() {
       where: { memberId: user.id, OR: [{ status: "PENDING" }, { handledAt: { gte: new Date(now.getTime() - 3 * 86_400_000) } }] },
       orderBy: { createdAt: "desc" },
     }),
+    memberConsents(user.id),
   ]);
 
   const text = contents.find((c) => c.kind === "DAILY_TEXT" && isPublished(c.date, s.dailyTextTime, now));
@@ -120,7 +121,7 @@ export default async function MemberHome() {
             <ul>
               {forms.map((f) => (
                 <li key={f.id}>
-                  {f.url ? (
+                  {f.url && consents.forms === "YES" ? (
                     <a href={withMemberCode(f.url, user.memberCode)} target="_blank" rel="noopener noreferrer">{f.title}</a>
                   ) : (
                     <Link href={`/m/texts/${f.id}`}>{f.title}</Link>
@@ -151,6 +152,7 @@ export default async function MemberHome() {
         </section>
       )}
 
+      {consents.journal === "YES" && (
       <section className="card">
         <strong>Ημερολόγιο ανάκαμψης</strong>
         {s.journalFormUrl ? (
@@ -165,6 +167,7 @@ export default async function MemberHome() {
           <p><Link className="btn primary" href="/m/journal">Συμπλήρωσέ το</Link></p>
         ) : null}
       </section>
+      )}
     </main>
   );
 }

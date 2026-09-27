@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
-import { requireRole } from "@/lib/auth";
+import { requireMember } from "@/lib/intake";
 import { prisma } from "@/lib/db";
 import { notifyRole } from "@/lib/notify";
 import { canRequestChange } from "@/lib/program";
@@ -14,7 +14,7 @@ async function load(id: string, memberId: string) {
 // Αίτημα αλλαγής/ακύρωσης: το μέλος το στέλνει έως 12 ώρες πριν· το εκτελεί η Εύα.
 async function send(formData: FormData) {
   "use server";
-  const user = await requireRole("MEMBER");
+  const user = await requireMember();
   const s = await getSettings();
   const id = String(formData.get("id"));
   const b = await load(id, user.id);
@@ -30,7 +30,7 @@ async function send(formData: FormData) {
 }
 
 export default async function RequestPage({ params }: { params: Promise<{ id: string }> }) {
-  const user = await requireRole("MEMBER");
+  const user = await requireMember();
   const { id } = await params;
   const [b, s] = await Promise.all([load(id, user.id), getSettings()]);
   if (!b) notFound();
