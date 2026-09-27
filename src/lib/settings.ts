@@ -41,6 +41,7 @@ export const settingsSchema = z.object({
   sessionJoinBeforeMinutes: z.number().int().min(0),
   rooms: z.array(z.string()).length(4),
   changeRequestHours: z.number().int().min(0),
+  requireStaff2FA: z.boolean(),
   helpEscalateMinutes: z.number().int().min(1),
   helpTalkMinutes: z.number().int().min(1), // μετά την ανάληψη, ως πότε δηλώνεται «μιλήσαμε»
   helpMaxAlerts: z.number().int().min(1),
@@ -83,6 +84,7 @@ export const DEFAULT_SETTINGS: Settings = {
   sessionJoinBeforeMinutes: 10,
   rooms: ["", "", "", ""],
   changeRequestHours: 12,
+  requireStaff2FA: true,
   helpEscalateMinutes: 10,
   helpTalkMinutes: 5,
   helpMaxAlerts: 6,

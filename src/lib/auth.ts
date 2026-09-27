@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { Role, User } from "@prisma/client";
 import { prisma } from "./db";
+import { verifyTotp } from "./totp";
 
 const COOKIE = "apex_session";
 // Τα μέλη μένουν συνδεδεμένα στο κινητό (το κόκκινο κουμπί «δεν χρειάζεται κωδικό»)·
@@ -40,7 +41,7 @@ export function generateCode(): string {
   return Array.from(bytes, (b) => alphabet[b % alphabet.length]).join("");
 }
 
-export async function login(username: string, code: string, ip = "unknown"): Promise<User | null> {
+export async function login(username: string, code: string, ip = "unknown", otp = ""): Promise<User | null | "otp"> {
   if (ipLimited(ip)) return null;
   const user = await prisma.user.findUnique({ where: { username: username.trim().toLowerCase() } });
   if (!user || !user.active) {
@@ -65,6 +66,11 @@ export async function login(username: string, code: string, ip = "unknown"): Pro
       });
     }
     return null;
+  }
+  // Προσωπικό με δεύτερο παράγοντα: χρειάζεται και ο 6ψήφιος κωδικός.
+  if (staff && user.totpEnabled && !verifyTotp(user.totpSecret, otp)) {
+    if (otp) ipFailed(ip);
+    return "otp";
   }
   await prisma.user.update({ where: { id: user.id }, data: { failedLogins: 0, lockedUntil: null } });
 
@@ -99,6 +105,13 @@ export async function currentUser(): Promise<User | null> {
 /** Αποσύνδεση από όλες τις συσκευές. */
 export async function logoutEverywhere(userId: string): Promise<void> {
   await prisma.session.deleteMany({ where: { userId } });
+}
+
+/** Για το προσωπικό: αν απαιτείται δεύτερος παράγοντας και δεν έχει ρυθμιστεί, πρώτα αυτό. */
+export async function requireStaff2FA(user: User): Promise<void> {
+  if (user.role === "MEMBER" || user.totpEnabled) return;
+  const { getSettings } = await import("./settings");
+  if ((await getSettings()).requireStaff2FA) redirect("/account?setup2fa=1");
 }
 
 /** Καθένας βλέπει μόνο όσα του αναλογούν. */

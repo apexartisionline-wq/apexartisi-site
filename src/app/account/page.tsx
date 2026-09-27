@@ -4,6 +4,11 @@ import { Nav } from "@/components/Nav";
 import { hashPassword, logoutEverywhere, requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { navLinks } from "@/lib/nav";
+import { getSettings } from "@/lib/settings";
+import { PushToggle } from "@/components/PushToggle";
+import { vapidPublicKey } from "@/lib/push";
+import { MEMBER_PREFS, type Prefs } from "@/lib/schedule";
+import { newSecret, qrFor, verifyTotp } from "@/lib/totp";
 
 const ROLE = { MEMBER: "Μέλος", THERAPIST: "Θεραπευτής", ADMIN: "Διαχείριση" } as const;
 
@@ -28,15 +33,44 @@ async function signOutAll() {
   redirect("/login");
 }
 
+async function savePrefs(formData: FormData) {
+  "use server";
+  const user = await requireRole("MEMBER");
+  const prefs: Prefs = {};
+  for (const p of MEMBER_PREFS) prefs[p.key] = formData.get(p.key) === "on";
+  await prisma.user.update({ where: { id: user.id }, data: { notifyPrefs: prefs } });
+  redirect("/account?okp=1");
+}
+
+async function start2fa() {
+  "use server";
+  const user = await requireRole("THERAPIST", "ADMIN");
+  if (user.totpEnabled) redirect("/account");
+  await prisma.user.update({ where: { id: user.id }, data: { totpSecret: newSecret().stored } });
+  redirect("/account?setup2fa=1");
+}
+
+async function confirm2fa(formData: FormData) {
+  "use server";
+  const user = await requireRole("THERAPIST", "ADMIN");
+  if (!verifyTotp(user.totpSecret, String(formData.get("otp") ?? ""))) redirect("/account?setup2fa=1&e=otp");
+  await prisma.user.update({ where: { id: user.id }, data: { totpEnabled: true } });
+  redirect("/account?ok2fa=1");
+}
+
 const ERRORS: Record<string, string> = {
   current: "Ο τωρινός κωδικός δεν είναι σωστός.",
   short: "Ο νέος κωδικός θέλει τουλάχιστον 8 χαρακτήρες.",
   match: "Οι δύο νέοι κωδικοί δεν είναι ίδιοι.",
+  otp: "Ο 6ψήφιος κωδικός δεν ταιριάζει. Δοκίμασε ξανά.",
 };
 
-export default async function AccountPage({ searchParams }: { searchParams: Promise<{ ok?: string; e?: string }> }) {
+export default async function AccountPage({ searchParams }: { searchParams: Promise<{ ok?: string; e?: string; setup2fa?: string; ok2fa?: string; okp?: string }> }) {
   const user = await requireRole("MEMBER", "THERAPIST", "ADMIN");
   const sp = await searchParams;
+  const staff = user.role !== "MEMBER";
+  const s = await getSettings();
+  const qr = staff && !user.totpEnabled && user.totpSecret ? await qrFor(user.totpSecret, user.username, s.appName) : null;
   return (
     <>
       <Nav links={navLinks(user.role)} />
@@ -46,6 +80,52 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
           <div>{user.name}</div>
           <div className="muted small">@{user.username} · {ROLE[user.role]}</div>
         </div>
+        <h2>Ειδοποιήσεις</h2>
+        <div className="card stack">
+          <PushToggle vapidKey={vapidPublicKey()} />
+          {!staff && (
+            <form action={savePrefs} className="stack">
+              {sp.okp && <div className="notice">Αποθηκεύτηκε ✓</div>}
+              {MEMBER_PREFS.map((p) => (
+                <label key={p.key} className="row" style={{ gap: 8 }}>
+                  <input type="checkbox" name={p.key} defaultChecked={(user.notifyPrefs as Prefs)?.[p.key] !== false} style={{ width: "auto" }} /> {p.label}
+                </label>
+              ))}
+              <p className="muted small">Οι ειδοποιήσεις δεν λένε ποτέ τι αφορούν. Τίποτα μετά τις 22:00.</p>
+              <button type="submit">Αποθήκευση</button>
+            </form>
+          )}
+          {staff && <p className="muted small">Το κόκκινο κουμπί έρχεται ως ειδοποίηση σε όλο το προσωπικό. Όποιος εφημερεύει, να επιτρέψει στο κινητό να περνά από το αθόρυβο.</p>}
+        </div>
+
+        {staff && (
+          <>
+            <h2>Δεύτερος κωδικός (επαλήθευση σε δύο βήματα)</h2>
+            {sp.ok2fa && <div className="notice">Ενεργοποιήθηκε ✓</div>}
+            {user.totpEnabled ? (
+              <div className="card">Ενεργός ✓ Στη σύνδεση θα ζητείται και ο 6ψήφιος κωδικός από την εφαρμογή σου.</div>
+            ) : (
+              <div className="card stack">
+                {sp.setup2fa && !qr && <div className="error">Για το προσωπικό απαιτείται δεύτερος κωδικός πριν ανοίξουν οι φάκελοι.</div>}
+                <p className="small">
+                  Βλέπεις δεδομένα υγείας, γι' αυτό χρειάζεται και δεύτερος κωδικός από εφαρμογή επαλήθευσης στο κινητό
+                  (π.χ. Google Authenticator, Microsoft Authenticator, 1Password).
+                </p>
+                {!qr ? (
+                  <form action={start2fa}><button className="primary" type="submit">Ξεκίνα τη ρύθμιση</button></form>
+                ) : (
+                  <form action={confirm2fa} className="stack">
+                    <p className="small">1. Σκάναρε τον κωδικό με την εφαρμογή (ή γράψε: <code>{qr.plain}</code>).</p>
+                    <img src={qr.dataUrl} alt="Κωδικός QR για την εφαρμογή επαλήθευσης" width={220} height={220} />
+                    <label htmlFor="otp">2. Γράψε τον 6ψήφιο κωδικό που δείχνει η εφαρμογή</label>
+                    <input id="otp" name="otp" inputMode="numeric" pattern="\d{6}" required autoComplete="one-time-code" />
+                    <button className="primary" type="submit">Ενεργοποίηση</button>
+                  </form>
+                )}
+              </div>
+            )}
+          </>
+        )}
         <h2>Αλλαγή κωδικού</h2>
         {sp.ok && <div className="notice">Ο κωδικός άλλαξε ✓</div>}
         {sp.e && ERRORS[sp.e] && <div className="error">{ERRORS[sp.e]}</div>}

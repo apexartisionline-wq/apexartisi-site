@@ -45,6 +45,12 @@ async function save(formData: FormData) {
     sessionJoinBeforeMinutes: n("sessionJoinBeforeMinutes"),
     rooms: [1, 2, 3, 4].map((i) => g(`room${i}`)),
     helpEscalateMinutes: n("helpEscalateMinutes"),
+    helpTalkMinutes: n("helpTalkMinutes"),
+    helpMaxAlerts: n("helpMaxAlerts"),
+    requireStaff2FA: formData.get("requireStaff2FA") === "on",
+    helplines: [0, 1, 2, 3, 4, 5]
+      .map((i) => ({ label: g(`hl${i}_label`).trim(), number: g(`hl${i}_number`).trim() }))
+      .filter((l) => l.number),
     helplineText: g("helplineText"),
   });
   if (!parsed.success) redirect(`/admin/settings?e=${encodeURIComponent(parsed.error.issues.map((i) => i.path.join(".")).join(", "))}`);
@@ -177,9 +183,28 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           <F label="Αν δεν το αναλάβει κανείς, ξαναστέλνεται μετά από (λεπτά)">
             <input name="helpEscalateMinutes" type="number" min={1} defaultValue={s.helpEscalateMinutes} />
           </F>
+          <div className="grid2">
+            <F label="Μετά την ανάληψη, «μιλήσαμε» μέσα σε (λεπτά)"><input name="helpTalkMinutes" type="number" min={1} defaultValue={s.helpTalkMinutes} /></F>
+            <F label="Μέγιστες επαναλήψεις ειδοποίησης"><input name="helpMaxAlerts" type="number" min={1} defaultValue={s.helpMaxAlerts} /></F>
+          </div>
+          <label><strong>Γραμμές βοήθειας</strong> (φαίνονται από την αρχή στο κόκκινο κουμπί και στη σύνδεση — να επιβεβαιωθούν)</label>
+          {[0, 1, 2, 3, 4, 5].map((i) => (
+            <div className="row" key={i} style={{ marginBottom: 6, flexWrap: "nowrap" }}>
+              <input name={`hl${i}_number`} defaultValue={s.helplines[i]?.number ?? ""} placeholder="αριθμός" style={{ width: 110 }} />
+              <input name={`hl${i}_label`} defaultValue={s.helplines[i]?.label ?? ""} placeholder="περιγραφή" />
+            </div>
+          ))}
           <F label="Κείμενο γραμμής βοήθειας (εμφανίζεται μαζί με το 112)">
             <textarea name="helplineText" defaultValue={s.helplineText} style={{ minHeight: 80 }} />
           </F>
+        </section>
+
+        <section className="card">
+          <h2 style={{ marginTop: 0 }}>Ασφάλεια</h2>
+          <label className="row" style={{ gap: 8 }}>
+            <input type="checkbox" name="requireStaff2FA" defaultChecked={s.requireStaff2FA} style={{ width: "auto" }} />
+            Υποχρεωτικός δεύτερος κωδικός (2FA) για όλο το προσωπικό
+          </label>
         </section>
 
         <button className="primary big" type="submit">Αποθήκευση</button>
