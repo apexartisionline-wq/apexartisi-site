@@ -14,6 +14,7 @@ export default async function HelpPage({ searchParams }: { searchParams: Promise
         autoAsk={sp.ask === "1"}
         hasSelfMessage={Boolean(user.selfMessageType)}
         helplines={s.helplines}
+        crisisNotice={s.crisisNotice}
         plan={hasPlan ? <SafetyPlanView plan={plan} /> : null}
       />
     </main>

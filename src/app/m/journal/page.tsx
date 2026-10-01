@@ -82,6 +82,7 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
           <p className="muted small">Η απάντησή σου στο ημερολόγιο δεν ειδοποιεί κανέναν από μόνη της. Αν αλλάξεις γνώμη, το κόκκινο κουμπί είναι πάντα εδώ.</p>
         </div>
       )}
+      <p className="small muted">{s.crisisNotice}</p>
       <form action={save} className="card">
         <Scale name="mood" label="Διάθεση" low="πολύ άσχημα" high="πολύ καλά" value={entry?.mood} />
         <Scale name="confidence" label="Σιγουριά για αύριο" low="καθόλου" high="απόλυτα" value={entry?.confidence} />

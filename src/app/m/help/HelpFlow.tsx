@@ -12,11 +12,13 @@ type Line = { label: string; number: string };
 export function HelpFlow({
   hasSelfMessage,
   helplines,
+  crisisNotice,
   plan,
   autoAsk = false,
 }: {
   hasSelfMessage: boolean;
   helplines: Line[];
+  crisisNotice: string;
   plan: ReactNode;
   autoAsk?: boolean;
 }) {
@@ -72,7 +74,7 @@ export function HelpFlow({
           </a>
         ))}
       </div>
-      <p className="muted small" style={{ marginTop: 8 }}>Η ομάδα μας δεν είναι υπηρεσία έκτακτης ανάγκης.</p>
+      <p className="muted small" style={{ marginTop: 8 }}>{crisisNotice}</p>
     </div>
   );
 

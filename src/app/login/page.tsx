@@ -56,6 +56,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
             <a key={l.number} className={`btn${l.number === "112" ? " red" : ""}`} href={`tel:${l.number}`}>{l.number} · {l.label}</a>
           ))}
         </div>
+        <p className="muted small" style={{ marginTop: 8 }}>{s.crisisNotice}</p>
       </div>
     </main>
   );

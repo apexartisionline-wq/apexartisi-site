@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { getSettings, saveSettings, settingsSchema } from "@/lib/settings";
+import { DEFAULT_SETTINGS, getSettings, saveSettings, settingsSchema } from "@/lib/settings";
 import { DAY_NAMES } from "@/lib/time";
 
 const numList = (v: FormDataEntryValue | null) =>
@@ -55,6 +55,7 @@ async function save(formData: FormData) {
       .map((i) => ({ label: g(`hl${i}_label`).trim(), number: g(`hl${i}_number`).trim() }))
       .filter((l) => l.number),
     helplineText: g("helplineText"),
+    crisisNotice: g("crisisNotice").trim() || DEFAULT_SETTINGS.crisisNotice,
   });
   if (!parsed.success) redirect(`/admin/settings?e=${encodeURIComponent(parsed.error.issues.map((i) => i.path.join(".")).join(", "))}`);
   await saveSettings(parsed.data);
@@ -200,6 +201,9 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           ))}
           <F label="Κείμενο γραμμής βοήθειας (εμφανίζεται μαζί με το 112)">
             <textarea name="helplineText" defaultValue={s.helplineText} style={{ minHeight: 80 }} />
+          </F>
+          <F label="Επισήμανση για κρίσεις (ημερολόγιο, κόκκινο κουμπί, σύνδεση) — κείμενο του νομικού συμβούλου">
+            <textarea name="crisisNotice" defaultValue={s.crisisNotice} style={{ minHeight: 80 }} />
           </F>
         </section>
 
