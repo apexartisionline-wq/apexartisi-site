@@ -2,7 +2,9 @@
 // Τα δεδομένα είναι δεδομένα υγείας: η βάση πρέπει να φιλοξενείται στην ΕΕ.
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  // rhel-openssl-3.0.x: για τις functions του Netlify (Amazon Linux).
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
