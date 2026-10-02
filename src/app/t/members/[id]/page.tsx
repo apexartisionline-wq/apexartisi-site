@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { logAccess } from "@/lib/audit";
+import { RecentGoals } from "@/components/GoalWeek";
 import { MemberAssignments } from "@/components/MemberAssignments";
 import { MemberSessions } from "@/components/MemberSessions";
 import { SafetyZone } from "@/components/SafetyZone";
@@ -107,6 +108,8 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
           </span>
         </Link>
       </div>
+      <h2>Στόχοι εβδομάδας</h2>
+      <RecentGoals memberId={id} today={today} />
       <h2>Σύνοψη περίπτωσης</h2>
       <div className="card">
         {summary ? (

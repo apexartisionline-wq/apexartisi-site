@@ -5,6 +5,7 @@ import { z } from "zod";
 import { hasConsent, requireMember } from "@/lib/intake";
 import { prisma } from "@/lib/db";
 import { journalDate } from "@/lib/member";
+import { GOAL_CHECK, setWeekGoal, weekGoal } from "@/lib/goals";
 import { getSettings } from "@/lib/settings";
 import { formatDate } from "@/lib/time";
 
@@ -17,6 +18,8 @@ const schema = z.object({
   selfHarm: z.enum(["NO", "PASSING", "YES", "UNSURE"]),
   used: z.enum(["yes", "no"]).transform((v) => v === "yes"),
   note: z.string().max(5000).default(""),
+  goalCheck: z.enum(["YES", "PARTLY", "NO"]).optional(),
+  goalNote: z.string().max(1000).default(""),
 });
 
 async function save(formData: FormData) {
@@ -26,13 +29,25 @@ async function save(formData: FormData) {
   const s = await getSettings();
   const date = journalDate(new Date(), s);
   const data = schema.parse(Object.fromEntries(formData));
+  const fields = { ...data, note: enc(data.note), goalCheck: data.goalCheck ?? null, goalNote: enc(data.goalNote) };
   await prisma.journalEntry.upsert({
     where: { memberId_date: { memberId: user.id, date } },
-    create: { memberId: user.id, date, ...data, note: enc(data.note) },
-    update: { ...data, note: enc(data.note) },
+    create: { memberId: user.id, date, ...fields },
+    update: fields,
   });
   const concern = data.used || data.selfHarm === "YES" || data.selfHarm === "UNSURE";
   redirect(`/m/journal?saved=${concern ? "care" : "1"}`);
+}
+
+// Ο στόχος της εβδομάδας: ένας, με τα λόγια του μέλους (από Δευτέρα).
+async function saveGoal(formData: FormData) {
+  "use server";
+  const user = await requireMember();
+  if (!(await hasConsent(user.id, "journal"))) redirect("/m/journal");
+  const s = await getSettings();
+  const text = z.string().trim().min(1).max(300).safeParse(String(formData.get("goal") ?? ""));
+  if (text.success) await setWeekGoal(user.id, journalDate(new Date(), s), text.data);
+  redirect("/m/journal?goal=1");
 }
 
 function Scale({ name, label, low, high, value }: { name: string; label: string; low: string; high: string; value?: number }) {
@@ -52,7 +67,7 @@ function Scale({ name, label, low, high, value }: { name: string; label: string;
   );
 }
 
-export default async function JournalPage({ searchParams }: { searchParams: Promise<{ saved?: string }> }) {
+export default async function JournalPage({ searchParams }: { searchParams: Promise<{ saved?: string; goal?: string }> }) {
   const user = await requireMember();
   const [s, sp] = await Promise.all([getSettings(), searchParams]);
   const date = journalDate(new Date(), s);
@@ -64,7 +79,10 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
       </main>
     );
   }
-  const entry = await prisma.journalEntry.findUnique({ where: { memberId_date: { memberId: user.id, date } } });
+  const [entry, goal] = await Promise.all([
+    prisma.journalEntry.findUnique({ where: { memberId_date: { memberId: user.id, date } } }),
+    weekGoal(user.id, date),
+  ]);
 
   return (
     <main>
@@ -82,6 +100,28 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
           <p className="muted small">Η απάντησή σου στο ημερολόγιο δεν ειδοποιεί κανέναν από μόνη της. Αν αλλάξεις γνώμη, το κόκκινο κουμπί είναι πάντα εδώ.</p>
         </div>
       )}
+      <section className="card">
+        <strong>Ο στόχος μου αυτή την εβδομάδα</strong>
+        {sp.goal && <div className="small" style={{ color: "var(--ok)" }}>Αποθηκεύτηκε ✓</div>}
+        {goal ? (
+          <>
+            <div className="body-text" style={{ fontSize: "1.1rem", margin: "6px 0" }}>«{goal.text}»</div>
+            <details className="small">
+              <summary>Αλλαγή στόχου</summary>
+              <form action={saveGoal} className="row" style={{ gap: 6, marginTop: 6 }}>
+                <input name="goal" defaultValue={goal.text} maxLength={300} required style={{ flex: 1 }} />
+                <button type="submit">Αλλαγή</button>
+              </form>
+            </details>
+          </>
+        ) : (
+          <form action={saveGoal} style={{ marginTop: 6 }}>
+            <p className="muted small" style={{ margin: "0 0 6px" }}>Ένας μικρός, δικός σου στόχος για αυτή την εβδομάδα. Μία μέρα τη φορά.</p>
+            <input name="goal" placeholder="π.χ. να μιλάω όταν ντρέπομαι" maxLength={300} required />
+            <button type="submit" style={{ marginTop: 8 }}>Αυτός είναι ο στόχος μου</button>
+          </form>
+        )}
+      </section>
       <p className="small muted">{s.crisisNotice}</p>
       <form action={save} className="card">
         <Scale name="mood" label="Διάθεση" low="πολύ άσχημα" high="πολύ καλά" value={entry?.mood} />
@@ -113,6 +153,17 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
             <input type="radio" name="used" value="yes" defaultChecked={entry?.used} required style={{ width: "auto" }} /> Ναι
           </label>
         </fieldset>
+        {goal && (
+          <fieldset className="field" style={{ border: 0, padding: 0 }}>
+            <legend><strong>Σήμερα ήμουν συνεπής με τον στόχο μου;</strong> <span className="muted small">«{goal.text}»</span></legend>
+            {Object.entries(GOAL_CHECK).map(([v, l]) => (
+              <label key={v} className="row" style={{ gap: 8 }}>
+                <input type="radio" name="goalCheck" value={v} defaultChecked={entry?.goalCheck === v} style={{ width: "auto" }} /> {l}
+              </label>
+            ))}
+            <input name="goalNote" placeholder="τι με βοήθησε / τι με δυσκόλεψε (προαιρετικό)" defaultValue={dec(entry?.goalNote)} style={{ marginTop: 6 }} />
+          </fieldset>
+        )}
         <div className="field">
           <label htmlFor="note"><strong>Κάτι που θέλεις να γράψεις</strong> (προαιρετικό)</label>
           <textarea id="note" name="note" defaultValue={dec(entry?.note)} />

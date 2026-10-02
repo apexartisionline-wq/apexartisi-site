@@ -2,6 +2,7 @@ import Link from "next/link";
 import { dec, enc } from "@/lib/crypto";
 import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
+import { GoalWeekCard } from "@/components/GoalWeek";
 import { JoinButton } from "@/components/JoinButton";
 import { NoteFormClient } from "@/components/NoteFormClient";
 import { NoteTags } from "@/components/NoteTags";
@@ -322,6 +323,9 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
           </>
         ) : <span className="muted">Πρώτη ατομική: δεν υπάρχει προηγούμενο σημείωμα.</span>}
       </div>
+
+      <h2>Στόχος της εβδομάδας</h2>
+      <GoalWeekCard memberId={b.memberId} date={today} />
 
       <h2>Απογραφές αυτής της εβδομάδας</h2>
       <div className="card">

@@ -223,6 +223,8 @@ model JournalEntry {
   selfHarm   SelfHarm
   used       Boolean
   note       String   @default("")
+  goalCheck  String? // YES | PARTLY | NO — συνέπεια με τον στόχο της εβδομάδας
+  goalNote   String   @default("") // κρυπτογραφημένο
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -567,4 +569,15 @@ model RiskReview {
   createdAt DateTime @default(now())
 
   @@index([memberId, createdAt])
+}
+
+// Στόχος της εβδομάδας (από Δευτέρα): τον γράφει το μέλος· κάθε αλλαγή νέα γραμμή, ισχύει η τελευταία.
+model WeeklyGoal {
+  id        String   @id @default(cuid())
+  memberId  String
+  week      String // Δευτέρα της εβδομάδας, YYYY-MM-DD
+  text      String // κρυπτογραφημένο
+  createdAt DateTime @default(now())
+
+  @@index([memberId, week, createdAt])
 }

@@ -4,6 +4,7 @@
 //   DEMO_SEED=1 npx tsx prisma/demo-journal.ts
 import { PrismaClient } from "@prisma/client";
 import { pathToFileURL } from "node:url";
+import { enc } from "../src/lib/crypto-core";
 import { addDays, localParts } from "../src/lib/time";
 
 // Λαχτάρα/ύπνος ανά μέρα (παλιότερη → σημερινή)· null = δεν έγραψε.
@@ -25,10 +26,19 @@ export async function seedJournal(prisma: PrismaClient): Promise<string> {
     for (const [i, d] of p.days.entries()) {
       if (!d) continue;
       const [craving, sleepHours, mood] = d;
+      // Συνέπεια με τον στόχο της εβδομάδας (ψεύτικα): καλύτερη όταν η λαχτάρα είναι χαμηλή.
+      const goalCheck = craving <= 3 ? "YES" : craving <= 6 ? "PARTLY" : "NO";
       await prisma.journalEntry.create({
-        data: { memberId: m.id, date: addDays(today, i - p.days.length + 1), craving, sleepHours, mood, confidence: Math.max(0, 10 - craving), selfHarm: "NO", used: false },
+        data: { memberId: m.id, date: addDays(today, i - p.days.length + 1), craving, sleepHours, mood, confidence: Math.max(0, 10 - craving), selfHarm: "NO", used: false, goalCheck },
       });
     }
+  }
+  // Στόχοι εβδομάδας (ψεύτικοι), με τα λόγια του μέλους.
+  const goals: Record<string, string> = { nikos: "Να μιλάω όταν ντρέπομαι, αντί να κλείνομαι", eleni: "Να πάω σε 4 ομάδες", giorgos: "Να μην απαντάω θυμωμένα στο σπίτι" };
+  const wd0 = (new Date(`${today}T12:00:00Z`).getUTCDay() + 6) % 7;
+  for (const [username, text] of Object.entries(goals)) {
+    const m = await prisma.user.findUnique({ where: { username } });
+    if (m) await prisma.weeklyGoal.create({ data: { memberId: m.id, week: addDays(today, -wd0), text: enc(text) } });
   }
   const eva = await prisma.user.findUnique({ where: { username: "eva" } });
   const nikos = await prisma.user.findUnique({ where: { username: "nikos" } });
@@ -41,7 +51,7 @@ export async function seedJournal(prisma: PrismaClient): Promise<string> {
   for (const [i, title] of ["Πίστη: τι εμπιστεύομαι", "Πίστη: φόβος και εμπιστοσύνη", "Πίστη: παράδοση"].entries()) {
     await prisma.content.create({ data: { date: addDays(monday, i * 2), kind: "FORM", title, url: "https://forms.gle/" } });
   }
-  return "Έτοιμο: απογραφές, νηφαλιότητα, εργασία, φόρμες θεματικής.";
+  return "Έτοιμο: απογραφές, στόχοι εβδομάδας, νηφαλιότητα, εργασία, φόρμες θεματικής.";
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
