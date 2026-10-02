@@ -110,6 +110,7 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
       </div>
       <h2>Στόχοι εβδομάδας</h2>
       <RecentGoals memberId={id} today={today} />
+      <div className="list"><Link href={`/t/members/${id}/cycle`}><span>Ανασκόπηση κύκλου</span></Link></div>
       <h2>Σύνοψη περίπτωσης</h2>
       <div className="card">
         {summary ? (

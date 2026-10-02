@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { ALERT_SOURCE, recentAlerts } from "@/lib/assessment-db";
+import { dueCycleReviews } from "@/lib/cycle-review";
 import { groupDays } from "@/lib/groups";
 import { memberSafety } from "@/lib/handover";
 import { getSettings } from "@/lib/settings";
@@ -81,6 +82,7 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
     .filter((x) => x.f.length > 0)
     .slice(0, 6);
   const memberName = new Map(members.map((m) => [m.id, m.name]));
+  const reviews = await dueCycleReviews(members.map((m) => m.id));
 
   return (
     <main>
@@ -123,7 +125,7 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
       </div>
       {isToday && items.length > 0 && <p className="muted small">Το «Σύνδεση» ανοίγει το Zoom και καταγράφει την ώρα που μπήκες.</p>}
 
-      {(care.length > 0 || red.length > 0) && (
+      {(care.length > 0 || red.length > 0 || reviews.length > 0) && (
         <>
           <h2>Να το δεις</h2>
           <div className="list">
@@ -131,6 +133,12 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
               <Link key={m.id} href={`/t/members/${m.id}`}>
                 <span className={`dot ${f[0].level}`} />
                 <span><div className="title">{m.name}</div><div className="sub">{f[0].text}{f.length > 1 && ` · +${f.length - 1}`}</div></span>
+              </Link>
+            ))}
+            {reviews.map((r) => (
+              <Link key={`cr${r.memberId}`} href={`/t/members/${r.memberId}/cycle`}>
+                <span className="dot" />
+                <span><div className="title">{memberName.get(r.memberId) ?? "Μέλος"}</div><div className="sub">Τέλος κύκλου: ανασκόπηση (2 γραμμές)</div></span>
               </Link>
             ))}
             {care.map((c) => (

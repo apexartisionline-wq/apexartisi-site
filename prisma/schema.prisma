@@ -581,3 +581,18 @@ model WeeklyGoal {
 
   @@index([memberId, week, createdAt])
 }
+
+// Ανασκόπηση στο τέλος του κύκλου (8 ατομικές + 16 ομάδες): η εικόνα βγαίνει μόνη της,
+// ο θεραπευτής γράφει 2 γραμμές. Μόνο προσθήκες.
+model CycleReview {
+  id         String   @id @default(cuid())
+  cycleId    String
+  memberId   String
+  goals      String // κρυπτογραφημένο: πώς πάνε οι στόχοι
+  memberSays String // κρυπτογραφημένο: τι λέει το μέλος
+  authorId   String
+  createdAt  DateTime @default(now())
+
+  @@index([memberId, createdAt])
+  @@index([cycleId])
+}
