@@ -87,7 +87,6 @@ export default async function IntakePage({ params, searchParams }: { params: Pro
   const who = new Map([...staff, { id: member.id, name: member.name }].map((u) => [u.id, u.name]));
   const byKey = new Map(checks.map((c) => [c.key, c]));
   const steps = STAFF_STEPS.filter((s) => (!s.autognosiaOnly || member.source === "AUTOGNOSIA_PLUS") && (isAdmin || !s.admin));
-  const practicalOk = !status.missingConsents.length && !status.missingSteps.some((s) => s.admin);
   const lastDetail = (purpose: string) => dec(history.find((h) => h.purpose === purpose && h.detail)?.detail);
 
   return (
@@ -100,16 +99,7 @@ export default async function IntakePage({ params, searchParams }: { params: Pro
             ? "Ολοκληρώθηκε ✓ Το μέλος έχει πλήρη πρόσβαση στο app."
             : `Λείπουν: ${[...status.missingSteps.map((s) => s.doc), ...status.missingConsents.map((p) => p.doc)].join(", ")}. Μέχρι τότε το μέλος βλέπει μόνο τη σελίδα έναρξης και το κόκκινο κουμπί.`}
         </div>
-      ) : (
-        <div className="list">
-          <div>
-            <span>
-              <div>Πρακτικά (συγκαταθέσεις, συμφωνητικό)</div>
-              <div className="sub">{practicalOk ? "Σε τάξη ✓" : "Εκκρεμούν · τα χειρίζεται η διαχείριση"}</div>
-            </span>
-          </div>
-        </div>
-      )}
+      ) : null}
       {sp.e && <div className="error">{ERR[sp.e] ?? "Κάτι πήγε στραβά."}</div>}
       {sp.ok && <div className="notice">Αποθηκεύτηκε ✓</div>}
 

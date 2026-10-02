@@ -33,7 +33,6 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
   ]);
   const riskCheck = intake.checks.find((c) => c.key === "risk");
   const assessment = intake.checks.find((c) => c.key === "assessment");
-  const practicalOk = !intake.status.missingConsents.length && !intake.status.missingSteps.some((x) => x.admin);
   const staffNames = new Map(
     (await prisma.user.findMany({ where: { id: { in: [riskCheck?.doneById, assessment?.doneById].filter((x): x is string => Boolean(x)) } }, select: { id: true, name: true } })).map((u) => [u.id, u.name]),
   );
@@ -84,12 +83,6 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
             <div className="sub">{assessment ? `✓ ${formatDate(localParts(assessment.doneAt).date)}, ${staffNames.get(assessment.doneById) ?? ""}` : "Εκκρεμεί"}</div>
           </span>
         </Link>
-        <div>
-          <span>
-            <div>Πρακτικά</div>
-            <div className="sub">{practicalOk ? "Σε τάξη ✓" : "Εκκρεμούν · τα χειρίζεται η διαχείριση"}</div>
-          </span>
-        </div>
       </div>
       <h2>Σύνοψη περίπτωσης</h2>
       <div className="card">

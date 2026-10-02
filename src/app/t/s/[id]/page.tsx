@@ -273,6 +273,7 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
       <p className="small"><Link href="/t">‹ Σήμερα</Link></p>
       <h1 style={{ marginBottom: 4 }}><Link href={`/t/members/${b.member.id}`} style={{ color: "inherit", textDecoration: "none" }}>{b.member.name}</Link></h1>
       <p className="muted" style={{ margin: 0 }}>Ατομική · {formatDate(x.date)} {formatHour(x.hour)}{number && ` · ${number}`}{x.therapist && ` · ${x.therapist.name}`}</p>
+      <p style={{ margin: "10px 0 0" }}><Link className="btn" href={`/t/members/${b.member.id}`}>Κλινικός φάκελος ›</Link></p>
 
       {x.date === today && room && (
         <div className="card row spread" style={{ background: "var(--soft)" }}>
