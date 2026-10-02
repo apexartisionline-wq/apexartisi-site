@@ -118,6 +118,7 @@ export default async function PersonPage({ params, searchParams }: { params: Pro
 
       {isMember && (
         <>
+          <p><Link className="btn" href={`/admin/people/${p.id}/close`}>Ολοκλήρωση συνεργασίας ›</Link></p>
           <h2>Κύκλος ατομικών</h2>
           <form action={newCycle} className="card row spread">
             <input type="hidden" name="id" value={p.id} />

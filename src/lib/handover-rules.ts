@@ -76,7 +76,7 @@ export function safetyFlags(x: SafetyInput): Flag[] {
     });
   }
 
-  if (x.openDropout) flags.push({ level: "yellow", text: "Εκκρεμεί τηλεφώνημα (χωρίς επαφή)" });
+  if (x.openDropout) flags.push({ level: "yellow", text: x.lastContact ? `Χάθηκε ${daysAgo(x.now, x.lastContact)} μέρες · τηλεφωνεί η διαχείριση` : "Χωρίς επαφή · τηλεφωνεί η διαχείριση" });
   else if (x.lastContact && !within(x.lastContact, x.dropoutDays)) {
     flags.push({ level: "yellow", text: `Χωρίς επαφή ${daysAgo(x.now, x.lastContact)} μέρες`, at: x.lastContact });
   }

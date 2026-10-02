@@ -37,6 +37,7 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
     latestAssessment(id),
   ]);
   const sober = soberDays(member.soberSince, today);
+  const openIncidents = await prisma.incident.count({ where: { memberId: id, closedAt: null } });
   const months = await prisma.cycle.findMany({ where: { memberId: id }, orderBy: { startedAt: "asc" }, select: { id: true, startedAt: true } });
   const q = ax ? questionnaires(ax.data) : null;
   const scores = ax && q
@@ -117,6 +118,9 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
         {months.map((c, i) => (
           <Link key={c.id} href={`/t/members/${id}/month/${c.id}`}><span>Μήνας {i + 1} <span className="muted small">· από {formatDate(localParts(c.startedAt).date)}</span></span></Link>
         )).reverse()}
+      </div>
+      <div className="list">
+        <Link href={`/t/members/${id}/incident`}><span>Συμβάντα{openIncidents > 0 && <span className="badge yellow" style={{ marginLeft: 6 }}>{openIncidents} ανοιχτό</span>}</span></Link>
       </div>
       <h2>Σύνοψη περίπτωσης</h2>
       <div className="card">

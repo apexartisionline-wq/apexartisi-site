@@ -1,7 +1,10 @@
 import { memberIntake } from "@/lib/intake";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { latestProfile } from "@/lib/assessment-db";
+import { logAccess } from "@/lib/audit";
 import { requireRole } from "@/lib/auth";
+import { enc } from "@/lib/crypto";
 import { prisma } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
 import { addDays, formatDate, formatHour, localParts } from "@/lib/time";
@@ -13,7 +16,20 @@ async function settle(formData: FormData) {
   redirect("/admin");
 }
 
-export default async function AdminToday() {
+// Απώλεια επαφής: τηλεφωνεί η διαχείριση και γράφει σύντομα τι έγινε (μένει με όνομα και ώρα).
+async function dropoutDone(formData: FormData) {
+  "use server";
+  const admin = await requireRole("ADMIN");
+  const id = String(formData.get("id"));
+  const note = String(formData.get("note") ?? "").trim().slice(0, 500);
+  if (!note) redirect("/admin?dropout=need");
+  const t = await prisma.careTask.update({ where: { id }, data: { doneAt: new Date(), doneById: admin.id, note: enc(note) } });
+  await logAccess(admin.id, t.memberId, "dropout_call");
+  redirect("/admin");
+}
+
+export default async function AdminToday({ searchParams }: { searchParams: Promise<{ dropout?: string }> }) {
+  const sp = await searchParams;
   const s = await getSettings();
   const now = new Date();
   const today = localParts(now).date;
@@ -44,6 +60,13 @@ export default async function AdminToday() {
   const activeMembers = await prisma.user.findMany({ where: { role: "MEMBER", active: true }, select: { id: true, name: true, source: true } });
   const intakes = await Promise.all(activeMembers.map(async (m) => ({ m, status: (await memberIntake(m)).status })));
   const intakePending = intakes.filter((x) => !x.status.complete);
+
+  // Χωρίς επαφή 3 μέρες: ποιον παίρνουμε τηλέφωνο (κινητό από τα στοιχεία του μέλους ή του λογαριασμού).
+  const dropouts = await prisma.careTask.findMany({ where: { kind: "dropout", doneAt: null }, orderBy: { dueAt: "asc" } });
+  const dropoutRows = await Promise.all(dropouts.map(async (t) => {
+    const [u, p] = await Promise.all([prisma.user.findUnique({ where: { id: t.memberId }, select: { name: true, phone: true } }), latestProfile(t.memberId)]);
+    return { t, name: u?.name ?? "Μέλος", phone: p?.data.mobile || u?.phone || "" };
+  }));
 
   const todo = [
     requests && { href: "/admin/requests", text: `${requests} αιτήματα αλλαγής ραντεβού` },
@@ -102,6 +125,23 @@ export default async function AdminToday() {
         <div className="card"><span className="muted small">Παρουσίες ομάδας σήμερα</span><div><strong>{attendance}</strong></div></div>
         <div className="card"><span className="muted small">Ατομικές/Therapair σήμερα</span><div><strong>{todays.length}</strong></div></div>
       </div>
+
+      {dropoutRows.length > 0 && (
+        <section className="card" style={{ borderColor: "var(--yellow)" }}>
+          <strong>Χωρίς επαφή 3 μέρες — τηλεφώνημα</strong>
+          <p className="muted small" style={{ margin: "4px 0 8px" }}>Δεν μπήκε σε ομάδα, δεν έγραψε απογραφή, δεν μπήκε σε ατομική. Ουδέτερο μήνυμα: «Γεια, από το APEX. Σε σκεφτόμαστε, πάρε μας όταν μπορείς.»</p>
+          {sp.dropout === "need" && <div className="error small">Γράψε σύντομα τι έγινε.</div>}
+          {dropoutRows.map(({ t, name, phone }) => (
+            <form key={t.id} action={dropoutDone} className="row" style={{ gap: 6, flexWrap: "wrap", marginTop: 8 }}>
+              <input type="hidden" name="id" value={t.id} />
+              <strong style={{ minWidth: 140 }}>{name}</strong>
+              {phone ? <a className="btn" href={`tel:${phone.replace(/\s/g, "")}`}>Κλήση {phone}</a> : <span className="muted small">χωρίς τηλέφωνο</span>}
+              <input name="note" placeholder="τι έγινε (π.χ. μιλήσαμε, είναι καλά)" style={{ flex: 1, minWidth: 160 }} />
+              <button type="submit">Έγινε</button>
+            </form>
+          ))}
+        </section>
+      )}
 
       <h2>Σήμερα</h2>
       <div className="card table-wrap">

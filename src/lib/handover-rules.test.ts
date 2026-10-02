@@ -49,7 +49,7 @@ describe("safetyFlags", () => {
   it("σιωπή μετά από dropoutDays, αλλά όχι διπλό με ανοιχτό τηλεφώνημα", () => {
     expect(safetyFlags({ ...base, lastContact: ago(5) })[0].text).toBe("Χωρίς επαφή 5 μέρες");
     const f = safetyFlags({ ...base, lastContact: ago(5), openDropout: true });
-    expect(f.map((x) => x.text)).toEqual(["Εκκρεμεί τηλεφώνημα (χωρίς επαφή)"]);
+    expect(f.map((x) => x.text)).toEqual(["Χάθηκε 5 μέρες · τηλεφωνεί η διαχείριση"]);
   });
 
   it("χαμένη ατομική: κίτρινο, κόκκινο αν υπάρχει σήμα κινδύνου", () => {

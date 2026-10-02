@@ -37,7 +37,7 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
 
   const [alerts, care, slots, week, groups, members] = await Promise.all([
     recentAlerts(),
-    prisma.careTask.findMany({ where: { doneAt: null, dueAt: { lte: new Date() } }, orderBy: { dueAt: "asc" } }),
+    prisma.careTask.findMany({ where: { doneAt: null, dueAt: { lte: new Date() }, kind: { not: "dropout" } }, orderBy: { dueAt: "asc" } }),
     prisma.slot.findMany({
       where: { date, therapistId: user.id, bookings: { some: {} } },
       include: { bookings: { include: { member: { select: { id: true, name: true } } } }, note: { select: { id: true } } },

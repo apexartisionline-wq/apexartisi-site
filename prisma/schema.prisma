@@ -613,3 +613,34 @@ model MonthlyMessage {
 
   @@index([memberId, sentAt])
 }
+
+// Συμβάν (08): μόνο για σοβαρά· μικρή φόρμα, την κλείνει η Εύα. Μόνο προσθήκες/κλείσιμο.
+model Incident {
+  id         String    @id @default(cuid())
+  memberId   String
+  kind       String
+  happenedAt DateTime
+  data       String // κρυπτογραφημένο JSON: what, actions, informed, outcome
+  authorId   String
+  createdAt  DateTime  @default(now())
+  closedById String?
+  closedAt   DateTime?
+  closeNote  String    @default("") // κρυπτογραφημένο
+
+  @@index([memberId, createdAt])
+  @@index([closedAt])
+}
+
+// Ολοκλήρωση συνεργασίας (09): 3 γραμμές από την Εύα + μήνυμα «η πόρτα είναι ανοιχτή».
+model Closure {
+  id          String    @id @default(cuid())
+  memberId    String
+  how         String // COMPLETED | STOPPED | LOST
+  data        String // κρυπτογραφημένο JSON: keeps, referral
+  message     String // κρυπτογραφημένο
+  authorId    String
+  createdAt   DateTime  @default(now())
+  sentAt      DateTime?
+
+  @@index([memberId, createdAt])
+}

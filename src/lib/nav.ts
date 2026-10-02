@@ -16,6 +16,7 @@ export function navLinks(role: Role): { href: string; label: string }[] {
       { href: "/admin/messages", label: "Μηνύματα μήνα" },
       { href: "/admin/library", label: "Βιβλιοθήκη" },
       { href: "/admin/help", label: "Κόκκινο κουμπί" },
+      { href: "/admin/incidents", label: "Συμβάντα" },
       { href: "/admin/oncall", label: "Εφημερίες" },
       { href: "/admin/settings", label: "Ρυθμίσεις" },
       { href: "/admin/audit", label: "Πρόσβαση" },
