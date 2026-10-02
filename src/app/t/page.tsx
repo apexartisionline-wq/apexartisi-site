@@ -1,10 +1,12 @@
 import { Announcements } from "@/components/Announcements";
 import Link from "next/link";
-import { dec, enc } from "@/lib/crypto";
+import { JoinButton } from "@/components/JoinButton";
+import { enc } from "@/lib/crypto";
 import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { groupDays } from "@/lib/groups";
+import { memberSafety } from "@/lib/handover";
 import { getSettings } from "@/lib/settings";
 import { addDays, formatDate, formatHour, localParts } from "@/lib/time";
 
@@ -18,18 +20,23 @@ async function careDone(formData: FormData) {
   redirect("/t");
 }
 
-const CARE = { caring_24h: "Μήνυμα φροντίδας (24 ώρες μετά από κρίση)", caring_7d: "Μήνυμα φροντίδας (7 μέρες μετά από κρίση)", dropout: "Απώλεια επαφής — τηλεφώνημα" } as Record<string, string>;
+const CARE = { caring_24h: "Μήνυμα φροντίδας (24 ώρες μετά από κρίση)", caring_7d: "Μήνυμα φροντίδας (7 μέρες μετά από κρίση)", dropout: "Χωρίς επαφή μέρες: να επικοινωνήσει κάποιος" } as Record<string, string>;
 
+type Item = { key: string; time: string; title: string; sub: string; href: string; join?: { kind: "SLOT" | "GROUP"; ref: string; room: string } };
+
+// «Σήμερα»: το πρόγραμμα του θεραπευτή σε μία λίστα, με «Σύνδεση» σε κάθε γραμμή,
+// και από κάτω μόνο όσα πρέπει να δει πριν ξεκινήσει.
 export default async function TherapistDay({ searchParams }: { searchParams: Promise<{ date?: string }> }) {
   const user = await requireRole("THERAPIST", "ADMIN");
   const sp = await searchParams;
-  const date = sp.date && /^\d{4}-\d{2}-\d{2}$/.test(sp.date) ? sp.date : localParts(new Date()).date;
+  const today = localParts(new Date()).date;
+  const date = sp.date && /^\d{4}-\d{2}-\d{2}$/.test(sp.date) ? sp.date : today;
   const s = await getSettings();
 
-  const [care, slots, week, groups] = await Promise.all([
+  const [care, slots, week, groups, members] = await Promise.all([
     prisma.careTask.findMany({ where: { doneAt: null, dueAt: { lte: new Date() } }, orderBy: { dueAt: "asc" } }),
     prisma.slot.findMany({
-      where: { date, therapistId: user.id },
+      where: { date, therapistId: user.id, bookings: { some: {} } },
       include: { bookings: { include: { member: { select: { id: true, name: true } } } }, note: { select: { id: true } } },
       orderBy: [{ hour: "asc" }, { position: "asc" }],
     }),
@@ -39,104 +46,109 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
       orderBy: [{ date: "asc" }, { hour: "asc" }],
     }),
     groupDays(date, addDays(date, 7), s),
+    prisma.user.findMany({ where: { role: "MEMBER", active: true }, select: { id: true, name: true } }),
   ]);
   const myGroups = groups.filter((g) => g.coordinatorId === user.id);
-  const careMembers = new Map(
-    (await prisma.user.findMany({ where: { id: { in: care.map((c) => c.memberId) } }, select: { id: true, name: true } })).map((m) => [m.id, m]),
-  );
-  const todayGroups = myGroups.filter((g) => g.date === date);
   const names = (x: { bookings: { member: { name: string } }[] }) => x.bookings.map((b) => b.member.name).join(" & ");
+  // Στη λίστα: μικρό όνομα και αρχικό, για να χωράει στο κινητό (π.χ. «Γιώργος Δ. & Ελένη Δ.»).
+  const short = (x: { bookings: { member: { name: string } }[] }) =>
+    x.bookings.map((b) => b.member.name.split(" ").map((w, i) => (i === 0 ? w : `${w[0]}.`)).join(" ")).join(" & ");
+  const isToday = date === today;
+
+  const items: Item[] = [
+    ...myGroups.filter((g) => g.date === date).map((g) => ({
+      key: `g${g.time}`,
+      time: g.time,
+      title: "Ομάδα",
+      sub: g.hasNote ? "Εσύ συντονίζεις · σύνοψη ✓" : "Εσύ συντονίζεις",
+      href: `/t/group/${g.date}/${g.time.replace(":", "")}`,
+      join: { kind: "GROUP" as const, ref: `${g.date} ${g.time}`, room: s.groupRoomUrl },
+    })),
+    ...slots.map((x) => ({
+      key: x.id,
+      time: formatHour(x.hour),
+      title: short(x),
+      sub: `${x.kind === "PAIR" ? "Therapair" : "Ατομική"}${x.note ? " · σημείωμα ✓" : ""}`,
+      href: `/t/s/${x.id}`,
+      join: { kind: "SLOT" as const, ref: x.id, room: s.rooms[x.position - 1] ?? "" },
+    })),
+  ].sort((a, b) => a.time.localeCompare(b.time));
+
+  // Να το δεις: εκκρεμότητες για όποιον το δει πρώτος και μέλη με κόκκινο σήμα.
+  const red = (await Promise.all(members.map(async (m) => ({ m, f: (await memberSafety(m.id)).filter((x) => x.level === "red") }))))
+    .filter((x) => x.f.length > 0)
+    .slice(0, 6);
+  const memberName = new Map(members.map((m) => [m.id, m.name]));
 
   return (
     <main>
-      <div className="row spread">
-        <Link href={`/t?date=${addDays(date, -1)}`}>← προηγούμενη</Link>
-        <h1 style={{ margin: 0 }}>{formatDate(date)}</h1>
-        <Link href={`/t?date=${addDays(date, 1)}`}>επόμενη →</Link>
+      <div className="row spread" style={{ alignItems: "baseline" }}>
+        <h1 style={{ margin: "8px 0 0" }}>{isToday ? "Σήμερα" : formatDate(date)}</h1>
+        <span className="row" style={{ gap: 6 }}>
+          <Link className="btn" href={`/t?date=${addDays(date, -1)}`} aria-label="Προηγούμενη μέρα">‹</Link>
+          {!isToday && <Link className="btn" href="/t">Σήμερα</Link>}
+          <Link className="btn" href={`/t?date=${addDays(date, 1)}`} aria-label="Επόμενη μέρα">›</Link>
+        </span>
       </div>
+      <p className="muted" style={{ margin: "2px 0 0" }}>{formatDate(date)} · {user.name}</p>
 
       <Announcements />
 
-      {care.length > 0 && (
-        <section className="card" style={{ borderColor: "var(--yellow)" }}>
-          <strong>Για όποιον το δει πρώτος</strong>
-          {care.map((c) => {
-            const m = careMembers.get(c.memberId);
-            return (
-              <form key={c.id} action={careDone} className="row spread" style={{ marginTop: 8 }}>
+      <h2>Το πρόγραμμά μου</h2>
+      <div className="list">
+        {items.map((it) => (
+          <div key={it.key}>
+            <strong style={{ width: 52, flex: "none", fontVariantNumeric: "tabular-nums" }}>{it.time}</strong>
+            <Link href={it.href} style={{ flex: 1, minWidth: 0, color: "inherit", textDecoration: "none" }}>
+              <div className="title">{it.title}</div>
+              <div className="sub">{it.sub}</div>
+            </Link>
+            {isToday && it.join ? (
+              <JoinButton kind={it.join.kind} refId={it.join.ref} roomUrl={it.join.room} next={it.href} />
+            ) : (
+              <Link href={it.href} className="muted" aria-label="Άνοιγμα">›</Link>
+            )}
+          </div>
+        ))}
+        {items.length === 0 && <div className="muted">Δεν έχεις ομάδα ή συνεδρία αυτή τη μέρα.</div>}
+      </div>
+      {isToday && items.length > 0 && <p className="muted small">Το «Σύνδεση» ανοίγει το Zoom και καταγράφει την ώρα που μπήκες.</p>}
+
+      {(care.length > 0 || red.length > 0) && (
+        <>
+          <h2>Να το δεις</h2>
+          <div className="list">
+            {red.map(({ m, f }) => (
+              <Link key={m.id} href={`/t/members/${m.id}`}>
+                <span className="dot red" />
+                <span><div className="title">{m.name}</div><div className="sub">{f[0].text}{f.length > 1 && ` · +${f.length - 1}`}</div></span>
+              </Link>
+            ))}
+            {care.map((c) => (
+              <form key={c.id} action={careDone}>
                 <input type="hidden" name="id" value={c.id} />
-                <span>
-                  {CARE[c.kind] ?? c.kind}: <Link href={`/t/members/${c.memberId}`}>{m?.name}</Link>
+                <span className="dot yellow" />
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <div className="title"><Link href={`/t/members/${c.memberId}`}>{memberName.get(c.memberId) ?? "Μέλος"}</Link></div>
+                  <div className="sub">{CARE[c.kind] ?? c.kind}</div>
+                  <input name="note" placeholder="σύντομα: τι έγινε" style={{ marginTop: 6 }} />
                 </span>
-                <span className="row" style={{ gap: 4 }}>
-                  <input name="note" placeholder="σύντομα: τι έγινε" style={{ width: 180 }} />
-                  <button type="submit" style={{ padding: "6px 10px" }}>Έγινε</button>
-                </span>
+                <button type="submit">Έγινε</button>
               </form>
-            );
-          })}
-        </section>
+            ))}
+          </div>
+        </>
       )}
 
-      {todayGroups.map((g) => (
-        <section className="card" key={g.time} style={{ borderColor: "var(--accent)" }}>
-          <div className="row spread">
-            <div>
-              <strong>Συντονίζεις την ομάδα στις {g.time}</strong>
-              <div className="muted small">{g.hasNote ? "Σημείωμα ομάδας ✓" : "Μετά την ομάδα: σύντομο σημείωμα (2 λεπτά)"}</div>
-            </div>
-            <div className="row">
-              {s.groupRoomUrl && <a className="btn" href={s.groupRoomUrl} target="_blank" rel="noopener noreferrer">Δωμάτιο</a>}
-              <Link className="btn primary" href={`/t/group/${g.date}/${g.time.replace(":", "")}`}>Σημείωμα ομάδας</Link>
-            </div>
-          </div>
-        </section>
-      ))}
-
-      {slots.length === 0 && todayGroups.length === 0 && <p className="muted">Δεν έχεις ώρες αυτή τη μέρα.</p>}
-      {slots.map((x) => (
-        <section className="card" key={x.id}>
-          <div className="row spread">
-            <div>
-              <strong>{formatHour(x.hour)}</strong> <span className="muted">· δωμάτιο {x.position}</span>{" "}
-              {x.kind === "PAIR" && <span className="badge">Therapair</span>}
-              <div>
-                {x.bookings.length ? (
-                  x.bookings.map((b, i) => (
-                    <span key={b.id}>{i > 0 && " & "}<Link href={`/t/members/${b.member.id}`}>{b.member.name}</Link></span>
-                  ))
-                ) : (
-                  <span className="muted">ελεύθερη</span>
-                )}
-              </div>
-            </div>
-            <div className="row">
-              {s.rooms[x.position - 1] && (
-                <a className="btn" href={s.rooms[x.position - 1]} target="_blank" rel="noopener noreferrer">Δωμάτιο</a>
-              )}
-              {x.bookings.length > 0 && (
-                <Link className="btn primary" href={`/t/s/${x.id}`}>{x.note ? "Σημείωμα ✓" : "Σημείωμα"}</Link>
-              )}
-            </div>
-          </div>
-        </section>
-      ))}
-
       <h2>Τις επόμενες 7 μέρες</h2>
-      <div className="card">
-        {week.length === 0 && myGroups.filter((g) => g.date > date).length === 0 ? <span className="muted">Τίποτα.</span> : (
-          <ul>
-            {myGroups.filter((g) => g.date > date).map((g) => (
-              <li key={`${g.date}${g.time}`}><Link href={`/t?date=${g.date}`}>{formatDate(g.date)} {g.time}</Link> · συντονισμός ομάδας</li>
-            ))}
-            {week.map((x) => (
-              <li key={x.id}>
-                <Link href={`/t?date=${x.date}`}>{formatDate(x.date)} {formatHour(x.hour)}</Link> · {names(x)}
-                {x.kind === "PAIR" && " (Therapair)"}
-              </li>
-            ))}
-          </ul>
-        )}
+      <div className="list">
+        {myGroups.filter((g) => g.date > date).map((g) => (
+          <Link key={`${g.date}${g.time}`} href={`/t?date=${g.date}`}><span><div>{formatDate(g.date)} {g.time}</div><div className="sub">Ομάδα · εσύ συντονίζεις</div></span></Link>
+        ))}
+        {week.map((x) => (
+          <Link key={x.id} href={`/t?date=${x.date}`}><span><div>{formatDate(x.date)} {formatHour(x.hour)}</div><div className="sub">{x.kind === "PAIR" ? "Therapair" : "Ατομική"} · {names(x)}</div></span></Link>
+        ))}
+        {week.length === 0 && myGroups.filter((g) => g.date > date).length === 0 && <div className="muted">Τίποτα.</div>}
       </div>
     </main>
   );

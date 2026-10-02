@@ -487,3 +487,15 @@ model SessionNoteVersion {
 
   @@index([noteId, createdAt])
 }
+
+// Πότε μπήκε ο θεραπευτής σε ατομική/Therapair (ref = id θέσης) ή ομάδα (ref = "ΕΕΕΕ-ΜΜ-ΗΗ ΩΩ:ΛΛ").
+model StaffJoin {
+  id     String   @id @default(cuid())
+  userId String
+  kind   String // SLOT | GROUP
+  ref    String
+  at     DateTime @default(now())
+
+  @@index([kind, ref])
+  @@index([userId, at])
+}

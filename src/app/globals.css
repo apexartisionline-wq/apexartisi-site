@@ -117,7 +117,7 @@ nav.top img { height: 28px; }
 
 /* Λίστα τύπου iOS: γραμμές που πατιούνται ολόκληρες, τελεία κατάστασης, «›» δεξιά. */
 .list { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); margin: 12px 0; overflow: hidden; }
-.list > a, .list > div { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 10px 16px; color: var(--text); text-decoration: none; }
+.list > a, .list > div, .list > form { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 10px 16px; color: var(--text); text-decoration: none; }
 .list > * + * { border-top: 1px solid var(--line); }
 .list > a::after { content: "›"; margin-left: auto; padding-left: 8px; color: var(--muted); font-size: 1.4rem; line-height: 1; }
 .list > a:active { background: var(--soft); }
