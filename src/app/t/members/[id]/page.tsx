@@ -6,13 +6,13 @@ import { MemberSessions } from "@/components/MemberSessions";
 import { SafetyZone } from "@/components/SafetyZone";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { caseHistory } from "@/lib/handover";
+import { caseHistory, memberConsistency } from "@/lib/handover";
 import { CASE_FIELDS } from "@/lib/handover-rules";
 import { memberIntake } from "@/lib/intake";
 import { RISK_LEVELS } from "@/lib/intake-rules";
 import { cycleInfo } from "@/lib/member";
 import { programDay } from "@/lib/program";
-import { addDays, formatDate, formatWhen, localParts } from "@/lib/time";
+import { formatDate, formatWhen, localParts } from "@/lib/time";
 
 // Καρτέλα μέλους για τους θεραπευτές — όλοι δουλεύουν με όλα τα μέλη.
 // Το ημερολόγιο ανάκαμψης και ο δείκτης δεν εμφανίζονται εδώ — τα βλέπει μόνο η Εύα.
@@ -23,11 +23,10 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
   if (!member) notFound();
   await logAccess(user.id, id, "member_file_view");
   const today = localParts(new Date()).date;
-  const from = addDays(today, -27);
-  const [cycle, intake, groups, [summary], plan, noteCount] = await Promise.all([
+  const [cycle, intake, consistency, [summary], plan, noteCount] = await Promise.all([
     cycleInfo(id),
     memberIntake(member),
-    prisma.attendance.count({ where: { memberId: id, date: { gte: from } } }),
+    memberConsistency(id),
     caseHistory(id, 1),
     prisma.safetyPlan.findUnique({ where: { memberId: id }, select: { updatedAt: true } }),
     prisma.sessionNote.count({ where: { slot: { bookings: { some: { memberId: id } } } } }),
@@ -38,10 +37,24 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
     <main>
       <h1>{member.name}</h1>
       <SafetyZone memberId={id} />
-      <div className="card whereami">
-        <div><span className="muted small">Μέρα προγράμματος</span><strong>{programDay(member.programStartDate, today) ?? "—"}</strong></div>
-        <div><span className="muted small">Κύκλος</span><strong>{cycle ? `${cycle.done} από ${cycle.length}` : "—"}</strong></div>
-        <div><span className="muted small">Ομάδες (4 εβδ.)</span><strong>{groups}</strong></div>
+      <div className="card">
+        <div className="row spread">
+          <strong>Συνέπεια · {consistency.weeks} εβδομάδες</strong>
+          <span className="muted small">Μέρα {programDay(member.programStartDate, today) ?? "—"}{cycle && ` · κύκλος ${cycle.done} από ${cycle.length}`}</span>
+        </div>
+        <div style={{ marginTop: 10 }}>
+          Ομάδες: <strong>{consistency.groups} από {consistency.groupDays.length}</strong>
+          {consistency.groupDays.length > 0 && <span className="muted"> ({Math.round((consistency.groups / consistency.groupDays.length) * 100)}%)</span>}
+        </div>
+        <div className="row" style={{ gap: 4, marginTop: 6 }} aria-label="Παρουσίες στις ομάδες, μέρα με μέρα">
+          {consistency.groupDays.map((d) => (
+            <span key={d.date} title={`${formatDate(d.date)}: ${d.present ? "ήρθε" : "δεν ήρθε"}`} className={`dot${d.present ? " ok" : ""}`} />
+          ))}
+        </div>
+        <div style={{ marginTop: 10 }}>
+          Ατομικές: <strong>{consistency.sessionsDone} από {consistency.sessionsTotal}</strong>
+          {consistency.sessionsTotal > consistency.sessionsDone && <span className="muted"> · δεν ήρθε σε {consistency.sessionsTotal - consistency.sessionsDone}</span>}
+        </div>
       </div>
       {sp.case && <div className="notice">Η σύνοψη αποθηκεύτηκε ✓</div>}
       <div className="list">
@@ -60,11 +73,6 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
             <div className="sub">{plan ? `Ενημερώθηκε ${formatDate(localParts(plan.updatedAt).date)}` : "Δεν έχει γραφτεί"}</div>
           </span>
         </Link>
-        {member.phone && (
-          <a href={`tel:${member.phone}`}>
-            <span><div>Τηλέφωνο</div><div className="sub">{member.phone}</div></span>
-          </a>
-        )}
       </div>
       <h2>Σύνοψη περίπτωσης</h2>
       <div className="card">

@@ -126,6 +126,7 @@ nav.top img { height: 28px; }
 .dot { width: 12px; height: 12px; border-radius: 50%; flex: none; background: transparent; border: 2px solid var(--line); }
 .dot.red { background: var(--red); border-color: var(--red); }
 .dot.yellow { background: var(--yellow); border-color: var(--yellow); }
+.dot.ok { background: var(--ok); border-color: var(--ok); }
 
 /* Βιβλιοθήκη: το κωδικό του μέλους πάνω στην προβολή. */
 .watermarked { position: relative; }
