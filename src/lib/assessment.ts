@@ -20,21 +20,24 @@ export const SUBSTANCE_LABEL = Object.fromEntries(SUBSTANCES) as Record<Substanc
 
 export const DIAGNOSES = ["Κατάθλιψη", "Διπολική", "ΔΕΠΥ", "Αγχώδης", "Ψύχωση", "Διατροφική", "Διαταραχή προσωπικότητας"] as const;
 export const TREATMENT_WHERE = ["Μονάδα / πρόγραμμα", "ΑΑ / ΝΑ / GA", "Ιδιώτης", "Άλλο"] as const;
-export const TREATMENT_END = ["Ολοκλήρωση", "Διακοπή", "Αποβολή", "Συνεχίζεται"] as const;
+export const TREATMENT_END = ["Ολοκληρώθηκε", "Διακόπηκε", "Αποβολή", "Συνεχίζεται"] as const;
+// Παλιές λέξεις που αποθηκεύτηκαν πριν αλλάξει η διατύπωση: διαβάζονται πάντα.
+const OLD_END: Record<string, string> = { Ολοκλήρωση: "Ολοκληρώθηκε", Διακοπή: "Διακόπηκε" };
 export const AS_PRESCRIBED = ["Ναι", "Όχι πάντα", "Όχι"] as const;
 export const TRAUMA = ["Ναι", "Όχι", "Δεν θέλω να πω"] as const;
 export const ABSTINENCE = ["Δεσμευμένος/η στην αποχή", "Όχι ακόμα"] as const;
 
 // ⚠ ΔΟΚΙΜΗ: προσωρινά κείμενα. Σε πραγματικά μέλη μόνο με γραπτή άδεια και επίσημη ελληνική έκδοση
 // (docs/clinical/erotimatologia-adeies.md). Το AUDIT είναι η απόδοση του σχεδίου 02.
+// Για νηφάλια μέλη ρωτάμε για την ΠΕΡΙΟΔΟ ΒΑΡΙΑΣ ΧΡΗΣΗΣ (απόφαση υπεύθυνης): ο αριθμός δεν λέει «κίνδυνο τώρα».
 export const AUDIT_ITEMS: { q: string; options: [number, string][] }[] = (() => {
   const freq = ["ποτέ", "λιγότερο από μηνιαία", "μηνιαία", "εβδομαδιαία", "καθημερινά ή σχεδόν"];
   const f = (q: string) => ({ q, options: freq.map((o, i) => [i, o] as [number, string]) });
   const yn = (q: string) => ({ q, options: [[0, "όχι"], [2, "ναι, όχι τον τελευταίο χρόνο"], [4, "ναι, τον τελευταίο χρόνο"]] as [number, string][] });
   return [
-    { q: "Πόσο συχνά πίνει κάποιο αλκοολούχο ποτό;", options: [[0, "ποτέ"], [1, "1 φορά τον μήνα ή λιγότερο"], [2, "2–4 φορές τον μήνα"], [3, "2–3 φορές την εβδομάδα"], [4, "4+ φορές την εβδομάδα"]] },
-    { q: "Πόσες μονάδες αλκοόλ μια τυπική μέρα που πίνει;", options: [[0, "1–2"], [1, "3–4"], [2, "5–6"], [3, "7–9"], [4, "10+"]] },
-    f("Πόσο συχνά 6 ή περισσότερες μονάδες σε μία περίσταση;"),
+    { q: "Πόσο συχνά έπινε κάποιο αλκοολούχο ποτό;", options: [[0, "ποτέ"], [1, "1 φορά τον μήνα ή λιγότερο"], [2, "2–4 φορές τον μήνα"], [3, "2–3 φορές την εβδομάδα"], [4, "4+ φορές την εβδομάδα"]] },
+    { q: "Πόσες μονάδες αλκοόλ μια τυπική μέρα που έπινε;", options: [[0, "1–2"], [1, "3–4"], [2, "5–6"], [3, "7–9"], [4, "10+"]] },
+    f("Πόσο συχνά έπινε 6 ή περισσότερες μονάδες σε μία περίσταση;"),
     f("Πόσο συχνά δεν μπορούσε να σταματήσει αφού άρχισε;"),
     f("Πόσο συχνά δεν έκανε αυτό που περίμεναν εξαιτίας του ποτού;"),
     f("Πόσο συχνά χρειάστηκε ποτό το πρωί για να «στρώσει»;"),
@@ -51,7 +54,9 @@ export const PGSI_OPTIONS: [number, string][] = [[0, "ποτέ"], [1, "μερι�
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const text = (max: number) => z.string().trim().max(max).default("");
 const pick = <T extends readonly string[]>(opts: T) => z.enum(opts as unknown as [string, ...string[]]);
-const yes = z.boolean().optional(); // undefined = δεν απαντήθηκε ακόμα
+// true / false / "DECLINED" (= «δεν θέλει να απαντήσει ακόμα»)· undefined = δεν ρωτήθηκε ακόμα.
+const yes = z.union([z.boolean(), z.literal("DECLINED")]).optional();
+export type YesNo = boolean | "DECLINED" | undefined;
 
 export const assessmentSchema = z.object({
   profileConfirmed: z.boolean().default(false),
@@ -68,7 +73,7 @@ export const assessmentSchema = z.object({
   dast: z.array(z.boolean().nullable()).max(10).default([]),
   pgsi: z.array(z.number().int().min(0).max(3).nullable()).max(9).default([]),
   // 6. Προηγούμενες θεραπείες
-  treatments: z.array(z.object({ where: pick(TREATMENT_WHERE), whereText: text(200), when: text(60), duration: text(60), ended: pick(TREATMENT_END).optional(), helped: text(1000) })).max(20).default([]),
+  treatments: z.array(z.object({ where: pick(TREATMENT_WHERE), whereText: text(200), when: text(60), duration: text(60), ended: z.preprocess((v) => OLD_END[v as string] ?? v, pick(TREATMENT_END).optional()), helped: text(1000) })).max(20).default([]),
   longestAbstinence: text(100),
   longestHelped: text(1000),
   longestEnded: text(1000),
@@ -121,15 +126,16 @@ export function keepAdminOnly(next: Assessment, prev: Assessment | null): Assess
 
 // ── Βαθμολογίες ────────────────────────────────────────────────────────────
 
-export type Score = { score: number; answered: number; of: number; band: string; level: "ok" | "amber" | "red" };
+export type Score = { score: number; answered: number; of: number; band: string; level: "ok" | "amber" | "red" | "plain" };
+
+/** AUDIT και DAST-10 αφορούν την περίοδο βαριάς χρήσης: φαίνεται ο αριθμός, χωρίς χαρακτηρισμό κινδύνου «τώρα». */
+export const HEAVY_USE = "περίοδος βαριάς χρήσης";
 
 export function auditScore(a: (number | null)[]): Score | null {
   const xs = a.filter((x): x is number => x !== null && x !== undefined);
   if (xs.length === 0) return null;
   const score = xs.reduce((s, x) => s + x, 0);
-  const [band, level]: [string, Score["level"]] =
-    score <= 7 ? ["χαμηλός κίνδυνος", "ok"] : score <= 15 ? ["επικίνδυνη χρήση", "amber"] : score <= 19 ? ["επιβλαβής χρήση", "amber"] : ["πιθανή εξάρτηση", "red"];
-  return { score, answered: xs.length, of: 10, band, level };
+  return { score, answered: xs.length, of: 10, band: HEAVY_USE, level: "plain" };
 }
 
 /** DAST-10: «ναι» = 1, εκτός από την ερώτηση 3 όπου «όχι» = 1. */
@@ -142,9 +148,7 @@ export function dastScore(a: (boolean | null)[]): Score | null {
     if (i === 2 ? !x : x) score++;
   });
   if (answered === 0) return null;
-  const [band, level]: [string, Score["level"]] =
-    score === 0 ? ["χωρίς ένδειξη", "ok"] : score <= 2 ? ["χαμηλό", "ok"] : score <= 5 ? ["μέτριο", "amber"] : score <= 8 ? ["σημαντικό", "amber"] : ["σοβαρό", "red"];
-  return { score, answered, of: 10, band, level };
+  return { score, answered, of: 10, band: HEAVY_USE, level: "plain" };
 }
 
 export function pgsiScore(a: (number | null)[]): Score | null {
@@ -182,14 +186,24 @@ export const ALERTS = {
 } as const;
 export type AlertKind = keyof typeof ALERTS;
 
-/** Σοβαρά σημεία που βγάζουν άμεση ειδοποίηση σε όλη την ομάδα (απλοί, ορατοί κανόνες). */
+/** Σοβαρά σημεία (απλοί, ορατοί κανόνες): φαίνονται στο «Ασφάλεια» του φακέλου και 24 ώρες στο «Σήμερα». */
 export function assessmentAlerts(d: Assessment, today: string): AlertKind[] {
   const out: AlertKind[] = [];
-  if (d.children && d.childConcern) out.push("CHILD");
-  if (d.violence) out.push("VIOLENCE");
-  if (d.overdoseEver && d.overdoseLast && daysBetween(d.overdoseLast, today) <= 90) out.push("OVERDOSE");
-  if (d.psychoticNow) out.push("PSYCHOSIS");
-  if (d.pregnant) out.push("PREGNANCY");
+  if (d.children === true && d.childConcern === true) out.push("CHILD");
+  if (d.violence === true) out.push("VIOLENCE");
+  if (d.overdoseEver === true && d.overdoseLast && daysBetween(d.overdoseLast, today) <= 90) out.push("OVERDOSE");
+  if (d.psychoticNow === true) out.push("PSYCHOSIS");
+  if (d.pregnant === true) out.push("PREGNANCY");
+  return out;
+}
+
+/** Προειδοποιήσεις για ασυνέπειες (δεν εμποδίζουν την αποθήκευση). */
+export function assessmentWarnings(d: Assessment): string[] {
+  const out: string[] = [];
+  const since = soberSinceFrom(d);
+  if (since && d.overdoseEver === true && d.overdoseLast && d.overdoseLast > since) {
+    out.push(`Η υπερδοσολογία (${gr(d.overdoseLast)}) είναι μετά την «τελευταία φορά» (${gr(since)}). Έλεγξε τις ημερομηνίες.`);
+  }
   return out;
 }
 
@@ -199,70 +213,79 @@ function daysBetween(a: string, b: string): number {
 
 // ── Προβολή ────────────────────────────────────────────────────────────────
 
-const gr = (iso: string) => { const [y, m, d] = iso.split("-"); return `${Number(d)}/${Number(m)}/${y}`; };
-const yn = (v: boolean | undefined) => (v === undefined ? "" : v ? "Ναι" : "Όχι");
+export const gr = (iso: string) => { const [y, m, d] = iso.split("-"); return `${Number(d)}/${Number(m)}/${y}`; };
 
-/** Η αξιολόγηση ως ενότητες με γραμμές, για τον φάκελο (μόνο ό,τι έχει απαντηθεί). */
+/** Η αξιολόγηση ως ενότητες, με τη σειρά που γίνεται, για τον φάκελο. Τα «Όχι» μαζεύονται σε μία γραμμή. */
 export function assessmentLines(d: Assessment, opts: { admin: boolean }): { title: string; lines: [string, string][] }[] {
-  const sec = (title: string, lines: [string, string | undefined][]) => ({ title, lines: lines.filter((l): l is [string, string] => Boolean(l[1])) });
+  // Ναι/Όχι: τα «Ναι» και τα «δεν απάντησε» φαίνονται ως γραμμές· τα «Όχι» σε μία γραμμή στο τέλος της ενότητας.
+  type Row = [string, string | undefined] | { q: string; v: YesNo; extra?: string };
+  const sec = (title: string, rows: Row[]) => {
+    const lines: [string, string][] = [];
+    const no: string[] = [];
+    for (const r of rows) {
+      if (Array.isArray(r)) { if (r[1]) lines.push([r[0], r[1]]); continue; }
+      if (r.v === true) lines.push([r.q, ["Ναι", r.extra].filter(Boolean).join(" — ")]);
+      else if (r.v === "DECLINED") lines.push([r.q, "δεν απάντησε ακόμα"]);
+      else if (r.v === false) no.push(r.q);
+    }
+    if (no.length) lines.push(["Όχι", no.join(" · ")]);
+    return { title, lines };
+  };
   const q = questionnaires(d);
-  const scores: [string, string | undefined][] = [
-    ["AUDIT", fmt(auditScore(d.audit))],
-    ["DAST-10", q.dast ? fmt(dastScore(d.dast)) : undefined],
-    ["PGSI", q.pgsi ? fmt(pgsiScore(d.pgsi)) : undefined],
-  ];
   return [
-    sec("Ιστορικό χρήσης", [
-      ...d.substances.map((s): [string, string] => {
-        const p = d.perSubstance[s] ?? {};
-        const name = s === "other" && d.otherName ? d.otherName : SUBSTANCE_LABEL[s];
-        return [name, [p.problemAge ? `πρόβλημα στα ${p.problemAge}` : "", p.lastUse ? `τελευταία φορά ${gr(p.lastUse)}` : ""].filter(Boolean).join(" · ") || "✓"];
-      }),
-      ["Υπερδοσολογία ποτέ", d.overdoseEver ? `Ναι${d.overdoseLast ? ` · τελευταία ${gr(d.overdoseLast)}` : ""}` : yn(d.overdoseEver)],
-      ["Στερητικά με σπασμούς", yn(d.seizuresEver)],
-      ["Μεθαδόνη / βουπρενορφίνη τώρα", yn(d.ost)],
-      ["Χρέη με απειλές", q.pgsi ? yn(d.debtThreats) : undefined],
-      ...scores,
-    ]),
-    sec("Προηγούμενες θεραπείες", [
-      ...d.treatments.map((t, i): [string, string] => [`${i + 1}. ${t.where}${t.whereText ? ` · ${t.whereText}` : ""}`, [t.when, t.duration, t.ended, t.helped && `βοήθησε: ${t.helped}`].filter(Boolean).join(" · ")]),
+    sec("Γιατί τώρα", [
+      ["Γιατί τώρα", d.whyNow],
+      ["Αποχή", d.abstinence],
+      ["Τι θέλει να δουλέψει στον εαυτό του/της", d.workOn],
       ["Μεγαλύτερη αποχή", [d.longestAbstinence, d.longestHelped && `τη βοήθησε: ${d.longestHelped}`, d.longestEnded && `την έληξε: ${d.longestEnded}`].filter(Boolean).join(" · ")],
     ]),
+    sec("Ιστορικό χρήσης", [
+      ...d.substances.map((s): Row => {
+        const p = d.perSubstance[s] ?? {};
+        const name = s === "other" && d.otherName ? d.otherName : SUBSTANCE_LABEL[s];
+        return [name, [p.problemAge ? `έγινε πρόβλημα στα ${p.problemAge}` : "", p.lastUse ? `τελευταία φορά ${gr(p.lastUse)}` : ""].filter(Boolean).join(" · ") || "χωρίς ημερομηνίες"];
+      }),
+      ["AUDIT", fmt(auditScore(d.audit))],
+      ["DAST-10", q.dast ? fmt(dastScore(d.dast)) : undefined],
+      ["PGSI", q.pgsi ? fmt(pgsiScore(d.pgsi)) : undefined],
+      { q: "Υπερδοσολογία ποτέ", v: d.overdoseEver, extra: d.overdoseLast && `τελευταία ${gr(d.overdoseLast)}` },
+      { q: "Στερητικά με σπασμούς", v: d.seizuresEver },
+      { q: "Μεθαδόνη / βουπρενορφίνη", v: d.ost },
+      ...(q.pgsi ? [{ q: "Χρέη με απειλές", v: d.debtThreats } as Row] : []),
+    ]),
+    sec("Προηγούμενες θεραπείες", d.treatments.map((t, i): Row => [`${i + 1}. ${t.where}${t.whereText ? ` · ${t.whereText}` : ""}`, [t.when, t.duration, t.ended, t.helped && `βοήθησε: ${t.helped}`].filter(Boolean).join(" · ") || "—"])),
     sec("Ψυχιατρικό", [
       ["Διαγνώσεις που του/της έχουν πει", [d.diagnoses.join(", "), d.diagnosesText].filter(Boolean).join(" — ")],
-      ["Νοσηλεία ποτέ", yn(d.hospitalisedEver)],
-      ["Απόπειρα / αυτοτραυματισμός ποτέ", yn(d.attemptEver)],
-      ["Ψυχωσικά τώρα", yn(d.psychoticNow)],
+      { q: "Ψυχωσικά τώρα", v: d.psychoticNow },
+      { q: "Απόπειρα / αυτοτραυματισμός ποτέ", v: d.attemptEver },
+      { q: "Νοσηλεία ποτέ", v: d.hospitalisedEver },
       ["Τραύμα", d.trauma],
-      ...d.meds.filter((m) => m.name).map((m): [string, string] => [`Φάρμακο: ${m.name}`, [m.dose, m.why, m.asPrescribed && `όπως γράφεται: ${m.asPrescribed}`].filter(Boolean).join(" · ")]),
+      ...d.meds.filter((m) => m.name).map((m): Row => [`Φάρμακο: ${m.name}`, [m.dose, m.why, m.asPrescribed && `το παίρνει όπως γράφεται: ${m.asPrescribed.toLowerCase()}`].filter(Boolean).join(" · ") || "—"]),
       ["Ψυχίατρος", d.psychiatristName],
       ["Τηλέφωνο ψυχιάτρου", opts.admin ? d.psychiatristPhone : undefined],
     ]),
     sec("Υγεία", [
-      ["Εγκυμοσύνη", yn(d.pregnant)],
+      { q: "Εγκυμοσύνη", v: d.pregnant },
       ["Να ξέρουμε", d.healthNote],
     ]),
     sec("Νομικά", [
-      ["Υποχρέωση θεραπείας / βεβαίωσης από δικαστήριο", yn(d.courtObligation)],
-      ["Βγήκε από φυλακή τους τελευταίους 3 μήνες", yn(d.prisonRecent)],
+      { q: "Υποχρέωση θεραπείας / βεβαίωσης από δικαστήριο", v: d.courtObligation },
+      { q: "Βγήκε από φυλακή τους τελευταίους 3 μήνες", v: d.prisonRecent },
       ["Λεπτομέρειες (διαχείριση)", opts.admin ? d.legalDetail : undefined],
     ]),
     sec("Οικογένεια", [
-      ["Παιδιά κάτω των 18", yn(d.children)],
-      ["Ανησυχία για την ασφάλεια παιδιού", d.children ? [yn(d.childConcern), d.childConcernText].filter(Boolean).join(" — ") : undefined],
-      ["Βία στο σπίτι", [yn(d.violence), d.violenceText].filter(Boolean).join(" — ")],
+      { q: "Παιδιά κάτω των 18", v: d.children },
+      ...(d.children === true ? [{ q: "Ανησυχία για την ασφάλεια παιδιού", v: d.childConcern, extra: d.childConcernText } as Row] : []),
+      { q: "Βία στο σπίτι", v: d.violence, extra: d.violenceText },
     ]),
-    sec("Κίνητρο", [
-      ["Γιατί τώρα", d.whyNow],
-      ["Αποχή", d.abstinence],
-      ["Τι θέλει να δουλέψει στον εαυτό του/της", d.workOn],
+    sec("Δυνάμεις και φόβοι", [
       ["Δυνάμεις", d.strengths],
       ["Τι φοβάται από τη συνεργασία", d.fears],
     ]),
   ].filter((s) => s.lines.length > 0);
 }
 
-function fmt(s: Score | null): string | undefined {
+export function fmt(s: Score | null): string | undefined {
   if (!s) return undefined;
   return `${s.score} · ${s.band}${s.answered < s.of ? ` (απαντήθηκαν ${s.answered} από ${s.of})` : ""}`;
 }
@@ -272,8 +295,9 @@ export function missingForComplete(d: Assessment): string[] {
   const out: string[] = [];
   if (!d.profileConfirmed) out.push("Επιβεβαίωση των στοιχείων του μέλους");
   if (d.substances.length === 0) out.push("Ιστορικό χρήσης: ποιες ουσίες / τζόγος");
+  if (d.overdoseEver === true && !d.overdoseLast) out.push("Ιστορικό χρήσης: πότε ήταν η τελευταία υπερδοσολογία (έστω περίπου)");
   if (d.children === undefined || d.violence === undefined) out.push("Οικογένεια: παιδιά και βία στο σπίτι");
-  if (d.children && d.childConcern === undefined) out.push("Οικογένεια: ανησυχία για την ασφάλεια του παιδιού");
+  if (d.children === true && d.childConcern === undefined) out.push("Οικογένεια: ανησυχία για την ασφάλεια του παιδιού");
   if (d.psychoticNow === undefined) out.push("Ψυχιατρικό: ψυχωσικά τώρα");
   if (!d.summary) out.push("Σύνοψη για την ομάδα");
   return out;

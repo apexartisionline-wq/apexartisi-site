@@ -1,25 +1,23 @@
 import { describe, expect, it } from "vitest";
 import {
-  assessmentAlerts, assessmentLines, assessmentSchema, auditScore, dastScore, keepAdminOnly, missingForComplete, pgsiScore,
+  assessmentWarnings, assessmentAlerts, assessmentLines, assessmentSchema, auditScore, dastScore, keepAdminOnly, missingForComplete, pgsiScore,
   questionnaires, soberSinceFrom, stripAdminOnly,
 } from "./assessment";
 
 const base = assessmentSchema.parse({});
 
 describe("βαθμολογίες", () => {
-  it("AUDIT: ζώνες του ΠΟΥ", () => {
+  it("AUDIT: άθροισμα, χωρίς χαρακτηρισμό κινδύνου (περίοδος βαριάς χρήσης)", () => {
     expect(auditScore([])).toBeNull();
-    expect(auditScore([1, 1, 1, 1, 1, 1, 1, 0, 0, 0])).toMatchObject({ score: 7, band: "χαμηλός κίνδυνος" });
-    expect(auditScore([2, 2, 2, 2, 0, 0, 0, 0, 0, 0])).toMatchObject({ score: 8, band: "επικίνδυνη χρήση" });
-    expect(auditScore([4, 4, 4, 4, 2, 0, 0, 0, 0, 0])).toMatchObject({ score: 18, band: "επιβλαβής χρήση", level: "amber" });
-    expect(auditScore([4, 4, 4, 4, 4, 0, 0, 0, 0, 0])).toMatchObject({ score: 20, band: "πιθανή εξάρτηση", level: "red" });
+    expect(auditScore([1, 1, 1, 1, 1, 1, 1, 0, 0, 0])).toMatchObject({ score: 7, band: "περίοδος βαριάς χρήσης", level: "plain" });
+    expect(auditScore([4, 4, 4, 4, 4, 0, 0, 0, 0, 0])).toMatchObject({ score: 20 });
     expect(auditScore([1, null, 2])).toMatchObject({ score: 3, answered: 2 });
   });
   it("DAST-10: η ερώτηση 3 μετρά ανάποδα", () => {
-    expect(dastScore([false, false, true, false, false, false, false, false, false, false])).toMatchObject({ score: 0, band: "χωρίς ένδειξη" });
-    expect(dastScore([false, false, false, false, false, false, false, false, false, false])).toMatchObject({ score: 1, band: "χαμηλό" });
-    expect(dastScore([true, true, false, true, true, true, false, false, false, false])).toMatchObject({ score: 6, band: "σημαντικό" });
-    expect(dastScore(Array(10).fill(true))).toMatchObject({ score: 9, band: "σοβαρό" });
+    expect(dastScore([false, false, true, false, false, false, false, false, false, false])).toMatchObject({ score: 0 });
+    expect(dastScore([false, false, false, false, false, false, false, false, false, false])).toMatchObject({ score: 1 });
+    expect(dastScore([true, true, false, true, true, true, false, false, false, false])).toMatchObject({ score: 6, band: "περίοδος βαριάς χρήσης" });
+    expect(dastScore(Array(10).fill(true))).toMatchObject({ score: 9 });
   });
   it("PGSI: κατηγορίες 0 / 1–2 / 3–7 / 8+", () => {
     expect(pgsiScore(Array(9).fill(0))).toMatchObject({ score: 0, band: "χωρίς πρόβλημα" });
@@ -81,5 +79,30 @@ describe("ολοκλήρωση", () => {
   it("λέει τι λείπει", () => {
     expect(missingForComplete(base).length).toBeGreaterThan(0);
     expect(missingForComplete({ ...base, profileConfirmed: true, substances: ["alcohol"], children: false, violence: false, psychoticNow: false, summary: "…" })).toEqual([]);
+  });
+});
+
+describe("«δεν απάντησε ακόμα»", () => {
+  it("δεν βγάζει ειδοποίηση και φαίνεται στον φάκελο", () => {
+    const d = { ...base, violence: "DECLINED" as const, pregnant: false, psychoticNow: false };
+    expect(assessmentAlerts(d, "2026-10-02")).toEqual([]);
+    const flat = JSON.stringify(assessmentLines(d, { admin: false }));
+    expect(flat).toContain("δεν απάντησε ακόμα");
+    expect(flat).toContain("Εγκυμοσύνη"); // στη γραμμή «Όχι»
+  });
+});
+
+describe("προειδοποιήσεις", () => {
+  it("υπερδοσολογία μετά την τελευταία χρήση", () => {
+    const d = { ...base, substances: ["pills" as const], perSubstance: { pills: { lastUse: "2026-02-03" } }, overdoseEver: true as const, overdoseLast: "2026-08-10" };
+    expect(assessmentWarnings(d)).toHaveLength(1);
+    expect(missingForComplete({ ...d, overdoseLast: undefined })).toContain("Ιστορικό χρήσης: πότε ήταν η τελευταία υπερδοσολογία (έστω περίπου)");
+  });
+});
+
+describe("παλιά αποθηκευμένα", () => {
+  it("διαβάζονται μετά από αλλαγή διατύπωσης", () => {
+    const d = assessmentSchema.parse({ treatments: [{ where: "Ιδιώτης", ended: "Διακοπή" }] });
+    expect(d.treatments[0].ended).toBe("Διακόπηκε");
   });
 });

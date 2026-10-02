@@ -1,12 +1,18 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { AssessmentClient } from "@/components/AssessmentClient";
-import { assessmentLines, assessmentSchema, auditScore, missingForComplete, stripAdminOnly } from "@/lib/assessment";
+import { assessmentLines, assessmentSchema, gr, missingForComplete, stripAdminOnly } from "@/lib/assessment";
+import { dec } from "@/lib/crypto";
 import { canWriteAssessment, EC_WHEN, latestAssessment, latestProfile, saveAssessment } from "@/lib/assessment-db";
 import { logAccess } from "@/lib/audit";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { formatDate, formatWhen } from "@/lib/time";
+import { formatWhen, localParts } from "@/lib/time";
+
+function age(birth: string): number {
+  const t = localParts(new Date()).date;
+  return Number(t.slice(0, 4)) - Number(birth.slice(0, 4)) - (t.slice(5) < birth.slice(5) ? 1 : 0);
+}
 
 async function save(formData: FormData) {
   "use server";
@@ -29,7 +35,7 @@ async function save(formData: FormData) {
 }
 
 // Αρχική αξιολόγηση (02): τη γράφει ψυχολόγος στην 1η ατομική· οι υπόλοιποι τη διαβάζουν.
-export default async function AssessmentPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ saved?: string; error?: string; missing?: string }> }) {
+export default async function AssessmentPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ saved?: string; error?: string; missing?: string; v?: string }> }) {
   const user = await requireRole("THERAPIST", "ADMIN");
   const [{ id }, sp] = await Promise.all([params, searchParams]);
   const member = await prisma.user.findFirst({ where: { id, role: "MEMBER" }, select: { id: true, name: true, soberSince: true } });
@@ -39,7 +45,21 @@ export default async function AssessmentPage({ params, searchParams }: { params:
   const canEdit = canWriteAssessment(user);
   const latest = await latestAssessment(id);
   const complete = Boolean(latest?.complete);
-  const versions = await prisma.assessment.count({ where: { memberId: id } });
+  const history = await prisma.assessment.findMany({ where: { memberId: id }, orderBy: { createdAt: "desc" }, select: { id: true, authorId: true, createdAt: true, complete: true } });
+  const versions = history.length;
+  const authors = new Map((await prisma.user.findMany({ where: { id: { in: [...new Set(history.map((h) => h.authorId))] } }, select: { id: true, name: true } })).map((u) => [u.id, u.name]));
+  const historyList = versions > 1 && (
+    <details className="card small" style={{ marginTop: 16 }}>
+      <summary>Ιστορικό αποθηκεύσεων ({versions})</summary>
+      <div className="list">
+        {history.map((h, i) => (
+          <Link key={h.id} href={`/t/members/${id}/assessment?v=${h.id}`}>
+            <span>{formatWhen(h.createdAt)} · {authors.get(h.authorId) ?? ""}{i === 0 ? " · τρέχουσα" : ""}{h.complete ? "" : " · πρόχειρο"}</span>
+          </Link>
+        ))}
+      </div>
+    </details>
+  );
 
   const header = (
     <>
@@ -60,6 +80,20 @@ export default async function AssessmentPage({ params, searchParams }: { params:
     </>
   );
 
+  if (sp.v) {
+    const row = await prisma.assessment.findFirst({ where: { id: sp.v, memberId: id } });
+    if (!row) notFound();
+    const old = assessmentSchema.parse(JSON.parse(dec(row.data)));
+    return (
+      <main>
+        {header}
+        <div className="notice">Παλιά μορφή: {formatWhen(row.createdAt)} · {authors.get(row.authorId) ?? ""}. <Link href={`/t/members/${id}/assessment`}>Πίσω στην τρέχουσα</Link></div>
+        <ReadView d={old} admin={admin} />
+        {historyList}
+      </main>
+    );
+  }
+
   if (canEdit) {
     const initial = latest ? (admin || !complete ? latest.data : stripAdminOnly(latest.data)) : assessmentSchema.parse({});
     // Τα στοιχεία του μέλους φαίνονται στον ψυχολόγο μόνο όσο η αξιολόγηση είναι ανοιχτή.
@@ -70,7 +104,7 @@ export default async function AssessmentPage({ params, searchParams }: { params:
         ? ([
             ["Ονοματεπώνυμο", p.data.fullName],
             ["Τον/την λέμε", p.data.preferredName],
-            ["Γέννηση", p.data.birthDate && formatDate(p.data.birthDate)],
+            ["Γέννηση", p.data.birthDate && `${gr(p.data.birthDate)} (${age(p.data.birthDate)} ετών)`],
             ["Κινητό", p.data.mobile],
             ["Email", p.data.email],
             ["Διεύθυνση", p.data.address],
@@ -87,6 +121,7 @@ export default async function AssessmentPage({ params, searchParams }: { params:
       <main>
         {header}
         <AssessmentClient action={save} memberId={id} initial={initial} profile={profile} showAdminFields={admin || !complete} complete={complete} />
+        {historyList}
       </main>
     );
   }
@@ -100,17 +135,25 @@ export default async function AssessmentPage({ params, searchParams }: { params:
       </main>
     );
   }
-  const a = auditScore(latest.data.audit);
   return (
     <main>
       {header}
-      {latest.data.summary && (
+      <ReadView d={latest.data} admin={false} />
+      {historyList}
+    </main>
+  );
+}
+
+function ReadView({ d, admin }: { d: ReturnType<typeof assessmentSchema.parse>; admin: boolean }) {
+  return (
+    <>
+      {d.summary && (
         <>
           <h2>Σύνοψη για την ομάδα</h2>
-          <div className="card body-text">{latest.data.summary}</div>
+          <div className="card body-text">{d.summary}</div>
         </>
       )}
-      {assessmentLines(latest.data, { admin: false }).map((s) => (
+      {assessmentLines(d, { admin }).map((s) => (
         <section key={s.title}>
           <h2>{s.title}</h2>
           <div className="list">
@@ -120,7 +163,6 @@ export default async function AssessmentPage({ params, searchParams }: { params:
           </div>
         </section>
       ))}
-      {!a && <p className="muted small">Χωρίς AUDIT.</p>}
-    </main>
+    </>
   );
 }

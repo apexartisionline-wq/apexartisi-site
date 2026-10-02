@@ -4,7 +4,10 @@ import { logAccess } from "@/lib/audit";
 import { MemberAssignments } from "@/components/MemberAssignments";
 import { MemberSessions } from "@/components/MemberSessions";
 import { SafetyZone } from "@/components/SafetyZone";
+import { auditScore, dastScore, gr, pgsiScore, questionnaires } from "@/lib/assessment";
+import { latestAssessment } from "@/lib/assessment-db";
 import { requireRole } from "@/lib/auth";
+import { soberDays } from "@/lib/note-form";
 import { prisma } from "@/lib/db";
 import { caseHistory, memberConsistency } from "@/lib/handover";
 import { CASE_FIELDS } from "@/lib/handover-rules";
@@ -23,14 +26,22 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
   if (!member) notFound();
   await logAccess(user.id, id, "member_file_view");
   const today = localParts(new Date()).date;
-  const [cycle, intake, consistency, [summary], plan, noteCount] = await Promise.all([
+  const [cycle, intake, consistency, [summary], plan, noteCount, ax] = await Promise.all([
     cycleInfo(id),
     memberIntake(member),
     memberConsistency(id),
     caseHistory(id, 1),
     prisma.safetyPlan.findUnique({ where: { memberId: id }, select: { updatedAt: true } }),
     prisma.sessionNote.count({ where: { slot: { bookings: { some: { memberId: id } } } } }),
+    latestAssessment(id),
   ]);
+  const sober = soberDays(member.soberSince, today);
+  const q = ax ? questionnaires(ax.data) : null;
+  const scores = ax && q
+    ? [["AUDIT", auditScore(ax.data.audit)], ["DAST-10", q.dast ? dastScore(ax.data.dast) : null], ["PGSI", q.pgsi ? pgsiScore(ax.data.pgsi) : null]]
+        .filter((x): x is [string, NonNullable<ReturnType<typeof auditScore>>] => Boolean(x[1]))
+        .map(([n, sc]) => `${n} ${sc.score}`)
+    : [];
   const riskCheck = intake.checks.find((c) => c.key === "risk");
   const assessment = intake.checks.find((c) => c.key === "assessment");
   const staffNames = new Map(
@@ -41,6 +52,18 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
     <main>
       <h1>{member.name}</h1>
       <SafetyZone memberId={id} />
+      <div className="card">
+        <div className="row spread">
+          <strong>{member.soberSince ? `Νηφάλιος/α ${sober ?? 0} μέρες` : "Νηφαλιότητα: δεν έχει γραφτεί"}</strong>
+          {member.soberSince && <span className="muted small">από {gr(member.soberSince)}</span>}
+        </div>
+        {ax?.data.summary && (
+          <>
+            <div className="muted small" style={{ marginTop: 10 }}>Από την αρχική αξιολόγηση · {ax.author}{scores.length > 0 && ` · ${scores.join(" · ")} (περίοδος βαριάς χρήσης)`}</div>
+            <div className="body-text">{ax.data.summary}</div>
+          </>
+        )}
+      </div>
       <div className="card">
         <div className="row spread">
           <strong>Συνέπεια · {consistency.weeks} εβδομάδες</strong>
@@ -80,7 +103,7 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
         <Link href={`/t/members/${id}/assessment`}>
           <span>
             <div>Αρχική αξιολόγηση</div>
-            <div className="sub">{assessment ? `✓ ${formatDate(localParts(assessment.doneAt).date)}, ${staffNames.get(assessment.doneById) ?? ""}` : "Εκκρεμεί · ψυχολόγος, 1η ατομική"}</div>
+            <div className="sub">{assessment ? `✓ ${formatDate(localParts(assessment.doneAt).date)}, ${staffNames.get(assessment.doneById) ?? ""}` : ax ? `Σε εξέλιξη · ${ax.author}` : "Εκκρεμεί · ψυχολόγος, 1η ατομική"}</div>
           </span>
         </Link>
       </div>

@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { EC_WHEN, latestProfile } from "@/lib/assessment-db";
+import { gr } from "@/lib/assessment";
+import { EC_WHEN, profileHistory } from "@/lib/assessment-db";
 import { notFound } from "next/navigation";
 import { dec, enc } from "@/lib/crypto";
 import { logAccess } from "@/lib/audit";
@@ -24,7 +25,9 @@ export default async function PersonPage({ params, searchParams }: { params: Pro
   const today = localParts(new Date()).date;
   const isMember = p.role === "MEMBER";
 
-  const profile = isMember ? await latestProfile(p.id) : null;
+  const ph = isMember ? await profileHistory(p.id) : null;
+  const profile = ph?.cur ?? null;
+  const telLink = (v: string) => (v ? <a href={`tel:${v.replace(/\s/g, "")}`}>{v}</a> : null);
   const [cycle, journal, attendance] = isMember
     ? await Promise.all([
         cycleInfo(p.id),
@@ -38,12 +41,43 @@ export default async function PersonPage({ params, searchParams }: { params: Pro
       <h1>{p.name}</h1>
       {sp.ok && <div className="notice">Αποθηκεύτηκε ✓</div>}
 
+      {isMember && (
+        profile ? (
+          <section className="card" style={{ borderColor: "var(--accent)" }}>
+            <strong>Έκτακτη ανάγκη</strong>
+            <div style={{ marginTop: 8 }}>{profile.data.address || <span className="muted">Χωρίς διεύθυνση</span>}{profile.data.abroadCountry && ` · ${profile.data.abroadCountry}`}</div>
+            <div>Κινητό μέλους: {telLink(profile.data.mobile) ?? <span className="muted">—</span>}</div>
+            {profile.data.ecName ? (
+              <div style={{ marginTop: 6 }}>
+                Επαφή: <strong>{profile.data.ecName}</strong>{profile.data.ecRelation && ` (${profile.data.ecRelation})`} · {telLink(profile.data.ecPhone)}
+                <div className="small muted">
+                  {profile.data.ecWhen ? EC_WHEN[profile.data.ecWhen] : "Δεν έχει πει πότε μπορούμε να καλέσουμε"}
+                  {profile.data.ecWhatToSay && ` · Τι λέμε: ${profile.data.ecWhatToSay}`}
+                </div>
+              </div>
+            ) : <div className="small muted" style={{ marginTop: 6 }}>Δεν έχει δώσει άνθρωπο για έκτακτη ανάγκη.</div>}
+            <details className="small" style={{ marginTop: 8 }}>
+              <summary>Όλα τα στοιχεία από το μέλος</summary>
+              <div>{profile.data.fullName}{profile.data.preferredName && ` · τον/την λέμε ${profile.data.preferredName}`}</div>
+              <div>Γέννηση: {profile.data.birthDate ? gr(profile.data.birthDate) : "—"}</div>
+              <div>Email: {profile.data.email || "—"}</div>
+            </details>
+            <p className="muted small" style={{ margin: "8px 0 0" }}>
+              Τελευταία αλλαγή {formatWhen(profile.at)}{ph && ph.changed.length > 0 && ` · άλλαξαν: ${ph.changed.join(", ")}`}{ph && ph.count > 1 && ` · ${ph.count} αποθηκεύσεις`}
+              {" · "}<Link href={`/t/members/${p.id}/assessment`}>Αρχική αξιολόγηση ›</Link>
+            </p>
+          </section>
+        ) : (
+          <div className="card muted small">Δεν έχει συμπληρώσει ακόμα τα στοιχεία «Πριν την 1η ατομική» (διεύθυνση, επαφή έκτακτης ανάγκης).</div>
+        )
+      )}
+
       <form action={updatePerson} className="card">
         <input type="hidden" name="id" value={p.id} />
         <div className="grid2">
           <div className="field"><label>Ονοματεπώνυμο</label><input name="name" defaultValue={p.name} required /></div>
           <div className="field"><label>Όνομα χρήστη</label><input value={p.username} disabled /></div>
-          <div className="field"><label>Κινητό</label><input name="phone" type="tel" defaultValue={p.phone ?? ""} /></div>
+          <div className="field"><label>Κινητό λογαριασμού (για το κόκκινο κουμπί)</label><input name="phone" type="tel" defaultValue={p.phone ?? ""} /></div>
           {isMember && <div className="field"><label>Κωδικός μέλους (για τα Google Forms)</label><input value={p.memberCode ?? "—"} disabled /></div>}
           {isMember ? (
             <>
@@ -84,29 +118,6 @@ export default async function PersonPage({ params, searchParams }: { params: Pro
 
       {isMember && (
         <>
-          <h2>Στοιχεία από το μέλος</h2>
-          <div className="list">
-            {profile ? (
-              ([
-                ["Ονοματεπώνυμο", profile.data.fullName],
-                ["Τον/την λέμε", profile.data.preferredName],
-                ["Γέννηση", profile.data.birthDate && formatDate(profile.data.birthDate)],
-                ["Κινητό", profile.data.mobile],
-                ["Email", profile.data.email],
-                ["Διεύθυνση", profile.data.address],
-                ["Ζει εκτός Ελλάδας", profile.data.abroadCountry],
-                ["Έκτακτη ανάγκη", [profile.data.ecName, profile.data.ecRelation, profile.data.ecPhone].filter(Boolean).join(" · ")],
-                ["Πότε την καλούμε", profile.data.ecWhen ? EC_WHEN[profile.data.ecWhen] : ""],
-                ["Τι της λέμε", profile.data.ecWhatToSay],
-              ] as [string, string][]).filter(([, v]) => v).map(([k, v]) => (
-                <div key={k} style={{ display: "block" }}><div className="sub">{k}</div><div>{v}</div></div>
-              ))
-            ) : (
-              <div className="muted">Δεν τα έχει συμπληρώσει ακόμα (σελίδα «Πριν την 1η ατομική» στο app του).</div>
-            )}
-          </div>
-          {profile && <p className="muted small">Τελευταία αλλαγή {formatWhen(profile.at)}. <Link href={`/t/members/${p.id}/assessment`}>Αρχική αξιολόγηση ›</Link></p>}
-
           <h2>Κύκλος ατομικών</h2>
           <form action={newCycle} className="card row spread">
             <input type="hidden" name="id" value={p.id} />

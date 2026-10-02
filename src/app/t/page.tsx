@@ -5,8 +5,7 @@ import { enc } from "@/lib/crypto";
 import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { openAlerts } from "@/lib/assessment-db";
-import { logAccess } from "@/lib/audit";
+import { recentAlerts } from "@/lib/assessment-db";
 import { groupDays } from "@/lib/groups";
 import { memberSafety } from "@/lib/handover";
 import { getSettings } from "@/lib/settings";
@@ -19,17 +18,6 @@ async function careDone(formData: FormData) {
     where: { id: String(formData.get("id")) },
     data: { doneAt: new Date(), doneById: user.id, note: enc(String(formData.get("note") ?? "").slice(0, 500)) },
   });
-  redirect("/t");
-}
-
-// «Το ανέλαβα»: η ειδοποίηση φεύγει από όλους και μένει γραμμένο ποιος την ανέλαβε και πότε.
-async function claimAlert(formData: FormData) {
-  "use server";
-  const user = await requireRole("THERAPIST", "ADMIN");
-  const id = String(formData.get("id"));
-  const a = await prisma.teamAlert.updateMany({ where: { id, claimedAt: null }, data: { claimedAt: new Date(), claimedById: user.id } });
-  const row = await prisma.teamAlert.findUnique({ where: { id }, select: { memberId: true } });
-  if (a.count && row) await logAccess(user.id, row.memberId, "team_alert_claim");
   redirect("/t");
 }
 
@@ -47,7 +35,7 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
   const s = await getSettings();
 
   const [alerts, care, slots, week, groups, members] = await Promise.all([
-    openAlerts(),
+    recentAlerts(),
     prisma.careTask.findMany({ where: { doneAt: null, dueAt: { lte: new Date() } }, orderBy: { dueAt: "asc" } }),
     prisma.slot.findMany({
       where: { date, therapistId: user.id, bookings: { some: {} } },
@@ -107,15 +95,10 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
       <p className="muted" style={{ margin: "2px 0 0" }}>{formatDate(date)} · {user.name}</p>
 
       {alerts.map((a) => (
-        <div key={a.id} className="alertbar" role="alert">
-          <strong>⚑ <Link href={`/t/members/${a.memberId}`}>{a.member}</Link> — {a.source === "ASSESSMENT" ? "Αρχική αξιολόγηση" : "Ειδοποίηση"}</strong>
-          <div>{a.text} · {a.by}, {localParts(a.createdAt).date === today ? formatTime(a.createdAt) : formatWhen(a.createdAt)}</div>
-          <form action={claimAlert}>
-            <input type="hidden" name="id" value={a.id} />
-            <span className="small">Δεν το έχει αναλάβει κανείς</span>
-            <button type="submit">Το ανέλαβα</button>
-          </form>
-        </div>
+        <Link key={a.id} href={`/t/members/${a.memberId}`} className="alertbar" role="alert" style={{ display: "block", textDecoration: "none" }}>
+          <strong>⚑ {a.member} — {a.text}</strong>
+          <div className="small">Αρχική αξιολόγηση · {a.by}, {localParts(a.createdAt).date === today ? formatTime(a.createdAt) : formatWhen(a.createdAt)} · μένει στο «Ασφάλεια» του φακέλου</div>
+        </Link>
       ))}
 
       <Announcements />

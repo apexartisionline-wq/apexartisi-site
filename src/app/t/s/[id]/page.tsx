@@ -6,6 +6,7 @@ import { JoinButton } from "@/components/JoinButton";
 import { NoteFormClient } from "@/components/NoteFormClient";
 import { NoteTags } from "@/components/NoteTags";
 import { SafetyZone } from "@/components/SafetyZone";
+import { latestAssessment } from "@/lib/assessment-db";
 import { logAccess } from "@/lib/audit";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
@@ -249,7 +250,7 @@ type Slot = NonNullable<Awaited<ReturnType<typeof loadSlot>>>;
 async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string; role: string }; sp: { saved?: string; error?: string; edit?: string } }) {
   const b = x.bookings[0];
   const now = new Date();
-  const [g, s, number, joined, intake, versions, assessed] = await Promise.all([
+  const [g, s, number, joined, intake, versions, assessed, ax] = await Promise.all([
     sessionGlance(b.memberId, x),
     getSettings(),
     sessionNumber({ cycleId: b.cycleId, slot: x }),
@@ -257,6 +258,7 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
     prisma.intakeCheck.findFirst({ where: { memberId: b.memberId, key: "risk" } }),
     x.note ? prisma.sessionNoteVersion.findMany({ where: { noteId: x.note.id }, orderBy: { createdAt: "desc" } }) : Promise.resolve([]),
     prisma.intakeCheck.findFirst({ where: { memberId: b.memberId, key: "assessment" }, select: { doneAt: true } }),
+    latestAssessment(b.memberId),
   ]);
   const editors = new Map((await prisma.user.findMany({ where: { id: { in: [...new Set(versions.map((v) => v.editorId))] } }, select: { id: true, name: true } })).map((u) => [u.id, u.name]));
   const room = s.rooms[x.position - 1] ?? "";
@@ -287,6 +289,13 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
       )}
 
       <SafetyZone memberId={b.memberId} />
+      {ax?.data.summary && (
+        <details className="card" open={!x.note}>
+          <summary><strong>Σύνοψη από την αρχική αξιολόγηση</strong> <span className="muted small">· {ax.author}</span></summary>
+          <div className="body-text" style={{ marginTop: 8 }}>{ax.data.summary}</div>
+          <Link className="small" href={`/t/members/${b.memberId}/assessment`}>Όλη η αξιολόγηση ›</Link>
+        </details>
+      )}
 
       <h2>Με μια ματιά</h2>
       <div className="tiles">

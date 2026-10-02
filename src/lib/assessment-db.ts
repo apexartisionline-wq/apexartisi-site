@@ -56,26 +56,57 @@ export async function saveAssessment(memberId: string, user: { id: string; role:
 // ── Στοιχεία του μέλους (μόνο διαχείριση) ─────────────────────────────────
 
 const text = (max: number) => z.string().trim().max(max).default("");
-export const profileSchema = z.object({
-  fullName: text(120),
-  preferredName: text(60),
-  birthDate: z.union([z.string().regex(/^\d{4}-\d{2}-\d{2}$/), z.literal("")]).default(""),
-  mobile: text(30),
-  email: text(120),
-  address: text(300),
-  abroadCountry: text(80),
-  ecName: text(120),
-  ecRelation: text(60),
-  ecPhone: text(30),
-  ecWhen: z.enum(["LIFE", "LIFE_OR_LOST"]).optional(),
-  ecWhatToSay: text(300),
-});
+const phone = z.string().trim().max(30).refine((v) => v === "" || /^\+?[0-9 ]{10,15}$/.test(v), "Γράψε το τηλέφωνο μόνο με αριθμούς (10 ψηφία).").default("");
+export const profileSchema = z
+  .object({
+    fullName: text(120),
+    preferredName: text(60),
+    birthDate: z.union([z.string().regex(/^\d{4}-\d{2}-\d{2}$/), z.literal("")]).default(""),
+    mobile: phone,
+    email: z.union([z.string().trim().email("Το email δεν φαίνεται σωστό."), z.literal("")]).default(""),
+    address: text(300),
+    abroadCountry: text(80),
+    ecName: text(120),
+    ecRelation: text(60),
+    ecPhone: phone,
+    ecWhen: z.enum(["LIFE", "LIFE_OR_LOST"]).optional(),
+    ecWhatToSay: text(300),
+  })
+  .superRefine((p, ctx) => {
+    const need = (k: string, m: string) => ctx.addIssue({ code: "custom", path: [k], message: m });
+    if (!p.fullName) need("fullName", "Ονοματεπώνυμο");
+    if (!p.birthDate) need("birthDate", "Ημερομηνία γέννησης");
+    else if (p.birthDate > new Date().toISOString().slice(0, 10) || p.birthDate < "1900-01-01") need("birthDate", "Η ημερομηνία γέννησης δεν φαίνεται σωστή.");
+    if (!p.mobile) need("mobile", "Κινητό");
+    if (!p.address) need("address", "Διεύθυνση");
+    if (p.ecName && !p.ecPhone) need("ecPhone", "Τηλέφωνο του ανθρώπου για έκτακτη ανάγκη");
+    if (p.ecPhone && !p.ecName) need("ecName", "Όνομα του ανθρώπου για έκτακτη ανάγκη");
+  });
 export type Profile = z.infer<typeof profileSchema>;
 export const EC_WHEN = { LIFE: "Μόνο αν κινδυνεύει η ζωή μου", LIFE_OR_LOST: "Και αν χαθεί κάθε επαφή μαζί μου" } as const;
+export const PROFILE_LABELS: Record<string, string> = {
+  fullName: "Ονοματεπώνυμο", preferredName: "Πώς θέλει να τον/την λέμε", birthDate: "Γέννηση", mobile: "Κινητό", email: "Email",
+  address: "Διεύθυνση", abroadCountry: "Ζει εκτός Ελλάδας", ecName: "Επαφή έκτακτης ανάγκης", ecRelation: "Σχέση", ecPhone: "Τηλέφωνο επαφής",
+  ecWhen: "Πότε καλούμε την επαφή", ecWhatToSay: "Τι λέμε στην επαφή",
+};
+
+/** Οι δύο τελευταίες μορφές των στοιχείων: για το «τι άλλαξε». */
+export async function profileHistory(memberId: string) {
+  const rows = await prisma.memberProfile.findMany({ where: { memberId }, orderBy: { createdAt: "desc" }, take: 2 });
+  const [cur, prev] = rows.map((r) => ({ data: readProfile(r.data), at: r.createdAt }));
+  const changed = cur && prev ? (Object.keys(PROFILE_LABELS) as (keyof Profile)[]).filter((k) => (cur.data[k] ?? "") !== (prev.data[k] ?? "")).map((k) => PROFILE_LABELS[k]) : [];
+  return { cur: cur ?? null, changed, count: await prisma.memberProfile.count({ where: { memberId } }) };
+}
 
 export async function latestProfile(memberId: string) {
   const row = await prisma.memberProfile.findFirst({ where: { memberId }, orderBy: { createdAt: "desc" } });
-  return row ? { data: profileSchema.parse(JSON.parse(dec(row.data))), at: row.createdAt } : null;
+  return row ? { data: readProfile(row.data), at: row.createdAt } : null;
+}
+
+/** Ανάγνωση αποθηκευμένων στοιχείων χωρίς τους κανόνες συμπλήρωσης (μπορεί να είναι παλιά/ελλιπή). */
+function readProfile(raw: string): Profile {
+  const o = JSON.parse(dec(raw)) as Partial<Profile>;
+  return { fullName: "", preferredName: "", birthDate: "", mobile: "", email: "", address: "", abroadCountry: "", ecName: "", ecRelation: "", ecPhone: "", ecWhatToSay: "", ...o };
 }
 
 export async function saveProfile(memberId: string, byId: string, p: Profile) {
@@ -88,9 +119,25 @@ export function alertText(source: string, kind: string): string {
   return source === "ASSESSMENT" ? (ALERTS[kind as AlertKind] ?? kind) : kind;
 }
 
-export async function openAlerts() {
-  const rows = await prisma.teamAlert.findMany({ where: { claimedAt: null }, orderBy: { createdAt: "asc" } });
+/** Σοβαρά σημεία των τελευταίων 24 ωρών, για το «Σήμερα» όλης της ομάδας (χωρίς κουμπί). */
+export async function recentAlerts(now = new Date()) {
+  const rows = await prisma.teamAlert.findMany({ where: { createdAt: { gte: new Date(now.getTime() - 24 * 3600_000) } }, orderBy: { createdAt: "desc" } });
   const ids = [...new Set(rows.flatMap((r) => [r.memberId, r.byId]))];
   const names = new Map((await prisma.user.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } })).map((u) => [u.id, u.name]));
   return rows.map((r) => ({ ...r, member: names.get(r.memberId) ?? "Μέλος", by: names.get(r.byId) ?? "", text: alertText(r.source, r.kind) }));
+}
+
+/** Τα σοβαρά σημεία που ισχύουν τώρα (από την τελευταία μορφή της αξιολόγησης), με το πότε και από ποιον σημειώθηκαν. */
+export async function assessmentFlags(memberId: string, now = new Date()) {
+  // Ένα χαλασμένο αρχείο δεν πρέπει να ρίχνει το «Σήμερα» όλων: το καταγράφουμε και συνεχίζουμε.
+  const latest = await latestAssessment(memberId).catch((e) => (console.error("[assessment]", memberId, e), null));
+  if (!latest) return [];
+  const kinds = assessmentAlerts(latest.data, localParts(now).date);
+  if (kinds.length === 0) return [];
+  const rows = await prisma.teamAlert.findMany({ where: { memberId, source: "ASSESSMENT", kind: { in: kinds } }, orderBy: { createdAt: "asc" } });
+  const by = new Map((await prisma.user.findMany({ where: { id: { in: rows.map((r) => r.byId) } }, select: { id: true, name: true } })).map((u) => [u.id, u.name]));
+  return kinds.map((k) => {
+    const r = rows.find((x) => x.kind === k);
+    return { text: `${ALERTS[k]} (αρχική αξιολόγηση${r ? ` · ${by.get(r.byId) ?? ""}` : ""})`, at: r?.createdAt ?? latest.at };
+  });
 }

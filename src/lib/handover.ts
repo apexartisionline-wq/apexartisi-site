@@ -1,4 +1,5 @@
 import "server-only";
+import { assessmentFlags } from "./assessment-db";
 import { z } from "zod";
 import { dec, enc } from "./crypto";
 import { prisma } from "./db";
@@ -32,7 +33,7 @@ export async function memberSafety(memberId: string, now = new Date()) {
   const risk = intake.checks.find((c) => c.key === "risk");
   // Τελευταία επαφή από ομάδα ή ατομική (όχι από το ημερολόγιο, που το βλέπει μόνο η υπεύθυνη).
   const contacts = [attendance?.joinedAt, booking?.joinedAt].filter((d): d is Date => Boolean(d));
-  return safetyFlags({
+  const flags = safetyFlags({
     now,
     risk: risk ? { value: risk.value, at: risk.doneAt } : null,
     safetyPlanAt: plan?.updatedAt ?? null,
@@ -44,6 +45,9 @@ export async function memberSafety(memberId: string, now = new Date()) {
     dropoutDays: s.dropoutDays,
     intakeComplete: intake.status.complete,
   });
+  // Σοβαρά σημεία της αρχικής αξιολόγησης: μένουν όσο ισχύουν στην τελευταία της μορφή.
+  const fromAssessment = (await assessmentFlags(memberId, now)).map((f) => ({ level: "red" as const, text: f.text, at: f.at, href: `/t/members/${memberId}/assessment` }));
+  return [...fromAssessment, ...flags];
 }
 
 export type CaseVersion = { id: string; data: CaseData; author: string; at: Date };
