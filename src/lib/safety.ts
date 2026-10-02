@@ -2,6 +2,7 @@ import "server-only";
 import { dec, enc } from "./crypto";
 import { z } from "zod";
 import { prisma } from "./db";
+import { keepHistory } from "./history";
 import { maskPhones } from "./risk";
 
 // Πλάνο ασφάλειας (βλ. docs/clinical/04): γράφεται μαζί, μέσα στην ατομική, με τα λόγια του μέλους.
@@ -55,9 +56,14 @@ export async function savePlan(memberId: string, formData: FormData, byId: strin
     if (name || phone) data.helperList.push({ name, phone });
   }
   const stored = { enc: enc(JSON.stringify(data)) };
-  await prisma.safetyPlan.upsert({
-    where: { memberId },
-    create: { memberId, data: stored, updatedById: byId },
-    update: { data: stored, updatedById: byId },
-  });
+  const old = await prisma.safetyPlan.findUnique({ where: { memberId } });
+  await prisma.$transaction([
+    // Η προηγούμενη μορφή κρατιέται (ποτέ σβήσιμο).
+    ...(old ? [keepHistory("safety_plan", { memberId, before: { data: prev, by: old.updatedById, at: old.updatedAt }, byId })] : []),
+    prisma.safetyPlan.upsert({
+      where: { memberId },
+      create: { memberId, data: stored, updatedById: byId },
+      update: { data: stored, updatedById: byId },
+    }),
+  ]);
 }

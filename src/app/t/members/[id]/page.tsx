@@ -13,13 +13,15 @@ import { prisma } from "@/lib/db";
 import { caseHistory, memberConsistency } from "@/lib/handover";
 import { CASE_FIELDS } from "@/lib/handover-rules";
 import { memberIntake } from "@/lib/intake";
-import { RISK_INFO, RISK_LEVELS } from "@/lib/intake-rules";
-import { cycleInfo } from "@/lib/member";
+import { RISK_INFO } from "@/lib/intake-rules";
+import { currentRisk } from "@/lib/risk-db";
+import { cycleInfo, cyclePeriod } from "@/lib/member";
+import { getSettings } from "@/lib/settings";
 import { programDay } from "@/lib/program";
 import { formatDate, formatWhen, localParts } from "@/lib/time";
 
 // Καρτέλα μέλους για τους θεραπευτές — όλοι δουλεύουν με όλα τα μέλη.
-// Το ημερολόγιο ανάκαμψης και ο δείκτης δεν εμφανίζονται εδώ — τα βλέπει μόνο η Εύα.
+// Όλο το ημερολόγιο ανάκαμψης και ο δείκτης δεν εμφανίζονται εδώ — τα βλέπει μόνο η Εύα (οι θεραπευτές βλέπουν τους αριθμούς στη σελίδα της ατομικής).
 export default async function TherapistMemberPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ case?: string }> }) {
   const user = await requireRole("THERAPIST", "ADMIN");
   const [{ id }, sp] = await Promise.all([params, searchParams]);
@@ -38,19 +40,23 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
   ]);
   const sober = soberDays(member.soberSince, today);
   const openIncidents = await prisma.incident.count({ where: { memberId: id, closedAt: null } });
-  const months = await prisma.cycle.findMany({ where: { memberId: id }, orderBy: { startedAt: "asc" }, select: { id: true, startedAt: true } });
+  const months = await prisma.cycle.findMany({
+    where: { memberId: id },
+    orderBy: { startedAt: "asc" },
+    select: { id: true, startedAt: true, closedAt: true, bookings: { select: { slot: { select: { date: true } } }, orderBy: { slot: { startsAt: "asc" } } } },
+  });
+  const s = await getSettings();
   const q = ax ? questionnaires(ax.data) : null;
   const scores = ax && q
     ? [["AUDIT", auditScore(ax.data.audit)], ["DAST-10", q.dast ? dastScore(ax.data.dast) : null], ["PGSI", q.pgsi ? pgsiScore(ax.data.pgsi) : null]]
         .filter((x): x is [string, NonNullable<ReturnType<typeof auditScore>>] => Boolean(x[1]))
         .map(([n, sc]) => `${n} ${sc.score}`)
     : [];
-  const riskCheck = intake.checks.find((c) => c.key === "risk");
+  const risk = await currentRisk(id);
   const assessment = intake.checks.find((c) => c.key === "assessment");
   const staffNames = new Map(
-    (await prisma.user.findMany({ where: { id: { in: [riskCheck?.doneById, assessment?.doneById].filter((x): x is string => Boolean(x)) } }, select: { id: true, name: true } })).map((u) => [u.id, u.name]),
+    (await prisma.user.findMany({ where: { id: { in: [assessment?.doneById].filter((x): x is string => Boolean(x)) } }, select: { id: true, name: true } })).map((u) => [u.id, u.name]),
   );
-  const risk = riskCheck?.value as keyof typeof RISK_LEVELS | undefined;
   return (
     <main>
       <h1>{member.name}</h1>
@@ -73,7 +79,8 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
           <span className="muted small">Μέρα {programDay(member.programStartDate, today) ?? "—"}{cycle && ` · κύκλος ${cycle.done} από ${cycle.length}`}</span>
         </div>
         <div style={{ marginTop: 10 }}>
-          Ομάδες: <strong>{consistency.groups} από {consistency.groupDays.length}</strong>
+          {cycle && <div>Ομάδες στον κύκλο: <strong>{cycle.groups} από {s.groupsPerCycle}</strong></div>}
+          Ομάδες που έγιναν τις τελευταίες {consistency.weeks} εβδομάδες: <strong>ήρθε σε {consistency.groups} από {consistency.groupDays.length}</strong>
           {consistency.groupDays.length > 0 && <span className="muted"> ({Math.round((consistency.groups / consistency.groupDays.length) * 100)}%)</span>}
         </div>
         <div className="row" style={{ gap: 4, marginTop: 6 }} aria-label="Παρουσίες στις ομάδες, μέρα με μέρα">
@@ -91,9 +98,9 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
       <div className="list">
         <Link href={`/t/members/${id}/risk`}>
           <span>
-            <div>Ανάγκες ασφάλειας: <strong>{risk ? RISK_LEVELS[risk] : "δεν χρειάστηκε αξιολόγηση"}</strong></div>
+            <div>Ανάγκες ασφάλειας: <strong>{risk.label}</strong></div>
             <div className="sub">
-              {risk && riskCheck ? `${RISK_INFO[risk].action} · ${formatDate(localParts(riskCheck.doneAt).date)}, ${staffNames.get(riskCheck.doneById) ?? ""}` : "Μόνο όταν υπάρχει λόγος · ψυχολόγος"}
+              {risk.trigger ? `μετά από ${risk.trigger.text} · ψυχολόγος` : risk.level && risk.at ? `${RISK_INFO[risk.level].action} · ${formatDate(localParts(risk.at).date)}, ${risk.author}` : "Μόνο όταν υπάρχει λόγος · ψυχολόγος"}
             </div>
           </span>
         </Link>
@@ -106,7 +113,7 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
         <Link href={`/t/members/${id}/assessment`}>
           <span>
             <div>Αρχική αξιολόγηση</div>
-            <div className="sub">{assessment ? `✓ ${formatDate(localParts(assessment.doneAt).date)}, ${staffNames.get(assessment.doneById) ?? ""}` : ax ? `Σε εξέλιξη · ${ax.author}` : "Εκκρεμεί · ψυχολόγος, 1η ατομική"}</div>
+            <div className="sub">{assessment && ax?.complete ? `✓ ${formatDate(localParts(assessment.doneAt).date)}, ${staffNames.get(assessment.doneById) ?? ""}` : ax ? `Σε εξέλιξη · ${ax.author}` : "Εκκρεμεί · ψυχολόγος, 1η ατομική"}</div>
           </span>
         </Link>
       </div>
@@ -116,7 +123,7 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
       <div className="list">
         <Link href={`/t/members/${id}/cycle`}><span>Ανασκόπηση τελευταίου κύκλου</span></Link>
         {months.map((c, i) => (
-          <Link key={c.id} href={`/t/members/${id}/month/${c.id}`}><span>Μήνας {i + 1} <span className="muted small">· από {formatDate(localParts(c.startedAt).date)}</span></span></Link>
+          <Link key={c.id} href={`/t/members/${id}/month/${c.id}`}><span>Μήνας {i + 1} <span className="muted small">· από {formatDate(cyclePeriod(c).from)}</span></span></Link>
         )).reverse()}
       </div>
       <div className="list">

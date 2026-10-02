@@ -3,6 +3,7 @@ import { dec, enc } from "@/lib/crypto";
 import { notFound, redirect } from "next/navigation";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { keepHistory } from "@/lib/history";
 import { ensureGroupSession, groupDays } from "@/lib/groups";
 import { getSettings } from "@/lib/settings";
 import { formatDate } from "@/lib/time";
@@ -32,7 +33,11 @@ async function save(formData: FormData) {
     memberId: String(formData.get(`m${i}`) ?? ""),
     text: String(formData.get(`t${i}`) ?? "").trim(),
   })).filter((m) => m.memberId && m.text);
+  const old = await prisma.groupSession.findUnique({ where: { id: session.id }, include: { mentions: true } });
+  const hadNote = old && (old.noteById || old.mentions.length > 0);
   await prisma.$transaction([
+    // Η προηγούμενη μορφή του σημειώματος (θέμα, κλίμα, αναφορές) κρατιέται, κρυπτογραφημένη όπως ήταν.
+    ...(hadNote ? [keepHistory("group_note", { ref: session.id, before: { theme: old.theme, atmosphere: old.atmosphere, by: old.noteById, at: old.noteAt, mentions: old.mentions.map((m) => ({ memberId: m.memberId, text: m.text })) }, byId: user.id })] : []),
     prisma.groupSession.update({
       where: { id: session.id },
       data: {

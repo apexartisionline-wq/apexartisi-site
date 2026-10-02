@@ -4,6 +4,7 @@ import { logAccess } from "@/lib/audit";
 import { requireRole } from "@/lib/auth";
 import { dec, enc } from "@/lib/crypto";
 import { prisma } from "@/lib/db";
+import { keepHistory } from "@/lib/history";
 import { memberIntake } from "@/lib/intake";
 import { canMarkStep, CHOICE_LABEL, type Choice, PURPOSES, RISK_INFO, RISK_LEVELS, STAFF_STEPS } from "@/lib/intake-rules";
 import { getSettings } from "@/lib/settings";
@@ -27,11 +28,15 @@ async function mark(formData: FormData) {
     redirect(`/t/members/${memberId}/start?e=plan`);
   }
   const note = enc(String(formData.get("note") ?? "").slice(0, 1000));
-  await prisma.intakeCheck.upsert({
-    where: { memberId_key: { memberId, key } },
-    create: { memberId, key, value, note, doneById: user.id },
-    update: { value, note, doneById: user.id, doneAt: new Date() },
-  });
+  const old = await prisma.intakeCheck.findUnique({ where: { memberId_key: { memberId, key } } });
+  await prisma.$transaction([
+    ...(old ? [keepHistory("intake_check", { memberId, ref: key, before: old, byId: user.id })] : []),
+    prisma.intakeCheck.upsert({
+      where: { memberId_key: { memberId, key } },
+      create: { memberId, key, value, note, doneById: user.id },
+      update: { value, note, doneById: user.id, doneAt: new Date() },
+    }),
+  ]);
   redirect(`/t/members/${memberId}/start`);
 }
 
@@ -43,7 +48,8 @@ async function unmark(formData: FormData) {
   const step = STAFF_STEPS.find((s) => s.key === key);
   if (!step || !canMarkStep(step, user.therapistKind)) redirect(`/t/members/${memberId}/start?e=psy`);
   if (step.admin && user.role !== "ADMIN") redirect(`/t/members/${memberId}/start?e=admin`);
-  await prisma.intakeCheck.deleteMany({ where: { memberId, key } });
+  const old = await prisma.intakeCheck.findUnique({ where: { memberId_key: { memberId, key } } });
+  if (old) await prisma.$transaction([keepHistory("intake_check", { memberId, ref: key, before: old, byId: user.id }), prisma.intakeCheck.delete({ where: { memberId_key: { memberId, key } } })]);
   redirect(`/t/members/${memberId}/start`);
 }
 

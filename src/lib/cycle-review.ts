@@ -3,6 +3,7 @@ import { dec, enc } from "./crypto";
 import { prisma } from "./db";
 import { goalWeek } from "./goals";
 import { soberDays } from "./note-form";
+import { cyclePeriod } from "./member";
 import { getSettings } from "./settings";
 import { addDays, localParts, mondayOf } from "./time";
 
@@ -21,8 +22,7 @@ export async function lastFinishedCycle(memberId: string, now = new Date()) {
 /** Η εικόνα του κύκλου, μόνη της: ατομικές, ομάδες, ημερολόγιο, στόχοι εβδομάδας, κόκκινο κουμπί, νηφαλιότητα. */
 export async function cyclePicture(memberId: string, cycle: NonNullable<Awaited<ReturnType<typeof lastFinishedCycle>>>) {
   // Ο «μήνας» ξεκινά από την 1η ατομική του κύκλου (ή από τη δημιουργία του, αν δεν έχει ακόμα).
-  const from = cycle.bookings[0]?.slot.date ?? localParts(cycle.startedAt).date;
-  const to = cycle.bookings.at(-1)?.slot.date ?? localParts(new Date()).date;
+  const { from, to } = cyclePeriod(cycle);
   const [member, groups, journal, help, relapses, s] = await Promise.all([
     prisma.user.findUniqueOrThrow({ where: { id: memberId }, select: { soberSince: true } }),
     prisma.attendance.count({ where: { memberId, date: { gte: from, lte: to } } }),

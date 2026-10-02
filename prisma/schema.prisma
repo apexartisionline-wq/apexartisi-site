@@ -644,3 +644,18 @@ model Closure {
 
   @@index([memberId, createdAt])
 }
+
+// Ιστορικό για εγγραφές που αλλάζουν ή αφαιρούνται (πλάνο ασφάλειας, σημείωμα ομάδας,
+// διόρθωση παρουσίας, βήματα φακέλου): η προηγούμενη μορφή κρατιέται, με όνομα και ώρα.
+model RecordHistory {
+  id        String   @id @default(cuid())
+  kind      String
+  memberId  String?
+  ref       String?
+  before    String
+  byId      String
+  createdAt DateTime @default(now())
+
+  @@index([kind, ref])
+  @@index([memberId])
+}

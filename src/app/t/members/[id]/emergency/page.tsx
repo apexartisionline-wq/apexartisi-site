@@ -15,19 +15,26 @@ async function reveal(formData: FormData) {
   // Καταγράφεται ποιος άνοιξε τα στοιχεία και πότε· φαίνεται στο «Σήμερα» όλων (άρα και της Εύας).
   await prisma.teamAlert.create({ data: { memberId, source: "EMERGENCY", kind: "REVEAL", byId: user.id } });
   await logAccess(user.id, memberId, "emergency_reveal");
-  redirect(`/t/members/${memberId}/emergency?open=${Date.now()}`);
+  redirect(`/t/members/${memberId}/emergency`);
 }
+
+export const dynamic = "force-dynamic";
 
 // «Έκτακτη ανάγκη»: σε άμεσο κίνδυνο ο ψυχολόγος βλέπει διεύθυνση και επαφή έκτακτης ανάγκης,
 // μόνο τώρα και μόνο αφού το ζητήσει (μένει καταγραφή).
-export default async function EmergencyPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ open?: string }> }) {
+export default async function EmergencyPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await requireRole("THERAPIST", "ADMIN");
   if (!canWriteRisk(user)) notFound();
-  const [{ id }, sp] = await Promise.all([params, searchParams]);
+  const { id } = await params;
   const member = await prisma.user.findFirst({ where: { id, role: "MEMBER" }, select: { id: true, name: true } });
   if (!member) notFound();
-  // Τα στοιχεία φαίνονται μόνο για λίγα λεπτά μετά το πάτημα (όχι από παλιό σύνδεσμο).
-  const opened = sp.open && Date.now() - Number(sp.open) < 10 * 60_000;
+  // Τα στοιχεία φαίνονται μόνο για λίγα λεπτά μετά από πραγματικό πάτημα του κουμπιού από τον ίδιο
+  // (ελέγχεται η καταγραφή στη βάση, όχι ο σύνδεσμος)· κάθε προβολή καταγράφεται.
+  const opened = await prisma.teamAlert.findFirst({
+    where: { memberId: id, source: "EMERGENCY", kind: "REVEAL", byId: user.id, createdAt: { gte: new Date(Date.now() - 10 * 60_000) } },
+    orderBy: { createdAt: "desc" },
+  });
+  if (opened) await logAccess(user.id, id, "emergency_view");
   const p = opened ? (await latestProfile(id))?.data : null;
   const tel = (v: string) => <a href={`tel:${v.replace(/\s/g, "")}`}>{v}</a>;
   return (
@@ -48,9 +55,9 @@ export default async function EmergencyPage({ params, searchParams }: { params: 
           <p style={{ marginTop: 0 }}>Τα στοιχεία (διεύθυνση, επαφή έκτακτης ανάγκης) τα βλέπει κανονικά μόνο η διαχείριση. Άνοιξέ τα μόνο αν κινδυνεύει τώρα. Θα καταγραφεί ότι τα άνοιξες και θα το δει η Εύα.</p>
           <button className="red big" type="submit" style={{ width: "100%" }}>Άνοιγμα στοιχείων τώρα</button>
         </form>
-      ) : p ? (
+      ) : opened && p ? (
         <div className="card">
-          <div className="muted small">Άνοιξαν {formatTime(new Date(Number(sp.open)))} από {user.name} · καταγράφηκε</div>
+          <div className="muted small">Άνοιξαν {formatTime(opened.createdAt)} από {user.name} · καταγράφηκε</div>
           <h2 style={{ margin: "8px 0 4px" }}>Διεύθυνση</h2>
           <div style={{ fontSize: "1.15rem" }}>{p.address || "—"}{p.abroadCountry && ` · ${p.abroadCountry}`}</div>
           <h2 style={{ margin: "12px 0 4px" }}>Επαφή έκτακτης ανάγκης</h2>

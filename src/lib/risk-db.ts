@@ -2,7 +2,7 @@ import "server-only";
 import { logAccess } from "./audit";
 import { dec, enc } from "./crypto";
 import { prisma } from "./db";
-import { type Level, needsReview, type RiskReview, riskSchema, type Trigger } from "./risk";
+import { type Level, LEVELS, needsReview, type RiskReview, riskSchema, type Trigger } from "./risk";
 
 export async function riskHistory(memberId: string, take = 10) {
   const rows = await prisma.riskReview.findMany({ where: { memberId }, orderBy: { createdAt: "desc" }, take });
@@ -45,7 +45,7 @@ export async function saveRisk(memberId: string, user: { id: string }, d: RiskRe
 
 /** Αφορμές για νέα αξιολόγηση: υποτροπή, κόκκινο κουμπί, ανησυχία στο σημείωμα. */
 export async function riskTrigger(memberId: string): Promise<Trigger | null> {
-  const [help, notes, last, check] = await Promise.all([
+  const [help, notes, last] = await Promise.all([
     prisma.helpRequest.findFirst({ where: { memberId, isDrill: false }, orderBy: { createdAt: "desc" }, select: { createdAt: true } }),
     prisma.sessionNote.findMany({
       where: { slot: { bookings: { some: { memberId } } }, OR: [{ usedSince: "YES" }, { riskChange: "UP" }] },
@@ -54,11 +54,20 @@ export async function riskTrigger(memberId: string): Promise<Trigger | null> {
       take: 5,
     }),
     prisma.riskReview.findFirst({ where: { memberId }, orderBy: { createdAt: "desc" }, select: { createdAt: true } }),
-    prisma.intakeCheck.findFirst({ where: { memberId, key: "risk" }, select: { doneAt: true } }),
   ]);
   const triggers: Trigger[] = [
     ...(help ? [{ at: help.createdAt, text: "κόκκινο κουμπί" }] : []),
     ...notes.map((n) => ({ at: n.createdAt, text: n.usedSince === "YES" ? "υποτροπή" : "ανησυχία στο σημείωμα" })),
   ];
-  return needsReview(triggers, last?.createdAt ?? check?.doneAt ?? null);
+  return needsReview(triggers, last?.createdAt ?? null);
+}
+
+/**
+ * Το επίπεδο αναγκών ασφάλειας όπως φαίνεται παντού (φάκελος, ατομική, σελίδα αναγκών ασφάλειας):
+ * μία πηγή, η τελευταία αξιολόγηση· αν υπάρχει νέα αφορμή, «Θέλει αξιολόγηση».
+ */
+export async function currentRisk(memberId: string) {
+  const [[last], trigger] = await Promise.all([riskHistory(memberId, 1), riskTrigger(memberId)]);
+  const label = trigger ? "Θέλει αξιολόγηση" : last ? LEVELS[last.level] : "Δεν χρειάστηκε αξιολόγηση";
+  return { level: last?.level ?? null, at: last?.at ?? null, author: last?.author ?? "", trigger, label };
 }

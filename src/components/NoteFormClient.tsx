@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { DEFENSES, MOOD, type NoteForm, PRESENTED, PROCESS, SELF_HELP, THEMES } from "@/lib/note-form";
+import { DEFENSES, MOOD, type NoteForm, noteFormSchema, PRESENTED, PROCESS, SELF_HELP, THEMES } from "@/lib/note-form";
 
 type Props = { action: (formData: FormData) => void; hidden: Record<string, string>; initial: Partial<NoteForm> | null; themeForms: string[] };
 
@@ -16,6 +16,14 @@ export function NoteFormClient({ action, hidden, initial, themeForms }: Props) {
       return { ...x, [k]: cur.includes(v) ? cur.filter((y) => y !== v) : [...cur, v] };
     });
   const notify = d.notify || !d.safeOk || Boolean(d.concern?.trim());
+  // Ο έλεγχος γίνεται εδώ πριν φύγει: αν λείπει κάτι, το σημείωμα μένει όπως είναι (δεν αδειάζει).
+  const [problem, setProblem] = useState("");
+  const check = (e: React.FormEvent<HTMLFormElement>) => {
+    const r = noteFormSchema.safeParse({ ...d, notify });
+    if (r.success) return setProblem("");
+    e.preventDefault();
+    setProblem(r.error.issues[0]?.message ?? "Κάτι λείπει.");
+  };
 
   const single = (k: "mood" | "selfHelp" | "process", opts: readonly string[]) => (
     <div className="chips">
@@ -45,7 +53,7 @@ export function NoteFormClient({ action, hidden, initial, themeForms }: Props) {
   };
 
   return (
-    <form action={action} className="note-form">
+    <form action={action} onSubmit={check} className="note-form">
       {Object.entries(hidden).map(([k, v]) => <input key={k} type="hidden" name={k} value={v} />)}
       <input type="hidden" name="payload" value={JSON.stringify({ ...d, notify })} />
 
@@ -75,6 +83,7 @@ export function NoteFormClient({ action, hidden, initial, themeForms }: Props) {
       </fieldset>
       <fieldset>{toggleRow("notify", "Ενημέρωση ομάδας θεραπευτών τώρα")}</fieldset>
       <fieldset>
+        {problem && <div className="error" role="alert" style={{ marginBottom: 10 }}>Δεν αποθηκεύτηκε ακόμα: {problem} Ό,τι έγραψες είναι εδώ.</div>}
         <button className="primary" type="submit" style={{ width: "100%", padding: 14 }}>Αποθήκευση σημειώματος</button>
         <p className="muted small" style={{ margin: "8px 0 0" }}>Αποθηκεύεται με όνομα και ώρα. Κάθε αλλαγή κρατά την προηγούμενη μορφή.</p>
       </fieldset>

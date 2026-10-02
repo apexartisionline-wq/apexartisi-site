@@ -14,6 +14,7 @@ import { prisma } from "@/lib/db";
 import { RISK_CHANGE, USED_SINCE } from "@/lib/handover-rules";
 import { RISK_INFO, RISK_LEVELS } from "@/lib/intake-rules";
 import { sessionNumber } from "@/lib/member";
+import { currentRisk } from "@/lib/risk-db";
 import { composeNote, type NoteForm, noteFlags, noteFormSchema } from "@/lib/note-form";
 import { sessionGlance } from "@/lib/session-glance";
 import { getSettings } from "@/lib/settings";
@@ -256,7 +257,7 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
     getSettings(),
     sessionNumber({ cycleId: b.cycleId, slot: x }),
     prisma.staffJoin.findFirst({ where: { kind: "SLOT", ref: x.id, userId: user.id }, orderBy: { at: "asc" } }),
-    prisma.intakeCheck.findFirst({ where: { memberId: b.memberId, key: "risk" } }),
+    currentRisk(b.memberId),
     x.note ? prisma.sessionNoteVersion.findMany({ where: { noteId: x.note.id }, orderBy: { createdAt: "desc" } }) : Promise.resolve([]),
     prisma.intakeCheck.findFirst({ where: { memberId: b.memberId, key: "assessment" }, select: { doneAt: true } }),
     latestAssessment(b.memberId),
@@ -267,7 +268,7 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
   const writable = canWrite(x, user) && now.getTime() >= x.startsAt.getTime() - 15 * 60_000;
   const initial: Partial<NoteForm> | null = x.note?.data ? (JSON.parse(dec(x.note.data)) as NoteForm) : null;
   const showForm = writable && (!x.note || sp.edit === "1" || !initial);
-  const risk = intake?.value as keyof typeof RISK_LEVELS | undefined;
+  const risk = intake.level;
   const maxCraving = Math.max(10, ...g.journal.days.map((d) => d?.craving ?? 0));
   const DAY = ["Κ", "Δ", "Τ", "Τ", "Π", "Π", "Σ"];
   const weekday = (d: string) => DAY[new Date(`${d}T12:00:00Z`).getUTCDay()];
@@ -305,11 +306,11 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
         <div className={`tile${g.groups.total && g.groups.done / g.groups.total < 0.6 ? " warn" : ""}`}><strong>{g.groups.done}/{g.groups.total}</strong><span>ομάδες, 4 εβδ.</span></div>
         <div className="tile"><strong>{g.journal.written}/7</strong><span>απογραφές εβδ.</span></div>
         <div className={`tile${g.help14 ? " warn" : ""}`}><strong>{g.help14}</strong><span>κόκκινο κουμπί, 14 μ.</span></div>
-        <div className="tile"><strong style={{ fontSize: "1.05rem", paddingTop: 4 }}>{risk ? RISK_LEVELS[risk] : "—"}</strong><span>ανάγκες ασφάλειας</span></div>
+        <div className="tile"><strong style={{ fontSize: "1.05rem", paddingTop: 4 }}>{intake.trigger ? intake.label : risk ? RISK_LEVELS[risk] : "—"}</strong><span>ανάγκες ασφάλειας</span></div>
       </div>
       <p className="muted small">
         {g.soberSince ? `Νηφάλιος/α από ${formatDate(g.soberSince)}` : "Δεν έχει οριστεί ημερομηνία νηφαλιότητας"}
-        {risk && ` · ${RISK_INFO[risk].action}`}
+        {!intake.trigger && risk && ` · ${RISK_INFO[risk].action}`}
       </p>
 
       <h2>Ανοιχτό από την προηγούμενη φορά</h2>

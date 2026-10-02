@@ -51,10 +51,9 @@ async function main() {
     created.push(m);
     await prisma.cycle.create({ data: { memberId: m.id, length: 8 } });
     if (!intakeDone) continue;
-    for (const key of ["online_consent", "agreement", "assessment", "risk", "safety_plan"]) {
-      await prisma.intakeCheck.create({
-        data: { memberId: m.id, key, value: key === "risk" ? "LOW" : null, doneById: staff[0].id },
-      });
+    // Αξιολόγηση, ανάγκες ασφάλειας και πλάνο σημειώνονται μόνο από τις σελίδες τους (μία αλήθεια).
+    for (const key of ["online_consent", "agreement"]) {
+      await prisma.intakeCheck.create({ data: { memberId: m.id, key, doneById: staff[0].id } });
     }
     for (const purpose of ["record", "journal", "forms", "telegram", "self_message", "emergency_contact", "confidentiality"]) {
       await prisma.consent.create({

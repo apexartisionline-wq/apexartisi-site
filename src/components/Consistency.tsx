@@ -2,6 +2,7 @@ import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { keepHistory } from "@/lib/history";
 import { groupStarted, groupsOn } from "@/lib/program";
 import { getSettings } from "@/lib/settings";
 import { addDays, daysBetween, formatDate, localParts } from "@/lib/time";
@@ -9,11 +10,12 @@ import { addDays, daysBetween, formatDate, localParts } from "@/lib/time";
 // Η Εύα μπορεί να διορθώσει μια παρουσία (π.χ. μπήκε στην ομάδα χωρίς το κουμπί του app).
 async function toggleAttendance(formData: FormData) {
   "use server";
-  await requireRole("ADMIN");
+  const user = await requireRole("ADMIN");
   const memberId = String(formData.get("memberId"));
   const date = String(formData.get("date"));
   const existing = await prisma.attendance.findUnique({ where: { memberId_date: { memberId, date } } });
-  if (existing) await prisma.attendance.delete({ where: { id: existing.id } });
+  // Η αφαίρεση κρατιέται στο ιστορικό (ποιος, πότε, τι ήταν).
+  if (existing) await prisma.$transaction([keepHistory("attendance_removed", { memberId, ref: date, before: existing, byId: user.id }), prisma.attendance.delete({ where: { id: existing.id } })]);
   else await prisma.attendance.create({ data: { memberId, date } });
   revalidatePath("/admin/consistency");
 }
