@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { dec, enc } from "@/lib/crypto";
+import { NoteTags } from "@/components/NoteTags";
+import { dec } from "@/lib/crypto";
 import { prisma } from "@/lib/db";
 import { formatDate, formatHour } from "@/lib/time";
 
@@ -42,6 +43,7 @@ export async function MemberSessions({ memberId, limit = 30 }: { memberId: strin
             {b.slot.note ? (
               <div className="body-text" style={{ marginTop: 8 }}>
                 {dec(b.slot.note.content)}
+                <NoteTags riskChange={b.slot.note.riskChange} usedSince={b.slot.note.usedSince} nextStep={dec(b.slot.note.nextStep)} />
                 <div className="muted small">— {b.slot.note.therapist.name}</div>
               </div>
             ) : (

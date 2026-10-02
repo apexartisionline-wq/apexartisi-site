@@ -2,9 +2,11 @@ import Link from "next/link";
 import { dec, enc } from "@/lib/crypto";
 import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
+import { NoteTags } from "@/components/NoteTags";
 import { logAccess } from "@/lib/audit";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { RISK_CHANGE, USED_SINCE } from "@/lib/handover-rules";
 import { sessionNumber } from "@/lib/member";
 import { formatDate, formatHour } from "@/lib/time";
 
@@ -29,12 +31,16 @@ async function saveNote(formData: FormData) {
   const user = await requireRole("THERAPIST", "ADMIN");
   const id = String(formData.get("slotId"));
   const content = z.string().trim().min(1).max(20000).parse(formData.get("content"));
+  const riskChange = z.enum(["UP", "SAME", "DOWN"]).parse(formData.get("riskChange"));
+  const usedSince = z.enum(["YES", "NO", "UNKNOWN"]).parse(formData.get("usedSince"));
+  const nextStep = z.string().trim().max(1000).parse(formData.get("nextStep") ?? "");
   const x = await loadSlot(id);
   if (!x || !canWrite(x, user)) notFound();
+  const data = { content: enc(content), riskChange, usedSince, nextStep: enc(nextStep) };
   await prisma.sessionNote.upsert({
     where: { slotId: id },
-    create: { slotId: id, therapistId: user.id, content: enc(content) },
-    update: { content: enc(content) },
+    create: { slotId: id, therapistId: user.id, ...data },
+    update: data,
   });
   redirect(`/t/s/${id}?saved=1`);
 }
@@ -97,6 +103,7 @@ export default async function SessionPage({
                 {n.slot.kind === "PAIR" && " · Therapair"}
               </div>
               <div className="body-text">{dec(n.content)}</div>
+              <NoteTags riskChange={n.riskChange} usedSince={n.usedSince} nextStep={dec(n.nextStep)} />
             </div>
           ))}
         </section>
@@ -106,11 +113,36 @@ export default async function SessionPage({
       {pair && <p className="muted small">Φαίνεται στους φακέλους και των δύο μελών.</p>}
       {sp.saved && <div className="notice">Αποθηκεύτηκε ✓</div>}
       {!canWrite(x, user) ? (
-        x.note ? <div className="card body-text">{dec(x.note.content)}</div> : <p className="muted">Δεν έχει γραφτεί σημείωμα ακόμα.</p>
+        x.note ? (
+          <div className="card">
+            <div className="body-text">{dec(x.note.content)}</div>
+            <NoteTags riskChange={x.note.riskChange} usedSince={x.note.usedSince} nextStep={dec(x.note.nextStep)} />
+          </div>
+        ) : <p className="muted">Δεν έχει γραφτεί σημείωμα ακόμα.</p>
       ) : past && x.bookings.length > 0 ? (
         <form action={saveNote} className="card">
           <input type="hidden" name="slotId" value={x.id} />
           <textarea name="content" defaultValue={dec(x.note?.content)} required style={{ minHeight: 240 }} />
+          <div className="row" style={{ flexWrap: "wrap", gap: 16, marginTop: 12 }}>
+            <label className="field">
+              Κίνδυνος σε σχέση με πριν
+              <select name="riskChange" required defaultValue={x.note?.riskChange ?? ""}>
+                <option value="" disabled>—</option>
+                {Object.entries(RISK_CHANGE).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              </select>
+            </label>
+            <label className="field">
+              Χρήση από την προηγούμενη επαφή
+              <select name="usedSince" required defaultValue={x.note?.usedSince ?? ""}>
+                <option value="" disabled>—</option>
+                {Object.entries(USED_SINCE).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              </select>
+            </label>
+          </div>
+          <label className="field">
+            Επόμενο βήμα
+            <input name="nextStep" defaultValue={dec(x.note?.nextStep)} maxLength={1000} placeholder="τι συμφωνήσαμε / τι να δει ο επόμενος" />
+          </label>
           <div className="row spread" style={{ marginTop: 12 }}>
             <span className="muted small">
               {x.note && `Τελευταία αλλαγή ${x.note.updatedAt.toLocaleString("el-GR", { timeZone: "Europe/Athens" })} · ${x.note.therapist.name}`}

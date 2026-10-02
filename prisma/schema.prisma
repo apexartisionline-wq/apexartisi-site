@@ -53,18 +53,18 @@ enum SelfHarm {
 }
 
 model User {
-  id               String        @id @default(cuid())
-  name             String
-  username         String        @unique
-  passwordHash     String
-  role             Role
-  active           Boolean       @default(true)
-  failedLogins     Int           @default(0)
+  id           String    @id @default(cuid())
+  name         String
+  username     String    @unique
+  passwordHash String
+  role         Role
+  active       Boolean   @default(true)
+  failedLogins Int       @default(0)
   // Δεύτερος παράγοντας (TOTP) για το προσωπικό· το μυστικό αποθηκεύεται κρυπτογραφημένο.
-  totpSecret       String?
-  totpEnabled      Boolean       @default(false)
-  lockedUntil      DateTime?
-  createdAt        DateTime      @default(now())
+  totpSecret   String?
+  totpEnabled  Boolean   @default(false)
+  lockedUntil  DateTime?
+  createdAt    DateTime  @default(now())
 
   phone            String? // για να καλέσει ο θεραπευτής στο κόκκινο κουμπί
   // Μόνο για μέλη
@@ -75,24 +75,24 @@ model User {
   selfMessageType  String?
 
   // Μόνο για θεραπευτές: αντιστοίχιση με τον λογαριασμό Telegram
-  telegramUserId   String?       @unique
-  therapistKind    TherapistKind?
+  telegramUserId String?        @unique
+  therapistKind  TherapistKind?
 
-  notifyPrefs      Json          @default("{}")
+  notifyPrefs Json @default("{}")
 
-  sessions         Session[]
-  cycles           Cycle[]
-  bookings         Booking[]     @relation("MemberBookings")
-  slots            Slot[]        @relation("TherapistSlots")
-  notes            SessionNote[]
-  attendances      Attendance[]
-  journal          JournalEntry[]
-  helpRequests     HelpRequest[] @relation("HelpMember")
-  helpClaims       HelpRequest[] @relation("HelpClaimer")
-  requests         ChangeRequest[]
-  pushSubs         PushSubscription[]
-  groupSessions    GroupSession[]
-  groupMentions    GroupMention[]
+  sessions      Session[]
+  cycles        Cycle[]
+  bookings      Booking[]          @relation("MemberBookings")
+  slots         Slot[]             @relation("TherapistSlots")
+  notes         SessionNote[]
+  attendances   Attendance[]
+  journal       JournalEntry[]
+  helpRequests  HelpRequest[]      @relation("HelpMember")
+  helpClaims    HelpRequest[]      @relation("HelpClaimer")
+  requests      ChangeRequest[]
+  pushSubs      PushSubscription[]
+  groupSessions GroupSession[]
+  groupMentions GroupMention[]
 }
 
 model Session {
@@ -127,38 +127,38 @@ model Cycle {
 
 // Μία θέση = ένα δωμάτιο Zoom σε συγκεκριμένη μέρα/ώρα.
 model Slot {
-  id          String   @id @default(cuid())
-  date        String // YYYY-MM-DD (ώρα Ελλάδας)
-  hour        Int // 0-23 (ώρα Ελλάδας)
-  position    Int // 1..4 → δωμάτιο
-  kind        SlotKind @default(INDIVIDUAL)
-  startsAt    DateTime
-  therapistId String?
-  therapist   User?    @relation("TherapistSlots", fields: [therapistId], references: [id])
-  bookings    Booking[]
+  id             String       @id @default(cuid())
+  date           String // YYYY-MM-DD (ώρα Ελλάδας)
+  hour           Int // 0-23 (ώρα Ελλάδας)
+  position       Int // 1..4 → δωμάτιο
+  kind           SlotKind     @default(INDIVIDUAL)
+  startsAt       DateTime
+  therapistId    String?
+  therapist      User?        @relation("TherapistSlots", fields: [therapistId], references: [id])
+  bookings       Booking[]
   // Therapair: η Εύα εγκρίνει το ζευγάρι πριν επιβεβαιωθεί.
   pairApprovedAt DateTime?
   // Ένα σημείωμα ανά θέση: στο Therapair είναι κοινό για τα δύο μέλη.
-  note        SessionNote?
+  note           SessionNote?
 
   @@unique([date, hour, position])
   @@index([startsAt])
 }
 
 model Booking {
-  id              String       @id @default(cuid())
+  id              String          @id @default(cuid())
   slotId          String
-  slot            Slot         @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  slot            Slot            @relation(fields: [slotId], references: [id], onDelete: Cascade)
   memberId        String
-  member          User         @relation("MemberBookings", fields: [memberId], references: [id], onDelete: Cascade)
+  member          User            @relation("MemberBookings", fields: [memberId], references: [id], onDelete: Cascade)
   cycleId         String?
-  cycle           Cycle?       @relation(fields: [cycleId], references: [id])
+  cycle           Cycle?          @relation(fields: [cycleId], references: [id])
   joinedAt        DateTime?
   durationMinutes Int? // από τις αναφορές του Zoom
   // Εναλλαγή βιωματικού/κλινικού: ποιον τύπο «μέτρησε» η συνεδρία και αν τηρήθηκε το μοτίβο.
   kind            TherapistKind?
-  alternationOk   Boolean      @default(true)
-  createdAt       DateTime     @default(now())
+  alternationOk   Boolean         @default(true)
+  createdAt       DateTime        @default(now())
   requests        ChangeRequest[]
 
   @@unique([slotId, memberId])
@@ -172,6 +172,10 @@ model SessionNote {
   therapistId String
   therapist   User     @relation(fields: [therapistId], references: [id])
   content     String
+  // Δομημένα πεδία για τη ζώνη ασφαλείας και τα φίλτρα (κενά στα παλιά σημειώματα).
+  riskChange  String? // UP | SAME | DOWN
+  usedSince   String? // YES | NO | UNKNOWN — χρήση από την προηγούμενη επαφή
+  nextStep    String   @default("") // κρυπτογραφημένο
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -247,9 +251,10 @@ model HelpRequest {
 
 // Κάθε άνοιγμα του κόκκινου κουμπιού (και όσοι πάτησαν «Είμαι καλύτερα»).
 model HelpOpen {
-  id        String   @id @default(cuid())
-  memberId  String
-  openedAt  DateTime @default(now())
+  id       String   @id @default(cuid())
+  memberId String
+  openedAt DateTime @default(now())
+
   @@index([memberId, openedAt])
 }
 
@@ -269,6 +274,7 @@ model CareTask {
   doneById  String?
   note      String    @default("")
   createdAt DateTime  @default(now())
+
   @@index([doneAt, dueAt])
 }
 
@@ -287,6 +293,7 @@ model AccessLog {
   memberId String?
   action   String
   at       DateTime @default(now())
+
   @@index([memberId, at])
   @@index([userId, at])
 }
@@ -361,14 +368,15 @@ enum Audience {
 
 // Ανακοινώσεις της Εύας. Εμφανίζονται πρώτες στην αρχική μέχρι το «Εντάξει» ή τη λήξη.
 model Announcement {
-  id          String             @id @default(cuid())
+  id          String            @id @default(cuid())
   audience    Audience
   title       String
-  body        String             @default("")
+  body        String            @default("")
   expiresAt   DateTime?
   createdById String
-  createdAt   DateTime           @default(now())
+  createdAt   DateTime          @default(now())
   acks        AnnouncementAck[]
+
   @@index([createdAt])
 }
 
@@ -377,6 +385,7 @@ model AnnouncementAck {
   announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
   userId         String
   ackedAt        DateTime     @default(now())
+
   @@id([announcementId, userId])
 }
 
@@ -400,6 +409,7 @@ model LibraryItem {
   published   Boolean     @default(true)
   createdById String
   createdAt   DateTime    @default(now())
+
   @@index([published, createdAt])
 }
 
@@ -414,6 +424,7 @@ model Assignment {
   answer       String            @default("") // κρυπτογραφημένο
   answeredAt   DateTime?
   photos       AssignmentPhoto[]
+
   @@index([memberId, createdAt])
 }
 
@@ -433,6 +444,7 @@ model IntakeCheck {
   note     String   @default("") // κρυπτογραφημένο
   doneAt   DateTime @default(now())
   doneById String
+
   @@id([memberId, key])
 }
 
@@ -446,5 +458,18 @@ model Consent {
   version      String
   recordedById String
   recordedAt   DateTime @default(now())
+
   @@index([memberId, purpose, recordedAt])
+}
+
+// Σύνοψη περίπτωσης: λίγες σταθερές γραμμές που κρατούν οι θεραπευτές για το κάθε μέλος,
+// ώστε όποιος το αναλάβει να ξέρει πού βρίσκεται. Κάθε αλλαγή είναι νέα έκδοση (ιστορικό).
+model CaseSummary {
+  id        String   @id @default(cuid())
+  memberId  String
+  content   String // κρυπτογραφημένο JSON (βλ. src/lib/handover-rules.ts)
+  authorId  String
+  createdAt DateTime @default(now())
+
+  @@index([memberId, createdAt])
 }
