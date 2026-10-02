@@ -22,7 +22,9 @@ const nextConfig: NextConfig = {
         source: "/(.*)",
         headers: [
           { key: "Content-Security-Policy", value: csp },
-          { key: "Referrer-Policy", value: "no-referrer" },
+          // same-origin (όχι no-referrer): με no-referrer ο browser στέλνει «Origin: null» στις φόρμες
+          // και το Next.js απορρίπτει την είσοδο με 500. Προς άλλους ιστότοπους δεν φεύγει τίποτα.
+          { key: "Referrer-Policy", value: "same-origin" },
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "X-Frame-Options", value: "DENY" },
           { key: "X-Robots-Tag", value: "noindex, nofollow" },
