@@ -3,9 +3,9 @@ import { dec, enc } from "./crypto";
 import { prisma } from "./db";
 import { goalWeek } from "./goals";
 import { soberDays } from "./note-form";
+import { getSettings } from "./settings";
 import { addDays, localParts, mondayOf } from "./time";
 
-export const GROUPS_PER_CYCLE = 16;
 
 /** Ο τελευταίος κύκλος που έχει ολοκληρώσει όλες τις ατομικές του (όλες έγιναν). */
 export async function lastFinishedCycle(memberId: string, now = new Date()) {
@@ -20,14 +20,16 @@ export async function lastFinishedCycle(memberId: string, now = new Date()) {
 
 /** Η εικόνα του κύκλου, μόνη της: ατομικές, ομάδες, ημερολόγιο, στόχοι εβδομάδας, κόκκινο κουμπί, νηφαλιότητα. */
 export async function cyclePicture(memberId: string, cycle: NonNullable<Awaited<ReturnType<typeof lastFinishedCycle>>>) {
-  const from = localParts(cycle.startedAt).date;
+  // Ο «μήνας» ξεκινά από την 1η ατομική του κύκλου (ή από τη δημιουργία του, αν δεν έχει ακόμα).
+  const from = cycle.bookings[0]?.slot.date ?? localParts(cycle.startedAt).date;
   const to = cycle.bookings.at(-1)?.slot.date ?? localParts(new Date()).date;
-  const [member, groups, journal, help, relapses] = await Promise.all([
+  const [member, groups, journal, help, relapses, s] = await Promise.all([
     prisma.user.findUniqueOrThrow({ where: { id: memberId }, select: { soberSince: true } }),
     prisma.attendance.count({ where: { memberId, date: { gte: from, lte: to } } }),
     prisma.journalEntry.count({ where: { memberId, date: { gte: from, lte: to } } }),
-    prisma.helpRequest.count({ where: { memberId, isDrill: false, createdAt: { gte: cycle.startedAt, lte: new Date(`${addDays(to, 1)}T00:00:00Z`) } } }),
-    prisma.sobrietyChange.count({ where: { memberId, at: { gte: cycle.startedAt } } }),
+    prisma.helpRequest.count({ where: { memberId, isDrill: false, createdAt: { gte: new Date(`${from}T00:00:00Z`), lte: new Date(`${addDays(to, 1)}T00:00:00Z`) } } }),
+    prisma.sobrietyChange.count({ where: { memberId, at: { gte: new Date(`${from}T00:00:00Z`) } } }),
+    getSettings(),
   ]);
   const days = Math.max(1, Math.round((Date.parse(`${to}T12:00:00Z`) - Date.parse(`${from}T12:00:00Z`)) / 86_400_000) + 1);
   const weeks = [];
@@ -39,7 +41,7 @@ export async function cyclePicture(memberId: string, cycle: NonNullable<Awaited<
     from,
     to,
     sessions: { came: cycle.bookings.filter((b) => b.joinedAt).length, total: cycle.length },
-    groups: { came: groups, total: GROUPS_PER_CYCLE },
+    groups: { came: groups, total: s.groupsPerCycle },
     journal: { written: journal, days },
     help,
     relapses,

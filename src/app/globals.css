@@ -198,3 +198,10 @@ nav.top img { height: 28px; }
 .gd.partly { background: color-mix(in srgb, var(--yellow) 22%, transparent); }
 .gd.no { background: color-mix(in srgb, var(--red) 16%, transparent); }
 .gd.none b { color: var(--muted); }
+
+/* Μηνιαίος φάκελος: εκτύπωση / αποθήκευση ως PDF */
+@media print {
+  nav.top, .no-print, .redbar { display: none !important; }
+  body { background: #fff; color: #000; }
+  .card, .list { border-color: #bbb; break-inside: avoid; }
+}

@@ -35,6 +35,7 @@ export default async function MemberHome() {
     memberConsents(user.id),
   ]);
 
+  const unreadMessage = await prisma.monthlyMessage.findFirst({ where: { memberId: user.id, sentAt: { not: null }, readAt: null }, select: { id: true } });
   const text = contents.find((c) => c.kind === "DAILY_TEXT" && isPublished(c.date, s.dailyTextTime, now));
   const forms = contents.filter((c) => c.kind === "FORM" && isPublished(c.date, s.formsTime, now));
   const groupsToday = groupsOn(today.date, s);
@@ -48,6 +49,12 @@ export default async function MemberHome() {
       <h1>Γεια σου, {user.name.split(" ")[0]}</h1>
 
       <Announcements />
+      {unreadMessage && (
+        <Link href="/m/message" className="card" style={{ display: "block", textDecoration: "none", color: "inherit", borderColor: "var(--accent)" }}>
+          <strong>✉︎ Ένα μήνυμα για τον μήνα σου</strong>
+          <div className="muted small">Από την ομάδα του APEX · πάτα για να το διαβάσεις</div>
+        </Link>
+      )}
 
       <section className="card whereami" aria-label="Πού βρίσκομαι">
         <div>

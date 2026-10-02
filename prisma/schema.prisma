@@ -596,3 +596,20 @@ model CycleReview {
   @@index([memberId, createdAt])
   @@index([cycleId])
 }
+
+// Μήνυμα ενθάρρυνσης στο τέλος του κύκλου («μήνα»): σχέδιο από τα νούμερα (χωρίς AI),
+// το ελέγχει και το στέλνει η υπεύθυνη· το μέλος το βλέπει στο app.
+model MonthlyMessage {
+  id         String    @id @default(cuid())
+  memberId   String
+  cycleId    String    @unique
+  text       String // κρυπτογραφημένο
+  editedById String?
+  sentById   String?
+  sentAt     DateTime?
+  readAt     DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([memberId, sentAt])
+}

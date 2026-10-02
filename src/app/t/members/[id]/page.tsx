@@ -37,6 +37,7 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
     latestAssessment(id),
   ]);
   const sober = soberDays(member.soberSince, today);
+  const months = await prisma.cycle.findMany({ where: { memberId: id }, orderBy: { startedAt: "asc" }, select: { id: true, startedAt: true } });
   const q = ax ? questionnaires(ax.data) : null;
   const scores = ax && q
     ? [["AUDIT", auditScore(ax.data.audit)], ["DAST-10", q.dast ? dastScore(ax.data.dast) : null], ["PGSI", q.pgsi ? pgsiScore(ax.data.pgsi) : null]]
@@ -110,7 +111,13 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
       </div>
       <h2>Στόχοι εβδομάδας</h2>
       <RecentGoals memberId={id} today={today} />
-      <div className="list"><Link href={`/t/members/${id}/cycle`}><span>Ανασκόπηση κύκλου</span></Link></div>
+      <h2>Μήνες</h2>
+      <div className="list">
+        <Link href={`/t/members/${id}/cycle`}><span>Ανασκόπηση τελευταίου κύκλου</span></Link>
+        {months.map((c, i) => (
+          <Link key={c.id} href={`/t/members/${id}/month/${c.id}`}><span>Μήνας {i + 1} <span className="muted small">· από {formatDate(localParts(c.startedAt).date)}</span></span></Link>
+        )).reverse()}
+      </div>
       <h2>Σύνοψη περίπτωσης</h2>
       <div className="card">
         {summary ? (
