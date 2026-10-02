@@ -42,7 +42,7 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
   ]);
   const myGroups = groups.filter((g) => g.coordinatorId === user.id);
   const careMembers = new Map(
-    (await prisma.user.findMany({ where: { id: { in: care.map((c) => c.memberId) } }, select: { id: true, name: true, phone: true } })).map((m) => [m.id, m]),
+    (await prisma.user.findMany({ where: { id: { in: care.map((c) => c.memberId) } }, select: { id: true, name: true } })).map((m) => [m.id, m]),
   );
   const todayGroups = myGroups.filter((g) => g.date === date);
   const names = (x: { bookings: { member: { name: string } }[] }) => x.bookings.map((b) => b.member.name).join(" & ");
@@ -67,7 +67,6 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
                 <input type="hidden" name="id" value={c.id} />
                 <span>
                   {CARE[c.kind] ?? c.kind}: <Link href={`/t/members/${c.memberId}`}>{m?.name}</Link>
-                  {m?.phone && <> · <a href={`tel:${m.phone}`}>{m.phone}</a></>}
                 </span>
                 <span className="row" style={{ gap: 4 }}>
                   <input name="note" placeholder="σύντομα: τι έγινε" style={{ width: 180 }} />
