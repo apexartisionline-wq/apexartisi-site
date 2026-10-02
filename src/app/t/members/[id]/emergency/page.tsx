@@ -12,7 +12,7 @@ async function reveal(formData: FormData) {
   const user = await requireRole("THERAPIST", "ADMIN");
   if (!canWriteRisk(user)) notFound();
   const memberId = String(formData.get("memberId"));
-  // Καταγράφεται ποιος άνοιξε τα στοιχεία και πότε· φαίνεται στο «Σήμερα» όλων (άρα και της Εύας).
+  // Καταγράφεται ποιος άνοιξε τα στοιχεία και πότε· φαίνεται στο «Σήμερα» όλων (άρα και της διαχείρισης).
   await prisma.teamAlert.create({ data: { memberId, source: "EMERGENCY", kind: "REVEAL", byId: user.id } });
   await logAccess(user.id, memberId, "emergency_reveal");
   redirect(`/t/members/${memberId}/emergency`);
@@ -52,7 +52,7 @@ export default async function EmergencyPage({ params }: { params: Promise<{ id: 
       {!opened ? (
         <form action={reveal} className="card">
           <input type="hidden" name="memberId" value={id} />
-          <p style={{ marginTop: 0 }}>Τα στοιχεία (διεύθυνση, επαφή έκτακτης ανάγκης) τα βλέπει κανονικά μόνο η διαχείριση. Άνοιξέ τα μόνο αν κινδυνεύει τώρα. Θα καταγραφεί ότι τα άνοιξες και θα το δει η Εύα.</p>
+          <p style={{ marginTop: 0 }}>Τα στοιχεία (διεύθυνση, επαφή έκτακτης ανάγκης) τα βλέπει κανονικά μόνο η διαχείριση. Άνοιξέ τα μόνο αν κινδυνεύει τώρα. Θα καταγραφεί ότι τα άνοιξες και θα το δει η διαχείριση.</p>
           <button className="red big" type="submit" style={{ width: "100%" }}>Άνοιγμα στοιχείων τώρα</button>
         </form>
       ) : opened && p ? (
@@ -69,7 +69,7 @@ export default async function EmergencyPage({ params }: { params: Promise<{ id: 
           ) : <div className="muted">Δεν έχει δώσει.</div>}
         </div>
       ) : (
-        <div className="card">Το μέλος δεν έχει συμπληρώσει στοιχεία. Πάρε αμέσως την Εύα / τη διαχείριση.</div>
+        <div className="card">Το μέλος δεν έχει συμπληρώσει στοιχεία. Πάρε αμέσως τη διαχείριση.</div>
       )}
     </main>
   );
