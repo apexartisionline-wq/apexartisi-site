@@ -100,11 +100,11 @@ describe("safetyFlags", () => {
     expect(f[0].text).toContain("Κόκκινο κουμπί");
   });
 
-  it("αξιολόγηση αναγκών: αυξημένες = κίτρινο, παλιά (>30 μέρες) = κίτρινο", () => {
+  it("αξιολόγηση αναγκών: αυξημένες = κίτρινο· παλιά αξιολόγηση δεν βγάζει σήμα (μόνο όταν υπάρχει λόγος)", () => {
     expect(safetyFlags({ ...base, risk: { value: "MEDIUM", at: ago(5) } })).toEqual([
       expect.objectContaining({ level: "yellow", text: "Αυξημένες ανάγκες ασφάλειας" }),
     ]);
-    expect(safetyFlags({ ...base, risk: { value: "LOW", at: ago(45) } })[0].text).toContain("45 μέρες");
+    expect(safetyFlags({ ...base, risk: { value: "LOW", at: ago(45) } })).toEqual([]);
   });
 
   it("με υψηλές ανάγκες το πλάνο ασφάλειας θέλει αναθεώρηση κάθε 4 εβδομάδες", () => {
@@ -112,9 +112,8 @@ describe("safetyFlags", () => {
     expect(f.map((x) => x.text)).toContain("Το πλάνο ασφάλειας δεν έχει αναθεωρηθεί 35 μέρες");
   });
 
-  it("χωρίς αξιολόγηση κινδύνου μόνο μετά την έναρξη", () => {
-    expect(safetyFlags({ ...base, risk: null, intakeComplete: false })).toEqual([]);
-    expect(safetyFlags({ ...base, risk: null })[0].text).toBe("Δεν υπάρχει αξιολόγηση αναγκών ασφάλειας");
+  it("χωρίς αξιολόγηση αναγκών ασφάλειας: κανένα σήμα (γίνεται μόνο όταν υπάρχει λόγος)", () => {
+    expect(safetyFlags({ ...base, risk: null })).toEqual([]);
   });
 });
 

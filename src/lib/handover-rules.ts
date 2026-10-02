@@ -17,7 +17,7 @@ export const CASE_FIELDS = [
 ] as const;
 export type CaseData = Partial<Record<(typeof CASE_FIELDS)[number]["key"], string>>;
 
-export type Flag = { level: "red" | "yellow"; text: string; at?: Date; href?: string };
+export type Flag = { level: "red" | "yellow"; text: string; at?: Date; href?: string; key?: string };
 
 export type SafetyInput = {
   now: Date;
@@ -48,10 +48,7 @@ export function safetyFlags(x: SafetyInput): Flag[] {
 
   if (x.risk?.value === "HIGH") flags.push({ level: "red", text: "Υψηλές ανάγκες ασφάλειας", at: x.risk.at });
   else if (x.risk?.value === "MEDIUM") flags.push({ level: "yellow", text: "Αυξημένες ανάγκες ασφάλειας", at: x.risk.at });
-  if (!x.risk && x.intakeComplete) flags.push({ level: "yellow", text: "Δεν υπάρχει αξιολόγηση αναγκών ασφάλειας" });
-  else if (x.risk && x.intakeComplete && !within(x.risk.at, 30)) {
-    flags.push({ level: "yellow", text: `Η αξιολόγηση αναγκών ασφάλειας έγινε πριν από ${daysAgo(x.now, x.risk.at)} μέρες (ανά μήνα)`, at: x.risk.at });
-  }
+  // Η αξιολόγηση γίνεται μόνο όταν υπάρχει λόγος (απόφαση υπεύθυνης): η υπενθύμιση βγαίνει από τις αφορμές (risk-db.ts).
 
   // Χωρίς πλάνο: σήμα μόνο μετά την έναρξη συνεργασίας (ή αμέσως, αν ο κίνδυνος είναι υψηλός).
   if (!x.safetyPlanAt && (x.intakeComplete || x.risk?.value === "HIGH")) {

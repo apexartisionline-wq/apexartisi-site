@@ -5,7 +5,7 @@ import { enc } from "@/lib/crypto";
 import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { recentAlerts } from "@/lib/assessment-db";
+import { ALERT_SOURCE, recentAlerts } from "@/lib/assessment-db";
 import { groupDays } from "@/lib/groups";
 import { memberSafety } from "@/lib/handover";
 import { getSettings } from "@/lib/settings";
@@ -21,7 +21,7 @@ async function careDone(formData: FormData) {
   redirect("/t");
 }
 
-const CARE = { caring_24h: "Μήνυμα φροντίδας (24 ώρες μετά από κρίση)", caring_7d: "Μήνυμα φροντίδας (7 μέρες μετά από κρίση)", dropout: "Χωρίς επαφή μέρες: να επικοινωνήσει κάποιος" } as Record<string, string>;
+const CARE = { caring_24h: "Μήνυμα φροντίδας (24 ώρες μετά από κρίση)", caring_7d: "Μήνυμα φροντίδας (7 μέρες μετά από κρίση)", dropout: "Χωρίς επαφή μέρες: να επικοινωνήσει κάποιος", risk_24h: "Αυξημένες ανάγκες ασφάλειας: επαφή μέσα σε 24 ώρες", risk_next_day: "Υψηλές ανάγκες ασφάλειας: επαφή σήμερα" } as Record<string, string>;
 
 type Item = { key: string; time: string; title: string; sub: string; href: string; join?: { kind: "SLOT" | "GROUP"; ref: string; room: string } };
 
@@ -77,7 +77,7 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
   ].sort((a, b) => a.time.localeCompare(b.time));
 
   // Να το δεις: εκκρεμότητες για όποιον το δει πρώτος και μέλη με κόκκινο σήμα.
-  const red = (await Promise.all(members.map(async (m) => ({ m, f: (await memberSafety(m.id)).filter((x) => x.level === "red") }))))
+  const red = (await Promise.all(members.map(async (m) => ({ m, f: (await memberSafety(m.id)).filter((x) => x.level === "red" || x.key === "risk_review") }))))
     .filter((x) => x.f.length > 0)
     .slice(0, 6);
   const memberName = new Map(members.map((m) => [m.id, m.name]));
@@ -97,7 +97,7 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
       {alerts.map((a) => (
         <Link key={a.id} href={`/t/members/${a.memberId}`} className="alertbar" role="alert" style={{ display: "block", textDecoration: "none" }}>
           <strong>⚑ {a.member} — {a.text}</strong>
-          <div className="small">Αρχική αξιολόγηση · {a.by}, {localParts(a.createdAt).date === today ? formatTime(a.createdAt) : formatWhen(a.createdAt)} · μένει στο «Ασφάλεια» του φακέλου</div>
+          <div className="small">{ALERT_SOURCE[a.source] ?? ""} · {a.by}, {localParts(a.createdAt).date === today ? formatTime(a.createdAt) : formatWhen(a.createdAt)} {a.source === "ASSESSMENT" && " · μένει στο «Ασφάλεια» του φακέλου"}</div>
         </Link>
       ))}
 
@@ -129,7 +129,7 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
           <div className="list">
             {red.map(({ m, f }) => (
               <Link key={m.id} href={`/t/members/${m.id}`}>
-                <span className="dot red" />
+                <span className={`dot ${f[0].level}`} />
                 <span><div className="title">{m.name}</div><div className="sub">{f[0].text}{f.length > 1 && ` · +${f.length - 1}`}</div></span>
               </Link>
             ))}

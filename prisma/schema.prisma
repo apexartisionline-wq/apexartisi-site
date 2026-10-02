@@ -556,3 +556,15 @@ model TeamAlert {
   @@index([claimedAt])
   @@index([memberId, source, kind])
 }
+
+// Αξιολόγηση αναγκών ασφάλειας (03): μόνο ψυχολόγος, μόνο όταν υπάρχει λόγος. Μόνο προσθήκες (ιστορικό).
+model RiskReview {
+  id        String   @id @default(cuid())
+  memberId  String
+  level     String // LOW | MEDIUM | HIGH
+  data      String // κρυπτογραφημένο JSON (src/lib/risk.ts)
+  authorId  String
+  createdAt DateTime @default(now())
+
+  @@index([memberId, createdAt])
+}

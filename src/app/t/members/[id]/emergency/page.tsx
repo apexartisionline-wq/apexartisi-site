@@ -1,0 +1,69 @@
+import Link from "next/link";
+import { notFound, redirect } from "next/navigation";
+import { EC_WHEN, latestProfile } from "@/lib/assessment-db";
+import { logAccess } from "@/lib/audit";
+import { requireRole } from "@/lib/auth";
+import { prisma } from "@/lib/db";
+import { canWriteRisk } from "@/lib/risk-db";
+import { formatTime } from "@/lib/time";
+
+async function reveal(formData: FormData) {
+  "use server";
+  const user = await requireRole("THERAPIST", "ADMIN");
+  if (!canWriteRisk(user)) notFound();
+  const memberId = String(formData.get("memberId"));
+  // Καταγράφεται ποιος άνοιξε τα στοιχεία και πότε· φαίνεται στο «Σήμερα» όλων (άρα και της Εύας).
+  await prisma.teamAlert.create({ data: { memberId, source: "EMERGENCY", kind: "REVEAL", byId: user.id } });
+  await logAccess(user.id, memberId, "emergency_reveal");
+  redirect(`/t/members/${memberId}/emergency?open=${Date.now()}`);
+}
+
+// «Έκτακτη ανάγκη»: σε άμεσο κίνδυνο ο ψυχολόγος βλέπει διεύθυνση και επαφή έκτακτης ανάγκης,
+// μόνο τώρα και μόνο αφού το ζητήσει (μένει καταγραφή).
+export default async function EmergencyPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ open?: string }> }) {
+  const user = await requireRole("THERAPIST", "ADMIN");
+  if (!canWriteRisk(user)) notFound();
+  const [{ id }, sp] = await Promise.all([params, searchParams]);
+  const member = await prisma.user.findFirst({ where: { id, role: "MEMBER" }, select: { id: true, name: true } });
+  if (!member) notFound();
+  // Τα στοιχεία φαίνονται μόνο για λίγα λεπτά μετά το πάτημα (όχι από παλιό σύνδεσμο).
+  const opened = sp.open && Date.now() - Number(sp.open) < 10 * 60_000;
+  const p = opened ? (await latestProfile(id))?.data : null;
+  const tel = (v: string) => <a href={`tel:${v.replace(/\s/g, "")}`}>{v}</a>;
+  return (
+    <main>
+      <p style={{ margin: "8px 0 0" }}><Link href={`/t/members/${id}/risk`}>‹ Ανάγκες ασφάλειας</Link></p>
+      <h1>Έκτακτη ανάγκη — {member.name}</h1>
+      <div className="card">
+        <strong>Μείνε μαζί του/της. Μην κλείσεις τη σύνδεση.</strong>
+        <div className="row" style={{ gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+          <a className="btn red" href="tel:112">112</a>
+          <a className="btn" href="tel:166">ΕΚΑΒ 166</a>
+          <a className="btn" href="tel:1018">1018</a>
+        </div>
+      </div>
+      {!opened ? (
+        <form action={reveal} className="card">
+          <input type="hidden" name="memberId" value={id} />
+          <p style={{ marginTop: 0 }}>Τα στοιχεία (διεύθυνση, επαφή έκτακτης ανάγκης) τα βλέπει κανονικά μόνο η διαχείριση. Άνοιξέ τα μόνο αν κινδυνεύει τώρα. Θα καταγραφεί ότι τα άνοιξες και θα το δει η Εύα.</p>
+          <button className="red big" type="submit" style={{ width: "100%" }}>Άνοιγμα στοιχείων τώρα</button>
+        </form>
+      ) : p ? (
+        <div className="card">
+          <div className="muted small">Άνοιξαν {formatTime(new Date(Number(sp.open)))} από {user.name} · καταγράφηκε</div>
+          <h2 style={{ margin: "8px 0 4px" }}>Διεύθυνση</h2>
+          <div style={{ fontSize: "1.15rem" }}>{p.address || "—"}{p.abroadCountry && ` · ${p.abroadCountry}`}</div>
+          <h2 style={{ margin: "12px 0 4px" }}>Επαφή έκτακτης ανάγκης</h2>
+          {p.ecName ? (
+            <div>
+              <strong>{p.ecName}</strong>{p.ecRelation && ` (${p.ecRelation})`} · {tel(p.ecPhone)}
+              <div className="small muted">{p.ecWhen ? EC_WHEN[p.ecWhen] : "Δεν έχει πει πότε"}{p.ecWhatToSay && ` · Τι λέμε: ${p.ecWhatToSay}`}</div>
+            </div>
+          ) : <div className="muted">Δεν έχει δώσει.</div>}
+        </div>
+      ) : (
+        <div className="card">Το μέλος δεν έχει συμπληρώσει στοιχεία. Πάρε αμέσως την Εύα / τη διαχείριση.</div>
+      )}
+    </main>
+  );
+}

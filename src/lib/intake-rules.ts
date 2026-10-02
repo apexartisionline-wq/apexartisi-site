@@ -9,6 +9,8 @@ export type StaffStep = {
   psychologist?: boolean;
   /** Πρακτικό/διοικητικό βήμα: το βλέπει και το σημειώνει μόνο η διαχείριση. */
   admin?: boolean;
+  /** Δεν χρειάζεται για να ολοκληρωθεί η έναρξη (γίνεται μόνο όταν υπάρχει λόγος). */
+  optional?: boolean;
   /** Μόνο για μέλη που έρχονται από την ΑΥΤΟΓΝΩΣΙΑ PLUS. */
   autognosiaOnly?: boolean;
   hint?: string;
@@ -18,7 +20,7 @@ export const STAFF_STEPS: StaffStep[] = [
   { key: "online_consent", doc: "01α", label: "Συναίνεση για online υπηρεσίες ψυχολόγου και συμβουλευτικής", admin: true },
   { key: "agreement", doc: "01γ", label: "Συμφωνητικό συνεργασίας", admin: true },
   { key: "assessment", doc: "02", label: "Αρχική αξιολόγηση", psychologist: true, hint: "Την κάνει ψυχολόγος στην 1η ατομική (~40′). Σημειώνεται μόνη της όταν ολοκληρωθεί." },
-  { key: "risk", doc: "03", label: "Αξιολόγηση αναγκών ασφάλειας", psychologist: true, hint: "Το επίπεδο το ορίζει ψυχολόγος, με σύντομη αιτιολόγηση." },
+  { key: "risk", doc: "03", label: "Αξιολόγηση αναγκών ασφάλειας", psychologist: true, optional: true, hint: "Μόνο όταν υπάρχει λόγος (υποτροπή, κόκκινο κουμπί, ανησυχία). Την κάνει ψυχολόγος." },
   {
     key: "safety_plan",
     doc: "04",
@@ -96,7 +98,7 @@ export function intakeStatus(input: {
   done: string[];
   consents: Record<string, Choice | undefined>;
 }): IntakeStatus {
-  const missingSteps = STAFF_STEPS.filter((s) => (!s.autognosiaOnly || input.source === "AUTOGNOSIA_PLUS") && !input.done.includes(s.key));
+  const missingSteps = STAFF_STEPS.filter((s) => !s.optional && (!s.autognosiaOnly || input.source === "AUTOGNOSIA_PLUS") && !input.done.includes(s.key));
   // Απαραίτητα: «Ναι» στον φάκελο και στην εμπιστευτικότητα· για τα υπόλοιπα αρκεί να έχει καταγραφεί επιλογή.
   const missingConsents = PURPOSES.filter((p) => {
     const c = input.consents[p.key];

@@ -115,8 +115,13 @@ export async function saveProfile(memberId: string, byId: string, p: Profile) {
 
 // ── Ειδοποιήσεις ομάδας ─────────────────────────────────────────────────────
 
+export const ALERT_SOURCE: Record<string, string> = { ASSESSMENT: "Αρχική αξιολόγηση", RISK: "Ανάγκες ασφάλειας", EMERGENCY: "Έκτακτη ανάγκη" };
+
 export function alertText(source: string, kind: string): string {
-  return source === "ASSESSMENT" ? (ALERTS[kind as AlertKind] ?? kind) : kind;
+  if (source === "ASSESSMENT") return ALERTS[kind as AlertKind] ?? kind;
+  if (source === "RISK") return kind === "HIGH" ? "Υψηλές ανάγκες ασφάλειας" : "Αυξημένες ανάγκες ασφάλειας";
+  if (source === "EMERGENCY") return "Άνοιξαν τα στοιχεία έκτακτης ανάγκης";
+  return kind;
 }
 
 /** Σοβαρά σημεία των τελευταίων 24 ωρών, για το «Σήμερα» όλης της ομάδας (χωρίς κουμπί). */

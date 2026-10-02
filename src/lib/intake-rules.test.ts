@@ -9,9 +9,11 @@ const allConsents = {
 describe("intake", () => {
   it("is complete only with every step and a recorded choice for every purpose", () => {
     expect(intakeStatus({ source: "APEX", done: allSteps, consents: { ...allConsents } }).complete).toBe(true);
-    const noRisk = intakeStatus({ source: "APEX", done: allSteps.filter((k) => k !== "risk"), consents: { ...allConsents } });
-    expect(noRisk.complete).toBe(false);
-    expect(noRisk.missingSteps.map((s) => s.key)).toEqual(["risk"]);
+    // Οι ανάγκες ασφάλειας δεν χρειάζονται για την έναρξη (μόνο όταν υπάρχει λόγος).
+    expect(intakeStatus({ source: "APEX", done: allSteps.filter((k) => k !== "risk"), consents: { ...allConsents } }).complete).toBe(true);
+    const noPlan = intakeStatus({ source: "APEX", done: allSteps.filter((k) => k !== "safety_plan"), consents: { ...allConsents } });
+    expect(noPlan.complete).toBe(false);
+    expect(noPlan.missingSteps.map((s) => s.key)).toEqual(["safety_plan"]);
     const { forms: _f, ...noForms } = allConsents;
     expect(intakeStatus({ source: "APEX", done: allSteps, consents: noForms }).missingConsents.map((p) => p.key)).toEqual(["forms"]);
   });

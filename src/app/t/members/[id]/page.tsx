@@ -86,11 +86,11 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
       {sp.case && <div className="notice">Η σύνοψη αποθηκεύτηκε ✓</div>}
       <h2>Κλινικός φάκελος</h2>
       <div className="list">
-        <Link href={`/t/members/${id}/start`}>
+        <Link href={`/t/members/${id}/risk`}>
           <span>
-            <div>Ανάγκες ασφάλειας: <strong>{risk ? RISK_LEVELS[risk] : "δεν έχουν αξιολογηθεί"}</strong></div>
+            <div>Ανάγκες ασφάλειας: <strong>{risk ? RISK_LEVELS[risk] : "δεν χρειάστηκε αξιολόγηση"}</strong></div>
             <div className="sub">
-              {risk && riskCheck ? `${RISK_INFO[risk].action} · ${formatDate(localParts(riskCheck.doneAt).date)}, ${staffNames.get(riskCheck.doneById) ?? ""}` : "Την ορίζει ψυχολόγος (03)"}
+              {risk && riskCheck ? `${RISK_INFO[risk].action} · ${formatDate(localParts(riskCheck.doneAt).date)}, ${staffNames.get(riskCheck.doneById) ?? ""}` : "Μόνο όταν υπάρχει λόγος · ψυχολόγος"}
             </div>
           </span>
         </Link>

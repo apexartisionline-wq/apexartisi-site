@@ -1,5 +1,6 @@
 import "server-only";
 import { assessmentFlags } from "./assessment-db";
+import { riskTrigger } from "./risk-db";
 import { z } from "zod";
 import { dec, enc } from "./crypto";
 import { prisma } from "./db";
@@ -47,7 +48,9 @@ export async function memberSafety(memberId: string, now = new Date()) {
   });
   // Σοβαρά σημεία της αρχικής αξιολόγησης: μένουν όσο ισχύουν στην τελευταία της μορφή.
   const fromAssessment = (await assessmentFlags(memberId, now)).map((f) => ({ level: "red" as const, text: f.text, at: f.at, href: `/t/members/${memberId}/assessment` }));
-  return [...fromAssessment, ...flags];
+  const trig = await riskTrigger(memberId);
+  const review = trig ? [{ level: "yellow" as const, key: "risk_review", text: `Θέλει αξιολόγηση αναγκών ασφάλειας (μετά από ${trig.text})`, at: trig.at, href: `/t/members/${memberId}/risk` }] : [];
+  return [...fromAssessment, ...review, ...flags];
 }
 
 export type CaseVersion = { id: string; data: CaseData; author: string; at: Date };

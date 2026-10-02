@@ -19,6 +19,7 @@ async function mark(formData: FormData) {
   if (step.admin && user.role !== "ADMIN") redirect(`/t/members/${memberId}/start?e=admin`);
   // Η αρχική αξιολόγηση σημειώνεται μόνη της όταν ολοκληρωθεί στη σελίδα της.
   if (key === "assessment") redirect(`/t/members/${memberId}/assessment`);
+  if (key === "risk") redirect(`/t/members/${memberId}/risk`);
   const value = key === "risk" ? String(formData.get("value") ?? "") : null;
   if (key === "risk" && !(value! in RISK_LEVELS)) redirect(`/t/members/${memberId}/start?e=risk`);
   // Το βήμα «πλάνο ασφάλειας» σημειώνεται μόνο αν το πλάνο έχει πράγματι γραφτεί.
@@ -134,8 +135,8 @@ export default async function IntakePage({ params, searchParams }: { params: Pro
               </details>
             )}
             {c && dec(c.note) && <p className="small" style={{ whiteSpace: "pre-wrap" }}>{dec(c.note)}</p>}
-            {s.key === "assessment" ? (
-              <Link className="btn" href={`/t/members/${id}/assessment`}>{c ? "Άνοιγμα" : "Ξεκίνα την αξιολόγηση"} ›</Link>
+            {s.key === "assessment" || s.key === "risk" ? (
+              <Link className="btn" href={`/t/members/${id}/${s.key}`}>{c ? "Άνοιγμα" : "Ξεκίνα"} ›</Link>
             ) : allowed ? (
               <form action={mark} className="row" style={{ gap: 6, flexWrap: "wrap" }}>
                 <input type="hidden" name="memberId" value={id} />
@@ -152,7 +153,7 @@ export default async function IntakePage({ params, searchParams }: { params: Pro
             ) : (
               !c && <p className="small muted">Το σημειώνει ψυχολόγος.</p>
             )}
-            {c && allowed && s.key !== "assessment" && (
+            {c && allowed && s.key !== "assessment" && s.key !== "risk" && (
               <form action={unmark}>
                 <input type="hidden" name="memberId" value={id} />
                 <input type="hidden" name="key" value={s.key} />
