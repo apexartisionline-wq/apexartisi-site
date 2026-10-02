@@ -49,7 +49,7 @@ export default async function CyclePage({ params, searchParams }: { params: Prom
         <>
           <p className="muted" style={{ marginTop: 0 }}>{formatDate(pic.from)} – {formatDate(pic.to)}</p>
           <div className="card stack">
-            {row("Ατομικές", `${pic.sessions.came} από ${pic.sessions.total}`, pic.sessions.came < pic.sessions.total)}
+            {row("Ατομικές", `${pic.sessions.done} από ${pic.sessions.total}${pic.sessions.came < pic.sessions.done ? ` · ήρθε σε ${pic.sessions.came}` : ""}`, pic.sessions.came < pic.sessions.done)}
             {row("Ομάδες", `${pic.groups.came} από ${pic.groups.total}`, pic.groups.came < pic.groups.total / 2)}
             {row("Απογραφές", `${pic.journal.written} από ${pic.journal.days} μέρες`)}
             {row("Κόκκινο κουμπί", String(pic.help), pic.help > 0)}

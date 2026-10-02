@@ -40,7 +40,8 @@ export async function cyclePicture(memberId: string, cycle: NonNullable<Awaited<
   return {
     from,
     to,
-    sessions: { came: cycle.bookings.filter((b) => b.joinedAt).length, total: cycle.length },
+    // done: όσες ατομικές του κύκλου πέρασαν (προπληρωμένες, μετράνε κανονικά)· came: όσες ήρθε πραγματικά (συνέπεια).
+    sessions: { done: Math.min(cycle.length, cycle.bookings.filter((b) => b.slot.startsAt <= new Date()).length), came: cycle.bookings.filter((b) => b.joinedAt).length, total: cycle.length },
     groups: { came: groups, total: s.groupsPerCycle },
     journal: { written: journal, days },
     help,
