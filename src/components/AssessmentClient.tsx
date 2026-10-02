@@ -209,8 +209,9 @@ export function AssessmentClient({ action, memberId, initial, profile, showAdmin
         {q.pgsi && (
           <>
             <details className="sec" style={{ margin: "12px 16px" }}>
-              <summary>PGSI · τζόγος</summary>
+              <summary>PGSI · τζόγος, στην περίοδο βαριάς χρήσης</summary>
               <div className="q">
+                {say("«Οι ερωτήσεις αυτές είναι για την περίοδο που έπαιζες, στη χειρότερη φάση.»")}
                 {PGSI_ITEMS.map((t, i) => (
                   <div key={i} className="qitem">
                     <div className="small" style={{ marginBottom: 6 }}>{t}</div>

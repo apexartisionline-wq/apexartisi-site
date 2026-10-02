@@ -128,7 +128,7 @@ export function keepAdminOnly(next: Assessment, prev: Assessment | null): Assess
 
 export type Score = { score: number; answered: number; of: number; band: string; level: "ok" | "amber" | "red" | "plain" };
 
-/** AUDIT και DAST-10 αφορούν την περίοδο βαριάς χρήσης: φαίνεται ο αριθμός, χωρίς χαρακτηρισμό κινδύνου «τώρα». */
+/** AUDIT, DAST-10 και PGSI αφορούν την περίοδο βαριάς χρήσης: φαίνεται ο αριθμός, χωρίς χαρακτηρισμό κινδύνου «τώρα». */
 export const HEAVY_USE = "περίοδος βαριάς χρήσης";
 
 export function auditScore(a: (number | null)[]): Score | null {
@@ -155,9 +155,7 @@ export function pgsiScore(a: (number | null)[]): Score | null {
   const xs = a.filter((x): x is number => x !== null && x !== undefined);
   if (xs.length === 0) return null;
   const score = xs.reduce((s, x) => s + x, 0);
-  const [band, level]: [string, Score["level"]] =
-    score === 0 ? ["χωρίς πρόβλημα", "ok"] : score <= 2 ? ["χαμηλός κίνδυνος", "ok"] : score <= 7 ? ["μέτριος κίνδυνος", "amber"] : ["προβληματικός τζόγος", "red"];
-  return { score, answered: xs.length, of: 9, band, level };
+  return { score, answered: xs.length, of: 9, band: HEAVY_USE, level: "plain" };
 }
 
 /** Ποια ερωτηματολόγια ανοίγουν: AUDIT για όλους, DAST-10 αν υπάρχει ουσία εκτός αλκοόλ, PGSI αν υπάρχει τζόγος. */

@@ -19,11 +19,9 @@ describe("βαθμολογίες", () => {
     expect(dastScore([true, true, false, true, true, true, false, false, false, false])).toMatchObject({ score: 6, band: "περίοδος βαριάς χρήσης" });
     expect(dastScore(Array(10).fill(true))).toMatchObject({ score: 9 });
   });
-  it("PGSI: κατηγορίες 0 / 1–2 / 3–7 / 8+", () => {
-    expect(pgsiScore(Array(9).fill(0))).toMatchObject({ score: 0, band: "χωρίς πρόβλημα" });
-    expect(pgsiScore([1, 1, 0, 0, 0, 0, 0, 0, 0])).toMatchObject({ score: 2, band: "χαμηλός κίνδυνος" });
-    expect(pgsiScore([3, 3, 1, 0, 0, 0, 0, 0, 0])).toMatchObject({ score: 7, band: "μέτριος κίνδυνος" });
-    expect(pgsiScore([3, 3, 2, 0, 0, 0, 0, 0, 0])).toMatchObject({ score: 8, band: "προβληματικός τζόγος" });
+  it("PGSI: άθροισμα, για την περίοδο βαριάς χρήσης", () => {
+    expect(pgsiScore(Array(9).fill(0))).toMatchObject({ score: 0, band: "περίοδος βαριάς χρήσης", level: "plain" });
+    expect(pgsiScore([3, 3, 2, 0, 0, 0, 0, 0, 0])).toMatchObject({ score: 8 });
   });
 });
 
