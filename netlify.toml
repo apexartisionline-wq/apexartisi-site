@@ -1,6 +1,6 @@
 # Δοκιμαστική εγκατάσταση στο Netlify (μόνο με ψεύτικα στοιχεία· οι functions τρέχουν εκτός ΕΕ).
 [build]
-  command = "npx prisma migrate deploy && npx tsx prisma/demo.ts && npx tsx prisma/demo-history.ts && npm run build"
+  command = "npx prisma migrate deploy && npx tsx prisma/demo.ts && npx tsx prisma/demo-history.ts && npx tsx prisma/demo-journal.ts && npm run build"
   publish = ".next"
 
 [build.environment]

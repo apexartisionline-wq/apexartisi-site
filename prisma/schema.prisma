@@ -71,6 +71,7 @@ model User {
   memberCode       String?       @unique // ψευδώνυμο για τα Google Forms (όχι όνομα)
   source           MemberSource?
   programStartDate String? // YYYY-MM-DD (ώρα Ελλάδας)
+  soberSince       String? // ημερομηνία νηφαλιότητας YYYY-MM-DD· αλλαγές στο SobrietyChange
   selfMessage      Bytes?
   selfMessageType  String?
 
@@ -176,6 +177,8 @@ model SessionNote {
   riskChange  String? // UP | SAME | DOWN
   usedSince   String? // YES | NO | UNKNOWN — χρήση από την προηγούμενη επαφή
   nextStep    String   @default("") // κρυπτογραφημένο
+  // Το σημειωματάριο (πώς παρουσιάστηκε, διάθεση, τι έφερε κ.λπ.) ως κρυπτογραφημένο JSON· βλ. src/lib/note-form.ts.
+  data        String   @default("")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -482,6 +485,7 @@ model SessionNoteVersion {
   riskChange String?
   usedSince  String?
   nextStep   String   @default("") // κρυπτογραφημένο
+  data       String   @default("") // κρυπτογραφημένο
   editorId   String // ποιος την άλλαξε
   createdAt  DateTime @default(now()) // πότε άλλαξε
 
@@ -498,4 +502,17 @@ model StaffJoin {
 
   @@index([kind, ref])
   @@index([userId, at])
+}
+
+// Ιστορικό της ημερομηνίας νηφαλιότητας (π.χ. μετά από υποτροπή): τίποτα δεν σβήνεται.
+model SobrietyChange {
+  id       String   @id @default(cuid())
+  memberId String
+  previous String? // η προηγούμενη ημερομηνία
+  date     String // η νέα ημερομηνία
+  note     String   @default("") // κρυπτογραφημένο
+  byId     String
+  at       DateTime @default(now())
+
+  @@index([memberId, at])
 }

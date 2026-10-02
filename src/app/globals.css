@@ -136,3 +136,29 @@ nav.top img { height: 28px; }
   font-size: 0.75rem; opacity: 0.55; pointer-events: none;
   background: var(--bg, #fff); padding: 2px 6px; border-radius: 4px;
 }
+
+/* Σημειωματάριο: ομάδες επιλογών τύπου iOS. */
+.note-form { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.note-form fieldset { border: 0; margin: 0; padding: 14px 16px; min-width: 0; }
+.note-form fieldset + fieldset { border-top: 1px solid var(--line); }
+.note-form legend { font-weight: 600; padding: 0; margin-bottom: 8px; float: left; width: 100%; }
+.note-form legend + * { clear: both; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { border: 1px solid var(--line); background: var(--surface); color: var(--text); border-radius: 999px; padding: 8px 14px; min-height: 40px; font: inherit; font-size: .95rem; cursor: pointer; }
+.chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+.switch { width: 51px; height: 31px; min-height: 31px; padding: 0; border-radius: 999px; background: var(--line); position: relative; border: 0; flex: none; }
+.switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.3); transition: left .2s; }
+.switch[aria-checked="true"] { background: var(--ok); }
+.switch[aria-checked="true"]::after { left: 22px; }
+.tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.tile { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; min-width: 0; }
+.tile strong { display: block; font-size: 1.35rem; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.tile span { font-size: .78rem; color: var(--muted); }
+.tile.warn strong { color: var(--yellow); }
+.week { display: grid; grid-template-columns: 64px repeat(7, 1fr); gap: 4px; align-items: end; font-size: .75rem; color: var(--muted); }
+.week .bar { height: 40px; display: flex; align-items: flex-end; }
+.week .bar i { display: block; width: 100%; border-radius: 4px 4px 2px 2px; background: var(--accent); }
+.week .bar i.hi { background: var(--red); }
+.week .bar i.none { height: 100% !important; background: transparent; border: 1px dashed var(--line); }
+.week .d { text-align: center; }
+@media (prefers-reduced-motion: reduce) { .switch::after { transition: none; } }
