@@ -71,7 +71,7 @@ export default async function CyclePage({ params, searchParams }: { params: Prom
           {done ? (
             <div className="card">
               <div className="muted small">Πώς πάνε οι στόχοι</div><div className="body-text">{done.goals}</div>
-              <div className="muted small" style={{ marginTop: 8 }}>Τι λέει το μέλος</div><div className="body-text">{done.memberSays}</div>
+              <div className="muted small" style={{ marginTop: 8 }}>Πώς δούλεψε, τι εικόνα είχε</div><div className="body-text">{done.memberSays}</div>
               <div className="muted small" style={{ marginTop: 8 }}>{done.author} · {formatWhen(done.at)}</div>
             </div>
           ) : (
@@ -79,7 +79,7 @@ export default async function CyclePage({ params, searchParams }: { params: Prom
               <input type="hidden" name="memberId" value={id} />
               <input type="hidden" name="cycleId" value={cycle!.id} />
               <div className="field"><label htmlFor="goals">Πώς πάνε οι στόχοι</label><textarea id="goals" name="goals" required style={{ minHeight: 70 }} /></div>
-              <div className="field"><label htmlFor="memberSays">Τι λέει το μέλος για τον κύκλο</label><textarea id="memberSays" name="memberSays" required style={{ minHeight: 70 }} placeholder="με τα λόγια του/της" /></div>
+              <div className="field"><label htmlFor="memberSays">Πώς δούλεψε, τι εικόνα είχε</label><textarea id="memberSays" name="memberSays" required style={{ minHeight: 70 }} /></div>
               <button className="primary" type="submit">Αποθήκευση</button>
             </form>
           )}
@@ -92,7 +92,7 @@ export default async function CyclePage({ params, searchParams }: { params: Prom
             <details key={r.id} className="card small">
               <summary>{formatWhen(r.at)} · {r.author}</summary>
               <div><span className="muted">Στόχοι:</span> {r.goals}</div>
-              <div><span className="muted">Το μέλος:</span> {r.memberSays}</div>
+              <div><span className="muted">Εικόνα:</span> {r.memberSays}</div>
             </details>
           ))}
         </>
