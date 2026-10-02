@@ -10,7 +10,7 @@ export default async function MemberMessage() {
   await prisma.monthlyMessage.updateMany({ where: { memberId: user.id, sentAt: { not: null }, readAt: null }, data: { readAt: new Date() } });
   return (
     <main>
-      <h1>Ο μήνας σου</h1>
+      <h1>Από την ομάδα σου</h1>
       {msgs.length === 0 && <div className="card muted">Δεν υπάρχει μήνυμα ακόμα.</div>}
       {msgs.map((m) => (
         <article key={m.id} className="card">

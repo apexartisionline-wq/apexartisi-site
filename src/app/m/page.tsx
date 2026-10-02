@@ -51,7 +51,7 @@ export default async function MemberHome() {
       <Announcements />
       {unreadMessage && (
         <Link href="/m/message" className="card" style={{ display: "block", textDecoration: "none", color: "inherit", borderColor: "var(--accent)" }}>
-          <strong>✉︎ Ένα μήνυμα για τον μήνα σου</strong>
+          <strong>✉︎ Ένα μήνυμα από την ομάδα σου</strong>
           <div className="muted small">Από την ομάδα του APEX · πάτα για να το διαβάσεις</div>
         </Link>
       )}
