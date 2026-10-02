@@ -9,7 +9,8 @@ import { getSettings } from "./settings";
 /** Σήματα ασφαλείας ενός μέλους (βλ. handover-rules.ts). Δεν διαβάζει το ημερολόγιο. */
 export async function memberSafety(memberId: string, now = new Date()) {
   const member = await prisma.user.findUniqueOrThrow({ where: { id: memberId } });
-  const [intake, plan, help, notes, attendance, booking, openDropout, s] = await Promise.all([
+  const since14 = new Date(now.getTime() - 14 * 24 * 3600_000);
+  const [intake, plan, help, notes, attendance, booking, openDropout, s, missed] = await Promise.all([
     memberIntake(member),
     prisma.safetyPlan.findUnique({ where: { memberId }, select: { updatedAt: true } }),
     prisma.helpRequest.findMany({ where: { memberId, isDrill: false, createdAt: { gte: new Date(now.getTime() - 14 * 24 * 3600_000) } }, select: { createdAt: true } }),
@@ -21,6 +22,10 @@ export async function memberSafety(memberId: string, now = new Date()) {
     prisma.booking.findFirst({ where: { memberId, joinedAt: { not: null } }, orderBy: { joinedAt: "desc" }, select: { joinedAt: true } }),
     prisma.careTask.count({ where: { memberId, kind: "dropout", doneAt: null } }),
     getSettings(),
+    prisma.booking.findMany({
+      where: { memberId, joinedAt: null, slot: { startsAt: { gte: since14, lt: new Date(now.getTime() - 3600_000) } } },
+      select: { slotId: true, slot: { select: { startsAt: true } } },
+    }),
   ]);
   const risk = intake.checks.find((c) => c.key === "risk");
   // Τελευταία επαφή από ομάδα ή ατομική (όχι από το ημερολόγιο, που το βλέπει μόνο η υπεύθυνη).
@@ -31,6 +36,7 @@ export async function memberSafety(memberId: string, now = new Date()) {
     safetyPlanAt: plan?.updatedAt ?? null,
     helpRequests: help,
     notes: notes.map((n) => ({ at: n.slot.startsAt, riskChange: n.riskChange, usedSince: n.usedSince, slotId: n.slotId })),
+    missed: missed.map((b) => ({ at: b.slot.startsAt, slotId: b.slotId })),
     lastContact: contacts.length ? new Date(Math.max(...contacts.map((d) => d.getTime()))) : null,
     openDropout: openDropout > 0,
     dropoutDays: s.dropoutDays,

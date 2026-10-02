@@ -473,3 +473,17 @@ model CaseSummary {
 
   @@index([memberId, createdAt])
 }
+
+// Προηγούμενες μορφές ενός σημειώματος: κάθε αλλαγή κρατά την παλιά (κλινικό αρχείο).
+model SessionNoteVersion {
+  id         String   @id @default(cuid())
+  noteId     String
+  content    String // κρυπτογραφημένο
+  riskChange String?
+  usedSince  String?
+  nextStep   String   @default("") // κρυπτογραφημένο
+  editorId   String // ποιος την άλλαξε
+  createdAt  DateTime @default(now()) // πότε άλλαξε
+
+  @@index([noteId, createdAt])
+}

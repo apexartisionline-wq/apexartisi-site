@@ -8,7 +8,7 @@ import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { RISK_CHANGE, USED_SINCE } from "@/lib/handover-rules";
 import { sessionNumber } from "@/lib/member";
-import { formatDate, formatHour } from "@/lib/time";
+import { formatDate, formatHour, formatWhen } from "@/lib/time";
 
 async function loadSlot(id: string) {
   return prisma.slot.findUnique({
@@ -26,22 +26,41 @@ async function loadSlot(id: string) {
 const canWrite = (x: { therapistId: string | null }, user: { id: string; role: string }) =>
   user.role === "ADMIN" || x.therapistId === user.id;
 
+const NOTE_MAX = 20000;
+const noteSchema = z.object({
+  content: z.string().trim().min(1).max(NOTE_MAX),
+  riskChange: z.enum(["UP", "SAME", "DOWN"]),
+  usedSince: z.enum(["YES", "NO", "UNKNOWN"]),
+  nextStep: z.string().trim().max(1000),
+});
+
 async function saveNote(formData: FormData) {
   "use server";
   const user = await requireRole("THERAPIST", "ADMIN");
   const id = String(formData.get("slotId"));
-  const content = z.string().trim().min(1).max(20000).parse(formData.get("content"));
-  const riskChange = z.enum(["UP", "SAME", "DOWN"]).parse(formData.get("riskChange"));
-  const usedSince = z.enum(["YES", "NO", "UNKNOWN"]).parse(formData.get("usedSince"));
-  const nextStep = z.string().trim().max(1000).parse(formData.get("nextStep") ?? "");
   const x = await loadSlot(id);
   if (!x || !canWrite(x, user)) notFound();
-  const data = { content: enc(content), riskChange, usedSince, nextStep: enc(nextStep) };
-  await prisma.sessionNote.upsert({
-    where: { slotId: id },
-    create: { slotId: id, therapistId: user.id, ...data },
-    update: data,
+  // Ο browser ελέγχει ήδη τα πεδία· αν κάτι ξεφύγει, μήνυμα αντί για σφάλμα 500.
+  const parsed = noteSchema.safeParse({
+    content: formData.get("content") ?? "",
+    riskChange: formData.get("riskChange"),
+    usedSince: formData.get("usedSince"),
+    nextStep: formData.get("nextStep") ?? "",
   });
+  if (!parsed.success) redirect(`/t/s/${id}?error=1`);
+  const { content, riskChange, usedSince, nextStep } = parsed.data;
+  const data = { content: enc(content), riskChange, usedSince, nextStep: enc(nextStep) };
+  if (x.note) {
+    // Η προηγούμενη μορφή δεν σβήνεται: κρατιέται στο ιστορικό.
+    await prisma.$transaction([
+      prisma.sessionNoteVersion.create({
+        data: { noteId: x.note.id, content: x.note.content, riskChange: x.note.riskChange, usedSince: x.note.usedSince, nextStep: x.note.nextStep, editorId: user.id },
+      }),
+      prisma.sessionNote.update({ where: { id: x.note.id }, data }),
+    ]);
+  } else {
+    await prisma.sessionNote.create({ data: { slotId: id, therapistId: user.id, ...data } });
+  }
   redirect(`/t/s/${id}?saved=1`);
 }
 
@@ -50,7 +69,7 @@ export default async function SessionPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ saved?: string }>;
+  searchParams: Promise<{ saved?: string; error?: string }>;
 }) {
   const user = await requireRole("THERAPIST", "ADMIN");
   const [{ id }, sp] = await Promise.all([params, searchParams]);
@@ -73,6 +92,10 @@ export default async function SessionPage({
     })),
   );
   const past = x.startsAt <= new Date();
+  const versions = x.note
+    ? await prisma.sessionNoteVersion.findMany({ where: { noteId: x.note.id }, orderBy: { createdAt: "desc" } })
+    : [];
+  const editors = await prisma.user.findMany({ where: { id: { in: [...new Set(versions.map((v) => v.editorId))] } }, select: { id: true, name: true } });
 
   return (
     <main>
@@ -112,6 +135,7 @@ export default async function SessionPage({
       <h2>{pair ? "Κοινό σημείωμα" : "Σημείωμα αυτής της συνεδρίας"}</h2>
       {pair && <p className="muted small">Φαίνεται στους φακέλους και των δύο μελών.</p>}
       {sp.saved && <div className="notice">Αποθηκεύτηκε ✓</div>}
+      {sp.error && <div className="error">Το σημείωμα δεν αποθηκεύτηκε: συμπλήρωσε κίνδυνο και χρήση (και το κείμενο έως {NOTE_MAX.toLocaleString("el-GR")} χαρακτήρες).</div>}
       {!canWrite(x, user) ? (
         x.note ? (
           <div className="card">
@@ -122,7 +146,7 @@ export default async function SessionPage({
       ) : past && x.bookings.length > 0 ? (
         <form action={saveNote} className="card">
           <input type="hidden" name="slotId" value={x.id} />
-          <textarea name="content" defaultValue={dec(x.note?.content)} required style={{ minHeight: 240 }} />
+          <textarea name="content" defaultValue={dec(x.note?.content)} required maxLength={NOTE_MAX} style={{ minHeight: 240 }} />
           <div className="row" style={{ flexWrap: "wrap", gap: 16, marginTop: 12 }}>
             <label className="field">
               Κίνδυνος σε σχέση με πριν
@@ -145,13 +169,27 @@ export default async function SessionPage({
           </label>
           <div className="row spread" style={{ marginTop: 12 }}>
             <span className="muted small">
-              {x.note && `Τελευταία αλλαγή ${x.note.updatedAt.toLocaleString("el-GR", { timeZone: "Europe/Athens" })} · ${x.note.therapist.name}`}
+              {x.note && `Τελευταία αλλαγή ${formatWhen(x.note.updatedAt)} · ${x.note.therapist.name}`}
             </span>
             <button className="primary" type="submit">Αποθήκευση</button>
           </div>
         </form>
       ) : (
         <p className="muted">Το σημείωμα γράφεται μετά τη συνεδρία.</p>
+      )}
+      {versions.length > 0 && (
+        <details className="card small">
+          <summary>Ιστορικό αλλαγών ({versions.length})</summary>
+          {versions.map((v) => (
+            <div key={v.id} style={{ marginTop: 12 }}>
+              <div className="muted">
+                Πριν από την αλλαγή της {formatWhen(v.createdAt)} · {editors.find((e) => e.id === v.editorId)?.name ?? "—"}
+              </div>
+              <div className="body-text">{dec(v.content)}</div>
+              <NoteTags riskChange={v.riskChange} usedSince={v.usedSince} nextStep={dec(v.nextStep)} />
+            </div>
+          ))}
+        </details>
       )}
     </main>
   );

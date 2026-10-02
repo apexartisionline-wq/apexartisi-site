@@ -18,6 +18,10 @@ async function mark(formData: FormData) {
   if (!step || !canMarkStep(step, user.therapistKind)) redirect(`/t/members/${memberId}/start?e=psy`);
   const value = key === "risk" ? String(formData.get("value") ?? "") : null;
   if (key === "risk" && !(value! in RISK_LEVELS)) redirect(`/t/members/${memberId}/start?e=risk`);
+  // Το βήμα «πλάνο ασφάλειας» σημειώνεται μόνο αν το πλάνο έχει πράγματι γραφτεί.
+  if (key === "safety_plan" && !(await prisma.safetyPlan.findUnique({ where: { memberId } }))) {
+    redirect(`/t/members/${memberId}/start?e=plan`);
+  }
   const note = enc(String(formData.get("note") ?? "").slice(0, 1000));
   await prisma.intakeCheck.upsert({
     where: { memberId_key: { memberId, key } },
@@ -61,6 +65,7 @@ async function recordConsents(formData: FormData) {
 const ERR: Record<string, string> = {
   psy: "Αυτό το βήμα το σημειώνει ψυχολόγος.",
   risk: "Διάλεξε επίπεδο κινδύνου.",
+  plan: "Γράψε πρώτα το πλάνο ασφάλειας μαζί με το μέλος· μετά σημείωσε το βήμα.",
 };
 
 export default async function IntakePage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ ok?: string; e?: string }> }) {
@@ -90,7 +95,6 @@ export default async function IntakePage({ params, searchParams }: { params: Pro
       </div>
       {sp.e && <div className="error">{ERR[sp.e] ?? "Κάτι πήγε στραβά."}</div>}
       {sp.ok && <div className="notice">Αποθηκεύτηκε ✓</div>}
-      <p className="small muted">Τα κείμενα των εγγράφων είναι στο docs/clinical (σχέδια προς έλεγχο από τον νομικό).</p>
 
       <h2>Βήματα</h2>
       {steps.map((s) => {

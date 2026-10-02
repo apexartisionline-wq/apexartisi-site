@@ -1,69 +1,57 @@
 import Link from "next/link";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { programDay } from "@/lib/program";
-import { addDays, formatDate, formatHour, localParts } from "@/lib/time";
+import { memberSafety } from "@/lib/handover";
+import { formatDate, formatHour } from "@/lib/time";
 
-// Συνολική εικόνα της ομάδας για όλους τους θεραπευτές (όλοι δουλεύουν με όλους).
+// Όλα τα ενεργά μέλη (όλοι οι θεραπευτές δουλεύουν με όλους). Λίστα τύπου iOS:
+// πρώτα όσοι έχουν σήμα ασφαλείας, με μια τελεία και το πιο σημαντικό σήμα από κάτω.
 export default async function MembersOverview() {
   await requireRole("THERAPIST", "ADMIN");
   const now = new Date();
-  const today = localParts(now).date;
-  const from = addDays(today, -27);
   const members = await prisma.user.findMany({
     where: { role: "MEMBER", active: true },
     orderBy: { name: "asc" },
-    include: {
-      cycles: { where: { closedAt: null }, include: { bookings: { include: { slot: true } } } },
-      _count: { select: { attendances: { where: { date: { gte: from } } } } },
+    select: {
+      id: true,
+      name: true,
       bookings: {
-        include: { slot: { include: { therapist: { select: { name: true } }, note: { select: { id: true } } } } },
-        orderBy: { slot: { startsAt: "desc" } },
-        take: 20,
+        where: { slot: { startsAt: { gt: now } } },
+        include: { slot: { include: { therapist: { select: { name: true } } } } },
+        orderBy: { slot: { startsAt: "asc" } },
+        take: 1,
       },
     },
   });
+  const rows = await Promise.all(members.map(async (m) => ({ ...m, flags: await memberSafety(m.id, now) })));
+  const rank = (r: (typeof rows)[number]) => (r.flags[0]?.level === "red" ? 0 : r.flags[0]?.level === "yellow" ? 1 : 2);
+  rows.sort((a, b) => rank(a) - rank(b));
 
   return (
-    <main className="wide">
+    <main>
       <h1>Μέλη</h1>
-      <p className="muted small">Όλα τα ενεργά μέλη. Πάτα ένα όνομα για το ιστορικό των ατομικών και τα σημειώματα.</p>
-      <div className="card table-wrap">
-        <table>
-          <thead>
-            <tr><th>Μέλος</th><th>Μέρα</th><th>Κύκλος</th><th>Ομάδες (4 εβδ.)</th><th>Τελευταία ατομική</th><th>Επόμενη ατομική</th></tr>
-          </thead>
-          <tbody>
-            {members.map((m) => {
-              const cycle = m.cycles[0];
-              const done = cycle?.bookings.filter((b) => b.slot.startsAt <= now).length ?? 0;
-              const last = m.bookings.find((b) => b.slot.startsAt <= now);
-              const next = [...m.bookings].reverse().find((b) => b.slot.startsAt > now);
-              return (
-                <tr key={m.id}>
-                  <td><Link href={`/t/members/${m.id}`}>{m.name}</Link></td>
-                  <td>{programDay(m.programStartDate, today) ?? "—"}</td>
-                  <td>{cycle ? `${done} από ${cycle.length}` : "—"}</td>
-                  <td>{m._count.attendances}</td>
-                  <td className="small">
-                    {last ? (
-                      <>
-                        {formatDate(last.slot.date)} · {last.slot.therapist?.name ?? "—"}{" "}
-                        {!last.joinedAt && <span className="badge yellow">δεν μπήκε</span>}
-                        {last.joinedAt && !last.slot.note && <span className="badge">χωρίς σημείωμα</span>}
-                      </>
-                    ) : "—"}
-                  </td>
-                  <td className="small">
-                    {next ? `${formatDate(next.slot.date)} ${formatHour(next.slot.hour)} · ${next.slot.therapist?.name ?? "—"}` : "—"}
-                  </td>
-                </tr>
-              );
-            })}
-            {members.length === 0 && <tr><td colSpan={6} className="muted">Δεν υπάρχουν ενεργά μέλη.</td></tr>}
-          </tbody>
-        </table>
+      <div className="list">
+        {rows.map((m) => {
+          const next = m.bookings[0];
+          const top = m.flags[0];
+          return (
+            <Link key={m.id} href={`/t/members/${m.id}`}>
+              <span className={`dot ${top?.level ?? ""}`} aria-label={top ? (top.level === "red" ? "χρειάζεται προσοχή" : "να το δεις") : "χωρίς σήμα"} />
+              <span>
+                <div className="title">{m.name}</div>
+                {top && <div className="sub">{top.text}{m.flags.length > 1 && ` · +${m.flags.length - 1}`}</div>}
+                <div className="sub">
+                  {next ? `Επόμενη: ${formatDate(next.slot.date)} ${formatHour(next.slot.hour)} · ${next.slot.therapist?.name ?? "—"}` : "Χωρίς επόμενη ατομική"}
+                </div>
+              </span>
+            </Link>
+          );
+        })}
+        {rows.length === 0 && <div className="muted">Δεν υπάρχουν ενεργά μέλη.</div>}
       </div>
+      <p className="muted small row" style={{ gap: 6 }}>
+        <span className="dot red" /> χρειάζεται προσοχή σήμερα <span className="dot yellow" style={{ marginLeft: 8 }} /> να το δεις
+      </p>
     </main>
   );
 }

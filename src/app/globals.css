@@ -34,10 +34,14 @@ html, body { margin: 0; }
 body {
   background: var(--bg);
   color: var(--text);
-  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font: 17px/1.45 -apple-system, BlinkMacSystemFont, system-ui, "Segoe UI", Roboto, sans-serif;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+  /* iPhone: περιθώρια για notch / Dynamic Island και την μπάρα στο κάτω μέρος */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left);
 }
 a { color: var(--accent); }
-main { max-width: 760px; margin: 0 auto; padding: 16px 16px 96px; }
+main { max-width: 760px; margin: 0 auto; padding: 16px 16px calc(96px + env(safe-area-inset-bottom)); }
 main.wide { max-width: 1100px; }
 h1 { font-size: 1.5rem; margin: 8px 0 16px; }
 h2 { font-size: 1.1rem; margin: 24px 0 8px; }
@@ -57,6 +61,7 @@ h2 { font-size: 1.1rem; margin: 24px 0 8px; }
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
   border: 1px solid var(--line); background: var(--surface); color: var(--text);
   border-radius: 10px; padding: 10px 16px; font: inherit; cursor: pointer; text-decoration: none;
+  min-height: 44px; /* μέγεθος αφής κατά τις οδηγίες της Apple */
 }
 .btn.primary, button.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
 .btn.big { width: 100%; padding: 16px; font-size: 1.1rem; font-weight: 600; }
@@ -65,6 +70,8 @@ h2 { font-size: 1.1rem; margin: 24px 0 8px; }
 input, select, textarea {
   font: inherit; color: var(--text); background: var(--surface);
   border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; width: 100%;
+  font-size: max(16px, 1em); /* κάτω από 16px το iPhone κάνει ζουμ όταν πατάς το πεδίο */
+  min-height: 44px;
 }
 textarea { min-height: 140px; }
 label { display: block; font-size: .9rem; color: var(--muted); margin-bottom: 4px; }
@@ -107,6 +114,18 @@ nav.top img { height: 28px; }
   100% { transform: scale(.6); }
 }
 .body-text { white-space: pre-wrap; }
+
+/* Λίστα τύπου iOS: γραμμές που πατιούνται ολόκληρες, τελεία κατάστασης, «›» δεξιά. */
+.list { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); margin: 12px 0; overflow: hidden; }
+.list > a, .list > div { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 10px 16px; color: var(--text); text-decoration: none; }
+.list > * + * { border-top: 1px solid var(--line); }
+.list > a::after { content: "›"; margin-left: auto; padding-left: 8px; color: var(--muted); font-size: 1.4rem; line-height: 1; }
+.list > a:active { background: var(--soft); }
+.list .title { font-weight: 600; }
+.list .sub { color: var(--muted); font-size: .875rem; }
+.dot { width: 12px; height: 12px; border-radius: 50%; flex: none; background: transparent; border: 2px solid var(--line); }
+.dot.red { background: var(--red); border-color: var(--red); }
+.dot.yellow { background: var(--yellow); border-color: var(--yellow); }
 
 /* Βιβλιοθήκη: το κωδικό του μέλους πάνω στην προβολή. */
 .watermarked { position: relative; }

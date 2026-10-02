@@ -25,6 +25,7 @@ export type SafetyInput = {
   safetyPlanAt: Date | null;
   helpRequests: { createdAt: Date }[];
   notes: { at: Date; riskChange: string | null; usedSince: string | null; slotId: string }[];
+  missed: { at: Date; slotId: string }[]; // ατομικές που πέρασαν χωρίς να μπει το μέλος
   lastContact: Date | null;
   openDropout: boolean;
   dropoutDays: number;
@@ -34,7 +35,7 @@ export type SafetyInput = {
 const DAY = 24 * 3600_000;
 const daysAgo = (now: Date, d: Date) => Math.floor((now.getTime() - d.getTime()) / DAY);
 
-/** Σήματα ασφαλείας, πρώτα τα κόκκινα και μετά τα πιο πρόσφατα. */
+/** Σήματα ασφαλείας: πρώτα τα κόκκινα, και μέσα σε κάθε χρώμα με σειρά σπουδαιότητας. */
 export function safetyFlags(x: SafetyInput): Flag[] {
   const flags: Flag[] = [];
   const within = (d: Date, days: number) => x.now.getTime() - d.getTime() <= days * DAY;
@@ -48,9 +49,10 @@ export function safetyFlags(x: SafetyInput): Flag[] {
   if (x.risk?.value === "HIGH") flags.push({ level: "red", text: "Υψηλός κίνδυνος στην αξιολόγηση", at: x.risk.at });
   else if (!x.risk && x.intakeComplete) flags.push({ level: "yellow", text: "Δεν υπάρχει αξιολόγηση κινδύνου" });
 
-  if (!x.safetyPlanAt) {
+  // Χωρίς πλάνο: σήμα μόνο μετά την έναρξη συνεργασίας (ή αμέσως, αν ο κίνδυνος είναι υψηλός).
+  if (!x.safetyPlanAt && (x.intakeComplete || x.risk?.value === "HIGH")) {
     flags.push({ level: x.risk?.value === "HIGH" ? "red" : "yellow", text: "Δεν υπάρχει πλάνο ασφάλειας", href: "safety" });
-  } else if (!within(x.safetyPlanAt, 90)) {
+  } else if (x.safetyPlanAt && !within(x.safetyPlanAt, 90)) {
     flags.push({ level: "yellow", text: `Το πλάνο ασφάλειας δεν έχει αναθεωρηθεί ${daysAgo(x.now, x.safetyPlanAt)} μέρες`, at: x.safetyPlanAt, href: "safety" });
   }
 
@@ -60,13 +62,31 @@ export function safetyFlags(x: SafetyInput): Flag[] {
   const used = recent.find((n) => n.usedSince === "YES");
   if (used) flags.push({ level: "red", text: "Σημείωμα: χρήση από την προηγούμενη επαφή", at: used.at, href: `/t/s/${used.slotId}` });
 
+  // Χρήση «δεν ξέρουμε» μετράει μόνο αν είναι η πιο πρόσφατη απάντηση.
+  const lastUse = recent.find((n) => n.usedSince);
+  if (lastUse?.usedSince === "UNKNOWN") {
+    flags.push({ level: "yellow", text: "Χρήση: δεν ξέρουμε (τελευταίο σημείωμα)", at: lastUse.at, href: `/t/s/${lastUse.slotId}` });
+  }
+
+  // Χαμένη ατομική τις τελευταίες 14 μέρες· κόκκινο αν υπάρχει ήδη σήμα κινδύνου.
+  const missed = x.missed.filter((m) => within(m.at, 14)).sort((a, b) => b.at.getTime() - a.at.getTime())[0];
+  if (missed) {
+    const afterRisk = flags.some((f) => f.level === "red");
+    flags.push({
+      level: afterRisk ? "red" : "yellow",
+      text: afterRisk ? "Δεν ήρθε στην ατομική, μετά από σήμα κινδύνου" : "Δεν ήρθε στην ατομική",
+      at: missed.at,
+      href: `/t/s/${missed.slotId}`,
+    });
+  }
+
   if (x.openDropout) flags.push({ level: "yellow", text: "Εκκρεμεί τηλεφώνημα (χωρίς επαφή)" });
   else if (x.lastContact && !within(x.lastContact, x.dropoutDays)) {
     flags.push({ level: "yellow", text: `Χωρίς επαφή ${daysAgo(x.now, x.lastContact)} μέρες`, at: x.lastContact });
   }
 
   const rank = { red: 0, yellow: 1 };
-  return flags.sort((a, b) => rank[a.level] - rank[b.level] || (b.at?.getTime() ?? 0) - (a.at?.getTime() ?? 0));
+  return flags.sort((a, b) => rank[a.level] - rank[b.level]); // σταθερή ταξινόμηση: κρατά τη σειρά σπουδαιότητας
 }
 
 export type NoteFilter = { therapistId?: string; from?: string; to?: string; q?: string; risk?: boolean; used?: boolean };

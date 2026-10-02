@@ -9,6 +9,7 @@ const base: SafetyInput = {
   safetyPlanAt: ago(10),
   helpRequests: [],
   notes: [],
+  missed: [],
   lastContact: ago(1),
   openDropout: false,
   dropoutDays: 3,
@@ -55,6 +56,48 @@ describe("safetyFlags", () => {
     expect(safetyFlags({ ...base, lastContact: ago(5) })[0].text).toBe("Χωρίς επαφή 5 μέρες");
     const f = safetyFlags({ ...base, lastContact: ago(5), openDropout: true });
     expect(f.map((x) => x.text)).toEqual(["Εκκρεμεί τηλεφώνημα (χωρίς επαφή)"]);
+  });
+
+  it("χαμένη ατομική: κίτρινο, κόκκινο αν υπάρχει σήμα κινδύνου", () => {
+    expect(safetyFlags({ ...base, missed: [{ at: ago(30), slotId: "old" }] })).toEqual([]);
+    expect(safetyFlags({ ...base, missed: [{ at: ago(2), slotId: "m" }] })).toEqual([
+      expect.objectContaining({ level: "yellow", text: "Δεν ήρθε στην ατομική", href: "/t/s/m" }),
+    ]);
+    const f = safetyFlags({ ...base, helpRequests: [{ createdAt: ago(5) }], missed: [{ at: ago(2), slotId: "m" }] });
+    expect(f.map((x) => x.level)).toEqual(["red", "red"]);
+    expect(f[1].text).toContain("μετά από σήμα κινδύνου");
+  });
+
+  it("χρήση «δεν ξέρουμε» μόνο αν είναι η πιο πρόσφατη απάντηση", () => {
+    const unknownLast = safetyFlags({
+      ...base,
+      notes: [
+        { at: ago(10), riskChange: "SAME", usedSince: "NO", slotId: "a" },
+        { at: ago(3), riskChange: "SAME", usedSince: "UNKNOWN", slotId: "b" },
+      ],
+    });
+    expect(unknownLast).toEqual([expect.objectContaining({ level: "yellow", href: "/t/s/b" })]);
+    const answeredLater = safetyFlags({
+      ...base,
+      notes: [
+        { at: ago(10), riskChange: "SAME", usedSince: "UNKNOWN", slotId: "a" },
+        { at: ago(3), riskChange: "SAME", usedSince: "NO", slotId: "b" },
+      ],
+    });
+    expect(answeredLater).toEqual([]);
+  });
+
+  it("νέο μέλος χωρίς πλάνο: κανένα σήμα πριν ολοκληρωθεί η έναρξη", () => {
+    expect(safetyFlags({ ...base, risk: null, safetyPlanAt: null, intakeComplete: false })).toEqual([]);
+  });
+
+  it("το κόκκινο κουμπί μπαίνει πρώτο, ακόμα κι αν άλλο σήμα είναι πιο πρόσφατο", () => {
+    const f = safetyFlags({
+      ...base,
+      helpRequests: [{ createdAt: ago(10) }],
+      notes: [{ at: ago(2), riskChange: "UP", usedSince: "NO", slotId: "s" }],
+    });
+    expect(f[0].text).toContain("Κόκκινο κουμπί");
   });
 
   it("χωρίς αξιολόγηση κινδύνου μόνο μετά την έναρξη", () => {

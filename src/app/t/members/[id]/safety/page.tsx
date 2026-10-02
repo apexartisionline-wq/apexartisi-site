@@ -24,7 +24,7 @@ export default async function MemberSafetyPlan({ params, searchParams }: { param
   return (
     <main>
       <h1>Πλάνο ασφάλειας — {member.name}</h1>
-      <p className="muted small">Συμπληρώνεται μαζί με το μέλος στην πρώτη ατομική (βλ. docs/clinical/04). Το μέλος το βλέπει μέσα στο κόκκινο κουμπί.</p>
+      <p className="muted small">Συμπληρώνεται μαζί με το μέλος στην πρώτη ατομική. Το μέλος το βλέπει μέσα στο κόκκινο κουμπί.</p>
       {sp.ok && <div className="notice">Αποθηκεύτηκε ✓</div>}
       <SafetyPlanForm plan={plan} action={save} hidden={{ memberId: id }} />
     </main>

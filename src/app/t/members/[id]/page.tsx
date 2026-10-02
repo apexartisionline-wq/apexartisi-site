@@ -12,25 +12,28 @@ import { memberIntake } from "@/lib/intake";
 import { RISK_LEVELS } from "@/lib/intake-rules";
 import { cycleInfo } from "@/lib/member";
 import { programDay } from "@/lib/program";
-import { addDays, localParts } from "@/lib/time";
+import { addDays, formatDate, formatWhen, localParts } from "@/lib/time";
 
 // Καρτέλα μέλους για τους θεραπευτές — όλοι δουλεύουν με όλα τα μέλη.
 // Το ημερολόγιο ανάκαμψης και ο δείκτης δεν εμφανίζονται εδώ — τα βλέπει μόνο η Εύα.
-export default async function TherapistMemberPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function TherapistMemberPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ case?: string }> }) {
   const user = await requireRole("THERAPIST", "ADMIN");
-  const { id } = await params;
+  const [{ id }, sp] = await Promise.all([params, searchParams]);
   const member = await prisma.user.findFirst({ where: { id, role: "MEMBER" } });
   if (!member) notFound();
   await logAccess(user.id, id, "member_file_view");
   const today = localParts(new Date()).date;
   const from = addDays(today, -27);
-  const [cycle, intake, groups, [summary]] = await Promise.all([
+  const [cycle, intake, groups, [summary], plan, noteCount] = await Promise.all([
     cycleInfo(id),
     memberIntake(member),
     prisma.attendance.count({ where: { memberId: id, date: { gte: from } } }),
     caseHistory(id, 1),
+    prisma.safetyPlan.findUnique({ where: { memberId: id }, select: { updatedAt: true } }),
+    prisma.sessionNote.count({ where: { slot: { bookings: { some: { memberId: id } } } } }),
   ]);
-  const risk = intake.checks.find((c) => c.key === "risk")?.value as keyof typeof RISK_LEVELS | undefined;
+  const riskCheck = intake.checks.find((c) => c.key === "risk");
+  const risk = riskCheck?.value as keyof typeof RISK_LEVELS | undefined;
   return (
     <main>
       <h1>{member.name}</h1>
@@ -40,12 +43,29 @@ export default async function TherapistMemberPage({ params }: { params: Promise<
         <div><span className="muted small">Κύκλος</span><strong>{cycle ? `${cycle.done} από ${cycle.length}` : "—"}</strong></div>
         <div><span className="muted small">Ομάδες (4 εβδ.)</span><strong>{groups}</strong></div>
       </div>
-      <p className="small">
-        <Link href={`/t/members/${id}/start`}>Έναρξη συνεργασίας</Link>{" "}
-        {intake.status.complete ? "✓" : <strong>(εκκρεμεί)</strong>}
-        {risk && <> · Κίνδυνος: <strong>{RISK_LEVELS[risk]}</strong></>}
-      </p>
-      <p className="small"><Link href={`/t/members/${id}/safety`}>Πλάνο ασφάλειας</Link>{member.phone && <> · Τηλ. <a href={`tel:${member.phone}`}>{member.phone}</a></>}</p>
+      {sp.case && <div className="notice">Η σύνοψη αποθηκεύτηκε ✓</div>}
+      <div className="list">
+        <Link href={`/t/members/${id}/start`}>
+          <span>
+            <div>Έναρξη συνεργασίας</div>
+            <div className="sub">
+              {intake.status.complete ? "Ολοκληρώθηκε" : "Εκκρεμεί"}
+              {risk && riskCheck && ` · Κίνδυνος στην αρχική αξιολόγηση (${formatDate(localParts(riskCheck.doneAt).date)}): ${RISK_LEVELS[risk]}`}
+            </div>
+          </span>
+        </Link>
+        <Link href={`/t/members/${id}/safety`}>
+          <span>
+            <div>Πλάνο ασφάλειας</div>
+            <div className="sub">{plan ? `Ενημερώθηκε ${formatDate(localParts(plan.updatedAt).date)}` : "Δεν έχει γραφτεί"}</div>
+          </span>
+        </Link>
+        {member.phone && (
+          <a href={`tel:${member.phone}`}>
+            <span><div>Τηλέφωνο</div><div className="sub">{member.phone}</div></span>
+          </a>
+        )}
+      </div>
       <h2>Σύνοψη περίπτωσης</h2>
       <div className="card">
         {summary ? (
@@ -57,7 +77,7 @@ export default async function TherapistMemberPage({ params }: { params: Promise<
               </div>
             ))}
             <div className="row spread small">
-              <span className="muted">{summary.author} · {summary.at.toLocaleString("el-GR", { timeZone: "Europe/Athens" })}</span>
+              <span className="muted">{summary.author} · {formatWhen(summary.at)}</span>
               <Link href={`/t/members/${id}/case`}>Ενημέρωση / ιστορικό</Link>
             </div>
           </>
@@ -68,7 +88,9 @@ export default async function TherapistMemberPage({ params }: { params: Promise<
         )}
       </div>
       <h2>Ατομικές και σημειώματα</h2>
-      <p className="small"><Link href={`/t/members/${id}/notes`}>Όλα τα σημειώματα, με φίλτρα</Link></p>
+      <div className="list">
+        <Link href={`/t/members/${id}/notes`}><span>Όλα τα σημειώματα ({noteCount}), με φίλτρα</span></Link>
+      </div>
       <MemberSessions memberId={id} limit={5} />
       <h2>Εργασίες</h2>
       <MemberAssignments memberId={id} />

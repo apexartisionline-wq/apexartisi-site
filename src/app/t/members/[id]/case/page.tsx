@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { logAccess } from "@/lib/audit";
 import { requireRole } from "@/lib/auth";
+import { formatWhen } from "@/lib/time";
 import { prisma } from "@/lib/db";
 import { caseHistory, saveCase } from "@/lib/handover";
 import { CASE_FIELDS } from "@/lib/handover-rules";
@@ -48,7 +49,7 @@ export default async function CaseSummaryPage({ params }: { params: Promise<{ id
           <h2>Προηγούμενες εκδόσεις</h2>
           {history.slice(1).map((v) => (
             <details className="card small" key={v.id}>
-              <summary>{v.at.toLocaleString("el-GR", { timeZone: "Europe/Athens" })} · {v.author}</summary>
+              <summary>{formatWhen(v.at)} · {v.author}</summary>
               {CASE_FIELDS.filter((f) => v.data[f.key]).map((f) => (
                 <div key={f.key} style={{ marginTop: 8 }}>
                   <div className="muted">{f.label}</div>

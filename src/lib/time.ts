@@ -95,3 +95,9 @@ export function formatTime(d: Date): string {
 export function isAfterLocal(p: LocalParts, hhmm: string): boolean {
   return p.hour * 60 + p.minute >= toMinutes(hhmm);
 }
+
+/** Στιγμή σε ώρα Ελλάδας, με την ίδια μορφή παντού: «Τρίτη 6/10 09:00». */
+export function formatWhen(d: Date): string {
+  const p = localParts(d);
+  return `${formatDate(p.date)} ${formatHour(p.hour, p.minute)}`;
+}

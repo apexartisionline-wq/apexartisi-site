@@ -12,12 +12,13 @@ export async function generateMetadata(): Promise<Metadata> {
     applicationName: s.appName,
     robots: { index: false, follow: false },
     manifest: "/manifest.webmanifest",
-    icons: { icon: "/icon.svg", apple: "/icon.svg" },
+    icons: { icon: "/icon.svg", apple: "/apple-touch-icon.png" }, // το iPhone θέλει PNG για την αρχική οθόνη
     appleWebApp: { capable: true, title: s.appName, statusBarStyle: "default" },
   };
 }
 
-export const viewport: Viewport = { themeColor: "#2f5d62", width: "device-width", initialScale: 1 };
+// viewportFit «cover»: στο iPhone η εφαρμογή γεμίζει την οθόνη και τα περιθώρια μπαίνουν από το CSS (safe-area).
+export const viewport: Viewport = { themeColor: "#2f5d62", width: "device-width", initialScale: 1, viewportFit: "cover" };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
