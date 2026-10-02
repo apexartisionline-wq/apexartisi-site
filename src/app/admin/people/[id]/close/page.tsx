@@ -1,3 +1,4 @@
+import { vocative } from "@/lib/vocative";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
@@ -66,7 +67,7 @@ export default async function ClosePage({ params, searchParams }: { params: Prom
         <div className="field"><label htmlFor="keeps">Τι κρατάει (λίγες γραμμές)</label><textarea id="keeps" name="keeps" style={{ minHeight: 70 }} /></div>
         <div className="field"><label htmlFor="referral">Παραπομπή <span className="muted small">· αν υπάρχει (πού, γιατί)</span></label><input id="referral" name="referral" /></div>
         <div className="field"><label htmlFor="message">Μήνυμα στο μέλος <span className="muted small">· ελέγξ' το πριν φύγει</span></label>
-          <textarea id="message" name="message" defaultValue={doorOpenMessage(member.name.split(" ")[0], months.length)} style={{ minHeight: 200 }} />
+          <textarea id="message" name="message" defaultValue={doorOpenMessage(vocative(member.name.split(" ")[0]), months.length)} style={{ minHeight: 200 }} />
         </div>
         <div className="row" style={{ gap: 8 }}>
           <button type="submit">Αποθήκευση χωρίς αποστολή</button>
