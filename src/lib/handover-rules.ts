@@ -50,12 +50,7 @@ export function safetyFlags(x: SafetyInput): Flag[] {
   else if (x.risk?.value === "MEDIUM") flags.push({ level: "yellow", text: "Αυξημένες ανάγκες ασφάλειας", at: x.risk.at });
   // Η αξιολόγηση γίνεται μόνο όταν υπάρχει λόγος (απόφαση υπεύθυνης): η υπενθύμιση βγαίνει από τις αφορμές (risk-db.ts).
 
-  // Χωρίς πλάνο: σήμα μόνο μετά την έναρξη συνεργασίας (ή αμέσως, αν ο κίνδυνος είναι υψηλός).
-  if (!x.safetyPlanAt && (x.intakeComplete || x.risk?.value === "HIGH")) {
-    flags.push({ level: x.risk?.value === "HIGH" ? "red" : "yellow", text: "Δεν υπάρχει πλάνο ασφάλειας", href: "safety" });
-  } else if (x.safetyPlanAt && !within(x.safetyPlanAt, x.risk?.value === "HIGH" ? 28 : 90)) {
-    flags.push({ level: "yellow", text: `Το πλάνο ασφάλειας δεν έχει αναθεωρηθεί ${daysAgo(x.now, x.safetyPlanAt)} μέρες`, at: x.safetyPlanAt, href: "safety" });
-  }
+  // Πλάνο ασφάλειας: μόνο όταν υπάρχει λόγος (απόφαση υπεύθυνης) — χωρίς σήματα «δεν υπάρχει / αναθεώρηση».
 
   const recent = x.notes.filter((n) => within(n.at, 30)).sort((a, b) => b.at.getTime() - a.at.getTime());
   const up = recent.find((n) => n.riskChange === "UP");

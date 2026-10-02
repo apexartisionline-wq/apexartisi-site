@@ -11,9 +11,10 @@ describe("intake", () => {
     expect(intakeStatus({ source: "APEX", done: allSteps, consents: { ...allConsents } }).complete).toBe(true);
     // Οι ανάγκες ασφάλειας δεν χρειάζονται για την έναρξη (μόνο όταν υπάρχει λόγος).
     expect(intakeStatus({ source: "APEX", done: allSteps.filter((k) => k !== "risk"), consents: { ...allConsents } }).complete).toBe(true);
-    const noPlan = intakeStatus({ source: "APEX", done: allSteps.filter((k) => k !== "safety_plan"), consents: { ...allConsents } });
-    expect(noPlan.complete).toBe(false);
-    expect(noPlan.missingSteps.map((s) => s.key)).toEqual(["safety_plan"]);
+    // Ούτε το πλάνο ασφάλειας (μόνο όταν υπάρχει λόγος).
+    expect(intakeStatus({ source: "APEX", done: allSteps.filter((k) => k !== "safety_plan"), consents: { ...allConsents } }).complete).toBe(true);
+    const noAgreement = intakeStatus({ source: "APEX", done: allSteps.filter((k) => k !== "agreement"), consents: { ...allConsents } });
+    expect(noAgreement.missingSteps.map((s) => s.key)).toEqual(["agreement"]);
     const { forms: _f, ...noForms } = allConsents;
     expect(intakeStatus({ source: "APEX", done: allSteps, consents: noForms }).missingConsents.map((p) => p.key)).toEqual(["forms"]);
   });

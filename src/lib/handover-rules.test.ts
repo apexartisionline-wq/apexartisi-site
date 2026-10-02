@@ -28,17 +28,11 @@ describe("safetyFlags", () => {
     expect(f[0].text).toContain("2 φορές");
   });
 
-  it("υψηλός κίνδυνος χωρίς πλάνο ασφάλειας: δύο κόκκινα", () => {
+  it("πλάνο ασφάλειας: κανένα σήμα «δεν υπάρχει / αναθεώρηση» (μόνο όταν υπάρχει λόγος)", () => {
     const f = safetyFlags({ ...base, risk: { value: "HIGH", at: ago(3) }, safetyPlanAt: null });
-    expect(f.map((x) => x.level)).toEqual(["red", "red"]);
-  });
-
-  it("χωρίς πλάνο με χαμηλό κίνδυνο: κίτρινο", () => {
-    expect(safetyFlags({ ...base, safetyPlanAt: null })).toEqual([expect.objectContaining({ level: "yellow", href: "safety" })]);
-  });
-
-  it("παλιό πλάνο ασφάλειας", () => {
-    expect(safetyFlags({ ...base, safetyPlanAt: ago(120) })[0].text).toContain("120 μέρες");
+    expect(f.map((x) => x.level)).toEqual(["red"]);
+    expect(safetyFlags({ ...base, safetyPlanAt: null })).toEqual([]);
+    expect(safetyFlags({ ...base, safetyPlanAt: ago(120) })).toEqual([]);
   });
 
   it("σημειώματα: αύξηση κινδύνου και χρήση μέσα σε 30 μέρες, με σύνδεσμο", () => {
@@ -105,11 +99,6 @@ describe("safetyFlags", () => {
       expect.objectContaining({ level: "yellow", text: "Αυξημένες ανάγκες ασφάλειας" }),
     ]);
     expect(safetyFlags({ ...base, risk: { value: "LOW", at: ago(45) } })).toEqual([]);
-  });
-
-  it("με υψηλές ανάγκες το πλάνο ασφάλειας θέλει αναθεώρηση κάθε 4 εβδομάδες", () => {
-    const f = safetyFlags({ ...base, risk: { value: "HIGH", at: ago(2) }, safetyPlanAt: ago(35) });
-    expect(f.map((x) => x.text)).toContain("Το πλάνο ασφάλειας δεν έχει αναθεωρηθεί 35 μέρες");
   });
 
   it("χωρίς αξιολόγηση αναγκών ασφάλειας: κανένα σήμα (γίνεται μόνο όταν υπάρχει λόγος)", () => {

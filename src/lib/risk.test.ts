@@ -10,11 +10,10 @@ describe("ανάγκες ασφάλειας", () => {
     expect(suggestedLevel({ recentHarm: true })).toBe("HIGH");
     expect(suggestedLevel({ notWorth: "DECLINED" })).toBeNull();
   });
-  it("χωρίς επίπεδο και αιτιολόγηση δεν αποθηκεύεται· σε Αυξημένες/Υψηλές θέλει ενέργειες", () => {
+  it("χωρίς επίπεδο και σημείωση δεν αποθηκεύεται", () => {
     expect(riskSchema.safeParse({}).success).toBe(false);
     expect(riskSchema.safeParse({ level: "LOW", rationale: "ήρεμος" }).success).toBe(true);
-    expect(riskSchema.safeParse({ level: "MEDIUM", rationale: "…" }).success).toBe(false);
-    expect(riskSchema.safeParse({ level: "MEDIUM", rationale: "…", actions: "πλάνο, τηλέφωνο αύριο" }).success).toBe(true);
+    expect(riskSchema.safeParse({ level: "MEDIUM", rationale: "πλάνο, τηλέφωνο αύριο" }).success).toBe(true);
   });
   it("θέλει αξιολόγηση μόνο αν η αφορμή είναι μετά την τελευταία", () => {
     const t = (d: string, text: string) => ({ at: new Date(d), text });

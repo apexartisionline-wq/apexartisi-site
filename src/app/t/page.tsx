@@ -94,7 +94,7 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
       </div>
       <p className="muted" style={{ margin: "2px 0 0" }}>{formatDate(date)} · {user.name}</p>
 
-      {alerts.map((a) => (
+      {alerts.filter((a) => a.source !== "EMERGENCY" || user.role === "ADMIN").map((a) => (
         <Link key={a.id} href={`/t/members/${a.memberId}`} className="alertbar" role="alert" style={{ display: "block", textDecoration: "none" }}>
           <strong>⚑ {a.member} — {a.text}</strong>
           <div className="small">{ALERT_SOURCE[a.source] ?? ""} · {a.by}, {localParts(a.createdAt).date === today ? formatTime(a.createdAt) : formatWhen(a.createdAt)} {a.source === "ASSESSMENT" && " · μένει στο «Ασφάλεια» του φακέλου"}</div>

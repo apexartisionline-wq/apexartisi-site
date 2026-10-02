@@ -44,7 +44,7 @@ export default async function RiskPage({ params, searchParams }: { params: Promi
       <p className="muted" style={{ marginTop: 0 }}>
         {current ? `Τώρα: ${LEVELS[current.level]} · ${current.author}, ${formatWhen(current.at)}` : "Δεν έχει χρειαστεί αξιολόγηση"}
       </p>
-      {sp.saved && <div className="notice">Αποθηκεύτηκε ✓{current && current.level !== "LOW" && " Βγήκε υπενθύμιση επαφής και φαίνεται στο «Σήμερα» όλων."}</div>}
+      {sp.saved && <div className="notice">Αποθηκεύτηκε ✓{current && current.level !== "LOW" && " Φαίνεται σήμερα στο «Σήμερα» όλης της ομάδας."}</div>}
       {sp.error && <div className="error">{sp.error}</div>}
       {trigger && <div className="card small" style={{ borderColor: "var(--yellow)" }}>Θέλει αξιολόγηση: μετά από <strong>{trigger.text}</strong> ({formatWhen(trigger.at)}).</div>}
       {canWrite && (
@@ -65,7 +65,7 @@ export default async function RiskPage({ params, searchParams }: { params: Promi
             <details key={h.id} className="card small" open={h === current && !showForm}>
               <summary><strong>{LEVELS[h.level]}</strong> · {formatWhen(h.at)} · {h.author}{h.data.reason && ` · ${h.data.reason}`}</summary>
               <ul style={{ margin: "8px 0", paddingLeft: 18 }}>{QUESTIONS.map(([k, q]) => <li key={k}>{q} <strong>{yn(h.data[k])}</strong></li>)}</ul>
-              <div><span className="muted">Γιατί:</span> {h.data.rationale}</div>
+              <div className="body-text">{h.data.rationale}</div>
               {h.data.actions && <div><span className="muted">Τι έγινε:</span> {h.data.actions}</div>}
             </details>
           ))}

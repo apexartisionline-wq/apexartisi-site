@@ -23,9 +23,10 @@ export const STAFF_STEPS: StaffStep[] = [
   { key: "risk", doc: "03", label: "Αξιολόγηση αναγκών ασφάλειας", psychologist: true, optional: true, hint: "Μόνο όταν υπάρχει λόγος (υποτροπή, κόκκινο κουμπί, ανησυχία). Την κάνει ψυχολόγος." },
   {
     key: "safety_plan",
+    optional: true,
     doc: "04",
     label: "Πλάνο ασφάλειας",
-    hint: "Μαζί με: επαφή έκτακτης ανάγκης, επιβεβαιωμένο τηλέφωνο, εγκατάσταση του app, δοκιμαστική ειδοποίηση.",
+    hint: "Μόνο όταν υπάρχει λόγος· γράφεται μαζί, μέσα στην ατομική.",
   },
   { key: "autognosia_summary", doc: "09Γ", label: "Σύνοψη από ΑΥΤΟΓΝΩΣΙΑ PLUS", autognosiaOnly: true, hint: "Μόνο με ρητή συγκατάθεση (01β, 7α)." },
 ];

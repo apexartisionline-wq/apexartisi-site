@@ -19,8 +19,8 @@ export function canWriteRisk(user: { role: string; therapistKind: string | null 
 }
 
 /**
- * Αποθήκευση (νέα γραμμή, ποτέ αντικατάσταση). Αυξημένες/Υψηλές: φαίνεται 24 ώρες στο «Σήμερα» όλων
- * (άρα και της Εύας) και βγαίνει υπενθύμιση επαφής (24 ώρες / την επόμενη μέρα).
+ * Αποθήκευση (νέα γραμμή, ποτέ αντικατάσταση). Αυξημένες/Υψηλές: μία γραμμή 24 ώρες στο «Σήμερα» όλων
+ * (άρα και της Εύας), με το τι χρειάζεται (επαφή).
  */
 export async function saveRisk(memberId: string, user: { id: string }, d: RiskReview) {
   const parsed = riskSchema.parse(d);
@@ -38,9 +38,6 @@ export async function saveRisk(memberId: string, user: { id: string }, d: RiskRe
       ? []
       : [
           prisma.teamAlert.create({ data: { memberId, source: "RISK", kind: level, byId: user.id } }),
-          prisma.careTask.create({
-            data: { memberId, kind: level === "HIGH" ? "risk_next_day" : "risk_24h", dueAt: level === "HIGH" ? new Date(now.getTime() + 16 * 3600_000) : now },
-          }),
         ]),
   ]);
   await logAccess(user.id, memberId, `risk_review_${level}`);

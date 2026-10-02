@@ -1,30 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { ACTIONS, LEVELS, type Level, QUESTIONS, REASONS, type RiskReview, suggestedLevel } from "@/lib/risk";
+import { ACTIONS, LEVELS, type Level, QUESTIONS, type RiskReview } from "@/lib/risk";
 
 type YN = boolean | "DECLINED" | undefined;
 
-// Αξιολόγηση αναγκών ασφάλειας: 4 ερωτήσεις, πρόταση επιπέδου, απόφαση ψυχολόγου, τι κάνουμε.
+// Αξιολόγηση αναγκών ασφάλειας: 4 ερωτήσεις, επίπεδο (απόφαση ψυχολόγου), μία σημείωση. Η αφορμή μπαίνει μόνη της.
 export function RiskClient({ action, memberId, initialReason }: { action: (fd: FormData) => void; memberId: string; initialReason?: string }) {
   const [d, setD] = useState<Partial<RiskReview>>({ reason: initialReason as RiskReview["reason"] });
   const set = <K extends keyof RiskReview>(k: K, v: RiskReview[K]) => setD((x) => ({ ...x, [k]: v }));
-  const suggestion = suggestedLevel(d);
   const level = d.level as Level | undefined;
 
   return (
     <form action={action}>
       <input type="hidden" name="memberId" value={memberId} />
       <input type="hidden" name="payload" value={JSON.stringify(d)} />
-
-      <details className="sec" open>
-        <summary>Αφορμή</summary>
-        <div className="q">
-          <div className="chips">
-            {REASONS.map((r) => <button key={r} type="button" className="chip" aria-pressed={d.reason === r} onClick={() => set("reason", d.reason === r ? undefined : r)}>{r}</button>)}
-          </div>
-        </div>
-      </details>
 
       <details className="sec" open>
         <summary>Ερωτήσεις</summary>
@@ -43,7 +33,6 @@ export function RiskClient({ action, memberId, initialReason }: { action: (fd: F
             </div>
           );
         })}
-        {suggestion && <div className="q small">Πρόταση από τις απαντήσεις: <strong>{LEVELS[suggestion]}</strong> <span className="muted">· αποφασίζεις εσύ· αν διστάζεις, το υψηλότερο</span></div>}
       </details>
 
       <details className="sec" open>
@@ -62,15 +51,9 @@ export function RiskClient({ action, memberId, initialReason }: { action: (fd: F
           </div>
         )}
         <div className="q">
-          <div className="lab">Γιατί (2–3 γραμμές)</div>
-          <textarea aria-label="Γιατί" rows={3} value={d.rationale ?? ""} onChange={(e) => set("rationale", e.target.value)} />
+          <div className="lab">Τι βλέπω και τι κάνουμε (2–3 γραμμές)</div>
+          <textarea aria-label="Γιατί" rows={4} placeholder="π.χ. σκέψεις χωρίς πρόθεση μετά το κόκκινο κουμπί· ενημερώσαμε το πλάνο· τον παίρνει η Άννα αύριο" value={d.rationale ?? ""} onChange={(e) => set("rationale", e.target.value)} />
         </div>
-        {level && level !== "LOW" && (
-          <div className="q">
-            <div className="lab">Τι έγινε / ποιος θα κάνει τι</div>
-            <textarea aria-label="Τι έγινε" rows={3} placeholder="π.χ. ενημερώσαμε το πλάνο· τον παίρνει η Άννα αύριο 12:00· ενημερώθηκε η Εύα" value={d.actions ?? ""} onChange={(e) => set("actions", e.target.value)} />
-          </div>
-        )}
       </details>
 
       <div className="sticky-save">
