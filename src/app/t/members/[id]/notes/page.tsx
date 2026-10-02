@@ -55,7 +55,7 @@ export default async function MemberNotesPage({ params, searchParams }: { params
           <input name="q" defaultValue={filter.q} placeholder="Λέξη (π.χ. οικογένεια)" aria-label="Αναζήτηση" />
         </div>
         <div className="row" style={{ gap: 16, marginTop: 8 }}>
-          <label><input type="checkbox" name="risk" value="1" defaultChecked={filter.risk} style={{ width: "auto" }} /> Μόνο αύξηση κινδύνου</label>
+          <label><input type="checkbox" name="risk" value="1" defaultChecked={filter.risk} style={{ width: "auto" }} /> Μόνο αύξηση αναγκών ασφάλειας</label>
           <label><input type="checkbox" name="used" value="1" defaultChecked={filter.used} style={{ width: "auto" }} /> Μόνο χρήση</label>
           <button type="submit">Φίλτρο</button>
           <Link href={`/t/members/${id}/notes`}>Καθαρισμός</Link>

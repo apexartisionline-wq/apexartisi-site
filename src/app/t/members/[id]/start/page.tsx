@@ -5,7 +5,7 @@ import { requireRole } from "@/lib/auth";
 import { dec, enc } from "@/lib/crypto";
 import { prisma } from "@/lib/db";
 import { memberIntake } from "@/lib/intake";
-import { canMarkStep, CHOICE_LABEL, type Choice, PURPOSES, RISK_LEVELS, STAFF_STEPS } from "@/lib/intake-rules";
+import { canMarkStep, CHOICE_LABEL, type Choice, PURPOSES, RISK_INFO, RISK_LEVELS, STAFF_STEPS } from "@/lib/intake-rules";
 import { getSettings } from "@/lib/settings";
 import { formatDate, localParts } from "@/lib/time";
 
@@ -16,6 +16,7 @@ async function mark(formData: FormData) {
   const key = String(formData.get("key"));
   const step = STAFF_STEPS.find((s) => s.key === key);
   if (!step || !canMarkStep(step, user.therapistKind)) redirect(`/t/members/${memberId}/start?e=psy`);
+  if (step.admin && user.role !== "ADMIN") redirect(`/t/members/${memberId}/start?e=admin`);
   const value = key === "risk" ? String(formData.get("value") ?? "") : null;
   if (key === "risk" && !(value! in RISK_LEVELS)) redirect(`/t/members/${memberId}/start?e=risk`);
   // Το βήμα «πλάνο ασφάλειας» σημειώνεται μόνο αν το πλάνο έχει πράγματι γραφτεί.
@@ -38,13 +39,14 @@ async function unmark(formData: FormData) {
   const key = String(formData.get("key"));
   const step = STAFF_STEPS.find((s) => s.key === key);
   if (!step || !canMarkStep(step, user.therapistKind)) redirect(`/t/members/${memberId}/start?e=psy`);
+  if (step.admin && user.role !== "ADMIN") redirect(`/t/members/${memberId}/start?e=admin`);
   await prisma.intakeCheck.deleteMany({ where: { memberId, key } });
   redirect(`/t/members/${memberId}/start`);
 }
 
 async function recordConsents(formData: FormData) {
   "use server";
-  const user = await requireRole("THERAPIST", "ADMIN");
+  const user = await requireRole("ADMIN"); // συγκαταθέσεις: μόνο η διαχείριση
   const memberId = String(formData.get("memberId"));
   const s = await getSettings();
   const previous = await prisma.consent.findMany({ where: { memberId }, orderBy: { recordedAt: "desc" } });
@@ -65,6 +67,7 @@ async function recordConsents(formData: FormData) {
 const ERR: Record<string, string> = {
   psy: "Αυτό το βήμα το σημειώνει ψυχολόγος.",
   risk: "Διάλεξε επίπεδο κινδύνου.",
+  admin: "Τα πρακτικά βήματα τα σημειώνει η διαχείριση.",
   plan: "Γράψε πρώτα το πλάνο ασφάλειας μαζί με το μέλος· μετά σημείωσε το βήμα.",
 };
 
@@ -74,25 +77,39 @@ export default async function IntakePage({ params, searchParams }: { params: Pro
   const member = await prisma.user.findFirst({ where: { id, role: "MEMBER" } });
   if (!member) notFound();
   await logAccess(user.id, id, "intake_view");
+  const isAdmin = user.role === "ADMIN";
   const [{ checks, consents, status }, history, staff] = await Promise.all([
     memberIntake(member),
-    prisma.consent.findMany({ where: { memberId: id }, orderBy: { recordedAt: "desc" } }),
+    // Συγκαταθέσεις: διοικητικός φάκελος, μόνο για τη διαχείριση.
+    isAdmin ? prisma.consent.findMany({ where: { memberId: id }, orderBy: { recordedAt: "desc" } }) : Promise.resolve([]),
     prisma.user.findMany({ where: { role: { not: "MEMBER" } }, select: { id: true, name: true } }),
   ]);
   const who = new Map([...staff, { id: member.id, name: member.name }].map((u) => [u.id, u.name]));
   const byKey = new Map(checks.map((c) => [c.key, c]));
-  const steps = STAFF_STEPS.filter((s) => !s.autognosiaOnly || member.source === "AUTOGNOSIA_PLUS");
+  const steps = STAFF_STEPS.filter((s) => (!s.autognosiaOnly || member.source === "AUTOGNOSIA_PLUS") && (isAdmin || !s.admin));
+  const practicalOk = !status.missingConsents.length && !status.missingSteps.some((s) => s.admin);
   const lastDetail = (purpose: string) => dec(history.find((h) => h.purpose === purpose && h.detail)?.detail);
 
   return (
     <main>
       <p><Link href={`/t/members/${id}`}>← {member.name}</Link></p>
-      <h1>Έναρξη συνεργασίας</h1>
-      <div className={status.complete ? "notice" : "card"} style={status.complete ? undefined : { borderColor: "var(--yellow)" }}>
-        {status.complete
-          ? "Ολοκληρώθηκε ✓ Το μέλος έχει πλήρη πρόσβαση στο app."
-          : `Λείπουν: ${[...status.missingSteps.map((s) => s.doc), ...status.missingConsents.map((p) => p.doc)].join(", ")}. Μέχρι τότε το μέλος βλέπει μόνο τη σελίδα έναρξης και το κόκκινο κουμπί.`}
-      </div>
+      <h1>{isAdmin ? "Έναρξη συνεργασίας" : "Κλινική έναρξη"}</h1>
+      {isAdmin ? (
+        <div className={status.complete ? "notice" : "card"} style={status.complete ? undefined : { borderColor: "var(--yellow)" }}>
+          {status.complete
+            ? "Ολοκληρώθηκε ✓ Το μέλος έχει πλήρη πρόσβαση στο app."
+            : `Λείπουν: ${[...status.missingSteps.map((s) => s.doc), ...status.missingConsents.map((p) => p.doc)].join(", ")}. Μέχρι τότε το μέλος βλέπει μόνο τη σελίδα έναρξης και το κόκκινο κουμπί.`}
+        </div>
+      ) : (
+        <div className="list">
+          <div>
+            <span>
+              <div>Πρακτικά (συγκαταθέσεις, συμφωνητικό)</div>
+              <div className="sub">{practicalOk ? "Σε τάξη ✓" : "Εκκρεμούν · τα χειρίζεται η διαχείριση"}</div>
+            </span>
+          </div>
+        </div>
+      )}
       {sp.e && <div className="error">{ERR[sp.e] ?? "Κάτι πήγε στραβά."}</div>}
       {sp.ok && <div className="notice">Αποθηκεύτηκε ✓</div>}
 
@@ -107,7 +124,23 @@ export default async function IntakePage({ params, searchParams }: { params: Pro
               {c && <span className="small">✓ {formatDate(localParts(c.doneAt).date)} · {who.get(c.doneById)}</span>}
             </div>
             {s.hint && <p className="small muted" style={{ margin: "4px 0" }}>{s.hint}</p>}
-            {c?.value && <p className="small">Επίπεδο κινδύνου: <strong>{RISK_LEVELS[c.value as keyof typeof RISK_LEVELS]}</strong></p>}
+            {c?.value && (
+              <p className="small">
+                Ανάγκες ασφάλειας: <strong>{RISK_LEVELS[c.value as keyof typeof RISK_LEVELS]}</strong>
+                <br /><span className="muted">{RISK_INFO[c.value as keyof typeof RISK_INFO]?.means}</span>
+              </p>
+            )}
+            {s.key === "risk" && (
+              <details className="small" style={{ margin: "4px 0 8px" }}>
+                <summary>Τι σημαίνει κάθε επίπεδο</summary>
+                {Object.entries(RISK_INFO).map(([k, v]) => (
+                  <p key={k} style={{ margin: "6px 0" }}>
+                    <strong>{RISK_LEVELS[k as keyof typeof RISK_LEVELS]}:</strong> {v.means}<br />
+                    <span className="muted">Τι κάνουμε: {v.action}</span>
+                  </p>
+                ))}
+              </details>
+            )}
             {c && dec(c.note) && <p className="small" style={{ whiteSpace: "pre-wrap" }}>{dec(c.note)}</p>}
             {allowed ? (
               <form action={mark} className="row" style={{ gap: 6, flexWrap: "wrap" }}>
@@ -136,6 +169,8 @@ export default async function IntakePage({ params, searchParams }: { params: Pro
         );
       })}
 
+      {isAdmin && (
+        <>
       <h2>Συγκαταθέσεις (01β)</h2>
       <p className="small muted">Τις συμπληρώνετε μαζί με το μέλος. Κάθε αλλαγή κρατιέται στο ιστορικό με την έκδοση του εγγράφου.</p>
       <form action={recordConsents} className="card">
@@ -178,6 +213,8 @@ export default async function IntakePage({ params, searchParams }: { params: Pro
               ))}
             </tbody>
           </table>
+        </>
+      )}
         </>
       )}
     </main>

@@ -6,7 +6,7 @@ export function NoteTags({ riskChange, usedSince, nextStep }: { riskChange: stri
   return (
     <div className="small" style={{ marginTop: 6 }}>
       {riskChange && (
-        <span className={`badge${riskChange === "UP" ? " red" : ""}`}>Κίνδυνος: {RISK_CHANGE[riskChange as RiskChange] ?? riskChange}</span>
+        <span className={`badge${riskChange === "UP" ? " red" : ""}`}>Ανάγκες ασφάλειας: {RISK_CHANGE[riskChange as RiskChange] ?? riskChange}</span>
       )}{" "}
       {usedSince && (
         <span className={`badge${usedSince === "YES" ? " red" : usedSince === "UNKNOWN" ? " yellow" : ""}`}>

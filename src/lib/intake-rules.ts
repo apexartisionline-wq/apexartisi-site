@@ -7,16 +7,18 @@ export type StaffStep = {
   label: string;
   /** Το σημειώνει μόνο ψυχολόγος (κλινική απόφαση). */
   psychologist?: boolean;
+  /** Πρακτικό/διοικητικό βήμα: το βλέπει και το σημειώνει μόνο η διαχείριση. */
+  admin?: boolean;
   /** Μόνο για μέλη που έρχονται από την ΑΥΤΟΓΝΩΣΙΑ PLUS. */
   autognosiaOnly?: boolean;
   hint?: string;
 };
 
 export const STAFF_STEPS: StaffStep[] = [
-  { key: "online_consent", doc: "01α", label: "Συναίνεση για online υπηρεσίες ψυχολόγου και συμβουλευτικής" },
-  { key: "agreement", doc: "01γ", label: "Συμφωνητικό συνεργασίας" },
+  { key: "online_consent", doc: "01α", label: "Συναίνεση για online υπηρεσίες ψυχολόγου και συμβουλευτικής", admin: true },
+  { key: "agreement", doc: "01γ", label: "Συμφωνητικό συνεργασίας", admin: true },
   { key: "assessment", doc: "02", label: "Αρχική αξιολόγηση", psychologist: true, hint: "Την απόφαση καταλληλότητας την παίρνει ψυχολόγος." },
-  { key: "risk", doc: "03", label: "Αξιολόγηση κινδύνου", psychologist: true, hint: "Το επίπεδο κινδύνου το ορίζει ψυχολόγος." },
+  { key: "risk", doc: "03", label: "Αξιολόγηση αναγκών ασφάλειας", psychologist: true, hint: "Το επίπεδο το ορίζει ψυχολόγος, με σύντομη αιτιολόγηση." },
   {
     key: "safety_plan",
     doc: "04",
@@ -26,7 +28,23 @@ export const STAFF_STEPS: StaffStep[] = [
   { key: "autognosia_summary", doc: "09Γ", label: "Σύνοψη από ΑΥΤΟΓΝΩΣΙΑ PLUS", autognosiaOnly: true, hint: "Μόνο με ρητή συγκατάθεση (01β, 7α)." },
 ];
 
-export const RISK_LEVELS = { LOW: "Χαμηλός", MEDIUM: "Μέτριος", HIGH: "Υψηλός" } as const;
+// Επίπεδα «αναγκών ασφάλειας» (αυτοτραυματισμός, υποτροπή, υπερδοσολογία). Δεν είναι πρόβλεψη:
+// λένε τι χρειάζεται το μέλος από εμάς τώρα (βλ. NICE NG225, 2022).
+export const RISK_LEVELS = { LOW: "Συνήθεις", MEDIUM: "Αυξημένες", HIGH: "Υψηλές" } as const;
+export const RISK_INFO: Record<keyof typeof RISK_LEVELS, { means: string; action: string }> = {
+  LOW: {
+    means: "Χωρίς σκέψεις ή σχέδιο αυτοτραυματισμού, χωρίς πρόσφατη υπερδοσολογία· σταθερή πορεία ή αποχή, επαρκής υποστήριξη.",
+    action: "Κανονική ροή· έλεγχος σε κάθε ατομική· βασικό πλάνο ασφάλειας.",
+  },
+  MEDIUM: {
+    means: "Παθητικές σκέψεις, πρόσφατη υποτροπή, δύσκολο γεγονός, απομόνωση ή πρόσφατη αποχή (μειωμένη ανοχή).",
+    action: "Ενημερωμένο πλάνο ασφάλειας· πιο συχνή επαφή· συζήτηση στην εποπτεία μέσα στην εβδομάδα.",
+  },
+  HIGH: {
+    means: "Ενεργές σκέψεις με σχέδιο ή πρόθεση, πρόσφατη απόπειρα ή υπερδοσολογία, χρήση μόνος ή πολλών ουσιών.",
+    action: "Πρωτόκολλο κρίσης την ίδια μέρα· ενημέρωση της υπεύθυνης· 166/112 όπου χρειάζεται· νέα εκτίμηση σε 24–72 ώρες.",
+  },
+};
 
 export type Choice = "YES" | "NO" | "NA" | "LATER";
 

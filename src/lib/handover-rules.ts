@@ -1,7 +1,7 @@
 // Κανόνες της «ζώνης ασφαλείας» στην καρτέλα μέλους (χωρίς AI, χωρίς το ημερολόγιο).
 // Απλοί και ορατοί: κάθε σήμα λέει τι το προκάλεσε και πότε.
 
-export const RISK_CHANGE = { UP: "Αυξήθηκε", SAME: "Ίδιος", DOWN: "Μειώθηκε" } as const;
+export const RISK_CHANGE = { UP: "Αυξήθηκαν", SAME: "Ίδιες", DOWN: "Μειώθηκαν" } as const; // ανάγκες ασφάλειας
 export const USED_SINCE = { YES: "Ναι", NO: "Όχι", UNKNOWN: "Δεν ξέρουμε" } as const;
 export type RiskChange = keyof typeof RISK_CHANGE;
 export type UsedSince = keyof typeof USED_SINCE;
@@ -46,19 +46,23 @@ export function safetyFlags(x: SafetyInput): Flag[] {
     flags.push({ level: "red", text: `Κόκκινο κουμπί: ${help.length} φορ${help.length === 1 ? "ά" : "ές"} τις τελευταίες 14 μέρες`, at: last });
   }
 
-  if (x.risk?.value === "HIGH") flags.push({ level: "red", text: "Υψηλός κίνδυνος στην αξιολόγηση", at: x.risk.at });
-  else if (!x.risk && x.intakeComplete) flags.push({ level: "yellow", text: "Δεν υπάρχει αξιολόγηση κινδύνου" });
+  if (x.risk?.value === "HIGH") flags.push({ level: "red", text: "Υψηλές ανάγκες ασφάλειας", at: x.risk.at });
+  else if (x.risk?.value === "MEDIUM") flags.push({ level: "yellow", text: "Αυξημένες ανάγκες ασφάλειας", at: x.risk.at });
+  if (!x.risk && x.intakeComplete) flags.push({ level: "yellow", text: "Δεν υπάρχει αξιολόγηση αναγκών ασφάλειας" });
+  else if (x.risk && x.intakeComplete && !within(x.risk.at, 30)) {
+    flags.push({ level: "yellow", text: `Η αξιολόγηση αναγκών ασφάλειας έγινε πριν από ${daysAgo(x.now, x.risk.at)} μέρες (ανά μήνα)`, at: x.risk.at });
+  }
 
   // Χωρίς πλάνο: σήμα μόνο μετά την έναρξη συνεργασίας (ή αμέσως, αν ο κίνδυνος είναι υψηλός).
   if (!x.safetyPlanAt && (x.intakeComplete || x.risk?.value === "HIGH")) {
     flags.push({ level: x.risk?.value === "HIGH" ? "red" : "yellow", text: "Δεν υπάρχει πλάνο ασφάλειας", href: "safety" });
-  } else if (x.safetyPlanAt && !within(x.safetyPlanAt, 90)) {
+  } else if (x.safetyPlanAt && !within(x.safetyPlanAt, x.risk?.value === "HIGH" ? 28 : 90)) {
     flags.push({ level: "yellow", text: `Το πλάνο ασφάλειας δεν έχει αναθεωρηθεί ${daysAgo(x.now, x.safetyPlanAt)} μέρες`, at: x.safetyPlanAt, href: "safety" });
   }
 
   const recent = x.notes.filter((n) => within(n.at, 30)).sort((a, b) => b.at.getTime() - a.at.getTime());
   const up = recent.find((n) => n.riskChange === "UP");
-  if (up) flags.push({ level: "red", text: "Σημείωμα: ο κίνδυνος αυξήθηκε", at: up.at, href: `/t/s/${up.slotId}` });
+  if (up) flags.push({ level: "red", text: "Σημείωμα: αυξήθηκαν οι ανάγκες ασφάλειας", at: up.at, href: `/t/s/${up.slotId}` });
   const used = recent.find((n) => n.usedSince === "YES");
   if (used) flags.push({ level: "red", text: "Σημείωμα: χρήση από την προηγούμενη επαφή", at: used.at, href: `/t/s/${used.slotId}` });
 

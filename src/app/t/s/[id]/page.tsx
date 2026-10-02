@@ -135,7 +135,7 @@ export default async function SessionPage({
       <h2>{pair ? "Κοινό σημείωμα" : "Σημείωμα αυτής της συνεδρίας"}</h2>
       {pair && <p className="muted small">Φαίνεται στους φακέλους και των δύο μελών.</p>}
       {sp.saved && <div className="notice">Αποθηκεύτηκε ✓</div>}
-      {sp.error && <div className="error">Το σημείωμα δεν αποθηκεύτηκε: συμπλήρωσε κίνδυνο και χρήση (και το κείμενο έως {NOTE_MAX.toLocaleString("el-GR")} χαρακτήρες).</div>}
+      {sp.error && <div className="error">Το σημείωμα δεν αποθηκεύτηκε: συμπλήρωσε ανάγκες ασφάλειας και χρήση (και το κείμενο έως {NOTE_MAX.toLocaleString("el-GR")} χαρακτήρες).</div>}
       {!canWrite(x, user) ? (
         x.note ? (
           <div className="card">
@@ -149,7 +149,7 @@ export default async function SessionPage({
           <textarea name="content" defaultValue={dec(x.note?.content)} required maxLength={NOTE_MAX} style={{ minHeight: 240 }} />
           <div className="row" style={{ flexWrap: "wrap", gap: 16, marginTop: 12 }}>
             <label className="field">
-              Κίνδυνος σε σχέση με πριν
+              Ανάγκες ασφάλειας σε σχέση με πριν
               <select name="riskChange" required defaultValue={x.note?.riskChange ?? ""}>
                 <option value="" disabled>—</option>
                 {Object.entries(RISK_CHANGE).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
