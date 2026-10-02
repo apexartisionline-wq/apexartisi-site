@@ -516,3 +516,43 @@ model SobrietyChange {
 
   @@index([memberId, at])
 }
+
+// Αρχική αξιολόγηση (02): κάθε αποθήκευση είναι νέα γραμμή (ιστορικό)· ισχύει η τελευταία.
+model Assessment {
+  id        String   @id @default(cuid())
+  memberId  String
+  data      String // κρυπτογραφημένο JSON (src/lib/assessment.ts)
+  complete  Boolean  @default(false)
+  authorId  String
+  createdAt DateTime @default(now())
+
+  @@index([memberId, createdAt])
+}
+
+// Στοιχεία ταυτότητας / διεύθυνση / επαφή έκτακτης ανάγκης: τα συμπληρώνει το μέλος πριν την 1η ατομική.
+// Τα βλέπει μόνο η διαχείριση (και ο ψυχολόγος όσο η αξιολόγηση είναι ανοιχτή). Μόνο προσθήκες.
+model MemberProfile {
+  id        String   @id @default(cuid())
+  memberId  String
+  data      String // κρυπτογραφημένο JSON
+  byId      String
+  createdAt DateTime @default(now())
+
+  @@index([memberId, createdAt])
+}
+
+// Άμεση ειδοποίηση σε όλη τη θεραπευτική ομάδα (π.χ. από την αρχική αξιολόγηση): μένει πάνω-πάνω
+// στο «Σήμερα» μέχρι κάποιος να πατήσει «Το ανέλαβα» (όνομα και ώρα).
+model TeamAlert {
+  id          String    @id @default(cuid())
+  memberId    String
+  source      String // ASSESSMENT
+  kind        String
+  byId        String
+  createdAt   DateTime  @default(now())
+  claimedById String?
+  claimedAt   DateTime?
+
+  @@index([claimedAt])
+  @@index([memberId, source, kind])
+}

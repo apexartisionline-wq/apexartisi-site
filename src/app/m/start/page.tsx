@@ -53,6 +53,7 @@ export default async function StartPage() {
     include: { slot: true },
     orderBy: { slot: { startsAt: "asc" } },
   });
+  const hasProfile = Boolean(await prisma.memberProfile.findFirst({ where: { memberId: user.id }, select: { id: true } }));
   const withTeam = status.missingSteps.length > 0 || status.missingConsents.some((p) => !p.byMember);
   return (
     <main>
@@ -70,6 +71,14 @@ export default async function StartPage() {
           </form>
         </section>
       )}
+
+      <Link className="card row spread" href="/m/profile" style={{ color: "inherit", textDecoration: "none" }}>
+        <span>
+          <strong>Πριν την 1η ατομική</strong>
+          <div className="muted small">{hasProfile ? "Τα στοιχεία σου ✓ · μπορείς να τα αλλάξεις" : "Συμπλήρωσε λίγα στοιχεία για την ασφάλειά σου"}</div>
+        </span>
+        <span className="muted">›</span>
+      </Link>
 
       <section className="card">
         <strong>Τι μένει</strong>

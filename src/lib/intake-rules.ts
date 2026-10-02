@@ -17,7 +17,7 @@ export type StaffStep = {
 export const STAFF_STEPS: StaffStep[] = [
   { key: "online_consent", doc: "01α", label: "Συναίνεση για online υπηρεσίες ψυχολόγου και συμβουλευτικής", admin: true },
   { key: "agreement", doc: "01γ", label: "Συμφωνητικό συνεργασίας", admin: true },
-  { key: "assessment", doc: "02", label: "Αρχική αξιολόγηση", psychologist: true, hint: "Την απόφαση καταλληλότητας την παίρνει ψυχολόγος." },
+  { key: "assessment", doc: "02", label: "Αρχική αξιολόγηση", psychologist: true, hint: "Την κάνει ψυχολόγος στην 1η ατομική (~40′). Σημειώνεται μόνη της όταν ολοκληρωθεί." },
   { key: "risk", doc: "03", label: "Αξιολόγηση αναγκών ασφάλειας", psychologist: true, hint: "Το επίπεδο το ορίζει ψυχολόγος, με σύντομη αιτιολόγηση." },
   {
     key: "safety_plan",

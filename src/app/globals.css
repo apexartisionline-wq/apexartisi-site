@@ -162,3 +162,29 @@ nav.top img { height: 28px; }
 .week .bar i.none { height: 100% !important; background: transparent; border: 1px dashed var(--line); }
 .week .d { text-align: center; }
 @media (prefers-reduced-motion: reduce) { .switch::after { transition: none; } }
+
+/* Αρχική αξιολόγηση: ενότητες που ανοίγουν (λογική iOS), Ναι/Όχι, βαθμολογίες */
+.sec { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); margin: 10px 0; overflow: hidden; }
+.sec > summary { list-style: none; display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 10px 16px; cursor: pointer; font-weight: 600; }
+.sec > summary::-webkit-details-marker { display: none; }
+.sec > summary::after { content: "›"; margin-left: auto; color: var(--muted); font-size: 1.4rem; line-height: 1; transition: transform .2s; }
+.sec[open] > summary::after { transform: rotate(90deg); }
+.sec > summary .done { color: var(--ok); font-weight: 600; font-size: .9rem; }
+.sec .q { padding: 12px 16px; border-top: 1px solid var(--line); }
+.sec .q > .lab { margin-bottom: 6px; }
+.sec .q.inline { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.sec .sub-q { padding-left: 12px; border-left: 3px solid var(--accent); margin-top: 8px; }
+.yn { display: inline-flex; background: var(--soft); border-radius: 10px; padding: 2px; flex: none; }
+.yn button { border: 0; background: transparent; min-height: 34px; padding: 4px 14px; border-radius: 8px; font: inherit; font-size: .95rem; color: var(--text); }
+.yn button[aria-pressed="true"] { background: var(--surface); box-shadow: 0 1px 3px rgba(0,0,0,.18); font-weight: 600; }
+.score { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 16px; border-top: 1px solid var(--line); background: var(--soft); }
+.score b { font-size: 1.4rem; }
+.badge.amber { background: var(--yellow); color: #fff; }
+.qitem { padding: 10px 0; border-top: 1px dashed var(--line); }
+.qitem:first-child { border-top: 0; }
+.alertbar { background: var(--red); color: var(--red-text); border-radius: var(--radius); padding: 12px 16px; margin: 10px 0; }
+.alertbar form { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px; }
+.alertbar button { background: #fff; color: var(--red); border: 0; font-weight: 600; }
+.alertbar a { color: inherit; }
+.sticky-save { position: sticky; bottom: 0; background: var(--bg); padding: 10px 0 calc(10px + env(safe-area-inset-bottom)); display: flex; gap: 8px; }
+.sticky-save > * { flex: 1; }

@@ -77,10 +77,10 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
             <div className="sub">{plan ? `Ενημερώθηκε ${formatDate(localParts(plan.updatedAt).date)}` : "Δεν έχει γραφτεί"}</div>
           </span>
         </Link>
-        <Link href={`/t/members/${id}/start`}>
+        <Link href={`/t/members/${id}/assessment`}>
           <span>
             <div>Αρχική αξιολόγηση</div>
-            <div className="sub">{assessment ? `✓ ${formatDate(localParts(assessment.doneAt).date)}, ${staffNames.get(assessment.doneById) ?? ""}` : "Εκκρεμεί"}</div>
+            <div className="sub">{assessment ? `✓ ${formatDate(localParts(assessment.doneAt).date)}, ${staffNames.get(assessment.doneById) ?? ""}` : "Εκκρεμεί · ψυχολόγος, 1η ατομική"}</div>
           </span>
         </Link>
       </div>

@@ -249,13 +249,14 @@ type Slot = NonNullable<Awaited<ReturnType<typeof loadSlot>>>;
 async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string; role: string }; sp: { saved?: string; error?: string; edit?: string } }) {
   const b = x.bookings[0];
   const now = new Date();
-  const [g, s, number, joined, intake, versions] = await Promise.all([
+  const [g, s, number, joined, intake, versions, assessed] = await Promise.all([
     sessionGlance(b.memberId, x),
     getSettings(),
     sessionNumber({ cycleId: b.cycleId, slot: x }),
     prisma.staffJoin.findFirst({ where: { kind: "SLOT", ref: x.id, userId: user.id }, orderBy: { at: "asc" } }),
     prisma.intakeCheck.findFirst({ where: { memberId: b.memberId, key: "risk" } }),
     x.note ? prisma.sessionNoteVersion.findMany({ where: { noteId: x.note.id }, orderBy: { createdAt: "desc" } }) : Promise.resolve([]),
+    prisma.intakeCheck.findFirst({ where: { memberId: b.memberId, key: "assessment" }, select: { doneAt: true } }),
   ]);
   const editors = new Map((await prisma.user.findMany({ where: { id: { in: [...new Set(versions.map((v) => v.editorId))] } }, select: { id: true, name: true } })).map((u) => [u.id, u.name]));
   const room = s.rooms[x.position - 1] ?? "";
@@ -273,7 +274,10 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
       <p className="small"><Link href="/t">‹ Σήμερα</Link></p>
       <h1 style={{ marginBottom: 4 }}><Link href={`/t/members/${b.member.id}`} style={{ color: "inherit", textDecoration: "none" }}>{b.member.name}</Link></h1>
       <p className="muted" style={{ margin: 0 }}>Ατομική · {formatDate(x.date)} {formatHour(x.hour)}{number && ` · ${number}`}{x.therapist && ` · ${x.therapist.name}`}</p>
-      <p style={{ margin: "10px 0 0" }}><Link className="btn" href={`/t/members/${b.member.id}`}>Κλινικός φάκελος ›</Link></p>
+      <p className="row" style={{ margin: "10px 0 0", gap: 8 }}>
+        <Link className="btn" href={`/t/members/${b.member.id}`}>Κλινικός φάκελος ›</Link>
+        {!assessed && <Link className="btn primary" href={`/t/members/${b.member.id}/assessment`}>Αρχική αξιολόγηση ›</Link>}
+      </p>
 
       {x.date === today && room && (
         <div className="card row spread" style={{ background: "var(--soft)" }}>

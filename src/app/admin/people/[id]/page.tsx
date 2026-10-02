@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { EC_WHEN, latestProfile } from "@/lib/assessment-db";
 import { notFound } from "next/navigation";
 import { dec, enc } from "@/lib/crypto";
 import { logAccess } from "@/lib/audit";
@@ -6,7 +8,7 @@ import { prisma } from "@/lib/db";
 import { cycleInfo } from "@/lib/member";
 import { programDay } from "@/lib/program";
 import { getSettings } from "@/lib/settings";
-import { addDays, formatDate, localParts } from "@/lib/time";
+import { addDays, formatDate, formatWhen, localParts } from "@/lib/time";
 import { newCycle, updatePerson } from "../actions";
 import { ResetCodeForm } from "../CodeForms";
 import { MemberSessions } from "@/components/MemberSessions";
@@ -22,6 +24,7 @@ export default async function PersonPage({ params, searchParams }: { params: Pro
   const today = localParts(new Date()).date;
   const isMember = p.role === "MEMBER";
 
+  const profile = isMember ? await latestProfile(p.id) : null;
   const [cycle, journal, attendance] = isMember
     ? await Promise.all([
         cycleInfo(p.id),
@@ -81,6 +84,29 @@ export default async function PersonPage({ params, searchParams }: { params: Pro
 
       {isMember && (
         <>
+          <h2>Στοιχεία από το μέλος</h2>
+          <div className="list">
+            {profile ? (
+              ([
+                ["Ονοματεπώνυμο", profile.data.fullName],
+                ["Τον/την λέμε", profile.data.preferredName],
+                ["Γέννηση", profile.data.birthDate && formatDate(profile.data.birthDate)],
+                ["Κινητό", profile.data.mobile],
+                ["Email", profile.data.email],
+                ["Διεύθυνση", profile.data.address],
+                ["Ζει εκτός Ελλάδας", profile.data.abroadCountry],
+                ["Έκτακτη ανάγκη", [profile.data.ecName, profile.data.ecRelation, profile.data.ecPhone].filter(Boolean).join(" · ")],
+                ["Πότε την καλούμε", profile.data.ecWhen ? EC_WHEN[profile.data.ecWhen] : ""],
+                ["Τι της λέμε", profile.data.ecWhatToSay],
+              ] as [string, string][]).filter(([, v]) => v).map(([k, v]) => (
+                <div key={k} style={{ display: "block" }}><div className="sub">{k}</div><div>{v}</div></div>
+              ))
+            ) : (
+              <div className="muted">Δεν τα έχει συμπληρώσει ακόμα (σελίδα «Πριν την 1η ατομική» στο app του).</div>
+            )}
+          </div>
+          {profile && <p className="muted small">Τελευταία αλλαγή {formatWhen(profile.at)}. <Link href={`/t/members/${p.id}/assessment`}>Αρχική αξιολόγηση ›</Link></p>}
+
           <h2>Κύκλος ατομικών</h2>
           <form action={newCycle} className="card row spread">
             <input type="hidden" name="id" value={p.id} />
