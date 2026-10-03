@@ -28,6 +28,8 @@ const ACTION: Record<string, string> = {
   monthly_message_send: "έστειλε μήνυμα μήνα",
   closure_save: "αποθήκευσε ολοκλήρωση συνεργασίας",
   closure_send: "έστειλε μήνυμα ολοκλήρωσης",
+  code_reset: "έδωσε νέο κωδικό εισόδου",
+  twofa_reset: "μηδένισε την επαλήθευση από το κινητό",
   incident_view: "άνοιξε συμβάντα",
   incident_create: "κατέγραψε συμβάν",
   incident_close: "έκλεισε συμβάν",

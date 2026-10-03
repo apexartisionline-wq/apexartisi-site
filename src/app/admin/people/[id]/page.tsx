@@ -10,11 +10,11 @@ import { cycleInfo } from "@/lib/member";
 import { programDay } from "@/lib/program";
 import { getSettings } from "@/lib/settings";
 import { addDays, formatDate, formatWhen, localParts } from "@/lib/time";
-import { newCycle, updatePerson } from "../actions";
+import { newCycle, reset2fa, updatePerson } from "../actions";
 import { ResetCodeForm } from "../CodeForms";
+import { SELF_HARM } from "@/lib/journal-labels";
 import { MemberSessions } from "@/components/MemberSessions";
 
-const SELF_HARM = { NO: "όχι", PASSING: "πέρασε μια σκέψη", YES: "ναι", UNSURE: "δεν είμαι σίγουρος/η" } as const;
 
 export default async function PersonPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ ok?: string }> }) {
   const [{ id }, sp, s] = await Promise.all([params, searchParams, getSettings()]);
@@ -115,6 +115,16 @@ export default async function PersonPage({ params, searchParams }: { params: Pro
       </form>
 
       <ResetCodeForm id={p.id} />
+      {!isMember && (
+        <form action={reset2fa} className="card row spread">
+          <input type="hidden" name="id" value={p.id} />
+          <span>
+            Επαλήθευση από το κινητό: <strong>{p.totpEnabled ? "ενεργή" : "δεν έχει στηθεί"}</strong>
+            {p.totpEnabled && <> · Αν χάθηκε ή άλλαξε το κινητό, πάτα «Μηδενισμός»: με την επόμενη είσοδο τη στήνει ξανά στο νέο κινητό.</>}
+          </span>
+          {p.totpEnabled && <button type="submit">Μηδενισμός</button>}
+        </form>
+      )}
 
       {isMember && (
         <>

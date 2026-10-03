@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { TourFor } from "@/components/TourFor";
+import { SinceLast } from "@/components/SinceLast";
 import { dec, enc } from "@/lib/crypto";
 import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
@@ -369,7 +370,7 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
       <p className="row" style={{ margin: "10px 0 0", gap: 8 }}>
         <Link className="btn" href={`/t/members/${b.member.id}`}>Κλινικός φάκελος ›</Link>
         {!assessed && <Link className="btn primary" href={`/t/members/${b.member.id}/assessment`}>Αρχική αξιολόγηση ›</Link>}
-        {writable && x.note && !showForm && initial && <Link className="btn primary" href={`/t/s/${x.id}?edit=1`}>Άλλαξε το σημείωμα</Link>}
+        {writable && x.note && !showForm && initial && <Link className="btn primary" data-tour="edit-note" href={`/t/s/${x.id}?edit=1`}>Άλλαξε το σημείωμα</Link>}
       </p>
 
       {x.date === today && room && (
@@ -416,6 +417,13 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
         ) : <span className="muted">Πρώτη ατομική: δεν υπάρχει προηγούμενο σημείωμα.</span>}
       </div>
 
+      {g.prev && (
+        <>
+          <h2 data-tour="since">Από την προηγούμενη ατομική ως σήμερα</h2>
+          <SinceLast memberId={b.memberId} prev={g.prev} until={x.date < today ? x.date : today} />
+        </>
+      )}
+
       <h2 data-tour="goal">Στόχος της εβδομάδας</h2>
       <GoalWeekCard memberId={b.memberId} date={today} />
 
@@ -437,6 +445,8 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
           </>
         )}
       </div>
+
+      <p className="small" style={{ margin: "6px 0 0" }}><Link href={`/t/members/${b.member.id}/journal`}>Όλες οι απογραφές, μέρα-μέρα ›</Link></p>
 
       {g.assignment && (
         <>
@@ -513,7 +523,7 @@ async function PairSession({ x, user, sp }: { x: Slot; user: { id: string; role:
       <p className="small"><Link href="/t">‹ Σήμερα</Link></p>
       <h1 style={{ marginBottom: 4 }}><span className="badge">Therapair</span> {members.map((m, i) => <span key={m.id}>{i > 0 && " & "}<Link href={`/t/members/${m.id}`}>{m.name}</Link></span>)}</h1>
       <p className="muted" style={{ margin: 0 }}>{formatDate(x.date)} {formatHour(x.hour)}{x.therapist && ` · ${x.therapist.name}`}</p>
-      {writable && !showForm && <p style={{ margin: "10px 0 0" }}><Link className="btn primary big" href={`/t/s/${x.id}?edit=1`}>Άλλαξε το σημείωμα</Link></p>}
+      {writable && !showForm && <p style={{ margin: "10px 0 0" }}><Link className="btn primary big" data-tour="edit-note" href={`/t/s/${x.id}?edit=1`}>Άλλαξε το σημείωμα</Link></p>}
       {showForm && <p style={{ margin: "10px 0 0" }}><a className="btn primary" href="#notebook">Πήγαινε στο σημειωματάριο ↓</a></p>}
 
       {x.date === today && room && (
@@ -533,6 +543,12 @@ async function PairSession({ x, user, sp }: { x: Slot; user: { id: string; role:
               <div style={{ marginTop: 4 }}>{prev ? (prev.next || <span className="muted">Δεν άφησε κάτι για τον επόμενο.</span>) : <span className="muted">Δεν υπάρχει προηγούμενο σημείωμα.</span>}</div>
               {prev && <div className="muted" style={{ marginTop: 4 }}>{prev.therapist} · {formatDate(prev.date)} · <Link href={`/t/members/${m.id}/notes`}>όλα τα σημειώματα</Link></div>}
             </div>
+            {prev && (
+              <div className="small">
+                <strong>Από την προηγούμενη ατομική ως σήμερα</strong>
+                <SinceLast memberId={m.id} prev={{ date: prev.date, by: prev.therapist, text: prev.text, slotId: prev.slotId, pair: prev.pair }} until={x.date < today ? x.date : today} />
+              </div>
+            )}
             <GoalWeekCard memberId={m.id} date={today} />
           </section>
         ))}

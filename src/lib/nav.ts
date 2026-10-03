@@ -14,6 +14,7 @@ export function navLinks(role: Role, opts: { hasPlan?: boolean; hasMessages?: bo
       { href: "/admin/content", label: "Κείμενα" },
       { href: "/admin/announcements", label: "Ανακοινώσεις" },
       { href: "/admin/messages", label: "Μηνύματα μήνα" },
+      { href: "/admin/steps", label: "Βήματα" },
       { href: "/admin/library", label: "Βιβλιοθήκη" },
       { href: "/admin/help", label: "Κόκκινο κουμπί" },
       { href: "/admin/incidents", label: "Συμβάντα" },

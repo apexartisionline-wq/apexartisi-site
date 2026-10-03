@@ -49,7 +49,7 @@ export async function MemberAssignments({ memberId }: { memberId: string }) {
       {items.map((a) => (
         <section key={a.id} className="card">
           <div className="row spread">
-            <strong>{a.title}</strong>
+            <strong>{a.step && <span className="badge">Βήμα {a.step}</span>} {a.title}</strong>
             <span className="small muted">{formatDate(localParts(a.createdAt).date)} · {who.get(a.createdById) ?? ""}</span>
           </div>
           {a.answeredAt ? (

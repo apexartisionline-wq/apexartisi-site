@@ -70,7 +70,7 @@ export function ResetCodeForm({ id }: { id: string }) {
       <input type="hidden" name="id" value={id} />
       <CodeBox state={state} />
       <div className="row spread">
-        <span>Νέος προσωπικός κωδικός (ο παλιός σταματά να δουλεύει και αποσυνδέεται από όλες τις συσκευές).</span>
+        <span>Ξέχασε τον κωδικό του; Πάτα «Νέος κωδικός» και δώσ' του τον καινούργιο (ο παλιός σταματά να δουλεύει και αποσυνδέεται από όλες τις συσκευές). Με τον νέο κωδικό μπαίνει και τον αλλάζει μόνος του.</span>
         <button disabled={pending}>Νέος κωδικός</button>
       </div>
     </form>

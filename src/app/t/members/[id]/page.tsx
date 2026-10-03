@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { logAccess } from "@/lib/audit";
 import { RecentGoals } from "@/components/GoalWeek";
 import { MemberAssignments } from "@/components/MemberAssignments";
+import { currentStep, lastStepWork } from "@/lib/steps";
 import { MemberSessions } from "@/components/MemberSessions";
 import { SafetyZone } from "@/components/SafetyZone";
 import { auditScore, dastScore, gr, pgsiScore, questionnaires } from "@/lib/assessment";
@@ -20,7 +21,7 @@ import { cycleInfo, cyclePeriod } from "@/lib/member";
 import { memberNotes } from "@/lib/member-notes";
 import { getSettings } from "@/lib/settings";
 import { programDay } from "@/lib/program";
-import { formatDate, formatWhen, localParts } from "@/lib/time";
+import { addDays, formatDate, formatWhen, localParts } from "@/lib/time";
 
 // Καρτέλα μέλους για τους θεραπευτές — όλοι δουλεύουν με όλα τα μέλη.
 // Όλο το ημερολόγιο ανάκαμψης και ο δείκτης δεν εμφανίζονται εδώ — τα βλέπει μόνο η Εύα (οι θεραπευτές βλέπουν τους αριθμούς στη σελίδα της ατομικής).
@@ -31,7 +32,7 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
   if (!member) notFound();
   await logAccess(user.id, id, "member_file_view");
   const today = localParts(new Date()).date;
-  const [cycle, intake, consistency, [summary], plan, noteCount, ax] = await Promise.all([
+  const [cycle, intake, consistency, [summary], plan, noteCount, ax, journal7, step, stepWork] = await Promise.all([
     cycleInfo(id),
     memberIntake(member),
     memberConsistency(id),
@@ -39,6 +40,9 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
     prisma.safetyPlan.findUnique({ where: { memberId: id }, select: { updatedAt: true } }),
     memberNotes(id).then((ns) => ns.length),
     latestAssessment(id),
+    prisma.journalEntry.count({ where: { memberId: id, date: { gte: addDays(today, -6), lte: today } } }),
+    currentStep(id),
+    lastStepWork(id),
   ]);
   const sober = soberDays(member.soberSince, today);
   const openIncidents = await prisma.incident.count({ where: { memberId: id, closedAt: null } });
@@ -63,6 +67,16 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
     <main>
       <h1>{member.name}</h1>
       <div data-tour="safety"><SafetyZone memberId={id} /></div>
+      <a className="card step-card" href="#ergasies" data-tour="step">
+        <span>
+          <strong>{step ? `Βήμα ${step.step}` : "Βήμα: δεν το έχει πει ακόμα"}</strong>
+          {step && <span className="muted small"> · το είπε το μέλος, {formatDate(localParts(step.createdAt).date)}</span>}
+          <div className="small" style={{ marginTop: 2 }}>
+            {stepWork ? <>Γράφει: Βήμα {stepWork.step} · {stepWork.title} · <strong>{stepWork.status}</strong></> : <span className="muted">Δεν έχει σταλεί βήμα από τη διαχείριση.</span>}
+          </div>
+        </span>
+        <span className="muted" aria-hidden="true">›</span>
+      </a>
       <div className="card" data-tour="sober">
         <div className="row spread">
           <strong>{member.soberSince ? `Νηφάλιος/α ${sober ?? 0} μέρες` : "Νηφαλιότητα: δεν έχει γραφτεί"}</strong>
@@ -104,6 +118,12 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
             <div className="sub">
               {risk.trigger ? `μετά από ${risk.trigger.text} · ψυχολόγος` : risk.level && risk.at ? `${RISK_INFO[risk.level].action} · ${formatDate(localParts(risk.at).date)}, ${risk.author}` : "Μόνο όταν υπάρχει λόγος · ψυχολόγος"}
             </div>
+          </span>
+        </Link>
+        <Link href={`/t/members/${id}/journal`}>
+          <span>
+            <div>Απογραφές (ημερολόγιο ανάκαμψης)</div>
+            <div className="sub">Έγραψε {journal7} από 7 τις τελευταίες 7 μέρες · όλες οι απαντήσεις, μέρα-μέρα</div>
           </span>
         </Link>
         <Link href={`/t/members/${id}/safety`}>
@@ -157,7 +177,7 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
         <Link href={`/t/members/${id}/notes`}><span>Όλα τα σημειώματα ({noteCount}), με φίλτρα</span></Link>
       </div>
       <MemberSessions memberId={id} limit={5} />
-      <h2>Εργασίες</h2>
+      <h2 id="ergasies">Βήματα και εργασίες</h2>
       <MemberAssignments memberId={id} />
       <TourFor id="member" userId={user.id} />
     </main>

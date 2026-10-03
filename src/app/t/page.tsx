@@ -1,6 +1,7 @@
 import { Announcements } from "@/components/Announcements";
 import Link from "next/link";
 import { TourFor } from "@/components/TourFor";
+import { DayPicker } from "@/components/DayPicker";
 import { JoinButton } from "@/components/JoinButton";
 import { enc } from "@/lib/crypto";
 import { redirect } from "next/navigation";
@@ -94,11 +95,7 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
     <main>
       <div className="row spread" style={{ alignItems: "baseline" }}>
         <h1 style={{ margin: "8px 0 0" }}>{isToday ? "Σήμερα" : formatDate(date)}</h1>
-        <span className="row" style={{ gap: 6 }} data-tour="days">
-          <Link className="btn" href={`/t?date=${addDays(date, -1)}`}>{isToday ? "‹ Χθες" : "‹ Προηγούμενη"}</Link>
-          {!isToday && <Link className="btn" href="/t">Σήμερα</Link>}
-          <Link className="btn" href={`/t?date=${addDays(date, 1)}`}>{isToday ? "Αύριο ›" : "Επόμενη ›"}</Link>
-        </span>
+        <DayPicker date={date} today={today} prev={addDays(date, -1)} next={addDays(date, 1)} prevWeek={addDays(date, -7)} nextWeek={addDays(date, 7)} base="/t" />
       </div>
       <p className="muted" style={{ margin: "2px 0 0" }}>{formatDate(date)} · {user.name}</p>
       <details className="small" style={{ margin: "6px 0 0" }} data-tour="legend">

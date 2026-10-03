@@ -429,6 +429,7 @@ model Assignment {
   memberId     String
   title        String
   instructions String            @default("")
+  step         Int? // βήμα 1–12, όταν η εργασία είναι βήμα που στέλνει η διαχείριση
   createdById  String
   createdAt    DateTime          @default(now())
   answer       String            @default("") // κρυπτογραφημένο
@@ -696,4 +697,15 @@ model PairNote {
 
   @@unique([slotId, memberId])
   @@index([memberId])
+}
+
+// Σε ποιο βήμα (1–12) λέει το μέλος ότι βρίσκεται. Κάθε αλλαγή είναι νέα γραμμή (ποτέ σβήσιμο).
+model MemberStep {
+  id        String   @id @default(cuid())
+  memberId  String
+  step      Int
+  byId      String // ποιος το κατέγραψε (το ίδιο το μέλος)
+  createdAt DateTime @default(now())
+
+  @@index([memberId, createdAt])
 }

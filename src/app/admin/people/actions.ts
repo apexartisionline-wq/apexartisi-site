@@ -7,6 +7,7 @@ import { z } from "zod";
 import { generateCode, hashPassword, requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
+import { logAccess } from "@/lib/audit";
 
 // Κωδικός μέλους για τα Google Forms (ψευδώνυμο, όχι όνομα): A-XXXXX χωρίς μπερδέματα.
 function memberCode(): string {
@@ -61,7 +62,7 @@ export async function createPerson(_: CodeState, formData: FormData): Promise<Co
 }
 
 export async function resetCode(_: CodeState, formData: FormData): Promise<CodeState> {
-  await requireRole("ADMIN");
+  const admin = await requireRole("ADMIN");
   const id = String(formData.get("id"));
   const code = generateCode();
   const user = await prisma.user.update({
@@ -69,7 +70,19 @@ export async function resetCode(_: CodeState, formData: FormData): Promise<CodeS
     data: { passwordHash: await hashPassword(code), failedLogins: 0, lockedUntil: null },
   });
   await prisma.session.deleteMany({ where: { userId: id } });
+  await logAccess(admin.id, id, "code_reset");
   return { code, username: user.username };
+}
+
+// Χάθηκε/άλλαξε το κινητό: η διαχείριση σβήνει την επαλήθευση από το κινητό·
+// με την επόμενη είσοδο ο άνθρωπος τη στήνει ξανά στο νέο του κινητό.
+export async function reset2fa(formData: FormData) {
+  const admin = await requireRole("ADMIN");
+  const id = String(formData.get("id"));
+  await prisma.user.update({ where: { id }, data: { totpEnabled: false, totpSecret: null, failedLogins: 0, lockedUntil: null } });
+  await prisma.session.deleteMany({ where: { userId: id } });
+  await logAccess(admin.id, id, "twofa_reset");
+  redirect(`/admin/people/${id}?ok=1`);
 }
 
 const updateSchema = z.object({
