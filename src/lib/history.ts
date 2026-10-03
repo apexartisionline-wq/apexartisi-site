@@ -3,7 +3,7 @@ import { dec, enc } from "./crypto";
 import { prisma } from "./db";
 
 // «Διορθώσεις μόνο ως νέα έκδοση»: πριν αλλάξει ή αφαιρεθεί μια εγγραφή, κρατάμε την προηγούμενη μορφή.
-export type HistoryKind = "safety_plan" | "group_note" | "attendance_removed" | "attendance_added" | "intake_check";
+export type HistoryKind = "safety_plan" | "group_note" | "attendance_removed" | "attendance_added" | "intake_check" | "pair_note";
 
 export function keepHistory(kind: HistoryKind, x: { memberId?: string | null; ref?: string | null; before: unknown; byId: string }) {
   return prisma.recordHistory.create({ data: { kind, memberId: x.memberId ?? null, ref: x.ref ?? null, before: enc(JSON.stringify(x.before)), byId: x.byId } });

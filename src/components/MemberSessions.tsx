@@ -14,7 +14,8 @@ export async function MemberSessions({ memberId, limit = 30 }: { memberId: strin
         include: {
           therapist: { select: { name: true } },
           note: { include: { therapist: { select: { name: true } } } },
-          bookings: { where: { memberId: { not: memberId } }, include: { member: { select: { name: true } } } },
+          // Therapair: μόνο το σημείωμα αυτού του μέλους, ποτέ του άλλου (ούτε το όνομά του).
+          pairNotes: { where: { memberId }, include: { therapist: { select: { name: true } } } },
         },
       },
     },
@@ -26,25 +27,25 @@ export async function MemberSessions({ memberId, limit = 30 }: { memberId: strin
     <>
       {bookings.map((b) => {
         const past = b.slot.startsAt < now;
-        const partner = b.slot.bookings[0]?.member.name;
+        const note = b.slot.kind === "PAIR" ? b.slot.pairNotes[0] : b.slot.note;
         return (
           <div className="card" key={b.id}>
             <div className="row spread small">
               <span>
                 <Link href={`/t/s/${b.slot.id}`}><strong>{formatDate(b.slot.date)} {formatHour(b.slot.hour)}</strong></Link>
                 {" · "}{b.slot.therapist?.name ?? "χωρίς θεραπευτή"}
-                {b.slot.kind === "PAIR" && <> · <span className="badge">Therapair{partner && ` με ${partner}`}</span></>}
+                {b.slot.kind === "PAIR" && <> · <span className="badge">Therapair</span></>}
               </span>
               <span>
                 {!past ? <span className="badge">προγραμματισμένη</span> : b.joinedAt ? <span className="badge ok">μπήκε</span> : <span className="badge yellow">δεν μπήκε</span>}
                 {b.durationMinutes != null && <span className="muted"> · {b.durationMinutes}′</span>}
               </span>
             </div>
-            {b.slot.note ? (
+            {note ? (
               <div className="body-text" style={{ marginTop: 8 }}>
-                {dec(b.slot.note.content)}
-                <NoteTags riskChange={b.slot.note.riskChange} usedSince={b.slot.note.usedSince} nextStep={dec(b.slot.note.nextStep)} />
-                <div className="muted small">— {b.slot.note.therapist.name}</div>
+                {dec(note.content)}
+                <NoteTags riskChange={note.riskChange} usedSince={note.usedSince} nextStep={dec(note.nextStep)} />
+                <div className="muted small">— {note.therapist.name}</div>
               </div>
             ) : (
               past && <div className="muted small" style={{ marginTop: 8 }}>Χωρίς σημείωμα.</div>

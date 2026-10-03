@@ -6,6 +6,7 @@ import { GoalWeekCard } from "@/components/GoalWeek";
 import { JoinButton } from "@/components/JoinButton";
 import { ClearDraft } from "@/components/ClearDraft";
 import { NoteFormClient } from "@/components/NoteFormClient";
+import { PairNoteClient } from "@/components/PairNoteClient";
 import { NoteTags } from "@/components/NoteTags";
 import { SafetyZone } from "@/components/SafetyZone";
 import { latestAssessment } from "@/lib/assessment-db";
@@ -15,6 +16,10 @@ import { prisma } from "@/lib/db";
 import { RISK_CHANGE, USED_SINCE } from "@/lib/handover-rules";
 import { RISK_INFO, RISK_LEVELS } from "@/lib/intake-rules";
 import { sessionNumber } from "@/lib/member";
+import { memberNotes } from "@/lib/member-notes";
+import { composePairNote, nameVariants, type PairSide, pairFlags, pairSideSchema, scrubSide } from "@/lib/pair-note";
+import { historyOf, keepHistory } from "@/lib/history";
+import { vocative } from "@/lib/vocative";
 import { currentRisk } from "@/lib/risk-db";
 import { composeNote, type NoteForm, noteFlags, noteFormSchema } from "@/lib/note-form";
 import { sessionGlance } from "@/lib/session-glance";
@@ -28,6 +33,7 @@ async function loadSlot(id: string) {
       therapist: { select: { name: true } },
       bookings: { include: { member: { select: { id: true, name: true } } } },
       note: { include: { therapist: { select: { name: true } } } },
+      pairNotes: { include: { therapist: { select: { name: true } } } },
     },
   });
 }
@@ -131,6 +137,60 @@ async function saveIndividual(formData: FormData) {
   redirect(`/t/s/${id}?saved=1`);
 }
 
+// Therapair: ένα σημειωματάριο με τα δύο ονόματα → δύο ξεχωριστά σημειώματα, ένα στον φάκελο του καθενός.
+// Το όνομα του άλλου δεν μπαίνει ποτέ στο σημείωμα του ενός (γράφεται «το άλλο μέλος»).
+async function savePair(formData: FormData) {
+  "use server";
+  const user = await requireRole("THERAPIST", "ADMIN");
+  const id = String(formData.get("slotId"));
+  const x = await loadSlot(id);
+  if (!x || !canWrite(x, user) || x.kind !== "PAIR" || x.bookings.length !== 2) notFound();
+  let raw: Record<string, unknown> = {};
+  try { raw = JSON.parse(String(formData.get("payload") ?? "{}")); } catch {}
+  const sides: { memberId: string; d: PairSide; other: string[] }[] = [];
+  for (const b of x.bookings) {
+    const parsed = pairSideSchema.safeParse(raw[b.memberId]);
+    if (!parsed.success) redirect(`/t/s/${id}?error=${encodeURIComponent(`${b.member.name.split(" ")[0]}: ${parsed.error.issues[0]?.message ?? "κάτι λείπει."}`)}`);
+    const otherMember = x.bookings.find((o) => o.memberId !== b.memberId)!.member;
+    const other = nameVariants(otherMember.name, vocative);
+    sides.push({ memberId: b.memberId, d: scrubSide(parsed.data, other), other });
+  }
+  for (const { memberId, d, other } of sides) {
+    const flags = pairFlags(d);
+    const data = { content: enc(composePairNote(d, other)), data: enc(JSON.stringify(d)), riskChange: flags.riskChange, usedSince: flags.usedSince, nextStep: enc(d.suggested) };
+    const old = x.pairNotes.find((n) => n.memberId === memberId);
+    const ops = [];
+    if (old) {
+      ops.push(keepHistory("pair_note", { memberId, ref: id, before: { content: old.content, data: old.data, riskChange: old.riskChange, usedSince: old.usedSince, nextStep: old.nextStep, by: old.therapistId, at: old.updatedAt }, byId: user.id }));
+      ops.push(prisma.pairNote.update({ where: { id: old.id }, data }));
+    } else {
+      ops.push(prisma.pairNote.create({ data: { slotId: id, memberId, therapistId: user.id, ...data } }));
+    }
+    if (!d.sober && d.newSoberSince) {
+      const m = await prisma.user.findUniqueOrThrow({ where: { id: memberId }, select: { soberSince: true } });
+      if (m.soberSince !== d.newSoberSince) {
+        ops.push(prisma.sobrietyChange.create({ data: { memberId, previous: m.soberSince, date: d.newSoberSince, byId: user.id, note: enc(`Therapair ${x.date}`) } }));
+        ops.push(prisma.user.update({ where: { id: memberId }, data: { soberSince: d.newSoberSince } }));
+      }
+    }
+    await prisma.$transaction(ops);
+    // Παρουσία ανά μέλος: «Ήρθε» μετράει, «Δεν ήρθε» όχι.
+    if (d.came) {
+      if (x.startsAt <= new Date()) await prisma.booking.updateMany({ where: { slotId: id, memberId, joinedAt: null }, data: { joinedAt: x.startsAt } });
+    } else {
+      await prisma.booking.updateMany({ where: { slotId: id, memberId }, data: { joinedAt: null } });
+    }
+    if (flags.notify) {
+      const kind = `CONCERN:${id}`;
+      if (!(await prisma.teamAlert.findFirst({ where: { memberId, source: "NOTE", kind } }))) {
+        await prisma.teamAlert.create({ data: { memberId, source: "NOTE", kind, byId: user.id } });
+      }
+    }
+    await logAccess(user.id, memberId, "session_note_save");
+  }
+  redirect(`/t/s/${id}?saved=1`);
+}
+
 export default async function SessionPage({
   params,
   searchParams,
@@ -145,6 +205,7 @@ export default async function SessionPage({
   for (const b of x.bookings) await logAccess(user.id, b.memberId, "session_view");
   const pair = x.kind === "PAIR";
   if (!pair && x.bookings.length === 1) return <IndividualSession x={x} user={user} sp={sp} />;
+  if (pair && x.bookings.length === 2) return <PairSession x={x} user={user} sp={sp} />;
 
   // Τι δουλεύτηκε πριν, για κάθε μέλος (οι θεραπευτές αλλάζουν εναλλάξ).
   const members = await Promise.all(
@@ -412,6 +473,101 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
       )}
       </div>
       </div>
+    </main>
+  );
+}
+
+// Therapair: το ζευγάρι, η ασφάλεια και το «ανοιχτό» του καθενός, και το σημειωματάριο με τα δύο ονόματα.
+async function PairSession({ x, user, sp }: { x: Slot; user: { id: string; role: string }; sp: { saved?: string; error?: string; edit?: string } }) {
+  const now = new Date();
+  const s = await getSettings();
+  const room = s.rooms[x.position - 1] ?? "";
+  const today = localParts(now).date;
+  const members = [...x.bookings].sort((p, q) => p.member.name.localeCompare(q.member.name, "el")).map((b) => b.member) as [{ id: string; name: string }, { id: string; name: string }];
+  const [joined, forms, perMember] = await Promise.all([
+    prisma.staffJoin.findFirst({ where: { kind: "SLOT", ref: x.id, userId: user.id }, orderBy: { at: "asc" } }),
+    sessionGlance(members[0].id, x).then((g) => g.forms),
+    Promise.all(members.map(async (m) => ({
+      m,
+      prev: (await memberNotes(m.id, { before: x.startsAt, excludeSlot: x.id, take: 1 }))[0] ?? null,
+      history: await historyOf("pair_note", { memberId: m.id, ref: x.id }),
+    }))),
+  ]);
+  const writable = canWrite(x, user) && now.getTime() >= x.startsAt.getTime() - 15 * 60_000;
+  const initial: Record<string, Partial<PairSide>> = {};
+  for (const n of x.pairNotes) if (n.data) initial[n.memberId] = JSON.parse(dec(n.data)) as PairSide;
+  const showForm = writable && (x.pairNotes.length === 0 || sp.edit === "1");
+  const first = (n: string) => n.split(" ")[0];
+
+  return (
+    <main>
+      <p className="small"><Link href="/t">‹ Σήμερα</Link></p>
+      <h1 style={{ marginBottom: 4 }}><span className="badge">Therapair</span> {members.map((m, i) => <span key={m.id}>{i > 0 && " & "}<Link href={`/t/members/${m.id}`}>{m.name}</Link></span>)}</h1>
+      <p className="muted" style={{ margin: 0 }}>{formatDate(x.date)} {formatHour(x.hour)}{x.therapist && ` · ${x.therapist.name}`}</p>
+
+      {x.date === today && room && (
+        <div className="card row spread" style={{ background: "var(--soft)" }}>
+          <span>{joined ? `Μπήκες ${formatHour(localParts(joined.at).hour, localParts(joined.at).minute)} · το Zoom είναι ανοιχτό` : "Δεν έχεις συνδεθεί ακόμα"}</span>
+          {joined ? <a className="btn" href={room} target="_blank" rel="noopener noreferrer">Άνοιγμα Zoom</a> : canWrite(x, user) && <JoinButton kind="SLOT" refId={x.id} roomUrl={room} next={`/t/s/${x.id}`} />}
+        </div>
+      )}
+
+      <div className="pair-grid" style={{ marginTop: 12 }}>
+        {perMember.map(({ m, prev }) => (
+          <section key={m.id} className="pair-col">
+            <h2 style={{ marginTop: 0 }}>{m.name}</h2>
+            <SafetyZone memberId={m.id} />
+            <div className="card small">
+              <strong>Ανοιχτό από την προηγούμενη φορά</strong>
+              <div style={{ marginTop: 4 }}>{prev ? (prev.next || <span className="muted">Δεν άφησε κάτι για τον επόμενο.</span>) : <span className="muted">Δεν υπάρχει προηγούμενο σημείωμα.</span>}</div>
+              {prev && <div className="muted" style={{ marginTop: 4 }}>{prev.therapist} · {formatDate(prev.date)} · <Link href={`/t/members/${m.id}/notes`}>όλα τα σημειώματα</Link></div>}
+            </div>
+            <GoalWeekCard memberId={m.id} date={today} />
+          </section>
+        ))}
+      </div>
+
+      <h2>Σημειωματάριο Therapair</h2>
+      {sp.saved && <div className="notice">Αποθηκεύτηκε ✓ — ένα σημείωμα στον φάκελο του καθενός.</div>}
+      {sp.saved && <ClearDraft k={`pair-draft:${x.id}`} />}
+      {sp.error && <div className="error">Δεν αποθηκεύτηκε: {sp.error}</div>}
+      {showForm ? (
+        <PairNoteClient action={savePair} slotId={x.id} members={members} initial={initial} themeForms={forms} />
+      ) : x.pairNotes.length > 0 ? (
+        <>
+          <div className="pair-grid">
+            {members.map((m) => {
+              const n = x.pairNotes.find((p) => p.memberId === m.id);
+              return (
+                <div key={m.id} className="card pair-col">
+                  <div className="pair-name">Στον φάκελο: {first(m.name)}</div>
+                  {n ? <div className="body-text">{dec(n.content)}</div> : <span className="muted">Δεν γράφτηκε.</span>}
+                  {n && <div className="muted small" style={{ marginTop: 8 }}>{n.therapist.name} · {formatWhen(n.updatedAt)}</div>}
+                </div>
+              );
+            })}
+          </div>
+          {writable && <p><Link className="btn" href={`/t/s/${x.id}?edit=1`}>Αλλαγή</Link></p>}
+        </>
+      ) : x.note ? (
+        <div className="card">
+          <div className="muted small">Παλιό κοινό σημείωμα (πριν από το σημειωματάριο Therapair)</div>
+          <div className="body-text">{dec(x.note.content)}</div>
+        </div>
+      ) : (
+        <p className="muted">{canWrite(x, user) ? "Το σημειωματάριο ανοίγει 15 λεπτά πριν από τη συνεδρία." : "Δεν έχει γραφτεί σημείωμα ακόμα."}</p>
+      )}
+      {perMember.some((p) => p.history.length > 0) && (
+        <details className="card small">
+          <summary>Ιστορικό αλλαγών</summary>
+          {perMember.flatMap(({ m, history }) => history.map((h, i) => (
+            <div key={`${m.id}${i}`} style={{ marginTop: 12 }}>
+              <div className="muted">{first(m.name)} · πριν από την αλλαγή της {formatWhen(h.at)} · {h.by}</div>
+              <div className="body-text">{dec((h.before as { content: string }).content)}</div>
+            </div>
+          )))}
+        </details>
+      )}
     </main>
   );
 }

@@ -82,7 +82,7 @@ export default async function BookingsPage({ searchParams }: { searchParams: Pro
       include: {
         therapist: { select: { name: true, therapistKind: true } },
         bookings: { include: { member: { select: { id: true, name: true } } } },
-        note: { select: { id: true } },
+        note: { select: { id: true } }, pairNotes: { select: { id: true } },
       },
       orderBy: [{ startsAt: "asc" }, { position: "asc" }],
     }),
@@ -167,7 +167,7 @@ export default async function BookingsPage({ searchParams }: { searchParams: Pro
                         </form>
                       )}
                     </td>
-                    <td>{x.note ? <Link href={`/t/s/${x.id}`}>✓</Link> : "—"}</td>
+                    <td>{(x.note || x.pairNotes.length) ? <Link href={`/t/s/${x.id}`}>✓</Link> : "—"}</td>
                     <td>
                       {!past && (
                         <details>

@@ -3,9 +3,9 @@ import { notFound } from "next/navigation";
 import { NoteTags } from "@/components/NoteTags";
 import { logAccess } from "@/lib/audit";
 import { requireRole } from "@/lib/auth";
-import { dec } from "@/lib/crypto";
 import { prisma } from "@/lib/db";
 import { matchNote, type NoteFilter } from "@/lib/handover-rules";
+import { memberNotes } from "@/lib/member-notes";
 import { formatDate, formatHour } from "@/lib/time";
 
 type Search = { t?: string; from?: string; to?: string; q?: string; risk?: string; used?: string };
@@ -19,14 +19,7 @@ export default async function MemberNotesPage({ params, searchParams }: { params
   if (!member) notFound();
   await logAccess(user.id, id, "notes_view");
 
-  const rows = await prisma.sessionNote.findMany({
-    where: { slot: { bookings: { some: { memberId: id } } } },
-    include: {
-      therapist: { select: { id: true, name: true } },
-      slot: { select: { id: true, date: true, hour: true, kind: true } },
-    },
-    orderBy: { slot: { startsAt: "desc" } },
-  });
+  const rows = await memberNotes(id);
   const filter: NoteFilter = {
     therapistId: sp.t || undefined,
     from: isDate(sp.from),
@@ -35,10 +28,8 @@ export default async function MemberNotesPage({ params, searchParams }: { params
     risk: sp.risk === "1",
     used: sp.used === "1",
   };
-  const notes = rows
-    .map((n) => ({ ...n, text: dec(n.content), next: dec(n.nextStep) }))
-    .filter((n) => matchNote({ therapistId: n.therapistId, date: n.slot.date, text: `${n.text}\n${n.next}`, riskChange: n.riskChange, usedSince: n.usedSince }, filter));
-  const therapists = [...new Map(rows.map((n) => [n.therapist.id, n.therapist.name])).entries()];
+  const notes = rows.filter((n) => matchNote({ therapistId: n.therapistId, date: n.date, text: `${n.text}\n${n.next}`, riskChange: n.riskChange, usedSince: n.usedSince }, filter));
+  const therapists = [...new Map(rows.map((n) => [n.therapistId, n.therapist])).entries()];
 
   return (
     <main>
@@ -65,8 +56,8 @@ export default async function MemberNotesPage({ params, searchParams }: { params
       {notes.map((n) => (
         <div className="card" key={n.id}>
           <div className="small">
-            <Link href={`/t/s/${n.slot.id}`}><strong>{formatDate(n.slot.date)} {formatHour(n.slot.hour)}</strong></Link>
-            {" · "}{n.therapist.name}{n.slot.kind === "PAIR" && " · Therapair"}
+            <Link href={`/t/s/${n.slotId}`}><strong>{formatDate(n.date)} {formatHour(n.hour)}</strong></Link>
+            {" · "}{n.therapist}{n.pair && " · Therapair"}
           </div>
           <div className="body-text" style={{ marginTop: 8 }}>{n.text}</div>
           <NoteTags riskChange={n.riskChange} usedSince={n.usedSince} nextStep={n.next} />

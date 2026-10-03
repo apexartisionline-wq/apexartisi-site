@@ -1,6 +1,7 @@
 import "server-only";
 import { dec } from "./crypto";
 import { prisma } from "./db";
+import { memberNotes } from "./member-notes";
 import { memberConsistency } from "./handover";
 import { cycleInfo } from "./member";
 import { soberDays } from "./note-form";
@@ -19,11 +20,7 @@ export async function sessionGlance(memberId: string, beforeSlot: { id: string; 
     memberConsistency(memberId, 4, now),
     prisma.helpRequest.count({ where: { memberId, isDrill: false, createdAt: { gte: new Date(now.getTime() - 14 * 86_400_000) } } }),
     // Το προηγούμενο σημείωμα (άλλης συνεδρίας) για «ανοιχτό από την προηγούμενη φορά».
-    prisma.sessionNote.findFirst({
-      where: { slotId: { not: beforeSlot.id }, slot: { startsAt: { lt: beforeSlot.startsAt }, bookings: { some: { memberId } } } },
-      orderBy: { slot: { startsAt: "desc" } },
-      include: { therapist: { select: { name: true } }, slot: { select: { date: true } } },
-    }),
+    memberNotes(memberId, { before: beforeSlot.startsAt, excludeSlot: beforeSlot.id, take: 1 }).then((ns) => ns[0] ?? null),
     prisma.journalEntry.findMany({ where: { memberId, date: { gte: from7, lte: today } }, select: { date: true, craving: true, sleepHours: true, mood: true } }),
     prisma.assignment.findFirst({ where: { memberId }, orderBy: { createdAt: "desc" }, select: { id: true, title: true, answer: true, answeredAt: true } }),
     // Φόρμες της θεματικής αυτής της εβδομάδας (Δευτέρα–Κυριακή).
@@ -47,7 +44,7 @@ export async function sessionGlance(memberId: string, beforeSlot: { id: string; 
     sessions: { done: consistency.sessionsDone, total: consistency.sessionsTotal },
     help14,
     prev: prev
-      ? { by: prev.therapist.name, date: prev.slot.date, next: dec(prev.nextStep), slotId: prev.slotId }
+      ? { by: prev.therapist, date: prev.date, next: prev.next, slotId: prev.slotId }
       : null,
     journal: {
       days,

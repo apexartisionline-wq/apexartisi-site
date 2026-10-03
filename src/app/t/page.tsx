@@ -41,7 +41,7 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
     prisma.careTask.findMany({ where: { doneAt: null, dueAt: { lte: new Date() }, kind: { not: "dropout" } }, orderBy: { dueAt: "asc" } }),
     prisma.slot.findMany({
       where: { date, therapistId: user.id, bookings: { some: {} } },
-      include: { bookings: { include: { member: { select: { id: true, name: true } } } }, note: { select: { id: true } } },
+      include: { bookings: { include: { member: { select: { id: true, name: true } } } }, note: { select: { id: true } }, pairNotes: { select: { id: true } } },
       orderBy: [{ hour: "asc" }, { position: "asc" }],
     }),
     prisma.slot.findMany({
@@ -72,7 +72,7 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
       key: x.id,
       time: formatHour(x.hour),
       title: short(x),
-      sub: `${x.kind === "PAIR" ? "Therapair" : "Ατομική"}${x.note ? " · σημείωμα ✓" : ""}`,
+      sub: `${x.kind === "PAIR" ? "Therapair" : "Ατομική"}${(x.note || x.pairNotes.length) ? " · σημείωμα ✓" : ""}`,
       href: `/t/s/${x.id}`,
       join: { kind: "SLOT" as const, ref: x.id, room: s.rooms[x.position - 1] ?? "" },
     })),

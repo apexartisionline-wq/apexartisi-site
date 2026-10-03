@@ -86,6 +86,7 @@ model User {
   bookings      Booking[]          @relation("MemberBookings")
   slots         Slot[]             @relation("TherapistSlots")
   notes         SessionNote[]
+  pairNotes     PairNote[]    @relation("PairNoteTherapist")
   attendances   Attendance[]
   journal       JournalEntry[]
   helpRequests  HelpRequest[]      @relation("HelpMember")
@@ -141,6 +142,8 @@ model Slot {
   pairApprovedAt DateTime?
   // Ένα σημείωμα ανά θέση: στο Therapair είναι κοινό για τα δύο μέλη.
   note           SessionNote?
+  // Therapair: ξεχωριστό σημείωμα για κάθε μέλος (ποτέ στοιχεία του ενός στον φάκελο του άλλου).
+  pairNotes      PairNote[]
 
   @@unique([date, hour, position])
   @@index([startsAt])
@@ -671,4 +674,25 @@ model QueuedPush {
   sentAt DateTime?
 
   @@index([sentAt, sendAt])
+}
+
+// Σημείωμα Therapair για ΕΝΑ μέλος (το σημειωματάριο γράφεται με τα δύο ονόματα, αποθηκεύεται χωριστά).
+// Οι προηγούμενες μορφές κρατιούνται στο RecordHistory (kind "pair_note").
+model PairNote {
+  id          String   @id @default(cuid())
+  slotId      String
+  slot        Slot     @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  memberId    String
+  therapistId String
+  therapist   User     @relation("PairNoteTherapist", fields: [therapistId], references: [id])
+  content     String // κρυπτογραφημένο
+  data        String   @default("") // κρυπτογραφημένο JSON (src/lib/pair-note.ts)
+  riskChange  String?
+  usedSince   String?
+  nextStep    String   @default("") // κρυπτογραφημένο
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([slotId, memberId])
+  @@index([memberId])
 }

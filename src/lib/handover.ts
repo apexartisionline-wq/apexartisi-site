@@ -6,6 +6,7 @@ import { dec, enc } from "./crypto";
 import { prisma } from "./db";
 import { CASE_FIELDS, type CaseData, safetyFlags } from "./handover-rules";
 import { memberIntake } from "./intake";
+import { memberNotes } from "./member-notes";
 import { groupStarted, groupsOn } from "./program";
 import { getSettings } from "./settings";
 import { addDays, formatDate, localParts } from "./time";
@@ -18,10 +19,7 @@ export async function memberSafety(memberId: string, now = new Date()) {
     memberIntake(member),
     prisma.safetyPlan.findUnique({ where: { memberId }, select: { updatedAt: true } }),
     prisma.helpRequest.findMany({ where: { memberId, isDrill: false, createdAt: { gte: new Date(now.getTime() - 14 * 24 * 3600_000) } }, select: { createdAt: true } }),
-    prisma.sessionNote.findMany({
-      where: { slot: { bookings: { some: { memberId } }, startsAt: { gte: new Date(now.getTime() - 30 * 24 * 3600_000) } } },
-      select: { riskChange: true, usedSince: true, slotId: true, slot: { select: { startsAt: true } } },
-    }),
+    memberNotes(memberId, { since: new Date(now.getTime() - 30 * 24 * 3600_000) }),
     prisma.attendance.findFirst({ where: { memberId }, orderBy: { joinedAt: "desc" }, select: { joinedAt: true } }),
     prisma.booking.findFirst({ where: { memberId, joinedAt: { not: null } }, orderBy: { joinedAt: "desc" }, select: { joinedAt: true } }),
     prisma.careTask.count({ where: { memberId, kind: "dropout", doneAt: null } }),
@@ -39,7 +37,7 @@ export async function memberSafety(memberId: string, now = new Date()) {
     risk: risk ? { value: risk.value, at: risk.doneAt } : null,
     safetyPlanAt: plan?.updatedAt ?? null,
     helpRequests: help,
-    notes: notes.map((n) => ({ at: n.slot.startsAt, riskChange: n.riskChange, usedSince: n.usedSince, slotId: n.slotId })),
+    notes: notes.map((n) => ({ at: n.startsAt, riskChange: n.riskChange, usedSince: n.usedSince, slotId: n.slotId })),
     missed: missed.map((b) => ({ at: b.slot.startsAt, slotId: b.slotId })),
     lastContact: contacts.length ? new Date(Math.max(...contacts.map((d) => d.getTime()))) : null,
     openDropout: openDropout > 0,

@@ -16,6 +16,7 @@ import { memberIntake } from "@/lib/intake";
 import { RISK_INFO } from "@/lib/intake-rules";
 import { currentRisk } from "@/lib/risk-db";
 import { cycleInfo, cyclePeriod } from "@/lib/member";
+import { memberNotes } from "@/lib/member-notes";
 import { getSettings } from "@/lib/settings";
 import { programDay } from "@/lib/program";
 import { formatDate, formatWhen, localParts } from "@/lib/time";
@@ -35,7 +36,7 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
     memberConsistency(id),
     caseHistory(id, 1),
     prisma.safetyPlan.findUnique({ where: { memberId: id }, select: { updatedAt: true } }),
-    prisma.sessionNote.count({ where: { slot: { bookings: { some: { memberId: id } } } } }),
+    memberNotes(id).then((ns) => ns.length),
     latestAssessment(id),
   ]);
   const sober = soberDays(member.soberSince, today);

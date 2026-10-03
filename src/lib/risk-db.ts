@@ -1,5 +1,6 @@
 import "server-only";
 import { logAccess } from "./audit";
+import { memberNotes } from "./member-notes";
 import { notifyRole } from "./notify";
 import { dec, enc } from "./crypto";
 import { prisma } from "./db";
@@ -49,12 +50,7 @@ export async function saveRisk(memberId: string, user: { id: string }, d: RiskRe
 export async function riskTrigger(memberId: string): Promise<Trigger | null> {
   const [help, notes, last] = await Promise.all([
     prisma.helpRequest.findFirst({ where: { memberId, isDrill: false }, orderBy: { createdAt: "desc" }, select: { createdAt: true } }),
-    prisma.sessionNote.findMany({
-      where: { slot: { bookings: { some: { memberId } } }, OR: [{ usedSince: "YES" }, { riskChange: "UP" }] },
-      select: { usedSince: true, riskChange: true, createdAt: true },
-      orderBy: { createdAt: "desc" },
-      take: 5,
-    }),
+    memberNotes(memberId, { take: 20 }).then((ns) => ns.filter((n) => n.usedSince === "YES" || n.riskChange === "UP").slice(0, 5)),
     prisma.riskReview.findFirst({ where: { memberId }, orderBy: { createdAt: "desc" }, select: { createdAt: true } }),
   ]);
   const triggers: Trigger[] = [

@@ -40,7 +40,7 @@ export default async function AdminToday({ searchParams }: { searchParams: Promi
   const [todays, missed, help, unsettled, requests, flags, pairs, attendance, members, unassigned] = await Promise.all([
     prisma.slot.findMany({
       where: { date: today, bookings: { some: {} } },
-      include: { therapist: { select: { name: true } }, bookings: { include: { member: { select: { name: true } } } }, note: { select: { id: true } } },
+      include: { therapist: { select: { name: true } }, bookings: { include: { member: { select: { name: true } } } }, note: { select: { id: true } }, pairNotes: { select: { id: true } } },
       orderBy: [{ hour: "asc" }, { position: "asc" }],
     }),
     prisma.booking.findMany({
@@ -158,7 +158,7 @@ export default async function AdminToday({ searchParams }: { searchParams: Promi
                 <td>{x.kind === "PAIR" && "Therapair: "}{x.bookings.map((b) => b.member.name).join(" & ")}</td>
                 <td>{x.therapist?.name ?? <span className="badge red">κανείς</span>}</td>
                 <td>{x.bookings.map((b) => (b.joinedAt ? "✓" : "—")).join(" ")}</td>
-                <td>{x.note ? <Link href={`/t/s/${x.id}`}>✓</Link> : "—"}</td>
+                <td>{(x.note || x.pairNotes.length) ? <Link href={`/t/s/${x.id}`}>✓</Link> : "—"}</td>
               </tr>
             ))}
             {todays.length === 0 && <tr><td colSpan={6} className="muted">Κανένα ραντεβού.</td></tr>}
