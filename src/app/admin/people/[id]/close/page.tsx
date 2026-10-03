@@ -7,7 +7,7 @@ import { requireRole } from "@/lib/auth";
 import { dec, enc } from "@/lib/crypto";
 import { prisma } from "@/lib/db";
 import { CLOSURE_HOW, doorOpenMessage } from "@/lib/incident";
-import { notifyUsers } from "@/lib/notify";
+import { notifyMembers } from "@/lib/notify";
 import { formatDate, formatWhen, localParts } from "@/lib/time";
 
 async function save(formData: FormData, send: boolean) {
@@ -20,7 +20,7 @@ async function save(formData: FormData, send: boolean) {
     data: { memberId, how: how.data, data: enc(JSON.stringify({ keeps: t("keeps", 1500), referral: t("referral", 500) })), message: enc(t("message", 4000)), authorId: admin.id, sentAt: send ? new Date() : null },
   });
   await logAccess(admin.id, memberId, send ? "closure_send" : "closure_save");
-  if (send) await notifyUsers([memberId], { title: "Ένα μήνυμα από την ομάδα σου", url: "/m/message", tag: "closure" });
+  if (send) await notifyMembers([memberId], { title: "Ένα μήνυμα από την ομάδα σου", url: "/m/message", tag: "closure" });
   redirect(`/admin/people/${memberId}/close?saved=1`);
 }
 async function saveOnly(fd: FormData) { "use server"; await save(fd, false); }

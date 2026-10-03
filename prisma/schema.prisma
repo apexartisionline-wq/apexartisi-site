@@ -659,3 +659,14 @@ model RecordHistory {
   @@index([kind, ref])
   @@index([memberId])
 }
+
+// Ειδοποιήσεις προς μέλη που πατήθηκαν μέσα στις ήσυχες ώρες (22:00–08:00): φεύγουν στις 08:00.
+model QueuedPush {
+  id     String    @id @default(cuid())
+  userId String
+  msg    Json
+  sendAt DateTime
+  sentAt DateTime?
+
+  @@index([sentAt, sendAt])
+}

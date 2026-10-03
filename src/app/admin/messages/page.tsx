@@ -6,7 +6,8 @@ import { requireRole } from "@/lib/auth";
 import { enc } from "@/lib/crypto";
 import { prisma } from "@/lib/db";
 import { messageForMember } from "@/lib/monthly";
-import { notifyUsers } from "@/lib/notify";
+import { notifyMembers } from "@/lib/notify";
+import { quietUntil } from "@/lib/quiet";
 import { formatWhen } from "@/lib/time";
 
 async function saveOnly(formData: FormData) {
@@ -30,8 +31,8 @@ async function act(formData: FormData, send: boolean) {
     data: { text: enc(text), editedById: admin.id, ...(send ? { sentAt: new Date(), sentById: admin.id } : {}) },
   });
   await logAccess(admin.id, msg.memberId, send ? "monthly_message_send" : "monthly_message_edit");
-  if (send) await notifyUsers([msg.memberId], { title: "Ένα μήνυμα από την ομάδα σου", body: "Από την ομάδα του APEX", url: "/m/message", tag: "monthly" });
-  redirect(`/admin/messages?${send ? "sent" : "saved"}=1`);
+  if (send) await notifyMembers([msg.memberId], { title: "Ένα μήνυμα από την ομάδα σου", body: "Από την ομάδα του APEX", url: "/m/message", tag: "monthly" });
+  redirect(`/admin/messages?${send ? `sent=${quietUntil() ? "later" : "1"}` : "saved=1"}`);
 }
 
 // Μηνύματα ενθάρρυνσης στο τέλος του «μήνα» (κύκλου): σχέδιο από τα νούμερα, τα ελέγχει η υπεύθυνη
@@ -47,7 +48,8 @@ export default async function MessagesPage({ searchParams }: { searchParams: Pro
     <>
       <h1>Μηνύματα μήνα</h1>
       <p className="muted">Στο τέλος κάθε κύκλου, ένα μήνυμα ενθάρρυνσης για κάθε μέλος. Το σχέδιο βγαίνει από τα νούμερα· άλλαξέ το όπως θέλεις και πάτα «Αποστολή».</p>
-      {sp.sent && <div className="notice">Στάλθηκε ✓ Το μέλος το βλέπει στο app και πήρε ειδοποίηση.</div>}
+      {sp.sent === "1" && <div className="notice">Στάλθηκε ✓ Το μέλος το βλέπει στο app και πήρε ειδοποίηση.</div>}
+      {sp.sent === "later" && <div className="notice">Στάλθηκε ✓ Το μέλος το βλέπει ήδη στο app· η ειδοποίηση στο κινητό θα φύγει στις 08:00 (τίποτα μετά τις 22:00).</div>}
       {sp.saved && <div className="notice">Αποθηκεύτηκε ✓ (δεν στάλθηκε ακόμα)</div>}
       <h2>Περιμένουν έλεγχο ({pending.length})</h2>
       {pending.length === 0 && <div className="card muted">Τίποτα.</div>}

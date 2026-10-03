@@ -2,6 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { checkDropouts } from "@/lib/dropout";
 import { escalatePending, remindCareTasks } from "@/lib/help";
+import { sendQueuedPushes } from "@/lib/notify";
 import { runSchedule } from "@/lib/schedule";
 
 function authorized(req: Request): boolean {
@@ -16,6 +17,7 @@ export async function POST(req: Request) {
   if (!authorized(req)) return new NextResponse(null, { status: 401 });
   const resent = await escalatePending();
   await runSchedule().catch((e) => console.error("[schedule]", e));
+  await sendQueuedPushes().catch((e) => console.error("[queued-push]", e));
   if (new Date().getUTCMinutes() % 30 === 0) {
     await checkDropouts().catch((e) => console.error("[dropout]", e));
     await remindCareTasks();

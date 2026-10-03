@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { notifyUsers } from "@/lib/notify";
+import { notifyMembers, notifyUsers } from "@/lib/notify";
 import { athensToUtc, formatDate, localParts } from "@/lib/time";
 
 const AUDIENCE = { MEMBERS: "Μέλη", STAFF: "Θεραπευτές", ALL: "Όλοι" } as const;
@@ -37,7 +37,7 @@ async function publish(formData: FormData) {
   const members = users.filter((u) => u.role === "MEMBER").map((u) => u.id);
   const staff = users.filter((u) => u.role !== "MEMBER").map((u) => u.id);
   await Promise.all([
-    members.length ? notifyUsers(members, { title: "Νέα ανακοίνωση", url: "/m", tag: "announcement" }) : null,
+    members.length ? notifyMembers(members, { title: "Νέα ανακοίνωση", url: "/m", tag: "announcement" }) : null,
     staff.length ? notifyUsers(staff, { title: "Νέα ανακοίνωση", url: "/t", tag: "announcement" }) : null,
   ]);
   redirect("/admin/announcements?ok=1");

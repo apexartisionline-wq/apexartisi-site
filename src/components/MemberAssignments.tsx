@@ -2,7 +2,7 @@ import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth";
 import { dec } from "@/lib/crypto";
 import { prisma } from "@/lib/db";
-import { notifyUsers } from "@/lib/notify";
+import { notifyMembers } from "@/lib/notify";
 import { formatDate, localParts } from "@/lib/time";
 
 async function give(formData: FormData) {
@@ -14,7 +14,7 @@ async function give(formData: FormData) {
   await prisma.assignment.create({
     data: { memberId, title, instructions: String(formData.get("instructions") ?? "").slice(0, 5000), createdById: user.id },
   });
-  await notifyUsers([memberId], { title: "Νέα εργασία στη βιβλιοθήκη", url: "/m/library", tag: "assignment" });
+  await notifyMembers([memberId], { title: "Νέα εργασία στη βιβλιοθήκη", url: "/m/library", tag: "assignment" });
   revalidatePath(`/t/members/${memberId}`);
 }
 
