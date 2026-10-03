@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
 import { GoalWeekCard } from "@/components/GoalWeek";
 import { JoinButton } from "@/components/JoinButton";
+import { ClearDraft } from "@/components/ClearDraft";
 import { NoteFormClient } from "@/components/NoteFormClient";
 import { NoteTags } from "@/components/NoteTags";
 import { SafetyZone } from "@/components/SafetyZone";
@@ -29,6 +30,13 @@ async function loadSlot(id: string) {
       note: { include: { therapist: { select: { name: true } } } },
     },
   });
+}
+
+// Όπου γράφτηκε σημείωμα, η συνεδρία έγινε: το μέλος μετράει «ήρθε» παντού (φάκελος, μήνας, συνέπεια),
+// ακόμα κι αν δεν πάτησε το κουμπί «Σύνδεση».
+async function markCame(slotId: string, startsAt: Date) {
+  if (startsAt > new Date()) return;
+  await prisma.booking.updateMany({ where: { slotId, joinedAt: null }, data: { joinedAt: startsAt } });
 }
 
 // Όλοι οι θεραπευτές βλέπουν όλες τις συνεδρίες· το σημείωμα το γράφει όποιος
@@ -71,6 +79,7 @@ async function saveNote(formData: FormData) {
   } else {
     await prisma.sessionNote.create({ data: { slotId: id, therapistId: user.id, ...data } });
   }
+  await markCame(id, x.startsAt);
   redirect(`/t/s/${id}?saved=1`);
 }
 
@@ -108,6 +117,7 @@ async function saveIndividual(formData: FormData) {
     }
   }
   await prisma.$transaction(ops);
+  await markCame(id, x.startsAt);
   await logAccess(user.id, memberId, "session_note_save");
   redirect(`/t/s/${id}?saved=1`);
 }
@@ -364,6 +374,7 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
       <div>
       <h2>Σημειωματάριο</h2>
       {sp.saved && <div className="notice">Αποθηκεύτηκε ✓</div>}
+      {sp.saved && <ClearDraft k={`note-draft:${x.id}`} />}
       {sp.error && <div className="error">Δεν αποθηκεύτηκε: {sp.error}</div>}
       {showForm ? (
         <NoteFormClient action={saveIndividual} hidden={{ slotId: x.id }} initial={initial} themeForms={g.forms} />

@@ -15,7 +15,7 @@ function authorized(req: Request): boolean {
 // Κάθε λεπτό: κόκκινο κουμπί (κλιμάκωση), ειδοποιήσεις μελών· κάθε μισή ώρα: αποχή και υπενθυμίσεις φροντίδας.
 export async function POST(req: Request) {
   if (!authorized(req)) return new NextResponse(null, { status: 401 });
-  const resent = await escalatePending();
+  const resent = await escalatePending().catch((e) => (console.error("[help]", e), 0));
   await runSchedule().catch((e) => console.error("[schedule]", e));
   await sendQueuedPushes().catch((e) => console.error("[queued-push]", e));
   if (new Date().getUTCMinutes() % 30 === 0) {

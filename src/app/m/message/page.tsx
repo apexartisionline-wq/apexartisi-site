@@ -13,6 +13,7 @@ export default async function MemberMessage() {
   ]);
   const msgs = [...monthly.map((m) => ({ id: m.id, sentAt: m.sentAt!, text: m.text })), ...closures.map((c) => ({ id: c.id, sentAt: c.sentAt!, text: c.message }))].sort((a, b) => b.sentAt.getTime() - a.sentAt.getTime());
   await prisma.monthlyMessage.updateMany({ where: { memberId: user.id, sentAt: { not: null }, readAt: null }, data: { readAt: new Date() } });
+  await prisma.closure.updateMany({ where: { memberId: user.id, sentAt: { not: null }, readAt: null }, data: { readAt: new Date() } });
   return (
     <main>
       <h1>Από την ομάδα σου</h1>

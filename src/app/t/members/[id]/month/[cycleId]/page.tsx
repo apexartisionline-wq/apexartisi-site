@@ -60,7 +60,7 @@ export default async function MonthFolder({ params }: { params: Promise<{ id: st
       <h2>Ατομικές και σημειώματα</h2>
       {cycle.bookings.map((b, i) => (
         <div key={b.id} className="card small">
-          <strong>{i + 1}. {formatDate(b.slot.date)}</strong> · {b.slot.kind === "PAIR" ? "Therapair" : "Ατομική"} · {b.slot.note?.therapist.name ?? b.slot.therapist?.name ?? ""}{!b.joinedAt && " · δεν ήρθε"}
+          <strong>{i + 1}. {formatDate(b.slot.date)}</strong> · {b.slot.kind === "PAIR" ? "Therapair" : "Ατομική"} · {b.slot.note?.therapist.name ?? b.slot.therapist?.name ?? ""}{b.slot.startsAt > new Date() ? " · προγραμματισμένη" : !b.joinedAt && " · δεν ήρθε"}
           {b.slot.note ? <div className="body-text" style={{ marginTop: 6 }}>{dec(b.slot.note.content)}</div> : <div className="muted">Χωρίς σημείωμα.</div>}
         </div>
       ))}

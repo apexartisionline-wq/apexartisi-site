@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { DEFENSES, MOOD, type NoteForm, noteFormSchema, PRESENTED, PROCESS, SELF_HELP, THEMES } from "@/lib/note-form";
 
 type Props = { action: (formData: FormData) => void; hidden: Record<string, string>; initial: Partial<NoteForm> | null; themeForms: string[] };
@@ -9,10 +9,14 @@ type Props = { action: (formData: FormData) => void; hidden: Record<string, stri
 // Στέλνει όλο το σημείωμα ως JSON (payload)· ο server το ελέγχει (note-form.ts).
 export function NoteFormClient({ action, hidden, initial, themeForms }: Props) {
   const [d, setD] = useState<Partial<NoteForm>>({ sober: true, safeOk: true, notify: false, ...initial });
-  const set = <K extends keyof NoteForm>(k: K, v: NoteForm[K]) => setD((x) => ({ ...x, [k]: v }));
+  const set = <K extends keyof NoteForm>(k: K, v: NoteForm[K]) => {
+    setTouched(true);
+    setD((x) => ({ ...x, [k]: v }));
+  };
   const toggle = (k: "presented" | "brought" | "defenses", v: string) =>
     setD((x) => {
       const cur = (x[k] as string[] | undefined) ?? [];
+      setTouched(true);
       return { ...x, [k]: cur.includes(v) ? cur.filter((y) => y !== v) : [...cur, v] };
     });
   const notify = d.notify || !d.safeOk || Boolean(d.concern?.trim());
@@ -20,10 +24,32 @@ export function NoteFormClient({ action, hidden, initial, themeForms }: Props) {
   const [problem, setProblem] = useState("");
   const check = (e: React.FormEvent<HTMLFormElement>) => {
     const r = noteFormSchema.safeParse({ ...d, notify });
-    if (r.success) return setProblem("");
-    e.preventDefault();
-    setProblem(r.error.issues[0]?.message ?? "Κάτι λείπει.");
+    const msg = !r.success ? (r.error.issues[0]?.message ?? "Κάτι λείπει.") : !navigator.onLine ? "Δεν υπάρχει σύνδεση στο ίντερνετ· πάτα ξανά μόλις επανέλθει." : "";
+    setProblem(msg);
+    if (msg) e.preventDefault();
   };
+
+  // Πρόχειρο στη συγκεκριμένη καρτέλα του browser (όχι μόνιμα στη συσκευή· σβήνει όταν κλείσει η καρτέλα):
+  // αν πέσει η σύνδεση ή λήξει η είσοδος, μετά την επιστροφή το σημείωμα ξαναβρίσκεται.
+  const draftKey = hidden.slotId ? `note-draft:${hidden.slotId}` : "";
+  const [restored, setRestored] = useState(false);
+  useEffect(() => {
+    if (!draftKey) return;
+    try {
+      const raw = sessionStorage.getItem(draftKey);
+      if (raw) {
+        setD(JSON.parse(raw) as Partial<NoteForm>);
+        setRestored(true);
+      }
+    } catch {}
+  }, [draftKey]);
+  const [touched, setTouched] = useState(false);
+  useEffect(() => {
+    if (!draftKey || !touched) return;
+    try {
+      sessionStorage.setItem(draftKey, JSON.stringify(d));
+    } catch {}
+  }, [d, draftKey, touched]);
 
   const single = (k: "mood" | "selfHelp" | "process", opts: readonly string[]) => (
     <div className="chips">
@@ -56,6 +82,7 @@ export function NoteFormClient({ action, hidden, initial, themeForms }: Props) {
     <form action={action} onSubmit={check} className="note-form">
       {Object.entries(hidden).map(([k, v]) => <input key={k} type="hidden" name={k} value={v} />)}
       <input type="hidden" name="payload" value={JSON.stringify({ ...d, notify })} />
+      {restored && <div className="notice">Βρέθηκε πρόχειρο που δεν είχε αποθηκευτεί — συνέχισε από εκεί.</div>}
 
       <fieldset><legend>Πώς παρουσιάστηκε</legend>{multi("presented", PRESENTED)}{text("presentedText", "Πώς παρουσιάστηκε, με λόγια", "π.χ. έντονη, συνεχής ροή λόγου", 1)}</fieldset>
       <fieldset><legend>Διάθεση</legend>{single("mood", MOOD)}</fieldset>

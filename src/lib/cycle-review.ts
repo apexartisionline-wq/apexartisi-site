@@ -46,7 +46,7 @@ export async function cyclePicture(memberId: string, cycle: NonNullable<Awaited<
     journal: { written: journal, days },
     help,
     relapses,
-    soberDays: soberDays(member.soberSince, to),
+    soberDays: soberDays(member.soberSince, to < localParts(new Date()).date ? to : localParts(new Date()).date),
     weeks,
   };
 }

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { EC_WHEN, latestProfile } from "@/lib/assessment-db";
 import { logAccess } from "@/lib/audit";
+import { notifyRole } from "@/lib/notify";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { canWriteRisk } from "@/lib/risk-db";
@@ -12,9 +13,12 @@ async function reveal(formData: FormData) {
   const user = await requireRole("THERAPIST", "ADMIN");
   if (!canWriteRisk(user)) notFound();
   const memberId = String(formData.get("memberId"));
+  if (!(await prisma.user.findFirst({ where: { id: memberId, role: "MEMBER" }, select: { id: true } }))) notFound();
   // Καταγράφεται ποιος άνοιξε τα στοιχεία και πότε· φαίνεται στο «Σήμερα» όλων (άρα και της διαχείρισης).
   await prisma.teamAlert.create({ data: { memberId, source: "EMERGENCY", kind: "REVEAL", byId: user.id } });
   await logAccess(user.id, memberId, "emergency_reveal");
+  // Η διαχείριση ενημερώνεται αμέσως (ουδέτερο κείμενο, χωρίς όνομα μέλους στην οθόνη κλειδώματος).
+  await notifyRole("ADMIN", { title: "Άνοιξαν στοιχεία έκτακτης ανάγκης", url: "/admin", tag: `emergency-${memberId}`, urgent: true }).catch(() => undefined);
   redirect(`/t/members/${memberId}/emergency`);
 }
 

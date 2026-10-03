@@ -1,7 +1,7 @@
 import type { Role } from "@prisma/client";
 
 // Κάθε ρόλος βλέπει μόνο τα δικά του μενού.
-export function navLinks(role: Role, opts: { hasPlan?: boolean } = {}): { href: string; label: string }[] {
+export function navLinks(role: Role, opts: { hasPlan?: boolean; hasMessages?: boolean } = {}): { href: string; label: string }[] {
   if (role === "ADMIN")
     return [
       { href: "/admin", label: "Σήμερα" },
@@ -38,6 +38,8 @@ export function navLinks(role: Role, opts: { hasPlan?: boolean } = {}): { href: 
     { href: "/m/library", label: "Βιβλιοθήκη" },
     // Το πλάνο ασφάλειας γράφεται μόνο όταν υπάρχει λόγος· φαίνεται μόνο σε όποιον το έχει.
     ...(opts.hasPlan ? [{ href: "/m/safety", label: "Το πλάνο μου" }] : []),
+    // Τα μηνύματα της ομάδας ξαναδιαβάζονται όποτε θέλει (μόλις υπάρξει το πρώτο).
+    ...(opts.hasMessages ? [{ href: "/m/message", label: "Από την ομάδα" }] : []),
     { href: "/account", label: "Λογαριασμός" },
   ];
 }

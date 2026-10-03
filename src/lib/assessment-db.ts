@@ -2,6 +2,7 @@ import "server-only";
 import { z } from "zod";
 import { type Assessment, ALERTS, type AlertKind, assessmentAlerts, assessmentSchema, keepAdminOnly, soberSinceFrom } from "./assessment";
 import { logAccess } from "./audit";
+import { notifyRole } from "./notify";
 import { dec, enc } from "./crypto";
 import { prisma } from "./db";
 import { localParts } from "./time";
@@ -30,10 +31,16 @@ export async function saveAssessment(memberId: string, user: { id: string; role:
   await prisma.assessment.create({ data: { memberId, data: enc(JSON.stringify(d)), complete: done, authorId: user.id } });
 
   const today = localParts(new Date()).date;
+  let fresh = 0;
   for (const kind of assessmentAlerts(d, today)) {
     const exists = await prisma.teamAlert.findFirst({ where: { memberId, source: "ASSESSMENT", kind } });
-    if (!exists) await prisma.teamAlert.create({ data: { memberId, source: "ASSESSMENT", kind, byId: user.id } });
+    if (!exists) {
+      await prisma.teamAlert.create({ data: { memberId, source: "ASSESSMENT", kind, byId: user.id } });
+      fresh++;
+    }
   }
+  // Νέο σοβαρό σημείο: ειδοποίηση στη διαχείριση (ουδέτερο κείμενο).
+  if (fresh) await notifyRole("ADMIN", { title: "Νέο σοβαρό σημείο στην ομάδα", url: "/admin", tag: `alert-${memberId}` }).catch(() => undefined);
 
   if (done) {
     const since = soberSinceFrom(d);
@@ -126,11 +133,21 @@ export function alertText(source: string, kind: string): string {
 
 /** Σοβαρά σημεία των τελευταίων 24 ωρών, για το «Σήμερα» όλης της ομάδας (χωρίς κουμπί). */
 export async function recentAlerts(now = new Date()) {
-  const rows = await prisma.teamAlert.findMany({ where: { createdAt: { gte: new Date(now.getTime() - 24 * 3600_000) } }, orderBy: { createdAt: "desc" } });
+  const rows = await prisma.teamAlert.findMany({ where: { createdAt: { gte: new Date(now.getTime() - 24 * 3600_000) } }, orderBy: [{ createdAt: "desc" }, { id: "asc" }] });
   const ids = [...new Set(rows.flatMap((r) => [r.memberId, r.byId]))];
   const names = new Map((await prisma.user.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } })).map((u) => [u.id, u.name]));
   return rows.map((r) => ({ ...r, member: names.get(r.memberId) ?? "Μέλος", by: names.get(r.byId) ?? "", text: alertText(r.source, r.kind), mild: isMild(r.source, r.kind) }));
 }
+
+/**
+ * Τα σοβαρά σημεία των τελευταίων 24 ωρών, ένα κουτί ανά μέλος (το πιο πρόσφατο πρώτο).
+ * Το «άνοιξαν τα στοιχεία έκτακτης ανάγκης» το βλέπει μόνο η διαχείριση.
+ */
+export async function alertBoxes(role: string, now = new Date()) {
+  const shown = (await recentAlerts(now)).filter((a) => a.source !== "EMERGENCY" || role === "ADMIN");
+  return [...new Set(shown.map((a) => a.memberId))].map((id) => ({ id, items: shown.filter((a) => a.memberId === id) }));
+}
+export type AlertBox = Awaited<ReturnType<typeof alertBoxes>>[number];
 
 /** Η εγκυμοσύνη ειδοποιεί αμέσως, αλλά φαίνεται με κίτρινο (δεν είναι κίνδυνος όπως παιδί ή βία). */
 export function isMild(source: string, kind: string): boolean {

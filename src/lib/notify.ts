@@ -20,12 +20,21 @@ export async function notifyMembers(userIds: string[], msg: PushMessage, now = n
   if (userIds.length) await prisma.queuedPush.createMany({ data: userIds.map((userId) => ({ userId, msg, sendAt: until })) });
 }
 
+async function unreadTeamMessage(memberId: string): Promise<boolean> {
+  const where = { memberId, sentAt: { not: null }, readAt: null };
+  return Boolean((await prisma.monthlyMessage.findFirst({ where, select: { id: true } })) ?? (await prisma.closure.findFirst({ where, select: { id: true } })));
+}
+
 /** Καλείται από το cron: στέλνει όσες ειδοποιήσεις περίμεναν. */
 export async function sendQueuedPushes(now = new Date()): Promise<void> {
   const due = await prisma.queuedPush.findMany({ where: { sentAt: null, sendAt: { lte: now } }, take: 200 });
   for (const q of due) {
     const done = await prisma.queuedPush.updateMany({ where: { id: q.id, sentAt: null }, data: { sentAt: now } });
-    if (done.count) await notifyUsers([q.userId], q.msg as PushMessage);
+    if (!done.count) continue;
+    const msg = q.msg as PushMessage;
+    // Αν το μέλος έχει ήδη διαβάσει το μήνυμα μέσα στην εφαρμογή, δεν χρειάζεται ειδοποίηση το πρωί.
+    if (msg.url === "/m/message" && !(await unreadTeamMessage(q.userId))) continue;
+    await notifyUsers([q.userId], msg);
   }
 }
 

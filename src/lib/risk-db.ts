@@ -1,5 +1,6 @@
 import "server-only";
 import { logAccess } from "./audit";
+import { notifyRole } from "./notify";
 import { dec, enc } from "./crypto";
 import { prisma } from "./db";
 import { type Level, LEVELS, needsReview, type RiskReview, riskSchema, type Trigger } from "./risk";
@@ -41,6 +42,7 @@ export async function saveRisk(memberId: string, user: { id: string }, d: RiskRe
         ]),
   ]);
   await logAccess(user.id, memberId, `risk_review_${level}`);
+  if (level !== "LOW") await notifyRole("ADMIN", { title: "Νέο σοβαρό σημείο στην ομάδα", url: "/admin", tag: `alert-${memberId}` }).catch(() => undefined);
 }
 
 /** Αφορμές για νέα αξιολόγηση: υποτροπή, κόκκινο κουμπί, ανησυχία στο σημείωμα. */

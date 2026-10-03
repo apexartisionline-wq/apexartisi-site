@@ -8,6 +8,7 @@ import { dec, enc } from "@/lib/crypto";
 import { prisma } from "@/lib/db";
 import { CLOSURE_HOW, doorOpenMessage } from "@/lib/incident";
 import { notifyMembers } from "@/lib/notify";
+import { quietUntil } from "@/lib/quiet";
 import { formatDate, formatWhen, localParts } from "@/lib/time";
 
 async function save(formData: FormData, send: boolean) {
@@ -21,7 +22,7 @@ async function save(formData: FormData, send: boolean) {
   });
   await logAccess(admin.id, memberId, send ? "closure_send" : "closure_save");
   if (send) await notifyMembers([memberId], { title: "Ένα μήνυμα από την ομάδα σου", url: "/m/message", tag: "closure" });
-  redirect(`/admin/people/${memberId}/close?saved=1`);
+  redirect(`/admin/people/${memberId}/close?saved=${send && quietUntil() ? "later" : "1"}`);
 }
 async function saveOnly(fd: FormData) { "use server"; await save(fd, false); }
 async function saveAndSend(fd: FormData) { "use server"; await save(fd, true); }
@@ -45,7 +46,7 @@ export default async function ClosePage({ params, searchParams }: { params: Prom
     <>
       <p><Link href={`/admin/people/${id}`}>‹ {member.name}</Link></p>
       <h1>Ολοκλήρωση συνεργασίας</h1>
-      {sp.saved && <div className="notice">Αποθηκεύτηκε ✓{last?.sentAt && " Το μήνυμα στάλθηκε στο μέλος."}</div>}
+      {sp.saved && <div className="notice">Αποθηκεύτηκε ✓{last?.sentAt && (sp.saved === "later" ? " Το μέλος το βλέπει ήδη στο app· η ειδοποίηση στο κινητό θα φύγει στις 08:00." : " Το μήνυμα στάλθηκε στο μέλος.")}</div>}
       {sp.error && <div className="error">Διάλεξε πώς έκλεισε.</div>}
       <div className="card small stack">
         <div>Μήνες: <strong>{months.length}</strong> · Ατομικές: <strong>{sessions}</strong> · Ομάδες: <strong>{groups}</strong> · Απογραφές: <strong>{journal}</strong></div>

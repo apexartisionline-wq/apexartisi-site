@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ACTIONS, LEVELS, type Level, QUESTIONS, type RiskReview } from "@/lib/risk";
+import { ACTIONS, LEVELS, type Level, QUESTIONS, type RiskReview, riskSchema } from "@/lib/risk";
 
 type YN = boolean | "DECLINED" | undefined;
 
@@ -10,9 +10,17 @@ export function RiskClient({ action, memberId, initialReason }: { action: (fd: F
   const [d, setD] = useState<Partial<RiskReview>>({ reason: initialReason as RiskReview["reason"] });
   const set = <K extends keyof RiskReview>(k: K, v: RiskReview[K]) => setD((x) => ({ ...x, [k]: v }));
   const level = d.level as Level | undefined;
+  // Έλεγχος πριν φύγει: αν λείπει κάτι ή δεν υπάρχει σύνδεση, η φόρμα μένει όπως είναι.
+  const [problem, setProblem] = useState("");
+  const check = (e: React.FormEvent<HTMLFormElement>) => {
+    const r = riskSchema.safeParse(d);
+    const msg = !r.success ? (r.error.issues[0]?.message ?? "Κάτι λείπει.") : !navigator.onLine ? "Δεν υπάρχει σύνδεση στο ίντερνετ· πάτα ξανά μόλις επανέλθει." : "";
+    setProblem(msg);
+    if (msg) e.preventDefault();
+  };
 
   return (
-    <form action={action}>
+    <form action={action} onSubmit={check}>
       <input type="hidden" name="memberId" value={memberId} />
       <input type="hidden" name="payload" value={JSON.stringify(d)} />
 
@@ -56,6 +64,7 @@ export function RiskClient({ action, memberId, initialReason }: { action: (fd: F
         </div>
       </details>
 
+      {problem && <div className="error" role="alert">Δεν αποθηκεύτηκε ακόμα: {problem} Ό,τι έγραψες είναι εδώ.</div>}
       <div className="sticky-save">
         <button type="submit" className="primary">Αποθήκευση</button>
       </div>

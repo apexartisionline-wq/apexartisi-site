@@ -642,6 +642,7 @@ model Closure {
   authorId    String
   createdAt   DateTime  @default(now())
   sentAt      DateTime?
+  readAt      DateTime?
 
   @@index([memberId, createdAt])
 }

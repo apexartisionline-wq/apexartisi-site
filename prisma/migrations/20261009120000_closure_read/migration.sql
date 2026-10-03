@@ -1,0 +1,1 @@
+ALTER TABLE "Closure" ADD COLUMN "readAt" TIMESTAMP(3);

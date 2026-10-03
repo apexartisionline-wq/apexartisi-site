@@ -5,12 +5,13 @@ import { enc } from "@/lib/crypto";
 import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { ALERT_SOURCE, recentAlerts } from "@/lib/assessment-db";
+import { AlertBoxes } from "@/components/AlertBoxes";
+import { alertBoxes } from "@/lib/assessment-db";
 import { dueCycleReviews } from "@/lib/cycle-review";
 import { groupDays } from "@/lib/groups";
 import { memberSafety } from "@/lib/handover";
 import { getSettings } from "@/lib/settings";
-import { addDays, formatDate, formatHour, formatTime, formatWhen, localParts } from "@/lib/time";
+import { addDays, formatDate, formatHour, localParts } from "@/lib/time";
 
 async function careDone(formData: FormData) {
   "use server";
@@ -35,8 +36,8 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
   const date = sp.date && /^\d{4}-\d{2}-\d{2}$/.test(sp.date) ? sp.date : today;
   const s = await getSettings();
 
-  const [alerts, care, slots, week, groups, members] = await Promise.all([
-    recentAlerts(),
+  const [boxes, care, slots, week, groups, members] = await Promise.all([
+    alertBoxes(user.role),
     prisma.careTask.findMany({ where: { doneAt: null, dueAt: { lte: new Date() }, kind: { not: "dropout" } }, orderBy: { dueAt: "asc" } }),
     prisma.slot.findMany({
       where: { date, therapistId: user.id, bookings: { some: {} } },
@@ -78,13 +79,11 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
   ].sort((a, b) => a.time.localeCompare(b.time));
 
   // Να το δεις: εκκρεμότητες για όποιον το δει πρώτος και μέλη με κόκκινο σήμα.
-  // Σοβαρά σημεία των τελευταίων 24 ωρών: ένα κουτί ανά μέλος· το ίδιο μέλος δεν ξαναβγαίνει στο «Να το δεις».
-  const shown = alerts.filter((a) => a.source !== "EMERGENCY" || user.role === "ADMIN");
-  const boxes = [...new Set(shown.map((a) => a.memberId))].map((id) => ({ id, items: shown.filter((a) => a.memberId === id) }));
-  const boxed = new Set(boxes.map((b) => b.id));
-  const red = (await Promise.all(members.filter((m) => !boxed.has(m.id)).map(async (m) => ({ m, f: (await memberSafety(m.id)).filter((x) => x.level === "red" || x.key === "risk_review") }))))
+  // Ό,τι φαίνεται ήδη στο κουτί πάνω-πάνω δεν ξαναβγαίνει εδώ· τα υπόλοιπα σήματα του μέλους μένουν.
+  const inBox = new Set(boxes.flatMap((b) => b.items.filter((a) => a.source === "ASSESSMENT").map((a) => `${b.id}:assessment_${a.kind}`)));
+  const red = (await Promise.all(members.map(async (m) => ({ m, f: (await memberSafety(m.id)).filter((x) => (x.level === "red" || x.key === "risk_review") && !inBox.has(`${m.id}:${x.key}`)) }))))
     .filter((x) => x.f.length > 0)
-    .slice(0, 6);
+    .slice(0, 8);
   const memberName = new Map(members.map((m) => [m.id, m.name]));
   const reviews = await dueCycleReviews(members.map((m) => m.id));
 
@@ -100,19 +99,7 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
       </div>
       <p className="muted" style={{ margin: "2px 0 0" }}>{formatDate(date)} · {user.name}</p>
 
-      {boxes.map(({ id, items }) => (
-        <Link key={id} href={`/t/members/${id}`} className={`alertbar${items.every((a) => a.mild) ? " yellow" : ""}`} role="alert" style={{ display: "block", textDecoration: "none" }}>
-          <strong>⚑ {items[0].member}</strong>
-          <ul className="lines small">
-            {items.map((a) => (
-              <li key={a.id}>
-                <strong>{a.text}</strong> · {ALERT_SOURCE[a.source] ?? ""}, {a.by}, {localParts(a.createdAt).date === today ? formatTime(a.createdAt) : formatWhen(a.createdAt)}
-              </li>
-            ))}
-          </ul>
-          {items.some((a) => a.source === "ASSESSMENT") && <div className="small">Μένει στο «Ασφάλεια» του φακέλου</div>}
-        </Link>
-      ))}
+      <AlertBoxes boxes={boxes} />
 
       <Announcements />
 

@@ -1,5 +1,7 @@
 import { memberIntake } from "@/lib/intake";
 import Link from "next/link";
+import { AlertBoxes } from "@/components/AlertBoxes";
+import { alertBoxes } from "@/lib/assessment-db";
 import { redirect } from "next/navigation";
 import { latestProfile } from "@/lib/assessment-db";
 import { logAccess } from "@/lib/audit";
@@ -78,6 +80,7 @@ export default async function AdminToday({ searchParams }: { searchParams: Promi
   return (
     <>
       <h1>{formatDate(today)}</h1>
+      <AlertBoxes boxes={await alertBoxes("ADMIN")} />
 
       {help.length > 0 && (
         <section className="card" style={{ borderColor: "var(--red)" }}>
