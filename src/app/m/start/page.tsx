@@ -6,6 +6,7 @@ import { memberIntake } from "@/lib/intake";
 import { sessionJoinable, slotMinutes } from "@/lib/program";
 import { getSettings } from "@/lib/settings";
 import { formatDate, formatHour } from "@/lib/time";
+import { vocative } from "@/lib/vocative";
 
 async function accept() {
   "use server";
@@ -57,7 +58,7 @@ export default async function StartPage() {
   const withTeam = status.missingSteps.length > 0 || status.missingConsents.some((p) => !p.byMember);
   return (
     <main>
-      <h1>Καλώς ήρθες, {user.name.split(" ")[0]}</h1>
+      <h1>Καλώς ήρθες, {vocative(user.name.split(" ")[0])}</h1>
       <p>Πριν ανοίξει όλο το app, ολοκληρώνουμε μαζί την έναρξη της συνεργασίας.</p>
 
       {next && (
@@ -83,10 +84,10 @@ export default async function StartPage() {
       <section className="card">
         <strong>Τι μένει</strong>
         <ul>
-          {withTeam && <li>Η πρώτη συνάντηση με ψυχολόγο ή σύμβουλο της ομάδας (συμφωνητικό, συγκαταθέσεις, αξιολόγηση, πλάνο ασφάλειας).</li>}
+          {withTeam && <li>Η πρώτη ατομική με ψυχολόγο της ομάδας (συμφωνητικό, συγκαταθέσεις, αρχική αξιολόγηση).</li>}
           {!accepted && <li>Η δήλωση εμπιστευτικότητας, εδώ από κάτω.</li>}
         </ul>
-        <p className="small muted">Μέχρι τότε έχεις το κόκκινο κουμπί, το πλάνο σου και τον λογαριασμό σου.</p>
+        <p className="small muted">Μέχρι τότε έχεις το κόκκινο κουμπί και τον λογαριασμό σου.</p>
       </section>
 
       <section className="card">
