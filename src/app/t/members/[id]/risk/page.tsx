@@ -35,7 +35,7 @@ export default async function RiskPage({ params, searchParams }: { params: Promi
   const [history, trigger] = await Promise.all([riskHistory(id), riskTrigger(id)]);
   const canWrite = canWriteRisk(user);
   const current = history[0];
-  const reasonFromTrigger = trigger ? ({ "κόκκινο κουμπί": "Κόκκινο κουμπί", υποτροπή: "Υποτροπή", "ανησυχία στο σημείωμα": "Ανησυχία στο σημείωμα" } as Record<string, string>)[trigger.text] : undefined;
+  const reasonFromTrigger = trigger ? ({ "κόκκινο κουμπί": "Κόκκινο κουμπί", υποτροπή: "Υποτροπή", "ανησυχία στο σημείωμα": "Ανησυχία στο σημείωμα", "σκέψεις στο ημερολόγιο": "Σκέψεις στο ημερολόγιο" } as Record<string, string>)[trigger.text] : undefined;
   const showForm = canWrite && (sp.new === "1" || !current || trigger);
 
   return (

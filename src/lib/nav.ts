@@ -25,7 +25,7 @@ export function navLinks(role: Role, opts: { hasPlan?: boolean; hasMessages?: bo
     ];
   if (role === "THERAPIST")
     return [
-      { href: "/t", label: "Το πρόγραμμά μου" },
+      { href: "/t", label: "Σήμερα" },
       { href: "/t/members", label: "Μέλη" },
       { href: "/t/consistency", label: "Συνέπεια" },
       { href: "/t/lexiko", label: "Λεξιλόγιο" },

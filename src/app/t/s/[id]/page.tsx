@@ -393,7 +393,7 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
       <h2 data-tour="glance">Με μια ματιά</h2>
       <div className="tiles">
         <div className="tile"><strong>{g.soberDays ?? "—"}</strong><span>μέρες νηφάλιος/α</span></div>
-        <div className="tile"><strong>{g.cycle ? `${g.cycle.done} από ${g.cycle.length}` : "—"}</strong><span>ατομικές του μήνα</span></div>
+        <div className="tile"><strong>{g.cycle ? `${g.cycle.done} από ${g.cycle.length}` : "—"}</strong><span>ατομικές του μήνα που πέρασαν</span></div>
         <div className={`tile${g.groups.total && g.groups.done / g.groups.total < 0.6 ? " warn" : ""}`} title={`Τις τελευταίες 4 εβδομάδες ήρθε σε ${g.groups.done} από ${g.groups.total} ομάδες`}><strong>{g.cycle ? `${g.cycle.groups} από ${s.groupsPerCycle}` : "—"}</strong><span>ομάδες του μήνα</span></div>
         <div className="tile"><strong>{g.journal.written}/7</strong><span>απογραφές εβδ.</span></div>
         <div className={`tile${g.help14 ? " warn" : ""}`}><strong>{g.help14}</strong><span>κόκκινο κουμπί, 14 μ.</span></div>

@@ -50,13 +50,16 @@ export async function saveRisk(memberId: string, user: { id: string }, d: RiskRe
 
 /** Αφορμές για νέα αξιολόγηση: υποτροπή, κόκκινο κουμπί, ανησυχία στο σημείωμα. */
 export async function riskTrigger(memberId: string): Promise<Trigger | null> {
-  const [help, notes, last] = await Promise.all([
+  const [help, notes, last, journal] = await Promise.all([
     prisma.helpRequest.findFirst({ where: { memberId, isDrill: false }, orderBy: { createdAt: "desc" }, select: { createdAt: true } }),
     memberNotes(memberId, { take: 20 }).then((ns) => ns.filter((n) => n.usedSince === "YES" || n.riskChange === "UP").slice(0, 5)),
     prisma.riskReview.findFirst({ where: { memberId }, orderBy: { createdAt: "desc" }, select: { createdAt: true } }),
+    // Σκέψεις να κάνει κακό στον εαυτό του, γραμμένες στο ημερολόγιο (απόφαση 3/10).
+    prisma.journalEntry.findFirst({ where: { memberId, selfHarm: { in: ["YES", "UNSURE"] } }, orderBy: { updatedAt: "desc" }, select: { updatedAt: true } }),
   ]);
   const triggers: Trigger[] = [
     ...(help ? [{ at: help.createdAt, text: "κόκκινο κουμπί" }] : []),
+    ...(journal ? [{ at: journal.updatedAt, text: "σκέψεις στο ημερολόγιο" }] : []),
     ...notes.map((n) => ({ at: n.createdAt, text: n.usedSince === "YES" ? "υποτροπή" : "ανησυχία στο σημείωμα" })),
   ];
   return needsReview(triggers, last?.createdAt ?? null);
