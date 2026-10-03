@@ -40,6 +40,8 @@ export async function saveRisk(memberId: string, user: { id: string }, d: RiskRe
       ? []
       : [
           prisma.teamAlert.create({ data: { memberId, source: "RISK", kind: level, byId: user.id } }),
+          // Την επαφή (24 ώρες / επόμενη μέρα) την κάνει η διαχείριση: τηλέφωνο + «τι έγινε» στο «Σήμερα» της.
+          prisma.careTask.create({ data: { memberId, kind: "risk_contact", dueAt: now } }),
         ]),
   ]);
   await logAccess(user.id, memberId, `risk_review_${level}`);

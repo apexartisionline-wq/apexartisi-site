@@ -3,6 +3,8 @@ import { notFound, redirect } from "next/navigation";
 import { EC_WHEN, latestProfile } from "@/lib/assessment-db";
 import { logAccess } from "@/lib/audit";
 import { notifyRole } from "@/lib/notify";
+import { onCallNow } from "@/lib/help";
+import { getSettings } from "@/lib/settings";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { canWriteRisk } from "@/lib/risk-db";
@@ -40,6 +42,9 @@ export default async function EmergencyPage({ params }: { params: Promise<{ id: 
   });
   if (opened) await logAccess(user.id, id, "emergency_view");
   const p = opened ? (await latestProfile(id))?.data : null;
+  const s = await getSettings();
+  const dutyId = await onCallNow();
+  const duty = dutyId ? await prisma.user.findUnique({ where: { id: dutyId }, select: { name: true, phone: true } }) : null;
   const tel = (v: string) => <a href={`tel:${v.replace(/\s/g, "")}`}>{v}</a>;
   return (
     <main>
@@ -48,9 +53,13 @@ export default async function EmergencyPage({ params }: { params: Promise<{ id: 
       <div className="card">
         <strong>Μείνε μαζί του/της. Μην κλείσεις τη σύνδεση.</strong>
         <div className="row" style={{ gap: 8, marginTop: 10, flexWrap: "wrap" }}>
-          <a className="btn red" href="tel:112">112</a>
-          <a className="btn" href="tel:166">ΕΚΑΒ 166</a>
-          <a className="btn" href="tel:1018">1018</a>
+          <a className="btn red" href="tel:112">112 · Άμεσος κίνδυνος</a>
+          <a className="btn" href="tel:166">166 · ΕΚΑΒ (ασθενοφόρο)</a>
+          <a className="btn" href="tel:1018">1018 · Γραμμή για την αυτοκτονία</a>
+        </div>
+        <div className="small" style={{ marginTop: 10 }}>
+          {s.adminPhone ? <>Διαχείριση: <a href={`tel:${s.adminPhone.replace(/\s/g, "")}`}><strong>{s.adminPhone}</strong></a></> : <span className="muted">Δεν έχει οριστεί τηλέφωνο διαχείρισης (Ρυθμίσεις).</span>}
+          {duty && <> · Εφημερεύει τώρα: <strong>{duty.name}</strong>{duty.phone && <> · <a href={`tel:${duty.phone.replace(/\s/g, "")}`}>{duty.phone}</a></>}</>}
         </div>
       </div>
       {!opened ? (
@@ -73,7 +82,7 @@ export default async function EmergencyPage({ params }: { params: Promise<{ id: 
           ) : <div className="muted">Δεν έχει δώσει.</div>}
         </div>
       ) : (
-        <div className="card">Το μέλος δεν έχει συμπληρώσει στοιχεία. Πάρε αμέσως τη διαχείριση.</div>
+        <div className="card">Το μέλος δεν έχει συμπληρώσει στοιχεία. Πάρε αμέσως τη διαχείριση{s.adminPhone && <> στο <a href={`tel:${s.adminPhone.replace(/\s/g, "")}`}><strong>{s.adminPhone}</strong></a></>}{duty && <> ή τον/την {duty.name}{duty.phone && <> στο <a href={`tel:${duty.phone.replace(/\s/g, "")}`}>{duty.phone}</a></>}</>}.</div>
       )}
     </main>
   );

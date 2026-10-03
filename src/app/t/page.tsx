@@ -38,7 +38,7 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
 
   const [boxes, care, slots, week, groups, members] = await Promise.all([
     alertBoxes(user.role),
-    prisma.careTask.findMany({ where: { doneAt: null, dueAt: { lte: new Date() }, kind: { not: "dropout" } }, orderBy: { dueAt: "asc" } }),
+    prisma.careTask.findMany({ where: { doneAt: null, dueAt: { lte: new Date() }, kind: { notIn: ["dropout", "risk_contact"] } }, orderBy: { dueAt: "asc" } }),
     prisma.slot.findMany({
       where: { date, therapistId: user.id, bookings: { some: {} } },
       include: { bookings: { include: { member: { select: { id: true, name: true } } } }, note: { select: { id: true } }, pairNotes: { select: { id: true } } },
@@ -80,7 +80,9 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
 
   // Να το δεις: εκκρεμότητες για όποιον το δει πρώτος και μέλη με κόκκινο σήμα.
   // Ό,τι φαίνεται ήδη στο κουτί πάνω-πάνω δεν ξαναβγαίνει εδώ· τα υπόλοιπα σήματα του μέλους μένουν.
-  const inBox = new Set(boxes.flatMap((b) => b.items.filter((a) => a.source === "ASSESSMENT").map((a) => `${b.id}:assessment_${a.kind}`)));
+  const inBox = new Set(boxes.flatMap((b) => b.items.flatMap((a) =>
+    a.source === "ASSESSMENT" ? [`${b.id}:assessment_${a.kind}`] : a.source === "JOURNAL" ? [`${b.id}:journal_${a.kind.split(":")[1]}`] : [],
+  )));
   const red = (await Promise.all(members.map(async (m) => ({ m, f: (await memberSafety(m.id)).filter((x) => (x.level === "red" || x.key === "risk_review") && !inBox.has(`${m.id}:${x.key}`)) }))))
     .filter((x) => x.f.length > 0)
     .slice(0, 8);
@@ -98,6 +100,15 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
         </span>
       </div>
       <p className="muted" style={{ margin: "2px 0 0" }}>{formatDate(date)} · {user.name}</p>
+      <details className="small" style={{ margin: "6px 0 0" }}>
+        <summary className="muted">Τι σημαίνουν τα χρώματα</summary>
+        <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>
+          <li><strong style={{ color: "var(--red)" }}>Κόκκινο κουτί</strong>: σοβαρό σημείο των τελευταίων 24 ωρών (από αξιολόγηση, ανάγκες ασφάλειας, ημερολόγιο). Το βλέπει όλη η ομάδα· πάτα τη γραμμή για να πας εκεί που χρειάζεται.</li>
+          <li><strong style={{ color: "var(--yellow)" }}>Κίτρινο κουτί</strong>: προβληματισμός από σημείωμα ή κάτι για να το ξέρουμε (π.χ. εγκυμοσύνη).</li>
+          <li><strong>«Να το δεις»</strong>: σήματα για μέλη (κόκκινη τελεία = σοβαρό, κίτρινη = να το κοιτάξεις). «+3» = ακόμα 3 σήματα του ίδιου μέλους· πάτα το όνομα για να τα δεις όλα.</li>
+          <li>Λέξεις της ομάδας: <Link href="/t/lexiko">Λεξιλόγιο</Link>.</li>
+        </ul>
+      </details>
 
       <AlertBoxes boxes={boxes} />
 

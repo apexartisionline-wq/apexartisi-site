@@ -4,12 +4,13 @@ import { useEffect, useState } from "react";
 import { useNoteForm } from "./useNoteForm";
 import { DEFENSES, JOURNALING, MOOD, type NoteForm, noteFormSchema, PRESENTED, PROCESS, SELF_HELP, THEMES } from "@/lib/note-form";
 
-type Props = { action: (formData: FormData) => void; hidden: Record<string, string>; initial: Partial<NoteForm> | null; themeForms: string[] };
+type Props = { action: (formData: FormData) => void; hidden: Record<string, string>; initial: Partial<NoteForm> | null; themeForms: string[]; cameDefault?: boolean };
 
 // Το σημειωματάριο της ατομικής: γρήγορες επιλογές + χώρος για δικά σου λόγια.
 // Στέλνει όλο το σημείωμα ως JSON (payload)· ο server το ελέγχει (note-form.ts).
-export function NoteFormClient({ action, hidden, initial, themeForms }: Props) {
-  const [d, setD] = useState<Partial<NoteForm>>({ came: true, sober: true, safeOk: true, notify: false, ...initial });
+export function NoteFormClient({ action, hidden, initial, themeForms, cameDefault }: Props) {
+  // «Ήρθε»: ξεκινά «Ναι» μόνο αν το μέλος πάτησε «Σύνδεση» (ή αν υπάρχει ήδη σημείωμα)· αλλιώς το διαλέγει ο θεραπευτής.
+  const [d, setD] = useState<Partial<NoteForm>>({ came: initial ? (initial.came ?? true) : cameDefault ? true : undefined, sober: true, safeOk: true, notify: false, ...initial });
   const set = <K extends keyof NoteForm>(k: K, v: NoteForm[K]) => {
     setTouched(true);
     setD((x) => ({ ...x, [k]: v }));
@@ -27,7 +28,7 @@ export function NoteFormClient({ action, hidden, initial, themeForms }: Props) {
   const [warnedEmpty, setWarnedEmpty] = useState("");
   const check = (e: React.FormEvent<HTMLFormElement>) => {
     const r = noteFormSchema.safeParse({ ...d, notify });
-    let msg = !r.success ? (r.error.issues[0]?.message ?? "Κάτι λείπει.") : !navigator.onLine ? "Δεν υπάρχει σύνδεση στο ίντερνετ· πάτα ξανά μόλις επανέλθει." : "";
+    let msg = d.came === undefined ? "Διάλεξε «Ήρθε» ή «Δεν ήρθε»." : !r.success ? (r.error.issues[0]?.message ?? "Κάτι λείπει.") : !navigator.onLine ? "Δεν υπάρχει σύνδεση στο ίντερνετ· πάτα ξανά μόλις επανέλθει." : "";
     // Ήπια υπενθύμιση για κενά· με δεύτερο πάτημα αποθηκεύεται έτσι.
     if (!msg && d.came !== false) {
       const empty = ([["positives", "Τα θετικά"], ["suggested", "Τι προτείναμε"]] as const).filter(([k]) => !String(d[k] ?? "").trim()).map(([, l]) => `«${l}»`).join(", ");
@@ -79,6 +80,15 @@ export function NoteFormClient({ action, hidden, initial, themeForms }: Props) {
   const text = (k: keyof NoteForm, label: string, ph?: string, rows = 3) => (
     <textarea aria-label={label} placeholder={ph} rows={rows} style={{ minHeight: rows * 24 + 20, marginTop: 8 }} value={(d[k] as string | undefined) ?? ""} onChange={(e) => set(k, e.target.value as never)} />
   );
+  // Δύο κουμπιά με λέξεις (χωρίς διακόπτη): για «Ήρθε» και για την ανησυχία ασφάλειας.
+  const pick2 = (label: string, opts: [string, boolean][], value: boolean | undefined, onPick: (v: boolean) => void) => (
+    <div className="row spread" style={{ flexWrap: "wrap", gap: 8 }}>
+      <span>{label}</span>
+      <span className="chips" role="group" aria-label={label}>
+        {opts.map(([l, v]) => <button key={l} type="button" className="chip" aria-pressed={value === v} onClick={() => onPick(v)}>{l}</button>)}
+      </span>
+    </div>
+  );
   const toggleRow = (k: "came" | "sober" | "safeOk" | "notify", label: string) => {
     const on = k === "notify" ? notify : Boolean(d[k]);
     return (
@@ -98,7 +108,7 @@ export function NoteFormClient({ action, hidden, initial, themeForms }: Props) {
       <input type="hidden" name="payload" value={JSON.stringify({ ...d, notify })} />
       {restored && <div className="notice">Βρέθηκε πρόχειρο που δεν είχε αποθηκευτεί — συνέχισε από εκεί.</div>}
 
-      <fieldset>{toggleRow("came", "Ήρθε στην ατομική")}{d.came === false && <p className="muted small" style={{ margin: "6px 0 0" }}>Δεν μετράει ως παρουσία. Γράψε μόνο ό,τι χρειάζεται (π.χ. αν ενημέρωσε, τι κάνουμε).</p>}</fieldset>
+      <fieldset>{pick2("Ήρθε στην ατομική;", [["Ήρθε", true], ["Δεν ήρθε", false]], d.came, (v) => set("came", v as never))}{d.came === false && <p className="muted small" style={{ margin: "6px 0 0" }}>Δεν μετράει ως παρουσία. Γράψε μόνο ό,τι χρειάζεται (π.χ. αν ενημέρωσε, τι κάνουμε).</p>}</fieldset>
       <fieldset><legend>Πώς παρουσιάστηκε</legend>{multi("presented", PRESENTED)}{text("presentedText", "Πώς παρουσιάστηκε, με λόγια", "π.χ. έντονη, συνεχής ροή λόγου", 1)}</fieldset>
       <fieldset><legend>Διάθεση</legend>{single("mood", MOOD)}</fieldset>
       <fieldset><legend>Πόσο βοηθά τον εαυτό του/της</legend>{single("selfHelp", SELF_HELP)}</fieldset>
@@ -118,7 +128,7 @@ export function NoteFormClient({ action, hidden, initial, themeForms }: Props) {
           </label>
         )}
         <div style={{ height: 10 }} />
-        {toggleRow("safeOk", "Ασφάλεια: χωρίς ανησυχία")}
+        {pick2("Ανησυχία για την ασφάλεια;", [["Όχι", true], ["Ναι", false]], d.safeOk, (v) => set("safeOk", v as never))}
       </fieldset>
       <fieldset>
         <legend>Προβληματισμός προς τη θεραπευτική ομάδα{!d.safeOk && <span style={{ color: "var(--red)" }}> · υποχρεωτικό: τι ανησυχεί και ποιος ενημερώθηκε</span>}</legend>

@@ -64,7 +64,7 @@ export default async function AdminToday({ searchParams }: { searchParams: Promi
   const intakePending = intakes.filter((x) => !x.status.complete);
 
   // Χωρίς επαφή 3 μέρες: ποιον παίρνουμε τηλέφωνο (κινητό από τα στοιχεία του μέλους ή του λογαριασμού).
-  const dropouts = await prisma.careTask.findMany({ where: { kind: "dropout", doneAt: null }, orderBy: { dueAt: "asc" } });
+  const dropouts = await prisma.careTask.findMany({ where: { kind: { in: ["dropout", "risk_contact"] }, doneAt: null }, orderBy: { dueAt: "asc" } });
   const dropoutRows = await Promise.all(dropouts.map(async (t) => {
     const [u, p] = await Promise.all([prisma.user.findUnique({ where: { id: t.memberId }, select: { name: true, phone: true } }), latestProfile(t.memberId)]);
     return { t, name: u?.name ?? "Μέλος", phone: p?.data.mobile || u?.phone || "" };
@@ -131,13 +131,13 @@ export default async function AdminToday({ searchParams }: { searchParams: Promi
 
       {dropoutRows.length > 0 && (
         <section className="card" style={{ borderColor: "var(--yellow)" }}>
-          <strong>Χωρίς επαφή 3 μέρες — τηλεφώνημα</strong>
-          <p className="muted small" style={{ margin: "4px 0 8px" }}>Δεν μπήκε σε ομάδα, δεν έγραψε απογραφή, δεν μπήκε σε ατομική. Ουδέτερο μήνυμα: «Γεια, από το APEX. Σε σκεφτόμαστε, πάρε μας όταν μπορείς.»</p>
+          <strong>Τηλεφωνήματα της διαχείρισης</strong>
+          <p className="muted small" style={{ margin: "4px 0 8px" }}>«Χωρίς επαφή»: 3 μέρες δεν μπήκε σε ομάδα, δεν έγραψε απογραφή, δεν μπήκε σε ατομική — ουδέτερο μήνυμα: «Γεια, από το APEX. Σε σκεφτόμαστε, πάρε μας όταν μπορείς.» «Ανάγκες ασφάλειας»: επαφή μέσα σε 24 ώρες (Αυξημένες) ή την επόμενη μέρα (Υψηλές).</p>
           {sp.dropout === "need" && <div className="error small">Γράψε σύντομα τι έγινε.</div>}
           {dropoutRows.map(({ t, name, phone }) => (
             <form key={t.id} action={dropoutDone} className="row" style={{ gap: 6, flexWrap: "wrap", marginTop: 8 }}>
               <input type="hidden" name="id" value={t.id} />
-              <strong style={{ minWidth: 140 }}>{name}</strong>
+              <strong style={{ minWidth: 140 }}>{name} <span className="badge yellow">{t.kind === "risk_contact" ? "ανάγκες ασφάλειας" : "χωρίς επαφή"}</span></strong>
               {phone ? <a className="btn" href={`tel:${phone.replace(/\s/g, "")}`}>Κλήση {phone}</a> : <span className="muted small">χωρίς τηλέφωνο</span>}
               <input name="note" placeholder="τι έγινε (π.χ. μιλήσαμε, είναι καλά)" style={{ flex: 1, minWidth: 160 }} />
               <button type="submit">Έγινε</button>

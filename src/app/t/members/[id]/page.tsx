@@ -76,12 +76,12 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
       </div>
       <div className="card">
         <div className="row spread">
-          <strong>Συνέπεια · {consistency.weeks} εβδομάδες</strong>
-          <span className="muted small">Μέρα {programDay(member.programStartDate, today) ?? "—"}{cycle && ` · κύκλος ${cycle.done} από ${cycle.length}`}</span>
+          <strong>{cycle ? `Μήνας ${months.length}: ατομικές ${cycle.done} από ${cycle.length} · ομάδες ${cycle.groups} από ${s.groupsPerCycle}` : "Δεν έχει ξεκινήσει μήνας"}</strong>
+          <span className="muted small">Μέρα {programDay(member.programStartDate, today) ?? "—"} στο πρόγραμμα</span>
         </div>
-        <div style={{ marginTop: 10 }}>
-          {cycle && <div>Ομάδες στον κύκλο: <strong>{cycle.groups} από {s.groupsPerCycle}</strong></div>}
-          Ομάδες που έγιναν τις τελευταίες {consistency.weeks} εβδομάδες: <strong>ήρθε σε {consistency.groups} από {consistency.groupDays.length}</strong>
+        <div className="muted small" style={{ marginTop: 10 }}>Συνέπεια τις τελευταίες {consistency.weeks} εβδομάδες</div>
+        <div>
+          Ομάδες: <strong>ήρθε σε {consistency.groups} από {consistency.groupDays.length}</strong>
           {consistency.groupDays.length > 0 && <span className="muted"> ({Math.round((consistency.groups / consistency.groupDays.length) * 100)}%)</span>}
         </div>
         <div className="row" style={{ gap: 4, marginTop: 6 }} aria-label="Παρουσίες στις ομάδες, μέρα με μέρα">
@@ -90,7 +90,7 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
           ))}
         </div>
         <div style={{ marginTop: 10 }}>
-          Ατομικές: <strong>{consistency.sessionsDone} από {consistency.sessionsTotal}</strong>
+          Ατομικές: <strong>ήρθε σε {consistency.sessionsDone} από {consistency.sessionsTotal}</strong>
           {consistency.sessionsTotal > consistency.sessionsDone && <span className="muted"> · δεν ήρθε σε {consistency.sessionsTotal - consistency.sessionsDone}</span>}
         </div>
       </div>
@@ -114,7 +114,7 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
         <Link href={`/t/members/${id}/assessment`}>
           <span>
             <div>Αρχική αξιολόγηση</div>
-            <div className="sub">{assessment && ax?.complete ? `✓ ${formatDate(localParts(assessment.doneAt).date)}, ${staffNames.get(assessment.doneById) ?? ""}` : ax ? `Σε εξέλιξη · ${ax.author}` : "Εκκρεμεί · ψυχολόγος, 1η ατομική"}</div>
+            <div className="sub">{assessment && ax?.complete ? `✓ ${formatDate(localParts(assessment.doneAt).date)}, ${staffNames.get(assessment.doneById) ?? ""}` : ax ? `Σε εξέλιξη · ${ax.author}` : "Δεν έχει γίνει ακόμα — την κάνει ψυχολόγος στην επόμενη ατομική"}</div>
           </span>
         </Link>
       </div>

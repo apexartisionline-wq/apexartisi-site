@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { hasConsent, requireMember } from "@/lib/intake";
 import { prisma } from "@/lib/db";
+import { notifyRole } from "@/lib/notify";
 import { journalDate } from "@/lib/member";
 import { GOAL_CHECK, setWeekGoal, weekGoal } from "@/lib/goals";
 import { getSettings } from "@/lib/settings";
@@ -46,6 +47,14 @@ async function save(formData: FormData) {
     update: fields,
   });
   const concern = fields.used || fields.selfHarm === "YES";
+  // Σκέψεις να κάνει κακό στον εαυτό του: κόκκινη γραμμή 24 ώρες πάνω-πάνω στο «Σήμερα» όλης της ομάδας (μία φορά τη μέρα).
+  if (fields.selfHarm === "YES") {
+    const kind = `SELF_HARM:${date}`;
+    if (!(await prisma.teamAlert.findFirst({ where: { memberId: user.id, source: "JOURNAL", kind } }))) {
+      await prisma.teamAlert.create({ data: { memberId: user.id, source: "JOURNAL", kind, byId: user.id } });
+      await notifyRole("ADMIN", { title: "Νέο σοβαρό σημείο στην ομάδα", url: "/admin", tag: `alert-${user.id}` }).catch(() => undefined);
+    }
+  }
   redirect(`/m/journal?saved=${concern ? "care" : "1"}`);
 }
 

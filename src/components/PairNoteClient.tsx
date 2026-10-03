@@ -13,18 +13,20 @@ type Props = {
   members: [Member, Member];
   initial: Record<string, Partial<PairSide>>;
   themeForms: string[];
+  cameDefault: Record<string, boolean>; // πάτησε «Σύνδεση»;
   version: string; // πότε άλλαξε τελευταία φορά (για να μη σβήσει κάποιος αλλαγή άλλης συσκευής)
 };
 
-const fresh = (): Partial<PairSide> => ({ came: true, sober: true, safeOk: true, notify: false });
+const fresh = (came: boolean): Partial<PairSide> => ({ came: came ? true : undefined, sober: true, safeOk: true, notify: false });
 
 // Σημειωματάριο Therapair: κάθε ερώτηση με τα δύο ονόματα δίπλα-δίπλα (στο κινητό το ένα κάτω από το άλλο).
 // Αποθηκεύεται ως ξεχωριστό σημείωμα στον φάκελο του καθενός.
-export function PairNoteClient({ action, slotId, members, initial, themeForms, version }: Props) {
+export function PairNoteClient({ action, slotId, members, initial, themeForms, version, cameDefault }: Props) {
   const [m1, m2] = members;
   const [d, setD] = useState<Record<string, Partial<PairSide>>>({
-    [m1.id]: { ...fresh(), ...initial[m1.id] },
-    [m2.id]: { ...fresh(), ...initial[m2.id] },
+    // «Ήρθε»: «Ναι» μόνο αν πάτησε «Σύνδεση» ή αν υπάρχει ήδη σημείωμα· αλλιώς το διαλέγει ο θεραπευτής.
+    [m1.id]: { ...fresh(Boolean(cameDefault[m1.id] || initial[m1.id])), ...initial[m1.id] },
+    [m2.id]: { ...fresh(Boolean(cameDefault[m2.id] || initial[m2.id])), ...initial[m2.id] },
   });
   const [touched, setTouched] = useState(false);
   const set = <K extends keyof PairSide>(id: string, k: K, v: PairSide[K]) => {
@@ -83,7 +85,9 @@ export function PairNoteClient({ action, slotId, members, initial, themeForms, v
   };
   const check = (e: React.FormEvent<HTMLFormElement>) => {
     let msg = "";
-    for (const m of members) {
+    const undecided = members.find((m) => d[m.id].came === undefined);
+    if (undecided) msg = `${first(undecided)}: διάλεξε «Ήρθε» ή «Δεν ήρθε».`;
+    for (const m of msg ? [] : members) {
       const r = pairSideSchema.safeParse({ ...d[m.id], notify: notifyOf(d[m.id]) });
       if (!r.success) {
         msg = `${m.name.split(" ")[0]}: ${r.error.issues[0]?.message ?? "κάτι λείπει."}`;
@@ -145,6 +149,14 @@ export function PairNoteClient({ action, slotId, members, initial, themeForms, v
   const text = (m: Member, k: "presentedText" | "emergedText" | "outcome" | "positives" | "suggested" | "concern", label: string, ph = "", rows = 2) => (
     <textarea aria-label={`${label} — ${first(m)}`} placeholder={ph} rows={rows} style={{ minHeight: rows * 24 + 20, marginTop: 8 }} value={(d[m.id][k] as string | undefined) ?? ""} onChange={(e) => set(m.id, k, e.target.value as never)} />
   );
+  const pick2 = (m: Member, label: string, opts: [string, boolean][], k: "came" | "safeOk") => (
+    <div className="row spread" style={{ flexWrap: "wrap", gap: 6, marginTop: 6 }}>
+      <span>{label}</span>
+      <span className="chips" role="group" aria-label={`${label} — ${first(m)}`}>
+        {opts.map(([l, v]) => <button key={l} type="button" className="chip" aria-pressed={d[m.id][k] === v} onClick={() => set(m.id, k, v as never)}>{l}</button>)}
+      </span>
+    </div>
+  );
   const sw = (m: Member, k: "came" | "sober" | "safeOk" | "notify", label: string) => {
     const on = k === "notify" ? notifyOf(d[m.id]) : Boolean(d[m.id][k]);
     return (
@@ -179,7 +191,7 @@ export function PairNoteClient({ action, slotId, members, initial, themeForms, v
         <br />✓ δίπλα σε ερώτηση = συμπληρώθηκε και για τους δύο. Πάτα τον τίτλο για να κλείσει. Ctrl + Enter = Αποθήκευση.
       </p>
 
-      <fieldset>{both((m) => sw(m, "came", "Ήρθε"))}</fieldset>
+      <fieldset>{both((m) => pick2(m, "Ήρθε;", [["Ήρθε", true], ["Δεν ήρθε", false]], "came"))}</fieldset>
       {sec("Πώς παρουσιάστηκε", filled("presented"), <>{both((m) => <>{multi(m, "presented", PRESENTED)}{text(m, "presentedText", "Πώς παρουσιάστηκε", "με λόγια", 1)}</>)}</>)}
       {sec("Συνδέθηκε με το άλλο μέλος", filled("connected"), <>{both((m) => chips(m, "connected", CONNECTED))}</>)}
       {sec("Δέχτηκε βοήθεια", filled("acceptedHelp"), <>{both((m) => chips(m, "acceptedHelp", ACCEPTED_HELP))}</>)}
@@ -199,7 +211,7 @@ export function PairNoteClient({ action, slotId, members, initial, themeForms, v
                 <input type="date" value={d[m.id].newSoberSince ?? ""} onChange={(e) => set(m.id, "newSoberSince", e.target.value as never)} />
               </label>
             )}
-            {sw(m, "safeOk", "Ασφάλεια: χωρίς ανησυχία")}
+            {pick2(m, "Ανησυχία για την ασφάλεια;", [["Όχι", true], ["Ναι", false]], "safeOk")}
           </>
         ))}
       </fieldset>

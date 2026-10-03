@@ -55,6 +55,7 @@ export const settingsSchema = z.object({
   helplineText: z.string(),
   // Επισήμανση του νομικού συμβούλου (28/9/2026): ημερολόγιο, κόκκινο κουμπί, σύνδεση.
   crisisNotice: z.string(),
+  adminPhone: z.string(), // τηλέφωνο διαχείρισης για την ομάδα (π.χ. στην «Έκτακτη ανάγκη»)
 });
 
 export type Settings = z.infer<typeof settingsSchema>;
@@ -108,6 +109,7 @@ export const DEFAULT_SETTINGS: Settings = {
   ],
   // Ανοιχτό θέμα: ποια γραμμή βοήθειας εμφανίζεται (εκτός από το 112).
   helplineText: "Κάλεσε το 112.",
+  adminPhone: "",
   crisisNotice:
     "Σημαντικό: το Ημερολόγιο Ανάκαμψης και η υπηρεσία μας δεν παρακολουθούνται σε εικοσιτετράωρη βάση και δεν αποτελούν υπηρεσία επείγουσας παρέμβασης. Αν βρίσκεστε σε άμεσο κίνδυνο, καλέστε το 112 ή το 166.",
 };

@@ -85,5 +85,5 @@ export async function sessionNumber(booking: { cycleId: string | null; slot: { s
     prisma.booking.count({ where: { cycleId: booking.cycleId, slot: { startsAt: { lte: booking.slot.startsAt } } } }),
     prisma.cycle.findUnique({ where: { id: booking.cycleId } }),
   ]);
-  return cycle ? `συνεδρία ${n} από ${cycle.length}` : null;
+  return cycle ? `ατομική ${n} από ${cycle.length} του μήνα` : null;
 }

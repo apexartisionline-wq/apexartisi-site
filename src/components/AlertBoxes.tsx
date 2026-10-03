@@ -7,6 +7,7 @@ function hrefOf(memberId: string, a: AlertBox["items"][number]): string {
   if (a.source === "NOTE") return `/t/s/${a.kind.split(":")[1] ?? ""}`;
   if (a.source === "ASSESSMENT") return `/t/members/${memberId}/assessment`;
   if (a.source === "RISK") return `/t/members/${memberId}/risk`;
+  if (a.source === "JOURNAL") return `/t/members/${memberId}/risk`;
   return `/t/members/${memberId}`;
 }
 

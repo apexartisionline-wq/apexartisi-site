@@ -8,13 +8,23 @@ type YN = boolean | "DECLINED" | undefined;
 // Αξιολόγηση αναγκών ασφάλειας: 4 ερωτήσεις, επίπεδο (απόφαση ψυχολόγου), μία σημείωση. Η αφορμή μπαίνει μόνη της.
 export function RiskClient({ action, memberId, initialReason }: { action: (fd: FormData) => void; memberId: string; initialReason?: string }) {
   const [d, setD] = useState<Partial<RiskReview>>({ reason: initialReason as RiskReview["reason"] });
-  const set = <K extends keyof RiskReview>(k: K, v: RiskReview[K]) => setD((x) => ({ ...x, [k]: v }));
+  const set = <K extends keyof RiskReview>(k: K, v: RiskReview[K]) => {
+    setProblem(""); // μόλις διορθώσεις κάτι, φεύγει το παλιό μήνυμα
+    setD((x) => ({ ...x, [k]: v }));
+  };
   const level = d.level as Level | undefined;
   // Έλεγχος πριν φύγει: αν λείπει κάτι ή δεν υπάρχει σύνδεση, η φόρμα μένει όπως είναι.
   const [problem, setProblem] = useState("");
+  const [warnedDeclined, setWarnedDeclined] = useState(false);
   const check = (e: React.FormEvent<HTMLFormElement>) => {
     const r = riskSchema.safeParse(d);
-    const msg = !r.success ? (r.error.issues[0]?.message ?? "Κάτι λείπει.") : !navigator.onLine ? "Δεν υπάρχει σύνδεση στο ίντερνετ· πάτα ξανά μόλις επανέλθει." : "";
+    let msg = !r.success ? (r.error.issues[0]?.message ?? "Κάτι λείπει.") : !navigator.onLine ? "Δεν υπάρχει σύνδεση στο ίντερνετ· πάτα ξανά μόλις επανέλθει." : "";
+    // Ήπια υπενθύμιση: αν κάποιες ερωτήσεις έμειναν αναπάντητες, το λέμε μία φορά (με δεύτερο πάτημα αποθηκεύεται).
+    const declined = QUESTIONS.filter(([k]) => d[k] === "DECLINED" || d[k] === undefined).length;
+    if (!msg && declined && !warnedDeclined) {
+      setWarnedDeclined(true);
+      msg = `${declined} ${declined === 1 ? "ερώτηση έμεινε" : "ερωτήσεις έμειναν"} χωρίς απάντηση. Βεβαιώσου ότι το επίπεδο το στηρίζει αυτό που ξέρεις· αν θέλεις να αποθηκευτεί έτσι, πάτα ξανά «Αποθήκευση».`;
+    }
     setProblem(msg);
     if (msg) e.preventDefault();
   };

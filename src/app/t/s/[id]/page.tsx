@@ -392,8 +392,8 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
       <h2>Με μια ματιά</h2>
       <div className="tiles">
         <div className="tile"><strong>{g.soberDays ?? "—"}</strong><span>μέρες νηφάλιος/α</span></div>
-        <div className="tile"><strong>{g.cycle ? `${g.cycle.done}/${g.cycle.length}` : "—"}</strong><span>ατομικές κύκλου</span></div>
-        <div className={`tile${g.groups.total && g.groups.done / g.groups.total < 0.6 ? " warn" : ""}`}><strong>{g.groups.done}/{g.groups.total}</strong><span>ομάδες, 4 εβδ.</span></div>
+        <div className="tile"><strong>{g.cycle ? `${g.cycle.done} από ${g.cycle.length}` : "—"}</strong><span>ατομικές του μήνα</span></div>
+        <div className={`tile${g.groups.total && g.groups.done / g.groups.total < 0.6 ? " warn" : ""}`} title={`Τις τελευταίες 4 εβδομάδες ήρθε σε ${g.groups.done} από ${g.groups.total} ομάδες`}><strong>{g.cycle ? `${g.cycle.groups} από ${s.groupsPerCycle}` : "—"}</strong><span>ομάδες του μήνα</span></div>
         <div className="tile"><strong>{g.journal.written}/7</strong><span>απογραφές εβδ.</span></div>
         <div className={`tile${g.help14 ? " warn" : ""}`}><strong>{g.help14}</strong><span>κόκκινο κουμπί, 14 μ.</span></div>
         <div className="tile"><strong style={{ fontSize: "0.95rem", paddingTop: 4, overflowWrap: "anywhere", hyphens: "auto" }}>{intake.trigger ? intake.label : risk ? RISK_LEVELS[risk] : "—"}</strong><span>ανάγκες ασφάλειας</span></div>
@@ -455,7 +455,7 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
       {sp.saved && <ClearDraft k={`note-draft:${x.id}`} />}
       {sp.error && <div className="error">Δεν αποθηκεύτηκε: {sp.error}</div>}
       {showForm ? (
-        <NoteFormClient action={saveIndividual} hidden={{ slotId: x.id }} initial={initial} themeForms={g.forms} />
+        <NoteFormClient action={saveIndividual} hidden={{ slotId: x.id }} initial={initial} themeForms={g.forms} cameDefault={Boolean(b.joinedAt)} />
       ) : x.note ? (
         <div className="card">
           <div className="body-text">{dec(x.note.content)}</div>
@@ -550,7 +550,7 @@ async function PairSession({ x, user, sp }: { x: Slot; user: { id: string; role:
         </details>
       )}
       {showForm ? (
-        <PairNoteClient action={savePair} slotId={x.id} members={members} initial={initial} themeForms={forms} version={String(x.pairNotes.reduce((t, n) => Math.max(t, n.updatedAt.getTime()), 0) || "")} />
+        <PairNoteClient action={savePair} slotId={x.id} members={members} initial={initial} themeForms={forms} cameDefault={Object.fromEntries(x.bookings.map((bk) => [bk.memberId, Boolean(bk.joinedAt)]))} version={String(x.pairNotes.reduce((t, n) => Math.max(t, n.updatedAt.getTime()), 0) || "")} />
       ) : x.pairNotes.length > 0 ? (
         <>
           <div className="pair-grid">

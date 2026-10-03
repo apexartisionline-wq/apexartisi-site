@@ -126,7 +126,7 @@ export function composePairNote(d: PairSide, otherNames: string[]): string {
   add("Γράφει απογραφές", d.journaling ?? "");
   add("Τι προτείναμε", h(d.suggested));
   lines.push(d.sober ? "Νηφάλιος/α από την προηγούμενη φορά." : `Όχι νηφάλιος/α από την προηγούμενη φορά· νέα ημερομηνία νηφαλιότητας ${d.newSoberSince}.`);
-  lines.push(d.safeOk ? "Ασφάλεια: χωρίς ανησυχία." : "Ασφάλεια: υπάρχει ανησυχία (βλ. προβληματισμό).");
+  lines.push(d.safeOk ? "Ανησυχία για την ασφάλεια: Όχι." : "Ανησυχία για την ασφάλεια: Ναι (βλ. προβληματισμό).");
   add("Προβληματισμός προς τη θεραπευτική ομάδα", h(d.concern));
   return lines.join("\n");
 }

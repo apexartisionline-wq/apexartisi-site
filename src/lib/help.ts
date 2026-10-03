@@ -139,6 +139,9 @@ export async function escalatePending(onlyId?: string): Promise<number> {
 
 /** Υπενθυμίσεις για μηνύματα φροντίδας που έφτασαν (καλείται από το cron). */
 export async function remindCareTasks(): Promise<void> {
-  const due = await prisma.careTask.count({ where: { doneAt: null, dueAt: { lte: new Date() } } });
+  // Οι θεραπευτές: μόνο τα μηνύματα φροντίδας· τα τηλεφωνήματα (χωρίς επαφή, ανάγκες ασφάλειας) είναι της διαχείρισης.
+  const due = await prisma.careTask.count({ where: { doneAt: null, dueAt: { lte: new Date() }, kind: { notIn: ["dropout", "risk_contact"] } } });
   if (due > 0) await notifyRole("THERAPIST", { title: "Μήνυμα φροντίδας προς μέλος", url: "/t", tag: "care" });
+  const calls = await prisma.careTask.count({ where: { doneAt: null, dueAt: { lte: new Date() }, kind: "risk_contact" } });
+  if (calls > 0) await notifyRole("ADMIN", { title: "Τηλεφώνημα σε μέλος σήμερα", url: "/admin", tag: "calls" });
 }

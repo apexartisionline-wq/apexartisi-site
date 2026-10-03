@@ -122,12 +122,13 @@ export async function saveProfile(memberId: string, byId: string, p: Profile) {
 
 // ── Ειδοποιήσεις ομάδας ─────────────────────────────────────────────────────
 
-export const ALERT_SOURCE: Record<string, string> = { ASSESSMENT: "Αρχική αξιολόγηση", RISK: "Ανάγκες ασφάλειας", EMERGENCY: "Έκτακτη ανάγκη", NOTE: "Σημείωμα ατομικής" };
+export const ALERT_SOURCE: Record<string, string> = { ASSESSMENT: "Αρχική αξιολόγηση", RISK: "Ανάγκες ασφάλειας", EMERGENCY: "Έκτακτη ανάγκη", NOTE: "Σημείωμα ατομικής", JOURNAL: "Ημερολόγιο μέλους" };
 
 export function alertText(source: string, kind: string): string {
   if (source === "ASSESSMENT") return ALERTS[kind as AlertKind] ?? kind;
-  if (source === "RISK") return kind === "HIGH" ? "Υψηλές ανάγκες ασφάλειας · επαφή την επόμενη μέρα" : "Αυξημένες ανάγκες ασφάλειας · επαφή μέσα σε 24 ώρες";
+  if (source === "RISK") return kind === "HIGH" ? "Υψηλές ανάγκες ασφάλειας · τον/την παίρνει η διαχείριση την επόμενη μέρα" : "Αυξημένες ανάγκες ασφάλειας · τον/την παίρνει η διαχείριση μέσα σε 24 ώρες";
   if (source === "EMERGENCY") return "Άνοιξαν τα στοιχεία έκτακτης ανάγκης";
+  if (source === "JOURNAL") return "Έγραψε στο ημερολόγιο ότι είχε σκέψεις να κάνει κακό στον εαυτό του/της";
   if (source === "NOTE") return "Προβληματισμός προς τη θεραπευτική ομάδα — άνοιξε το σημείωμα";
   return kind;
 }
@@ -140,7 +141,7 @@ export async function recentAlerts(now = new Date()) {
   return rows.map((r) => ({
     ...r,
     member: names.get(r.memberId) ?? "Μέλος",
-    by: names.get(r.byId) ?? "",
+    by: r.source === "JOURNAL" ? "από το μέλος" : (names.get(r.byId) ?? ""),
     text: alertText(r.source, r.kind),
     mild: isMild(r.source, r.kind),
     sourceLabel: r.source === "NOTE" && r.kind.startsWith("PAIR:") ? "Σημείωμα Therapair" : (ALERT_SOURCE[r.source] ?? ""),

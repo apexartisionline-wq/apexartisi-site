@@ -56,6 +56,7 @@ async function save(formData: FormData) {
       .filter((l) => l.number),
     helplineText: g("helplineText"),
     crisisNotice: g("crisisNotice").trim() || DEFAULT_SETTINGS.crisisNotice,
+    adminPhone: g("adminPhone").trim().slice(0, 30),
   });
   if (!parsed.success) redirect(`/admin/settings?e=${encodeURIComponent(parsed.error.issues.map((i) => i.path.join(".")).join(", "))}`);
   await saveSettings(parsed.data);
@@ -202,6 +203,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           <F label="Κείμενο γραμμής βοήθειας (εμφανίζεται μαζί με το 112)">
             <textarea name="helplineText" defaultValue={s.helplineText} style={{ minHeight: 80 }} />
           </F>
+          <F label="Τηλέφωνο διαχείρισης (το βλέπει η ομάδα στην «Έκτακτη ανάγκη»)"><input name="adminPhone" defaultValue={s.adminPhone} inputMode="tel" /></F>
           <F label="Επισήμανση για κρίσεις (ημερολόγιο, κόκκινο κουμπί, σύνδεση) — κείμενο του νομικού συμβούλου">
             <textarea name="crisisNotice" defaultValue={s.crisisNotice} style={{ minHeight: 80 }} />
           </F>

@@ -28,6 +28,7 @@ export function navLinks(role: Role, opts: { hasPlan?: boolean; hasMessages?: bo
       { href: "/t", label: "Το πρόγραμμά μου" },
       { href: "/t/members", label: "Μέλη" },
       { href: "/t/consistency", label: "Συνέπεια" },
+      { href: "/t/lexiko", label: "Λεξιλόγιο" },
       { href: "/account", label: "Λογαριασμός" },
     ];
   return [
