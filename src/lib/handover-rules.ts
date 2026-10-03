@@ -98,8 +98,11 @@ export function matchNote(
   if (f.risk && n.riskChange !== "UP") return false;
   if (f.used && n.usedSince !== "YES") return false;
   if (f.q) {
-    const norm = (s: string) => s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
-    if (!norm(n.text).includes(norm(f.q.trim()))) return false;
+    // Χωρίς τόνους/κεφαλαία, και κάθε λέξη με όποια κατάληξη («πατερας» βρίσκει «πατέρα», «πατέρες»).
+    const norm = (s: string) => s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase().replace(/ς/g, "σ");
+    const stem = (w: string) => (w.length > 4 ? w.replace(/(ουσ|οσ|ου|ησ|ασ|εσ|ισ|ων|οι|ο|ε|η|α|ι)$/, "") : w);
+    const text = norm(n.text);
+    if (!norm(f.q.trim()).split(/\s+/).filter(Boolean).every((w) => text.includes(stem(w)))) return false;
   }
   return true;
 }

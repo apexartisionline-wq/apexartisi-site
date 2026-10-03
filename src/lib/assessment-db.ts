@@ -128,7 +128,7 @@ export function alertText(source: string, kind: string): string {
   if (source === "ASSESSMENT") return ALERTS[kind as AlertKind] ?? kind;
   if (source === "RISK") return kind === "HIGH" ? "Υψηλές ανάγκες ασφάλειας · επαφή την επόμενη μέρα" : "Αυξημένες ανάγκες ασφάλειας · επαφή μέσα σε 24 ώρες";
   if (source === "EMERGENCY") return "Άνοιξαν τα στοιχεία έκτακτης ανάγκης";
-  if (source === "NOTE") return "Προβληματισμός προς τη θεραπευτική ομάδα — δες το σημείωμα";
+  if (source === "NOTE") return "Προβληματισμός προς τη θεραπευτική ομάδα — άνοιξε το σημείωμα";
   return kind;
 }
 

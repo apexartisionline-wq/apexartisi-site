@@ -1,5 +1,6 @@
 import "server-only";
 import { dec } from "./crypto";
+import { latestProfile } from "./assessment-db";
 import { prisma } from "./db";
 import { hideOther, nameVariants } from "./pair-note";
 import { vocative } from "./vocative";
@@ -38,13 +39,15 @@ export async function memberNotes(memberId: string, o: Opts = {}): Promise<Membe
     }),
     prisma.pairNote.findMany({
       where: { memberId, slot: slotWhere },
-      include: { ...sel, slot: { select: { id: true, date: true, hour: true, startsAt: true, bookings: { where: { memberId: { not: memberId } }, select: { member: { select: { name: true } } } } } } },
+      include: { ...sel, slot: { select: { id: true, date: true, hour: true, startsAt: true, bookings: { where: { memberId: { not: memberId } }, select: { member: { select: { id: true, name: true } } } } } } },
       orderBy: { slot: { startsAt: "desc" } },
       ...(o.take ? { take: o.take } : {}),
     }),
   ]);
   // Δεύτερη δικλίδα στην ανάγνωση: ακόμα κι αν κάποιο παλιό σημείωμα Therapair έχει το όνομα του άλλου, δεν φαίνεται.
-  const others = new Map(pair.map((n) => [n.id, n.slot.bookings.flatMap((b) => nameVariants(b.member.name, vocative))]));
+  const nicks = new Map<string, string | undefined>();
+  for (const n of pair) for (const b of n.slot.bookings) if (!nicks.has(b.member.id)) nicks.set(b.member.id, (await latestProfile(b.member.id))?.data.preferredName);
+  const others = new Map(pair.map((n) => [n.id, n.slot.bookings.flatMap((b) => nameVariants(b.member.name, vocative, nicks.get(b.member.id)))]));
   const safe = (id: string, t: string) => (others.get(id)?.length ? hideOther(t, others.get(id)!) : t);
   const rows = [
     ...single.map((n) => ({ n, pair: false })),

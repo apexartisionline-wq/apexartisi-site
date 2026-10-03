@@ -120,4 +120,11 @@ describe("matchNote", () => {
     expect(matchNote(n, { q: "δουλεια" })).toBe(true);
     expect(matchNote(n, { q: "οικογένεια" })).toBe(false);
   });
+  it("βρίσκει και άλλες καταλήξεις της λέξης", () => {
+    const p = { ...n, text: "Ντροπή μετά τον καβγά με τον πατέρα του" };
+    expect(matchNote(p, { q: "πατερας" })).toBe(true);
+    expect(matchNote(p, { q: "Πατέρες" })).toBe(true);
+    expect(matchNote(p, { q: "ντροπη πατερα" })).toBe(true);
+    expect(matchNote(p, { q: "μητέρα" })).toBe(false);
+  });
 });

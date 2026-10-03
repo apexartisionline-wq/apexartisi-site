@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useNoteForm } from "./useNoteForm";
 import { DEFENSES, JOURNALING, MOOD, type NoteForm, noteFormSchema, PRESENTED, PROCESS, SELF_HELP, THEMES } from "@/lib/note-form";
 
 type Props = { action: (formData: FormData) => void; hidden: Record<string, string>; initial: Partial<NoteForm> | null; themeForms: string[] };
@@ -21,10 +22,20 @@ export function NoteFormClient({ action, hidden, initial, themeForms }: Props) {
     });
   const notify = d.notify || !d.safeOk || Boolean(d.concern?.trim());
   // Ο έλεγχος γίνεται εδώ πριν φύγει: αν λείπει κάτι, το σημείωμα μένει όπως είναι (δεν αδειάζει).
+  const formRef = useNoteForm();
   const [problem, setProblem] = useState("");
+  const [warnedEmpty, setWarnedEmpty] = useState("");
   const check = (e: React.FormEvent<HTMLFormElement>) => {
     const r = noteFormSchema.safeParse({ ...d, notify });
-    const msg = !r.success ? (r.error.issues[0]?.message ?? "Κάτι λείπει.") : !navigator.onLine ? "Δεν υπάρχει σύνδεση στο ίντερνετ· πάτα ξανά μόλις επανέλθει." : "";
+    let msg = !r.success ? (r.error.issues[0]?.message ?? "Κάτι λείπει.") : !navigator.onLine ? "Δεν υπάρχει σύνδεση στο ίντερνετ· πάτα ξανά μόλις επανέλθει." : "";
+    // Ήπια υπενθύμιση για κενά· με δεύτερο πάτημα αποθηκεύεται έτσι.
+    if (!msg && d.came !== false) {
+      const empty = ([["positives", "Τα θετικά"], ["suggested", "Τι προτείναμε"]] as const).filter(([k]) => !String(d[k] ?? "").trim()).map(([, l]) => `«${l}»`).join(", ");
+      if (empty && empty !== warnedEmpty) {
+        setWarnedEmpty(empty);
+        msg = `Δεν έγραψες ${empty}. Αν θέλεις να αποθηκευτεί έτσι, πάτα ξανά «Αποθήκευση».`;
+      }
+    }
     setProblem(msg);
     if (msg) e.preventDefault();
   };
@@ -73,13 +84,16 @@ export function NoteFormClient({ action, hidden, initial, themeForms }: Props) {
     return (
       <div className="row spread" style={{ flexWrap: "nowrap" }}>
         <span>{label}</span>
-        <button type="button" role="switch" aria-checked={on} aria-label={label} className="switch" onClick={() => set(k, !on as never)} />
+        <span className="row" style={{ gap: 6, flexWrap: "nowrap" }}>
+          <span className="small muted" aria-hidden>{on ? "Ναι" : "Όχι"}</span>
+          <button type="button" role="switch" aria-checked={on} aria-label={label} className="switch" onClick={() => set(k, !on as never)} />
+        </span>
       </div>
     );
   };
 
   return (
-    <form action={action} onSubmit={check} className="note-form">
+    <form ref={formRef} action={action} onSubmit={check} className="note-form" id="notebook">
       {Object.entries(hidden).map(([k, v]) => <input key={k} type="hidden" name={k} value={v} />)}
       <input type="hidden" name="payload" value={JSON.stringify({ ...d, notify })} />
       {restored && <div className="notice">Βρέθηκε πρόχειρο που δεν είχε αποθηκευτεί — συνέχισε από εκεί.</div>}
@@ -110,7 +124,7 @@ export function NoteFormClient({ action, hidden, initial, themeForms }: Props) {
         <legend>Προβληματισμός προς τη θεραπευτική ομάδα{!d.safeOk && <span style={{ color: "var(--red)" }}> · υποχρεωτικό: τι ανησυχεί και ποιος ενημερώθηκε</span>}</legend>
         {text("concern", "Προβληματισμός προς τη θεραπευτική ομάδα", "Αν γράψεις εδώ, ενημερώνεται αμέσως η ομάδα")}
       </fieldset>
-      <fieldset>{toggleRow("notify", "Ενημέρωση ομάδας θεραπευτών τώρα")}</fieldset>
+      <fieldset>{toggleRow("notify", "Ενημέρωση ομάδας θεραπευτών τώρα")}<div className="small muted" style={{ marginTop: 4 }}>Βάζει μία κίτρινη γραμμή για 24 ώρες στο «Σήμερα» της ομάδας. Δεν στέλνει τίποτα στο μέλος.</div></fieldset>
       <fieldset>
         {problem && <div className="error" role="alert" style={{ marginBottom: 10 }}>Δεν αποθηκεύτηκε ακόμα: {problem} Ό,τι έγραψες είναι εδώ.</div>}
         <button className="primary" type="submit" style={{ width: "100%", padding: 14 }}>Αποθήκευση σημειώματος</button>

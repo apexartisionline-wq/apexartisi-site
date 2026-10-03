@@ -24,6 +24,8 @@ describe("Therapair: ποτέ στοιχεία του άλλου", () => {
     expect(hideOther("η ΕΛΕΝΗ και η Ελενη", e)).toBe("Το άλλο μέλος και το άλλο μέλος");
     expect(findOther("άκουσε τον Γιωργο", g)).toEqual(["Γιωργο"]);
     expect(findOther("μίλησε για τη μητέρα του", g)).toEqual([]);
+    const lena = nameVariants("Ελένη Δοκιμαστική", vocative, "Λένα");
+    expect(hideOther("η Λένα τον ρώτησε· όπως λένε, της Λένας", lena)).toBe("Το άλλο μέλος τον ρώτησε· όπως λένε, του άλλου μέλους");
   });
   it("το σημείωμα δεν έχει το όνομα του άλλου", () => {
     const d = pairSideSchema.parse({ connected: "Λίγο", emergedText: "Ο Νίκος μίλησε για τον πατέρα του και εκείνη συγκινήθηκε", outcome: "Νιώθει λιγότερο μόνη" });

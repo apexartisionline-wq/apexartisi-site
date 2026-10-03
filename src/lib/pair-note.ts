@@ -48,18 +48,27 @@ const norm = (w: string) => w.normalize("NFD").replace(/\p{M}/gu, "").toLowerCas
 // Το θέμα του ονόματος, χωρίς κατάληξη, για να πιάνονται και οι πτώσεις («Γιώργου», «Ελένης», «Γιώργη»).
 const stemOf = (w: string) => norm(w).replace(/(ουσ|οσ|ου|ησ|ασ|εσ|ισ|ων|οι|ο|ε|η|α|ι)$/, "");
 
-type Matcher = { stems: string[]; initials: string[] };
-function matcher(otherNames: string[]): Matcher {
+type Matcher = { stems: string[]; initials: string[]; exact: Set<string> };
+// Χαϊδευτικά/προτιμώμενο όνομα (π.χ. «Λένα»): μόνο οι ακριβείς μορφές του, όχι ρίζα — για να μην πιάνει
+// κοινές λέξεις («λένε»). Γράφονται με «~» μπροστά στη λίστα ονομάτων.
+function exactForms(nick: string): string[] {
+  const n = norm(nick);
+  const st = n.replace(/(οσ|ησ|ασ|α|η|ο)$/, "");
+  return [n, `${n}σ`, `${st}ου`, `${st}ο`, `${st}η`, `${st}α`].filter((x) => x.length >= 3);
+}
+function matcher(names: string[]): Matcher {
+  const otherNames = names.filter((n) => !n.startsWith("~"));
+  const exact = new Set(names.filter((n) => n.startsWith("~")).flatMap((n) => n.slice(1).trim().split(/\s+/)).filter((w) => w.length >= 3).flatMap(exactForms));
   const words = [...new Set(otherNames.flatMap((n) => n.trim().split(/\s+/)).filter(Boolean))];
   const first = otherNames[0]?.trim().split(/\s+/)[0] ?? "";
   const surnames = new Set(otherNames[0]?.trim().split(/\s+/).slice(1) ?? []);
   // Μικρό όνομα από 3 γράμματα θέμα· επώνυμο μόνο αν είναι μακρύ (για να μην πιάνει κοινές λέξεις).
   const stems = [...new Set(words.map((w) => ({ w, st: stemOf(w) })).filter(({ w, st }) => st.length >= (surnames.has(w) ? 5 : 3)).map(({ st }) => st))];
-  return { stems, initials: first ? [norm(first)[0]] : [] };
+  return { stems, initials: first ? [norm(first)[0]] : [], exact };
 }
 const isOther = (word: string, m: Matcher) => {
   const n = norm(word);
-  return m.stems.some((st) => n.startsWith(st) && n.length - st.length <= 4);
+  return m.exact.has(n) || m.stems.some((st) => n.startsWith(st) && n.length - st.length <= 4);
 };
 
 /** Ποιες λέξεις του κειμένου μοιάζουν με το όνομα του άλλου μέλους (για προειδοποίηση πριν την αποθήκευση). */
@@ -96,9 +105,9 @@ export function hideOther(textIn: string, otherNames: string[]): string {
 }
 
 /** Παραλλαγές του ονόματος του άλλου (ολόκληρο, μικρό, κλητική, χωρίς τόνους δεν χρειάζεται: γράφεται όπως στο σύστημα). */
-export function nameVariants(fullName: string, vocative: (s: string) => string): string[] {
+export function nameVariants(fullName: string, vocative: (s: string) => string, nickname?: string): string[] {
   const first = fullName.split(" ")[0] ?? "";
-  return [fullName, first, vocative(first)];
+  return [fullName, first, vocative(first), ...(nickname?.trim() ? [`~${nickname.trim()}`] : [])];
 }
 
 /** Το σημείωμα ενός μέλους ως κείμενο — μόνο για εκείνον· ο άλλος είναι «το άλλο μέλος». */

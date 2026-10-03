@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { JOURNALING, PRESENTED } from "@/lib/note-form";
 import { ACCEPTED_HELP, CONNECTED, findOther, nameVariants, type PairSide, pairSideSchema, STANCE } from "@/lib/pair-note";
 import { vocative } from "@/lib/vocative";
+import { useNoteForm } from "./useNoteForm";
 
 type Member = { id: string; name: string };
 type Props = {
@@ -55,7 +56,16 @@ export function PairNoteClient({ action, slotId, members, initial, themeForms, v
     } catch {}
   }, [d, draftKey, touched]);
 
+  const formRef = useNoteForm();
   const [problem, setProblem] = useState("");
+  // Ήπια υπενθύμιση για κενά (δεν εμποδίζει: με δεύτερο πάτημα αποθηκεύεται έτσι).
+  const [warnedEmpty, setWarnedEmpty] = useState("");
+  const emptyHits = () =>
+    members.flatMap((m) =>
+      d[m.id].came === false
+        ? []
+        : ([["outcome", "Τι βγήκε από την κουβέντα"], ["positives", "Τα θετικά"]] as const).filter(([k]) => !String(d[m.id][k] ?? "").trim()).map(([, label]) => `«${label}» (${first(m)})`),
+    );
   // Πριν την αποθήκευση: αν βρεθεί το όνομα του άλλου στο κείμενο του ενός, το λέμε στον θεραπευτή
   // (με το δεύτερο πάτημα αλλάζει αυτόματα σε «το άλλο μέλος»).
   const [warned, setWarned] = useState("");
@@ -86,6 +96,13 @@ export function PairNoteClient({ action, slotId, members, initial, themeForms, v
       if (hits && hits !== warned) {
         setWarned(hits);
         msg = `Βρέθηκε το όνομα του άλλου μέλους ${hits}. Άλλαξέ το σε «το άλλο μέλος» — ή πάτα ξανά «Αποθήκευση» και θα αλλάξει αυτόματα.`;
+      }
+    }
+    if (!msg) {
+      const empty = emptyHits().join(", ");
+      if (empty && empty !== warnedEmpty) {
+        setWarnedEmpty(empty);
+        msg = `Δεν έγραψες ${empty}. Αν θέλεις να αποθηκευτεί έτσι, πάτα ξανά «Αποθήκευση».`;
       }
     }
     setProblem(msg);
@@ -133,7 +150,10 @@ export function PairNoteClient({ action, slotId, members, initial, themeForms, v
     return (
       <div className="row spread" style={{ flexWrap: "nowrap", marginTop: 6 }}>
         <span>{label}</span>
-        <button type="button" role="switch" aria-checked={on} aria-label={`${label} — ${first(m)}`} className="switch" onClick={() => set(m.id, k, !on as never)} />
+        <span className="row" style={{ gap: 6, flexWrap: "nowrap" }}>
+          <span className="small muted" aria-hidden>{on ? "Ναι" : "Όχι"}</span>
+          <button type="button" role="switch" aria-checked={on} aria-label={`${label} — ${first(m)}`} className="switch" onClick={() => set(m.id, k, !on as never)} />
+        </span>
       </div>
     );
   };
@@ -149,13 +169,14 @@ export function PairNoteClient({ action, slotId, members, initial, themeForms, v
   );
 
   return (
-    <form action={action} onSubmit={check} className="note-form">
+    <form ref={formRef} action={action} onSubmit={check} className="note-form" id="notebook">
       <input type="hidden" name="slotId" value={slotId} />
       <input type="hidden" name="version" value={version} />
       <input type="hidden" name="payload" value={JSON.stringify(Object.fromEntries(members.map((m) => [m.id, { ...d[m.id], notify: notifyOf(d[m.id]) }])))} />
       {restored && <div className="notice">Βρέθηκε πρόχειρο που δεν είχε αποθηκευτεί — συνέχισε από εκεί.</div>}
       <p className="muted small" style={{ marginTop: 0 }}>
-        Κάθε μέλος παίρνει <strong>δικό του σημείωμα</strong> στον φάκελό του. Στο κείμενο του ενός γράψε «το άλλο μέλος» — αν ξεφύγει όνομα, γράφεται αυτόματα «το άλλο μέλος».
+        Κάθε μέλος παίρνει <strong>δικό του σημείωμα</strong> στον φάκελό του. Γράψε <strong>χωρίς όνομα και χωρίς γένος</strong> για τον άλλον (π.χ. «στάθηκε δίπλα στο άλλο μέλος», όχι «δίπλα της»)· αν ξεφύγει όνομα, γράφεται αυτόματα «το άλλο μέλος».
+        <br />✓ δίπλα σε ερώτηση = συμπληρώθηκε και για τους δύο. Πάτα τον τίτλο για να κλείσει. Ctrl + Enter = Αποθήκευση.
       </p>
 
       <fieldset>{both((m) => sw(m, "came", "Ήρθε"))}</fieldset>
@@ -189,6 +210,7 @@ export function PairNoteClient({ action, slotId, members, initial, themeForms, v
             {d[m.id].safeOk === false && <div className="small" style={{ color: "var(--red)" }}>υποχρεωτικό: τι ανησυχεί και ποιος ενημερώθηκε</div>}
             {text(m, "concern", "Προβληματισμός", "Αν γράψεις εδώ, ενημερώνεται η ομάδα", 2)}
             {sw(m, "notify", "Ενημέρωση ομάδας τώρα")}
+            <div className="small muted">Βάζει μία κίτρινη γραμμή για 24 ώρες στο «Σήμερα» της ομάδας. Δεν στέλνει τίποτα στο μέλος.</div>
           </>
         ))}
       </fieldset>

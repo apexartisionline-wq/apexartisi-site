@@ -9,7 +9,7 @@ import { NoteFormClient } from "@/components/NoteFormClient";
 import { PairNoteClient } from "@/components/PairNoteClient";
 import { NoteTags } from "@/components/NoteTags";
 import { SafetyZone } from "@/components/SafetyZone";
-import { latestAssessment } from "@/lib/assessment-db";
+import { latestAssessment, latestProfile } from "@/lib/assessment-db";
 import { logAccess } from "@/lib/audit";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
@@ -156,7 +156,9 @@ async function savePair(formData: FormData) {
     const parsed = pairSideSchema.safeParse(raw[b.memberId]);
     if (!parsed.success) redirect(`/t/s/${id}?error=${encodeURIComponent(`${b.member.name.split(" ")[0]}: ${parsed.error.issues[0]?.message ?? "κάτι λείπει."}`)}`);
     const otherMember = x.bookings.find((o) => o.memberId !== b.memberId)!.member;
-    const other = nameVariants(otherMember.name, vocative);
+    // Και το όνομα που έχει δηλώσει το άλλο μέλος (π.χ. «Λένα»)· το βλέπει μόνο ο server, όχι ο θεραπευτής.
+    const nick = (await latestProfile(otherMember.id))?.data.preferredName;
+    const other = nameVariants(otherMember.name, vocative, nick);
     sides.push({ memberId: b.memberId, d: scrubSide(parsed.data, other), other });
   }
   for (const { memberId, d, other } of sides) {
@@ -312,7 +314,7 @@ export default async function SessionPage({
       )}
       {versions.length > 0 && (
         <details className="card small">
-          <summary>Ιστορικό αλλαγών ({versions.length})</summary>
+          <summary>Ιστορικό αλλαγών ({versions.length}) — μόνο για ανάγνωση</summary>
           {versions.map((v) => (
             <div key={v.id} style={{ marginTop: 12 }}>
               <div className="muted">
@@ -366,6 +368,7 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
       <p className="row" style={{ margin: "10px 0 0", gap: 8 }}>
         <Link className="btn" href={`/t/members/${b.member.id}`}>Κλινικός φάκελος ›</Link>
         {!assessed && <Link className="btn primary" href={`/t/members/${b.member.id}/assessment`}>Αρχική αξιολόγηση ›</Link>}
+        {writable && x.note && !showForm && initial && <Link className="btn primary" href={`/t/s/${x.id}?edit=1`}>Άλλαξε το σημείωμα</Link>}
       </p>
 
       {x.date === today && room && (
@@ -466,7 +469,7 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
       )}
       {versions.length > 0 && (
         <details className="card small">
-          <summary>Ιστορικό αλλαγών ({versions.length})</summary>
+          <summary>Ιστορικό αλλαγών ({versions.length}) — μόνο για ανάγνωση</summary>
           {versions.map((v) => (
             <div key={v.id} style={{ marginTop: 12 }}>
               <div className="muted">Πριν από την αλλαγή της {formatWhen(v.createdAt)} · {editors.get(v.editorId) ?? "—"}</div>
@@ -508,6 +511,8 @@ async function PairSession({ x, user, sp }: { x: Slot; user: { id: string; role:
       <p className="small"><Link href="/t">‹ Σήμερα</Link></p>
       <h1 style={{ marginBottom: 4 }}><span className="badge">Therapair</span> {members.map((m, i) => <span key={m.id}>{i > 0 && " & "}<Link href={`/t/members/${m.id}`}>{m.name}</Link></span>)}</h1>
       <p className="muted" style={{ margin: 0 }}>{formatDate(x.date)} {formatHour(x.hour)}{x.therapist && ` · ${x.therapist.name}`}</p>
+      {writable && !showForm && <p style={{ margin: "10px 0 0" }}><Link className="btn primary big" href={`/t/s/${x.id}?edit=1`}>Άλλαξε το σημείωμα</Link></p>}
+      {showForm && <p style={{ margin: "10px 0 0" }}><a className="btn primary" href="#notebook">Πήγαινε στο σημειωματάριο ↓</a></p>}
 
       {x.date === today && room && (
         <div className="card row spread" style={{ background: "var(--soft)" }}>
@@ -572,7 +577,7 @@ async function PairSession({ x, user, sp }: { x: Slot; user: { id: string; role:
       )}
       {perMember.some((p) => p.history.length > 0) && (
         <details className="card small">
-          <summary>Ιστορικό αλλαγών</summary>
+          <summary>Ιστορικό αλλαγών (μόνο για ανάγνωση — δεν σβήνει τίποτα)</summary>
           {perMember.flatMap(({ m, history }) => history.map((h, i) => (
             <div key={`${m.id}${i}`} style={{ marginTop: 12 }}>
               <div className="muted">{first(m.name)} · πριν από την αλλαγή της {formatWhen(h.at)} · {h.by}</div>
