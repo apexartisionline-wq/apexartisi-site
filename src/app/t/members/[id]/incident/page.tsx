@@ -44,7 +44,7 @@ export default async function IncidentPage({ params, searchParams }: { params: P
       <p style={{ margin: "8px 0 0" }}><Link href={`/t/members/${id}`}>‹ {member.name}</Link></p>
       <h1>Συμβάντα</h1>
       <p className="muted small">Μόνο για σοβαρά: κλήση 112/ΕΚΑΒ, κίνδυνος για τη ζωή, παιδί σε κίνδυνο ή βία, μέλος σε κίνδυνο που δεν βρέθηκε, παραβίαση εμπιστευτικότητας. Γράφεται την ίδια μέρα, από όποιον το χειρίστηκε.</p>
-      {sp.saved && <div className="notice">Αποθηκεύτηκε ✓ Ενημερώθηκε η Εύα.</div>}
+      {sp.saved && <div className="notice">Αποθηκεύτηκε ✓ Ενημερώθηκε η διαχείριση.</div>}
       {sp.error && <div className="error">{sp.error}</div>}
       {sp.new === "1" || rows.length === 0 ? (
         <form action={save} className="card">
@@ -55,7 +55,7 @@ export default async function IncidentPage({ params, searchParams }: { params: P
           <div className="field"><label htmlFor="happenedAt">Πότε έγινε</label><input id="happenedAt" name="happenedAt" type="datetime-local" defaultValue={nowLocal} required /></div>
           {area("what", "Τι έγινε (με ώρες, χωρίς ερμηνείες)", "π.χ. 21:10 πάτησε το κόκκινο κουμπί· 21:14 μιλήσαμε· είπε «…»", true)}
           {area("actions", "Τι κάναμε", "π.χ. έμεινα στη γραμμή, κάλεσα 166 με τη διεύθυνση από την «Έκτακτη ανάγκη»", true)}
-          {area("informed", "Ποιον ενημερώσαμε", "π.χ. Εύα 21:30, επαφή έκτακτης ανάγκης")}
+          {area("informed", "Ποιον ενημερώσαμε", "π.χ. διαχείριση 21:30, επαφή έκτακτης ανάγκης")}
           {area("outcome", "Πώς έληξε", "π.χ. είναι ασφαλής, επαφή αύριο 12:00")}
           <button className="primary" type="submit">Αποθήκευση</button>
         </form>

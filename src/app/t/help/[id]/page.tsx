@@ -43,7 +43,7 @@ export default async function HelpRequestPage({ params, searchParams }: { params
           {req.member.phone ? (
             <a className="btn primary big" href={`tel:${req.member.phone}`}>📞 Κάλεσε {req.member.phone}</a>
           ) : (
-            <div className="error">Δεν υπάρχει καταχωρημένο τηλέφωνο. Δες τον φάκελο ή κάλεσε την Εύα.</div>
+            <div className="error">Δεν υπάρχει καταχωρημένο τηλέφωνο. Δες τον φάκελο ή κάλεσε τη διαχείριση.</div>
           )}
           <p className="small" style={{ marginTop: 8 }}>
             <Link href={`/t/members/${req.memberId}`}>Φάκελος</Link> · <Link href={`/t/members/${req.memberId}/safety`}>Πλάνο ασφάλειας</Link>
