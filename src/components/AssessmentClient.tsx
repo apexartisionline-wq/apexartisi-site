@@ -46,7 +46,7 @@ export function AssessmentClient({ action, memberId, initial, profile, showAdmin
       <span className="yn" role="group" aria-label={label}>
         <button type="button" aria-pressed={v === true} onClick={() => pickV(true)}>Ναι</button>
         <button type="button" aria-pressed={v === false} onClick={() => pickV(false)}>Όχι</button>
-        <button type="button" aria-pressed={v === "DECLINED"} onClick={() => pickV("DECLINED")} title="Δεν θέλει να απαντήσει ακόμα">Όχι ακόμα</button>
+        <button type="button" aria-pressed={v === "DECLINED"} onClick={() => pickV("DECLINED")} title="Δεν θέλει να απαντήσει ακόμα">Δεν απάντησε ακόμα</button>
       </span>
     );
   };

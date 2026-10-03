@@ -40,7 +40,16 @@ describe("composeNote / noteFlags", () => {
     expect(t.indexOf("Πώς παρουσιάστηκε")).toBeLessThan(t.indexOf("Τι έφερε"));
     expect(t).toContain("Φορτισμένος/η — έντονη ροή λόγου");
     expect(t).toContain("Προβληματισμός προς τη θεραπευτική ομάδα: Ενημέρωσα την Εύα");
-    expect(noteFlags(d)).toEqual({ riskChange: "UP", usedSince: "NO" });
+    expect(noteFlags(d)).toEqual({ riskChange: "UP", usedSince: "NO", notify: true });
+  });
+  it("«Δεν ήρθε»: δεν χρειάζεται «τι έφερε» και γράφεται στο κείμενο", () => {
+    const d = noteFormSchema.parse({ ...base, came: false, brought: [], broughtText: "", intervention: "" });
+    expect(composeNote(d)).toContain("Δεν ήρθε στην ατομική.");
+    expect(noteFlags(d).notify).toBe(false);
+  });
+  it("«Γράφει απογραφές» μετά τα θετικά", () => {
+    const t = composeNote(noteFormSchema.parse({ ...base, positives: "ήρθε στην ώρα του", journaling: "Λίγο" }));
+    expect(t.indexOf("Τα θετικά")).toBeLessThan(t.indexOf("Γράφει απογραφές: Λίγο"));
   });
 });
 

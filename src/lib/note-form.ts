@@ -12,6 +12,7 @@ export const THEMES = [
   "Μνησικακία / θυμός", "Έλεγχος / παράδοση", "Τελειομανία", "Συνεξάρτηση / όρια", "Μοναξιά", "Συναισθηματική νηφαλιότητα",
   "Άλλοι καταναγκασμοί", "Ριψοκίνδυνη κατάσταση", "Πνευματικότητα / νόημα", "Βήμα 1–4",
 ] as const;
+export const JOURNALING = ["Ναι", "Λίγο", "Όχι"] as const;
 export const DEFENSES = [
   "Εκλογίκευση", "Άρνηση", "Ελαχιστοποίηση", "Ενοχοποίηση άλλων", "Φυγή σε άλλα θέματα", "Επιστροφή στο παρελθόν", "Χιούμορ ως απόσταση",
 ] as const;
@@ -21,6 +22,7 @@ const pick = <T extends readonly string[]>(opts: T) => z.enum(opts as unknown as
 
 export const noteFormSchema = z
   .object({
+    came: z.boolean().default(true), // «Ήρθε / Δεν ήρθε»· αν δεν ήρθε, το σημείωμα δεν μετράει ως παρουσία
     presented: z.array(pick(PRESENTED)).default([]),
     presentedText: text(500),
     mood: pick(MOOD).optional(),
@@ -32,6 +34,7 @@ export const noteFormSchema = z
     defenses: z.array(pick(DEFENSES)).default([]),
     response: text(1000),
     positives: text(1000),
+    journaling: pick(JOURNALING).optional(), // «Γράφει απογραφές;»
     felt: text(2000),
     suggested: text(1000),
     sober: z.boolean(),
@@ -43,7 +46,7 @@ export const noteFormSchema = z
   .superRefine((d, ctx) => {
     if (!d.safeOk && !d.concern) ctx.addIssue({ code: "custom", path: ["concern"], message: "Γράψε τι ανησυχεί και ποιος ενημερώθηκε." });
     if (!d.sober && !d.newSoberSince) ctx.addIssue({ code: "custom", path: ["newSoberSince"], message: "Βάλε τη νέα ημερομηνία νηφαλιότητας." });
-    if (!d.broughtText && !d.intervention && d.brought.length === 0) {
+    if (d.came && !d.broughtText && !d.intervention && d.brought.length === 0) {
       ctx.addIssue({ code: "custom", path: ["broughtText"], message: "Γράψε τουλάχιστον τι έφερε ή σε τι επικεντρώθηκε η παρέμβαση." });
     }
   });
@@ -54,6 +57,7 @@ export type NoteForm = z.infer<typeof noteFormSchema>;
 export function composeNote(d: NoteForm): string {
   const lines: string[] = [];
   const add = (label: string, value: string) => value && lines.push(`${label}: ${value}`);
+  if (!d.came) lines.push("Δεν ήρθε στην ατομική.");
   add("Πώς παρουσιάστηκε", [d.presented.join(", "), d.presentedText].filter(Boolean).join(" — "));
   add("Διάθεση", d.mood ?? "");
   add("Πόσο βοηθά τον εαυτό του/της", d.selfHelp ?? "");
@@ -62,6 +66,7 @@ export function composeNote(d: NoteForm): string {
   add("Σε τι επικεντρώθηκε η παρέμβαση", d.intervention);
   add("Ανταπόκριση και άμυνες", [d.defenses.join(", "), d.response].filter(Boolean).join(" — "));
   add("Τα θετικά", d.positives);
+  add("Γράφει απογραφές", d.journaling ?? "");
   add("Πώς ήταν να είμαι μαζί του/της", d.felt);
   add("Τι προτείναμε", d.suggested);
   lines.push(d.sober ? "Νηφάλιος/α από την προηγούμενη φορά." : `Όχι νηφάλιος/α από την προηγούμενη φορά· νέα ημερομηνία νηφαλιότητας ${d.newSoberSince}.`);
@@ -71,8 +76,9 @@ export function composeNote(d: NoteForm): string {
 }
 
 /** Τα δομημένα πεδία που χρησιμοποιούν η ζώνη ασφαλείας και τα φίλτρα. */
-export function noteFlags(d: NoteForm): { riskChange: "UP" | "SAME"; usedSince: "YES" | "NO" } {
-  return { riskChange: d.safeOk ? "SAME" : "UP", usedSince: d.sober ? "NO" : "YES" };
+export function noteFlags(d: NoteForm): { riskChange: "UP" | "SAME"; usedSince: "YES" | "NO"; notify: boolean } {
+  // Η ενημέρωση της ομάδας γίνεται όταν το ζητήσει ο θεραπευτής, όταν αλλάξει η ασφάλεια ή όταν γράψει προβληματισμό.
+  return { riskChange: d.safeOk ? "SAME" : "UP", usedSince: d.sober ? "NO" : "YES", notify: d.notify || !d.safeOk || Boolean(d.concern) };
 }
 
 /** Ημέρες νηφαλιότητας μέχρι σήμερα (ημερομηνίες ΕΕΕΕ-ΜΜ-ΗΗ, ώρα Ελλάδας). */

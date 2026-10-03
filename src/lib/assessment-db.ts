@@ -122,12 +122,13 @@ export async function saveProfile(memberId: string, byId: string, p: Profile) {
 
 // ── Ειδοποιήσεις ομάδας ─────────────────────────────────────────────────────
 
-export const ALERT_SOURCE: Record<string, string> = { ASSESSMENT: "Αρχική αξιολόγηση", RISK: "Ανάγκες ασφάλειας", EMERGENCY: "Έκτακτη ανάγκη" };
+export const ALERT_SOURCE: Record<string, string> = { ASSESSMENT: "Αρχική αξιολόγηση", RISK: "Ανάγκες ασφάλειας", EMERGENCY: "Έκτακτη ανάγκη", NOTE: "Σημείωμα ατομικής" };
 
 export function alertText(source: string, kind: string): string {
   if (source === "ASSESSMENT") return ALERTS[kind as AlertKind] ?? kind;
   if (source === "RISK") return kind === "HIGH" ? "Υψηλές ανάγκες ασφάλειας · επαφή την επόμενη μέρα" : "Αυξημένες ανάγκες ασφάλειας · επαφή μέσα σε 24 ώρες";
   if (source === "EMERGENCY") return "Άνοιξαν τα στοιχεία έκτακτης ανάγκης";
+  if (source === "NOTE") return "Προβληματισμός προς τη θεραπευτική ομάδα — δες το σημείωμα";
   return kind;
 }
 
@@ -151,7 +152,7 @@ export type AlertBox = Awaited<ReturnType<typeof alertBoxes>>[number];
 
 /** Η εγκυμοσύνη ειδοποιεί αμέσως, αλλά φαίνεται με κίτρινο (δεν είναι κίνδυνος όπως παιδί ή βία). */
 export function isMild(source: string, kind: string): boolean {
-  return source === "ASSESSMENT" && kind === "PREGNANCY";
+  return (source === "ASSESSMENT" && kind === "PREGNANCY") || source === "NOTE";
 }
 
 /** Τα σοβαρά σημεία που ισχύουν τώρα (από την τελευταία μορφή της αξιολόγησης), με το πότε και από ποιον σημειώθηκαν. */

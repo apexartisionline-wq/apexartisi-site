@@ -117,7 +117,16 @@ async function saveIndividual(formData: FormData) {
     }
   }
   await prisma.$transaction(ops);
-  await markCame(id, x.startsAt);
+  // «Δεν ήρθε» στο σημείωμα: δεν μετράει ως παρουσία (το λέει ο θεραπευτής).
+  if (d.came) await markCame(id, x.startsAt);
+  else await prisma.booking.updateMany({ where: { slotId: id }, data: { joinedAt: null } });
+  // «Ενημέρωση ομάδας θεραπευτών τώρα»: ο προβληματισμός φαίνεται 24 ώρες στο «Σήμερα» όλης της ομάδας.
+  if (flags.notify) {
+    const kind = `CONCERN:${id}`;
+    if (!(await prisma.teamAlert.findFirst({ where: { memberId, source: "NOTE", kind } }))) {
+      await prisma.teamAlert.create({ data: { memberId, source: "NOTE", kind, byId: user.id } });
+    }
+  }
   await logAccess(user.id, memberId, "session_note_save");
   redirect(`/t/s/${id}?saved=1`);
 }

@@ -8,7 +8,7 @@ import { CASE_FIELDS, type CaseData, safetyFlags } from "./handover-rules";
 import { memberIntake } from "./intake";
 import { groupStarted, groupsOn } from "./program";
 import { getSettings } from "./settings";
-import { addDays, localParts } from "./time";
+import { addDays, formatDate, localParts } from "./time";
 
 /** Σήματα ασφαλείας ενός μέλους (βλ. handover-rules.ts). Δεν διαβάζει το ημερολόγιο. */
 export async function memberSafety(memberId: string, now = new Date()) {
@@ -32,7 +32,7 @@ export async function memberSafety(memberId: string, now = new Date()) {
     }),
   ]);
   const risk = intake.checks.find((c) => c.key === "risk");
-  // Τελευταία επαφή από ομάδα ή ατομική (όχι από το ημερολόγιο, που το βλέπει μόνο η υπεύθυνη).
+  // Τελευταία επαφή από ομάδα ή ατομική.
   const contacts = [attendance?.joinedAt, booking?.joinedAt].filter((d): d is Date => Boolean(d));
   const flags = safetyFlags({
     now,
@@ -48,10 +48,23 @@ export async function memberSafety(memberId: string, now = new Date()) {
   });
   // Σοβαρά σημεία της αρχικής αξιολόγησης: μένουν όσο ισχύουν στην τελευταία της μορφή.
   const fromAssessment = (await assessmentFlags(memberId, now)).map((f) => ({ level: (f.kind === "PREGNANCY" ? "yellow" : "red") as "red" | "yellow", key: `assessment_${f.kind}`, text: f.text, at: f.at, href: `/t/members/${memberId}/assessment` }));
+  // Ό,τι τσέκαρε το μέλος στο ημερολόγιο ότι «θέλει να ξέρει η ομάδα» (τελευταίες 7 μέρες): μία γραμμή, χωρίς το κείμενο.
+  const journal = await prisma.journalEntry.findMany({
+    where: { memberId, date: { gte: localParts(new Date(now.getTime() - 7 * 86_400_000)).date }, OR: [{ used: true }, { selfHarm: { in: ["YES", "UNSURE"] } }] },
+    select: { date: true, used: true, selfHarm: true, updatedAt: true },
+    orderBy: { date: "desc" },
+  });
+  const fromJournal = journal.map((j) => ({
+    level: "red" as const,
+    key: `journal_${j.date}`,
+    text: `Έγραψε στο ημερολόγιο (${formatDate(j.date)}): ${[j.used && "έκανε χρήση", (j.selfHarm === "YES" || j.selfHarm === "UNSURE") && "σκέψεις να κάνει κακό στον εαυτό του/της"].filter(Boolean).join(" · ")}`,
+    at: j.updatedAt,
+    href: `/t/members/${memberId}`,
+  }));
   const trig = await riskTrigger(memberId);
   const review = trig ? [{ level: "yellow" as const, key: "risk_review", text: `Θέλει αξιολόγηση αναγκών ασφάλειας (μετά από ${trig.text})`, at: trig.at, href: `/t/members/${memberId}/risk` }] : [];
   // Τα κόκκινα πρώτα (η εγκυμοσύνη είναι κίτρινη).
-  const all = [...fromAssessment, ...review, ...flags];
+  const all = [...fromAssessment, ...fromJournal, ...review, ...flags];
   return [...all.filter((f) => f.level === "red"), ...all.filter((f) => f.level !== "red")];
 }
 

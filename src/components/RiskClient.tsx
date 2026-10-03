@@ -36,7 +36,7 @@ export function RiskClient({ action, memberId, initialReason }: { action: (fd: F
               <span className="yn" role="group" aria-label={q}>
                 <button type="button" aria-pressed={v === true} onClick={() => pick(true)}>Ναι</button>
                 <button type="button" aria-pressed={v === false} onClick={() => pick(false)}>Όχι</button>
-                <button type="button" aria-pressed={v === "DECLINED"} onClick={() => pick("DECLINED")}>Όχι ακόμα</button>
+                <button type="button" aria-pressed={v === "DECLINED"} onClick={() => pick("DECLINED")}>Δεν απάντησε ακόμα</button>
               </span>
             </div>
           );
