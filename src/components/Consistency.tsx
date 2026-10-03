@@ -16,7 +16,8 @@ async function toggleAttendance(formData: FormData) {
   const existing = await prisma.attendance.findUnique({ where: { memberId_date: { memberId, date } } });
   // Η αφαίρεση κρατιέται στο ιστορικό (ποιος, πότε, τι ήταν).
   if (existing) await prisma.$transaction([keepHistory("attendance_removed", { memberId, ref: date, before: existing, byId: user.id }), prisma.attendance.delete({ where: { id: existing.id } })]);
-  else await prisma.attendance.create({ data: { memberId, date } });
+  // Και η χειροκίνητη προσθήκη κρατά ποιος την έκανε.
+  else await prisma.$transaction([prisma.attendance.create({ data: { memberId, date } }), keepHistory("attendance_added", { memberId, ref: date, before: null, byId: user.id })]);
   revalidatePath("/admin/consistency");
 }
 

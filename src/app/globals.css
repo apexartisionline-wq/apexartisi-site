@@ -96,6 +96,7 @@ nav.top .brand { font-weight: 700; margin-right: auto; display: flex; align-item
 nav.top img { height: 28px; }
 .navlinks { display: contents; }
 .navmenu { display: none; position: relative; }
+.navmenu.always { display: block; }
 .navmenu summary { list-style: none; cursor: pointer; }
 .navmenu summary::-webkit-details-marker { display: none; }
 .navmenu-list {

@@ -277,7 +277,8 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
   const today = localParts(now).date;
   const writable = canWrite(x, user) && now.getTime() >= x.startsAt.getTime() - 15 * 60_000;
   const initial: Partial<NoteForm> | null = x.note?.data ? (JSON.parse(dec(x.note.data)) as NoteForm) : null;
-  const showForm = writable && (!x.note || sp.edit === "1" || !initial);
+  // Παλιό σημείωμα (πριν από το δομημένο σημειωματάριο): φαίνεται ως κείμενο, δεν ανοίγει άδεια φόρμα από πάνω.
+  const showForm = writable && (!x.note || (sp.edit === "1" && Boolean(initial)));
   const risk = intake.level;
   const maxCraving = Math.max(10, ...g.journal.days.map((d) => d?.craving ?? 0));
   const DAY = ["Κ", "Δ", "Τ", "Τ", "Π", "Π", "Σ"];
@@ -383,7 +384,7 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
           <div className="body-text">{dec(x.note.content)}</div>
           <div className="row spread small" style={{ marginTop: 10 }}>
             <span className="muted">{x.note.therapist.name} · {formatWhen(x.note.updatedAt)}</span>
-            {writable && <Link href={`/t/s/${x.id}?edit=1`}>Αλλαγή</Link>}
+            {writable && initial ? <Link href={`/t/s/${x.id}?edit=1`}>Αλλαγή</Link> : !initial && <span className="muted">παλιό σημείωμα</span>}
           </div>
         </div>
       ) : (

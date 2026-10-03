@@ -161,12 +161,15 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
       <section className="t-week">
       <h2>Τις επόμενες 7 μέρες</h2>
       <div className="list">
-        {myGroups.filter((g) => g.date > date).map((g) => (
-          <Link key={`${g.date}${g.time}`} href={`/t?date=${g.date}`}><span><div>{formatDate(g.date)} {g.time}</div><div className="sub">Ομάδα · εσύ συντονίζεις</div></span></Link>
-        ))}
-        {week.map((x) => (
-          <Link key={x.id} href={`/t?date=${x.date}`}><span><div>{formatDate(x.date)} {formatHour(x.hour)}</div><div className="sub">{x.kind === "PAIR" ? "Therapair" : "Ατομική"} · {names(x)}</div></span></Link>
-        ))}
+        {/* Ομάδες και ατομικές μαζί, με σειρά ημέρας και ώρας. */}
+        {[
+          ...myGroups.filter((g) => g.date > date).map((g) => ({ key: `${g.date}${g.time}`, sort: `${g.date} ${g.time}`, date: g.date, when: `${formatDate(g.date)} ${g.time}`, sub: "Ομάδα · εσύ συντονίζεις" })),
+          ...week.map((x) => ({ key: x.id, sort: `${x.date} ${formatHour(x.hour)}`, date: x.date, when: `${formatDate(x.date)} ${formatHour(x.hour)}`, sub: `${x.kind === "PAIR" ? "Therapair" : "Ατομική"} · ${names(x)}` })),
+        ]
+          .sort((a, b) => a.sort.localeCompare(b.sort))
+          .map((r) => (
+            <Link key={r.key} href={`/t?date=${r.date}`}><span><div>{r.when}</div><div className="sub">{r.sub}</div></span></Link>
+          ))}
         {week.length === 0 && myGroups.filter((g) => g.date > date).length === 0 && <div className="muted">Τίποτα.</div>}
       </div>
       </section>
