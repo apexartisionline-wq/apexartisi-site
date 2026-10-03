@@ -138,7 +138,7 @@ export default async function PersonPage({ params, searchParams }: { params: Pro
           <h2>Ημερολόγιο ανάκαμψης (3 εβδομάδες)</h2>
           <div className="card table-wrap">
             <table>
-              <thead><tr><th>Μέρα</th><th>Διάθεση</th><th>Σιγουριά</th><th>Λαχτάρα</th><th>Ύπνος</th><th>Αυτοτρ.</th><th>Χρήση</th><th>Σημείωση</th></tr></thead>
+              <thead><tr><th>Μέρα</th><th>Διάθεση</th><th>Σιγουριά</th><th>Λαχτάρα</th><th>Ύπνος</th><th>Αυτοτρ.</th><th>Χρήση</th><th>Νίκη</th><th>Σημείωση</th></tr></thead>
               <tbody>
                 {journal.map((j) => (
                   <tr key={j.id}>
@@ -149,10 +149,11 @@ export default async function PersonPage({ params, searchParams }: { params: Pro
                     <td>{j.sleepHours}</td>
                     <td>{j.selfHarm === "YES" || j.selfHarm === "UNSURE" ? <span className="badge red">{SELF_HARM[j.selfHarm]}</span> : SELF_HARM[j.selfHarm]}</td>
                     <td>{j.used ? <span className="badge red">ναι</span> : "όχι"}</td>
+                    <td className="small">{dec(j.win)}</td>
                     <td className="small">{dec(j.note)}</td>
                   </tr>
                 ))}
-                {journal.length === 0 && <tr><td colSpan={8} className="muted">Καμία εγγραφή.</td></tr>}
+                {journal.length === 0 && <tr><td colSpan={9} className="muted">Καμία εγγραφή.</td></tr>}
               </tbody>
             </table>
           </div>

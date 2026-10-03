@@ -225,6 +225,7 @@ model JournalEntry {
   note       String   @default("")
   goalCheck  String? // YES | PARTLY | NO — συνέπεια με τον στόχο της εβδομάδας
   goalNote   String   @default("") // κρυπτογραφημένο
+  win        String   @default("") // «Μια νίκη σήμερα» — κρυπτογραφημένο
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 

@@ -1,0 +1,1 @@
+ALTER TABLE "JournalEntry" ADD COLUMN "win" TEXT NOT NULL DEFAULT '';

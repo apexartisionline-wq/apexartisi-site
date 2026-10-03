@@ -5,7 +5,9 @@ import { prisma } from "@/lib/db";
 import { withMemberCode } from "@/lib/forms";
 import { cycleInfo, isPublished, journalDate } from "@/lib/member";
 import { bookingWindow, canRequestChange, groupsOn, isAfter, joinableGroup, sessionJoinable, slotMinutes } from "@/lib/program";
+import { weekGoal } from "@/lib/goals";
 import { getSettings } from "@/lib/settings";
+import { vocative } from "@/lib/vocative";
 import { formatDate, formatHour, formatTime, localParts } from "@/lib/time";
 
 export default async function MemberHome() {
@@ -35,6 +37,8 @@ export default async function MemberHome() {
     memberConsents(user.id),
   ]);
 
+  // «Μήνας Χ μαζί μας» = ο κύκλος στον οποίο βρίσκεται· και ο στόχος της εβδομάδας με τα λόγια του.
+  const [monthNo, goal] = await Promise.all([prisma.cycle.count({ where: { memberId: user.id } }), weekGoal(user.id, journalDate(now, s))]);
   const unreadMessage = await prisma.monthlyMessage.findFirst({ where: { memberId: user.id, sentAt: { not: null }, readAt: null }, select: { id: true } });
   const text = contents.find((c) => c.kind === "DAILY_TEXT" && isPublished(c.date, s.dailyTextTime, now));
   const forms = contents.filter((c) => c.kind === "FORM" && isPublished(c.date, s.formsTime, now));
@@ -46,7 +50,7 @@ export default async function MemberHome() {
 
   return (
     <main>
-      <h1>Γεια σου, {user.name.split(" ")[0]}</h1>
+      <h1>Γεια σου, {vocative(user.name.split(" ")[0])}</h1>
 
       <Announcements />
       {unreadMessage && (
@@ -58,14 +62,18 @@ export default async function MemberHome() {
 
       <section className="card whereami" aria-label="Πού βρίσκομαι">
         <div>
-          <span className="muted small">Ατομικές</span>
-          <strong>{cycle ? `${Math.min(cycle.done, cycle.length)} από ${cycle.length}` : "—"}</strong>
+          <span className="muted small">Μαζί μας</span>
+          <strong>{monthNo ? `Μήνας ${monthNo}` : "—"}</strong>
         </div>
         <div>
-          <span className="muted small">Ομάδες</span>
-          <strong>{cycle ? `${cycle.groups} από ${s.groupsPerCycle}` : "—"}</strong>
+          <span className="muted small">Ατομικές του μήνα</span>
+          <strong>{cycle ? `${Math.min(cycle.done, cycle.length)} από ${cycle.length}` : "—"}</strong>
         </div>
       </section>
+      <Link href="/m/journal" className="card" style={{ display: "block", textDecoration: "none", color: "inherit" }}>
+        <span className="muted small">Ο στόχος μου αυτή την εβδομάδα</span>
+        <div style={{ fontSize: "1.1rem", marginTop: 2 }}>{goal ? `«${goal.text}»` : <span className="muted">Γράψε έναν μικρό στόχο για την εβδομάδα ›</span>}</div>
+      </Link>
       {fresh && <p className="muted small">Ο κύκλος σου ολοκληρώθηκε — ο επόμενος ξεκινά με το επόμενο ραντεβού σου.</p>}
 
       {requests.filter((r) => r.status !== "PENDING").map((r) => (

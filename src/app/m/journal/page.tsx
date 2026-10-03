@@ -15,8 +15,10 @@ const schema = z.object({
   confidence: scale,
   craving: scale,
   sleepHours: z.coerce.number().min(0).max(24),
-  selfHarm: z.enum(["NO", "PASSING", "YES", "UNSURE"]),
-  used: z.enum(["yes", "no"]).transform((v) => v === "yes"),
+  // Μία ήπια ερώτηση αντί για δύο κάθε βράδυ: «Υπήρξε κάτι σήμερα που θέλεις να ξέρει η ομάδα;»
+  harm: z.literal("on").optional(),
+  used: z.literal("on").optional(),
+  win: z.string().max(500).default(""),
   note: z.string().max(5000).default(""),
   goalCheck: z.enum(["YES", "PARTLY", "NO"]).optional(),
   goalNote: z.string().max(1000).default(""),
@@ -28,14 +30,22 @@ async function save(formData: FormData) {
   if (!(await hasConsent(user.id, "journal"))) redirect("/m/journal");
   const s = await getSettings();
   const date = journalDate(new Date(), s);
-  const data = schema.parse(Object.fromEntries(formData));
-  const fields = { ...data, note: enc(data.note), goalCheck: data.goalCheck ?? null, goalNote: enc(data.goalNote) };
+  const { harm, used, ...data } = schema.parse(Object.fromEntries(formData));
+  const fields = {
+    ...data,
+    used: Boolean(used),
+    selfHarm: harm ? ("YES" as const) : ("NO" as const),
+    note: enc(data.note),
+    win: enc(data.win.trim()),
+    goalCheck: data.goalCheck ?? null,
+    goalNote: enc(data.goalNote),
+  };
   await prisma.journalEntry.upsert({
     where: { memberId_date: { memberId: user.id, date } },
     create: { memberId: user.id, date, ...fields },
     update: fields,
   });
-  const concern = data.used || data.selfHarm === "YES" || data.selfHarm === "UNSURE";
+  const concern = fields.used || fields.selfHarm === "YES";
   redirect(`/m/journal?saved=${concern ? "care" : "1"}`);
 }
 
@@ -54,9 +64,9 @@ function Scale({ name, label, low, high, value }: { name: string; label: string;
   return (
     <fieldset className="field" style={{ border: 0, padding: 0 }}>
       <legend><strong>{label}</strong></legend>
-      <div className="row" style={{ gap: 6 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(11, 1fr)", gap: 2 }}>
         {Array.from({ length: 11 }, (_, i) => (
-          <label key={i} style={{ margin: 0, textAlign: "center", width: 34 }}>
+          <label key={i} style={{ margin: 0, textAlign: "center", minWidth: 0 }}>
             <input type="radio" name={name} value={i} defaultChecked={value === i} required style={{ width: "auto" }} />
             <div>{i}</div>
           </label>
@@ -131,26 +141,17 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
           <label htmlFor="sleepHours"><strong>Ύπνος (ώρες)</strong></label>
           <input id="sleepHours" name="sleepHours" type="number" min={0} max={24} step={0.5} defaultValue={entry?.sleepHours} required />
         </div>
+        <div className="field">
+          <label htmlFor="win"><strong>Μια νίκη σήμερα</strong> (προαιρετικό)</label>
+          <input id="win" name="win" maxLength={500} placeholder="κάτι μικρό που τα κατάφερες" defaultValue={dec(entry?.win)} />
+        </div>
         <fieldset className="field" style={{ border: 0, padding: 0 }}>
-          <legend><strong>Σκέψεις να κάνεις κακό στον εαυτό σου σήμερα;</strong></legend>
-          {[
-            ["NO", "Όχι"],
-            ["PASSING", "Πέρασε μια σκέψη"],
-            ["YES", "Ναι"],
-            ["UNSURE", "Δεν είμαι σίγουρος/η"],
-          ].map(([v, l]) => (
-            <label key={v} className="row" style={{ gap: 8 }}>
-              <input type="radio" name="selfHarm" value={v} defaultChecked={entry?.selfHarm === v} required style={{ width: "auto" }} /> {l}
-            </label>
-          ))}
-        </fieldset>
-        <fieldset className="field" style={{ border: 0, padding: 0 }}>
-          <legend><strong>Έγινε χρήση σήμερα;</strong></legend>
-          <label className="row" style={{ gap: 8 }}>
-            <input type="radio" name="used" value="no" defaultChecked={entry ? !entry.used : false} required style={{ width: "auto" }} /> Όχι
+          <legend><strong>Υπήρξε κάτι σήμερα που θέλεις να ξέρει η ομάδα;</strong> <span className="muted small">τσέκαρε μόνο αν ισχύει</span></legend>
+          <label className="row" style={{ gap: 8, flexWrap: "nowrap" }}>
+            <input type="checkbox" name="used" defaultChecked={entry?.used} style={{ width: "auto", flex: "none" }} /> <span>Έκανα χρήση</span>
           </label>
-          <label className="row" style={{ gap: 8 }}>
-            <input type="radio" name="used" value="yes" defaultChecked={entry?.used} required style={{ width: "auto" }} /> Ναι
+          <label className="row" style={{ gap: 8, flexWrap: "nowrap" }}>
+            <input type="checkbox" name="harm" defaultChecked={entry ? entry.selfHarm === "YES" || entry.selfHarm === "UNSURE" : false} style={{ width: "auto", flex: "none" }} /> <span>Είχα σκέψεις να κάνω κακό στον εαυτό μου</span>
           </label>
         </fieldset>
         {goal && (
