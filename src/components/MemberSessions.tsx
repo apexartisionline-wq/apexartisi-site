@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { NoteTags } from "@/components/NoteTags";
 import { dec } from "@/lib/crypto";
+import { hideOther, nameVariants } from "@/lib/pair-note";
+import { vocative } from "@/lib/vocative";
 import { prisma } from "@/lib/db";
 import { formatDate, formatHour } from "@/lib/time";
 
@@ -16,6 +18,7 @@ export async function MemberSessions({ memberId, limit = 30 }: { memberId: strin
           note: { include: { therapist: { select: { name: true } } } },
           // Therapair: μόνο το σημείωμα αυτού του μέλους, ποτέ του άλλου (ούτε το όνομά του).
           pairNotes: { where: { memberId }, include: { therapist: { select: { name: true } } } },
+          bookings: { where: { memberId: { not: memberId } }, select: { member: { select: { name: true } } } },
         },
       },
     },
@@ -28,6 +31,9 @@ export async function MemberSessions({ memberId, limit = 30 }: { memberId: strin
       {bookings.map((b) => {
         const past = b.slot.startsAt < now;
         const note = b.slot.kind === "PAIR" ? b.slot.pairNotes[0] : b.slot.note;
+        // Therapair: δεύτερη δικλίδα — το όνομα του άλλου δεν φαίνεται ποτέ εδώ.
+        const other = b.slot.kind === "PAIR" ? b.slot.bookings.flatMap((o) => nameVariants(o.member.name, vocative)) : [];
+        const show = (t: string) => (other.length ? hideOther(t, other) : t);
         return (
           <div className="card" key={b.id}>
             <div className="row spread small">
@@ -43,8 +49,8 @@ export async function MemberSessions({ memberId, limit = 30 }: { memberId: strin
             </div>
             {note ? (
               <div className="body-text" style={{ marginTop: 8 }}>
-                {dec(note.content)}
-                <NoteTags riskChange={note.riskChange} usedSince={note.usedSince} nextStep={dec(note.nextStep)} />
+                {show(dec(note.content))}
+                <NoteTags riskChange={note.riskChange} usedSince={note.usedSince} nextStep={show(dec(note.nextStep))} text={show(dec(note.content))} />
                 <div className="muted small">— {note.therapist.name}</div>
               </div>
             ) : (

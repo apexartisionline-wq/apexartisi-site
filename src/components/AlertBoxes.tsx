@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ALERT_SOURCE, type AlertBox } from "@/lib/assessment-db";
+import type { AlertBox } from "@/lib/assessment-db";
 import { formatTime, formatWhen, localParts } from "@/lib/time";
 
 // Σοβαρά σημεία των τελευταίων 24 ωρών: ένα κουτί ανά μέλος (στο «Σήμερα» της ομάδας και της διαχείρισης).
@@ -13,7 +13,7 @@ export function AlertBoxes({ boxes }: { boxes: AlertBox[] }) {
           <ul className="lines small">
             {items.map((a) => (
               <li key={a.id}>
-                <strong>{a.text}</strong> · {ALERT_SOURCE[a.source] ?? ""}, {a.by}, {localParts(a.createdAt).date === today ? formatTime(a.createdAt) : formatWhen(a.createdAt)}
+                <strong>{a.text}</strong> · {a.sourceLabel}, {a.by}, {localParts(a.createdAt).date === today ? formatTime(a.createdAt) : formatWhen(a.createdAt)}
               </li>
             ))}
           </ul>

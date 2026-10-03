@@ -60,7 +60,7 @@ export default async function MemberNotesPage({ params, searchParams }: { params
             {" · "}{n.therapist}{n.pair && " · Therapair"}
           </div>
           <div className="body-text" style={{ marginTop: 8 }}>{n.text}</div>
-          <NoteTags riskChange={n.riskChange} usedSince={n.usedSince} nextStep={n.next} />
+          <NoteTags riskChange={n.riskChange} usedSince={n.usedSince} nextStep={n.next} text={n.text} />
         </div>
       ))}
     </main>

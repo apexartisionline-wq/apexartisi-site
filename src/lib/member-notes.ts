@@ -1,6 +1,8 @@
 import "server-only";
 import { dec } from "./crypto";
 import { prisma } from "./db";
+import { hideOther, nameVariants } from "./pair-note";
+import { vocative } from "./vocative";
 
 // Τα σημειώματα ενός μέλους, από όλους τους θεραπευτές: ατομικές (κοινό σημείωμα της θέσης) και
 // Therapair (μόνο το δικό του σημείωμα — ποτέ του άλλου μέλους).
@@ -36,11 +38,14 @@ export async function memberNotes(memberId: string, o: Opts = {}): Promise<Membe
     }),
     prisma.pairNote.findMany({
       where: { memberId, slot: slotWhere },
-      include: sel,
+      include: { ...sel, slot: { select: { id: true, date: true, hour: true, startsAt: true, bookings: { where: { memberId: { not: memberId } }, select: { member: { select: { name: true } } } } } } },
       orderBy: { slot: { startsAt: "desc" } },
       ...(o.take ? { take: o.take } : {}),
     }),
   ]);
+  // Δεύτερη δικλίδα στην ανάγνωση: ακόμα κι αν κάποιο παλιό σημείωμα Therapair έχει το όνομα του άλλου, δεν φαίνεται.
+  const others = new Map(pair.map((n) => [n.id, n.slot.bookings.flatMap((b) => nameVariants(b.member.name, vocative))]));
+  const safe = (id: string, t: string) => (others.get(id)?.length ? hideOther(t, others.get(id)!) : t);
   const rows = [
     ...single.map((n) => ({ n, pair: false })),
     ...pair.map((n) => ({ n, pair: true })),
@@ -53,8 +58,8 @@ export async function memberNotes(memberId: string, o: Opts = {}): Promise<Membe
     pair: isPair,
     therapistId: n.therapist.id,
     therapist: n.therapist.name,
-    text: dec(n.content),
-    next: dec(n.nextStep),
+    text: isPair ? safe(n.id, dec(n.content)) : dec(n.content),
+    next: isPair ? safe(n.id, dec(n.nextStep)) : dec(n.nextStep),
     riskChange: n.riskChange,
     usedSince: n.usedSince,
     createdAt: n.createdAt,

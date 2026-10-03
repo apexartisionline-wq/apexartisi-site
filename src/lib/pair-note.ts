@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { PRESENTED } from "./note-form";
+import { JOURNALING, PRESENTED } from "./note-form";
 
 // Σημειωματάριο Therapair (βλ. CLAUDE.md, «Therapair»): κάθε ερώτηση γράφεται με τα δύο ονόματα,
 // αλλά αποθηκεύεται ως ξεχωριστό σημείωμα στον φάκελο του καθενός — χωρίς στοιχεία του άλλου.
@@ -23,6 +23,8 @@ export const pairSideSchema = z
     emerged: z.array(z.string().max(120)).max(10).default([]), // «Φόρμα Ν · …» της θεματικής της εβδομάδας
     emergedText: text(4000),
     outcome: text(3000),
+    positives: text(1000),
+    journaling: pick(JOURNALING).optional(),
     suggested: text(1000),
     sober: z.boolean().default(true),
     newSoberSince: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
@@ -41,23 +43,55 @@ export type PairSide = z.infer<typeof pairSideSchema>;
 
 export const pairNoteSchema = z.object({ a: pairSideSchema, b: pairSideSchema });
 
+// Σύγκριση χωρίς τόνους και κεφαλαία («Γιωργος», «ΕΛΕΝΗ» = «Γιώργος», «Ελένη»).
+const norm = (w: string) => w.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/ς/g, "σ");
+// Το θέμα του ονόματος, χωρίς κατάληξη, για να πιάνονται και οι πτώσεις («Γιώργου», «Ελένης», «Γιώργη»).
+const stemOf = (w: string) => norm(w).replace(/(ουσ|οσ|ου|ησ|ασ|εσ|ισ|ων|οι|ο|ε|η|α|ι)$/, "");
+
+type Matcher = { stems: string[]; initials: string[] };
+function matcher(otherNames: string[]): Matcher {
+  const words = [...new Set(otherNames.flatMap((n) => n.trim().split(/\s+/)).filter(Boolean))];
+  const first = otherNames[0]?.trim().split(/\s+/)[0] ?? "";
+  const surnames = new Set(otherNames[0]?.trim().split(/\s+/).slice(1) ?? []);
+  // Μικρό όνομα από 3 γράμματα θέμα· επώνυμο μόνο αν είναι μακρύ (για να μην πιάνει κοινές λέξεις).
+  const stems = [...new Set(words.map((w) => ({ w, st: stemOf(w) })).filter(({ w, st }) => st.length >= (surnames.has(w) ? 5 : 3)).map(({ st }) => st))];
+  return { stems, initials: first ? [norm(first)[0]] : [] };
+}
+const isOther = (word: string, m: Matcher) => {
+  const n = norm(word);
+  return m.stems.some((st) => n.startsWith(st) && n.length - st.length <= 4);
+};
+
+/** Ποιες λέξεις του κειμένου μοιάζουν με το όνομα του άλλου μέλους (για προειδοποίηση πριν την αποθήκευση). */
+export function findOther(textIn: string, otherNames: string[]): string[] {
+  const m = matcher(otherNames);
+  const found = (textIn.match(/\p{L}+/gu) ?? []).filter((w) => isOther(w, m));
+  const initials = textIn.match(/(?<!\p{L})(?:ο|η|τον|την|τη|του|της)\s+\p{Lu}\./gu) ?? [];
+  return [...new Set([...found, ...initials.filter((x) => m.initials.includes(norm(x.slice(-2, -1))))])];
+}
+
 /**
  * Κρύβει το όνομα του άλλου μέλους από ελεύθερο κείμενο («το άλλο μέλος»), ώστε να μη μπει
- * ποτέ στον φάκελο του ενός στοιχείο του άλλου. Πιάνει ολόκληρο όνομα, μικρό όνομα και κλητική.
+ * ποτέ στον φάκελο του ενός στοιχείο του άλλου. Πιάνει ολόκληρο όνομα, μικρό όνομα, πτώσεις,
+ * χαϊδευτικά με την ίδια ρίζα, χωρίς τόνους ή με κεφαλαία, και αρχικό με άρθρο («ο Γ.»).
  */
 export function hideOther(textIn: string, otherNames: string[]): string {
-  const names = [...new Set(otherNames.map((n) => n.trim()).filter((n) => n.length >= 3))].sort((x, y) => y.length - x.length);
-  let out = textIn;
-  for (const n of names) {
-    const esc = n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const word = `${esc}(?![\\p{L}])`;
-    // Μαζί με το άρθρο, ώστε να διαβάζεται σωστά («τον Νίκο» → «το άλλο μέλος», «του Νίκου» → «του άλλου μέλους»).
-    out = out
-      .replace(new RegExp(`(?<![\\p{L}])(στον|στην|στη)\\s+${word}`, "giu"), "στο άλλο μέλος")
-      .replace(new RegExp(`(?<![\\p{L}])(του|της)\\s+${word}`, "giu"), "του άλλου μέλους")
-      .replace(new RegExp(`(?<![\\p{L}])(ο|η|τον|την|τη)\\s+${word}`, "giu"), "το άλλο μέλος")
-      .replace(new RegExp(`(?<![\\p{L}])${word}`, "giu"), "το άλλο μέλος");
-  }
+  const m = matcher(otherNames);
+  const phrase = (art: string | undefined) => {
+    const a = (art ?? "").toLowerCase();
+    if (a.startsWith("στ")) return "στο άλλο μέλος";
+    if (a === "του" || a === "της") return "του άλλου μέλους";
+    return "το άλλο μέλος";
+  };
+  let out = textIn.replace(/(?<!\p{L})(?:(στον|στην|στη|του|της|ο|η|τον|την|τη)\s+)?(\p{L}+)(?!\p{L})/giu, (all, art: string | undefined, word: string) =>
+    isOther(word, m) ? phrase(art) : all,
+  );
+  out = out.replace(/(?<!\p{L})(στον|στην|στη|του|της|ο|η|τον|την|τη)\s+(\p{Lu})\.(?!\p{L})/gu, (all, art: string, ini: string) =>
+    m.initials.includes(norm(ini)) ? phrase(art) : all,
+  );
+  // «το άλλο μέλος το άλλο μέλος» (όνομα + επώνυμο) → μία φορά· κεφαλαίο στην αρχή πρότασης.
+  out = out.replace(/(το άλλο μέλος|του άλλου μέλους|στο άλλο μέλος)(\s+(?:το άλλο μέλος|του άλλου μέλους))+/g, "$1");
+  out = out.replace(/(^|[.!;]\s+)(το|του|στο) (άλλο|άλλου)/g, (_a, pre: string, w: string, x: string) => `${pre}${w[0].toUpperCase()}${w.slice(1)} ${x}`);
   return out;
 }
 
@@ -79,6 +113,8 @@ export function composePairNote(d: PairSide, otherNames: string[]): string {
   add("Στάση", d.stance ?? "");
   add("Τι εμφανίστηκε", [d.emerged.join(", "), h(d.emergedText)].filter(Boolean).join(" — "));
   add("Τι βγήκε από την κουβέντα", h(d.outcome));
+  add("Τα θετικά", h(d.positives));
+  add("Γράφει απογραφές", d.journaling ?? "");
   add("Τι προτείναμε", h(d.suggested));
   lines.push(d.sober ? "Νηφάλιος/α από την προηγούμενη φορά." : `Όχι νηφάλιος/α από την προηγούμενη φορά· νέα ημερομηνία νηφαλιότητας ${d.newSoberSince}.`);
   lines.push(d.safeOk ? "Ασφάλεια: χωρίς ανησυχία." : "Ασφάλεια: υπάρχει ανησυχία (βλ. προβληματισμό).");
@@ -89,7 +125,7 @@ export function composePairNote(d: PairSide, otherNames: string[]): string {
 /** Τα ελεύθερα κείμενα χωρίς το όνομα του άλλου (για την αποθήκευση των δομημένων πεδίων). */
 export function scrubSide(d: PairSide, otherNames: string[]): PairSide {
   const h = (s: string) => hideOther(s, otherNames);
-  return { ...d, presentedText: h(d.presentedText), emergedText: h(d.emergedText), outcome: h(d.outcome), suggested: h(d.suggested), concern: h(d.concern) };
+  return { ...d, presentedText: h(d.presentedText), emergedText: h(d.emergedText), outcome: h(d.outcome), positives: h(d.positives), suggested: h(d.suggested), concern: h(d.concern) };
 }
 
 export function pairFlags(d: PairSide): { riskChange: "UP" | "SAME"; usedSince: "YES" | "NO"; notify: boolean } {

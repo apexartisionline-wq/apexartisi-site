@@ -137,7 +137,14 @@ export async function recentAlerts(now = new Date()) {
   const rows = await prisma.teamAlert.findMany({ where: { createdAt: { gte: new Date(now.getTime() - 24 * 3600_000) } }, orderBy: [{ createdAt: "desc" }, { id: "asc" }] });
   const ids = [...new Set(rows.flatMap((r) => [r.memberId, r.byId]))];
   const names = new Map((await prisma.user.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } })).map((u) => [u.id, u.name]));
-  return rows.map((r) => ({ ...r, member: names.get(r.memberId) ?? "Μέλος", by: names.get(r.byId) ?? "", text: alertText(r.source, r.kind), mild: isMild(r.source, r.kind) }));
+  return rows.map((r) => ({
+    ...r,
+    member: names.get(r.memberId) ?? "Μέλος",
+    by: names.get(r.byId) ?? "",
+    text: alertText(r.source, r.kind),
+    mild: isMild(r.source, r.kind),
+    sourceLabel: r.source === "NOTE" && r.kind.startsWith("PAIR:") ? "Σημείωμα Therapair" : (ALERT_SOURCE[r.source] ?? ""),
+  }));
 }
 
 /**

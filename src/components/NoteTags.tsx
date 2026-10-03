@@ -1,7 +1,9 @@
 import { RISK_CHANGE, type RiskChange, USED_SINCE, type UsedSince } from "@/lib/handover-rules";
 
 // Τα δομημένα πεδία ενός σημειώματος, ως μικρές ετικέτες.
-export function NoteTags({ riskChange, usedSince, nextStep }: { riskChange: string | null; usedSince: string | null; nextStep?: string }) {
+export function NoteTags({ riskChange, usedSince, nextStep, text }: { riskChange: string | null; usedSince: string | null; nextStep?: string; text?: string }) {
+  // Αν το «Τι προτείναμε» είναι ήδη μέσα στο σημείωμα, δεν το ξαναγράφουμε.
+  if (nextStep && text?.includes(nextStep)) nextStep = undefined;
   if (!riskChange && !usedSince && !nextStep) return null;
   return (
     <div className="small" style={{ marginTop: 6 }}>

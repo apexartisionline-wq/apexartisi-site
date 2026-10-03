@@ -4,6 +4,8 @@ import { PrintButton } from "@/components/PrintButton";
 import { logAccess } from "@/lib/audit";
 import { requireRole } from "@/lib/auth";
 import { dec } from "@/lib/crypto";
+import { hideOther, nameVariants } from "@/lib/pair-note";
+import { vocative } from "@/lib/vocative";
 import { cyclePicture, cycleReviews } from "@/lib/cycle-review";
 import { prisma } from "@/lib/db";
 import { formatDate, formatWhen, localParts } from "@/lib/time";
@@ -16,7 +18,7 @@ export default async function MonthFolder({ params }: { params: Promise<{ id: st
   const member = await prisma.user.findFirst({ where: { id, role: "MEMBER" }, select: { id: true, name: true } });
   const cycle = await prisma.cycle.findFirst({
     where: { id: cycleId, memberId: id },
-    include: { bookings: { include: { slot: { include: { note: { include: { therapist: { select: { name: true } } } }, pairNotes: { where: { memberId: id }, include: { therapist: { select: { name: true } } } }, therapist: { select: { name: true } } } } }, orderBy: { slot: { startsAt: "asc" } } } },
+    include: { bookings: { include: { slot: { include: { note: { include: { therapist: { select: { name: true } } } }, pairNotes: { where: { memberId: id }, include: { therapist: { select: { name: true } } } }, bookings: { where: { memberId: { not: id } }, select: { member: { select: { name: true } } } }, therapist: { select: { name: true } } } } }, orderBy: { slot: { startsAt: "asc" } } } },
   });
   if (!member || !cycle) notFound();
   await logAccess(user.id, id, "month_folder_view");
@@ -61,7 +63,7 @@ export default async function MonthFolder({ params }: { params: Promise<{ id: st
       {cycle.bookings.map((b, i) => { const note = b.slot.kind === "PAIR" ? b.slot.pairNotes[0] : b.slot.note; return (
         <div key={b.id} className="card small">
           <strong>{i + 1}. {formatDate(b.slot.date)}</strong> · {b.slot.kind === "PAIR" ? "Therapair" : "Ατομική"} · {note?.therapist.name ?? b.slot.therapist?.name ?? ""}{b.slot.startsAt > new Date() ? " · προγραμματισμένη" : !b.joinedAt && " · δεν ήρθε"}
-          {note ? <div className="body-text" style={{ marginTop: 6 }}>{dec(note.content)}</div> : <div className="muted">Χωρίς σημείωμα.</div>}
+          {note ? <div className="body-text" style={{ marginTop: 6 }}>{b.slot.kind === "PAIR" ? hideOther(dec(note.content), b.slot.bookings.flatMap((o) => nameVariants(o.member.name, vocative))) : dec(note.content)}</div> : <div className="muted">Χωρίς σημείωμα.</div>}
         </div>
       ); })}
 

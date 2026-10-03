@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { PRESENTED } from "@/lib/note-form";
-import { ACCEPTED_HELP, CONNECTED, type PairSide, pairSideSchema, STANCE } from "@/lib/pair-note";
+import { JOURNALING, PRESENTED } from "@/lib/note-form";
+import { ACCEPTED_HELP, CONNECTED, findOther, nameVariants, type PairSide, pairSideSchema, STANCE } from "@/lib/pair-note";
+import { vocative } from "@/lib/vocative";
 
 type Member = { id: string; name: string };
 type Props = {
@@ -11,13 +12,14 @@ type Props = {
   members: [Member, Member];
   initial: Record<string, Partial<PairSide>>;
   themeForms: string[];
+  version: string; // πότε άλλαξε τελευταία φορά (για να μη σβήσει κάποιος αλλαγή άλλης συσκευής)
 };
 
 const fresh = (): Partial<PairSide> => ({ came: true, sober: true, safeOk: true, notify: false });
 
 // Σημειωματάριο Therapair: κάθε ερώτηση με τα δύο ονόματα δίπλα-δίπλα (στο κινητό το ένα κάτω από το άλλο).
 // Αποθηκεύεται ως ξεχωριστό σημείωμα στον φάκελο του καθενός.
-export function PairNoteClient({ action, slotId, members, initial, themeForms }: Props) {
+export function PairNoteClient({ action, slotId, members, initial, themeForms, version }: Props) {
   const [m1, m2] = members;
   const [d, setD] = useState<Record<string, Partial<PairSide>>>({
     [m1.id]: { ...fresh(), ...initial[m1.id] },
@@ -54,6 +56,21 @@ export function PairNoteClient({ action, slotId, members, initial, themeForms }:
   }, [d, draftKey, touched]);
 
   const [problem, setProblem] = useState("");
+  // Πριν την αποθήκευση: αν βρεθεί το όνομα του άλλου στο κείμενο του ενός, το λέμε στον θεραπευτή
+  // (με το δεύτερο πάτημα αλλάζει αυτόματα σε «το άλλο μέλος»).
+  const [warned, setWarned] = useState("");
+  const TEXTS = [["presentedText", "Πώς παρουσιάστηκε"], ["emergedText", "Τι εμφανίστηκε"], ["outcome", "Τι βγήκε"], ["positives", "Τα θετικά"], ["suggested", "Τι προτείναμε"], ["concern", "Προβληματισμός"]] as const;
+  const nameHits = () => {
+    const hits: string[] = [];
+    for (const m of members) {
+      const other = members.find((o) => o.id !== m.id)!;
+      for (const [k, label] of TEXTS) {
+        const words = findOther(String(d[m.id][k] ?? ""), nameVariants(other.name, vocative));
+        if (words.length) hits.push(`στο «${label}» (${first(m)}): ${words.join(", ")}`);
+      }
+    }
+    return hits;
+  };
   const check = (e: React.FormEvent<HTMLFormElement>) => {
     let msg = "";
     for (const m of members) {
@@ -64,6 +81,13 @@ export function PairNoteClient({ action, slotId, members, initial, themeForms }:
       }
     }
     if (!msg && !navigator.onLine) msg = "Δεν υπάρχει σύνδεση στο ίντερνετ· πάτα ξανά μόλις επανέλθει.";
+    if (!msg) {
+      const hits = nameHits().join(" · ");
+      if (hits && hits !== warned) {
+        setWarned(hits);
+        msg = `Βρέθηκε το όνομα του άλλου μέλους ${hits}. Άλλαξέ το σε «το άλλο μέλος» — ή πάτα ξανά «Αποθήκευση» και θα αλλάξει αυτόματα.`;
+      }
+    }
     setProblem(msg);
     if (msg) e.preventDefault();
   };
@@ -94,7 +118,14 @@ export function PairNoteClient({ action, slotId, members, initial, themeForms }:
       ))}
     </div>
   );
-  const text = (m: Member, k: "presentedText" | "emergedText" | "outcome" | "suggested" | "concern", label: string, ph = "", rows = 2) => (
+  const journalChips = (m: Member) => (
+    <div className="chips">
+      {JOURNALING.map((o) => (
+        <button key={o} type="button" className="chip" aria-pressed={d[m.id].journaling === o} onClick={() => set(m.id, "journaling", (d[m.id].journaling === o ? undefined : o) as never)}>{o}</button>
+      ))}
+    </div>
+  );
+  const text = (m: Member, k: "presentedText" | "emergedText" | "outcome" | "positives" | "suggested" | "concern", label: string, ph = "", rows = 2) => (
     <textarea aria-label={`${label} — ${first(m)}`} placeholder={ph} rows={rows} style={{ minHeight: rows * 24 + 20, marginTop: 8 }} value={(d[m.id][k] as string | undefined) ?? ""} onChange={(e) => set(m.id, k, e.target.value as never)} />
   );
   const sw = (m: Member, k: "came" | "sober" | "safeOk" | "notify", label: string) => {
@@ -107,23 +138,36 @@ export function PairNoteClient({ action, slotId, members, initial, themeForms }:
     );
   };
 
+  // Κάθε ερώτηση κλείνει όταν γεμίσει (λιγότερη κύλιση στη μέση της συνεδρίας).
+  const filled = (k: keyof PairSide) => members.every((m) => { const v = d[m.id][k]; return Array.isArray(v) ? v.length > 0 : v !== undefined && v !== ""; });
+  // Απλή συνάρτηση (όχι component), ώστε τα πεδία να μη χάνουν τον κέρσορα όσο γράφεις.
+  const sec = (title: string, done: boolean, children: React.ReactNode) => (
+    <details className="pair-sec" open key={title}>
+      <summary>{title}{done && <span className="muted small"> ✓</span>}</summary>
+      {children}
+    </details>
+  );
+
   return (
     <form action={action} onSubmit={check} className="note-form">
       <input type="hidden" name="slotId" value={slotId} />
+      <input type="hidden" name="version" value={version} />
       <input type="hidden" name="payload" value={JSON.stringify(Object.fromEntries(members.map((m) => [m.id, { ...d[m.id], notify: notifyOf(d[m.id]) }])))} />
       {restored && <div className="notice">Βρέθηκε πρόχειρο που δεν είχε αποθηκευτεί — συνέχισε από εκεί.</div>}
       <p className="muted small" style={{ marginTop: 0 }}>
         Κάθε μέλος παίρνει <strong>δικό του σημείωμα</strong> στον φάκελό του. Στο κείμενο του ενός γράψε «το άλλο μέλος» — αν ξεφύγει όνομα, γράφεται αυτόματα «το άλλο μέλος».
       </p>
 
-      <fieldset><legend>Ήρθε</legend>{both((m) => sw(m, "came", "Ήρθε"))}</fieldset>
-      <fieldset><legend>Πώς παρουσιάστηκε</legend>{both((m) => <>{multi(m, "presented", PRESENTED)}{text(m, "presentedText", "Πώς παρουσιάστηκε", "με λόγια", 1)}</>)}</fieldset>
-      <fieldset><legend>Συνδέθηκε με το άλλο μέλος</legend>{both((m) => chips(m, "connected", CONNECTED))}</fieldset>
-      <fieldset><legend>Δέχτηκε βοήθεια</legend>{both((m) => chips(m, "acceptedHelp", ACCEPTED_HELP))}</fieldset>
-      <fieldset><legend>Στάση</legend>{both((m) => chips(m, "stance", STANCE))}</fieldset>
-      <fieldset><legend>Τι εμφανίστηκε</legend>{both((m) => <>{themeForms.length > 0 && multi(m, "emerged", themeForms)}{text(m, "emergedText", "Τι εμφανίστηκε", "με δικά σου λόγια", 3)}</>)}</fieldset>
-      <fieldset><legend>Τι βγήκε από την κουβέντα</legend>{both((m) => text(m, "outcome", "Τι βγήκε από την κουβέντα", "", 2))}</fieldset>
-      <fieldset><legend>Τι προτείναμε</legend>{both((m) => text(m, "suggested", "Τι προτείναμε", "φαίνεται στον επόμενο θεραπευτή", 1))}</fieldset>
+      <fieldset>{both((m) => sw(m, "came", "Ήρθε"))}</fieldset>
+      {sec("Πώς παρουσιάστηκε", filled("presented"), <>{both((m) => <>{multi(m, "presented", PRESENTED)}{text(m, "presentedText", "Πώς παρουσιάστηκε", "με λόγια", 1)}</>)}</>)}
+      {sec("Συνδέθηκε με το άλλο μέλος", filled("connected"), <>{both((m) => chips(m, "connected", CONNECTED))}</>)}
+      {sec("Δέχτηκε βοήθεια", filled("acceptedHelp"), <>{both((m) => chips(m, "acceptedHelp", ACCEPTED_HELP))}</>)}
+      {sec("Στάση", filled("stance"), <>{both((m) => chips(m, "stance", STANCE))}</>)}
+      {sec("Τι εμφανίστηκε", filled("emergedText"), <>{both((m) => <>{themeForms.length > 0 && multi(m, "emerged", themeForms)}{text(m, "emergedText", "Τι εμφανίστηκε", "με δικά σου λόγια", 3)}</>)}</>)}
+      {sec("Τι βγήκε από την κουβέντα", filled("outcome"), <>{both((m) => text(m, "outcome", "Τι βγήκε από την κουβέντα", "", 2))}</>)}
+      {sec("Τα θετικά", filled("positives"), <>{both((m) => text(m, "positives", "Τα θετικά", "π.χ. στάθηκε δίπλα στο άλλο μέλος", 1))}</>)}
+      {sec("Γράφει απογραφές;", filled("journaling"), <>{both((m) => journalChips(m))}</>)}
+      {sec("Τι προτείναμε", filled("suggested"), <>{both((m) => text(m, "suggested", "Τι προτείναμε", "φαίνεται στον επόμενο θεραπευτή", 1))}</>)}
       <fieldset>
         <legend>Νηφαλιότητα και ασφάλεια</legend>
         {both((m) => (

@@ -145,6 +145,10 @@ async function savePair(formData: FormData) {
   const id = String(formData.get("slotId"));
   const x = await loadSlot(id);
   if (!x || !canWrite(x, user) || x.kind !== "PAIR" || x.bookings.length !== 2) notFound();
+  // Αν στο μεταξύ το άλλαξε κάποιος άλλος (ή άλλη συσκευή), δεν το γράφουμε από πάνω χωρίς να το δει.
+  const version = String(formData.get("version") ?? "");
+  const latest = x.pairNotes.reduce((t, n) => Math.max(t, n.updatedAt.getTime()), 0);
+  if (latest && String(latest) !== version) redirect(`/t/s/${id}?error=${encodeURIComponent("Το σημείωμα άλλαξε στο μεταξύ (άλλη συσκευή ή άλλος θεραπευτής). Δες την τελευταία μορφή και ξαναγράψε την αλλαγή σου· το πρόχειρό σου κρατήθηκε.")}&edit=1`);
   let raw: Record<string, unknown> = {};
   try { raw = JSON.parse(String(formData.get("payload") ?? "{}")); } catch {}
   const sides: { memberId: string; d: PairSide; other: string[] }[] = [];
@@ -181,7 +185,7 @@ async function savePair(formData: FormData) {
       await prisma.booking.updateMany({ where: { slotId: id, memberId }, data: { joinedAt: null } });
     }
     if (flags.notify) {
-      const kind = `CONCERN:${id}`;
+      const kind = `PAIR:${id}`;
       if (!(await prisma.teamAlert.findFirst({ where: { memberId, source: "NOTE", kind } }))) {
         await prisma.teamAlert.create({ data: { memberId, source: "NOTE", kind, byId: user.id } });
       }
@@ -255,7 +259,7 @@ export default async function SessionPage({
                 {n.slot.kind === "PAIR" && " · Therapair"}
               </div>
               <div className="body-text">{dec(n.content)}</div>
-              <NoteTags riskChange={n.riskChange} usedSince={n.usedSince} nextStep={dec(n.nextStep)} />
+              <NoteTags riskChange={n.riskChange} usedSince={n.usedSince} nextStep={dec(n.nextStep)} text={dec(n.content)} />
             </div>
           ))}
         </section>
@@ -269,7 +273,7 @@ export default async function SessionPage({
         x.note ? (
           <div className="card">
             <div className="body-text">{dec(x.note.content)}</div>
-            <NoteTags riskChange={x.note.riskChange} usedSince={x.note.usedSince} nextStep={dec(x.note.nextStep)} />
+            <NoteTags riskChange={x.note.riskChange} usedSince={x.note.usedSince} nextStep={dec(x.note.nextStep)} text={dec(x.note.content)} />
           </div>
         ) : <p className="muted">Δεν έχει γραφτεί σημείωμα ακόμα.</p>
       ) : past && x.bookings.length > 0 ? (
@@ -315,7 +319,7 @@ export default async function SessionPage({
                 Πριν από την αλλαγή της {formatWhen(v.createdAt)} · {editors.find((e) => e.id === v.editorId)?.name ?? "—"}
               </div>
               <div className="body-text">{dec(v.content)}</div>
-              <NoteTags riskChange={v.riskChange} usedSince={v.usedSince} nextStep={dec(v.nextStep)} />
+              <NoteTags riskChange={v.riskChange} usedSince={v.usedSince} nextStep={dec(v.nextStep)} text={dec(v.content)} />
             </div>
           ))}
         </details>
@@ -531,8 +535,17 @@ async function PairSession({ x, user, sp }: { x: Slot; user: { id: string; role:
       {sp.saved && <div className="notice">Αποθηκεύτηκε ✓ — ένα σημείωμα στον φάκελο του καθενός.</div>}
       {sp.saved && <ClearDraft k={`pair-draft:${x.id}`} />}
       {sp.error && <div className="error">Δεν αποθηκεύτηκε: {sp.error}</div>}
+      {showForm && sp.error && x.pairNotes.length > 0 && (
+        <details className="card small" open>
+          <summary>Η τελευταία αποθηκευμένη μορφή</summary>
+          {members.map((m) => {
+            const n = x.pairNotes.find((p) => p.memberId === m.id);
+            return n ? <div key={m.id} style={{ marginTop: 8 }}><div className="pair-name">{first(m.name)} · {n.therapist.name}, {formatWhen(n.updatedAt)}</div><div className="body-text">{dec(n.content)}</div></div> : null;
+          })}
+        </details>
+      )}
       {showForm ? (
-        <PairNoteClient action={savePair} slotId={x.id} members={members} initial={initial} themeForms={forms} />
+        <PairNoteClient action={savePair} slotId={x.id} members={members} initial={initial} themeForms={forms} version={String(x.pairNotes.reduce((t, n) => Math.max(t, n.updatedAt.getTime()), 0) || "")} />
       ) : x.pairNotes.length > 0 ? (
         <>
           <div className="pair-grid">
