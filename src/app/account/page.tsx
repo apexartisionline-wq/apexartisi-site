@@ -88,7 +88,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
   const qr = staff && !user.totpEnabled && user.totpSecret ? await qrFor(user.totpSecret, user.username, s.appName) : null;
   return (
     <>
-      <Nav links={navLinks(user.role, { hasPlan: user.role === "MEMBER" && Boolean(await prisma.safetyPlan.findUnique({ where: { memberId: user.id }, select: { memberId: true } })) })} />
+      <Nav menu={user.role !== "MEMBER"} links={navLinks(user.role, { hasPlan: user.role === "MEMBER" && Boolean(await prisma.safetyPlan.findUnique({ where: { memberId: user.id }, select: { memberId: true } })) })} />
       <main>
         <h1>Ο λογαριασμός μου</h1>
         <div className="card">

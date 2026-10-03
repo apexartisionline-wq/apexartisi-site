@@ -290,6 +290,8 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
         </div>
       )}
 
+      <div className="split">
+      <div className="side">
       <SafetyZone memberId={b.memberId} />
       {ax?.data.summary && (
         <details className="card" open={!x.note}>
@@ -306,7 +308,7 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
         <div className={`tile${g.groups.total && g.groups.done / g.groups.total < 0.6 ? " warn" : ""}`}><strong>{g.groups.done}/{g.groups.total}</strong><span>ομάδες, 4 εβδ.</span></div>
         <div className="tile"><strong>{g.journal.written}/7</strong><span>απογραφές εβδ.</span></div>
         <div className={`tile${g.help14 ? " warn" : ""}`}><strong>{g.help14}</strong><span>κόκκινο κουμπί, 14 μ.</span></div>
-        <div className="tile"><strong style={{ fontSize: "1.05rem", paddingTop: 4 }}>{intake.trigger ? intake.label : risk ? RISK_LEVELS[risk] : "—"}</strong><span>ανάγκες ασφάλειας</span></div>
+        <div className="tile"><strong style={{ fontSize: "0.95rem", paddingTop: 4, overflowWrap: "anywhere", hyphens: "auto" }}>{intake.trigger ? intake.label : risk ? RISK_LEVELS[risk] : "—"}</strong><span>ανάγκες ασφάλειας</span></div>
       </div>
       <p className="muted small">
         {g.soberSince ? `Νηφάλιος/α από ${formatDate(g.soberSince)}` : "Δεν έχει οριστεί ημερομηνία νηφαλιότητας"}
@@ -358,6 +360,8 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
         </>
       )}
 
+      </div>
+      <div>
       <h2>Σημειωματάριο</h2>
       {sp.saved && <div className="notice">Αποθηκεύτηκε ✓</div>}
       {sp.error && <div className="error">Δεν αποθηκεύτηκε: {sp.error}</div>}
@@ -385,6 +389,8 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
           ))}
         </details>
       )}
+      </div>
+      </div>
     </main>
   );
 }

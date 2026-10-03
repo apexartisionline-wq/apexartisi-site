@@ -116,6 +116,8 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
 
       <Announcements />
 
+      <div className="today-grid">
+      <section className="t-prog">
       <h2>Το πρόγραμμά μου</h2>
       <div className="list">
         {items.map((it) => (
@@ -135,9 +137,10 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
         {items.length === 0 && <div className="muted">Δεν έχεις ομάδα ή συνεδρία αυτή τη μέρα.</div>}
       </div>
       {isToday && items.length > 0 && <p className="muted small">Το «Σύνδεση» ανοίγει το Zoom και καταγράφει την ώρα που μπήκες.</p>}
+      </section>
 
       {(care.length > 0 || red.length > 0 || reviews.length > 0) && (
-        <>
+        <section className="t-see">
           <h2>Να το δεις</h2>
           <div className="list">
             {red.map(({ m, f }) => (
@@ -165,9 +168,10 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
               </form>
             ))}
           </div>
-        </>
+        </section>
       )}
 
+      <section className="t-week">
       <h2>Τις επόμενες 7 μέρες</h2>
       <div className="list">
         {myGroups.filter((g) => g.date > date).map((g) => (
@@ -177,6 +181,8 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
           <Link key={x.id} href={`/t?date=${x.date}`}><span><div>{formatDate(x.date)} {formatHour(x.hour)}</div><div className="sub">{x.kind === "PAIR" ? "Therapair" : "Ατομική"} · {names(x)}</div></span></Link>
         ))}
         {week.length === 0 && myGroups.filter((g) => g.date > date).length === 0 && <div className="muted">Τίποτα.</div>}
+      </div>
+      </section>
       </div>
     </main>
   );

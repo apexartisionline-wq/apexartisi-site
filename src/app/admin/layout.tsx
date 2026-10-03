@@ -7,7 +7,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   await requireStaff2FA(user);
   return (
     <>
-      <Nav links={navLinks("ADMIN")} />
+      <Nav links={navLinks("ADMIN")} menu />
       <main className="wide">{children}</main>
     </>
   );

@@ -7,8 +7,8 @@ export default async function TherapistLayout({ children }: { children: React.Re
   await requireStaff2FA(user);
   return (
     <>
-      <Nav links={navLinks(user.role)} />
-      {children}
+      <Nav links={navLinks(user.role)} menu />
+      <div className="staff">{children}</div>
     </>
   );
 }

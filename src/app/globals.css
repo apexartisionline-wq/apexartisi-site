@@ -94,6 +94,32 @@ nav.top a { padding: 6px 10px; border-radius: 8px; text-decoration: none; color:
 nav.top a:hover { background: var(--soft); }
 nav.top .brand { font-weight: 700; margin-right: auto; display: flex; align-items: center; gap: 8px; }
 nav.top img { height: 28px; }
+.navlinks { display: contents; }
+.navmenu { display: none; position: relative; }
+.navmenu summary { list-style: none; cursor: pointer; }
+.navmenu summary::-webkit-details-marker { display: none; }
+.navmenu-list {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; min-width: 220px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 6px;
+  display: flex; flex-direction: column; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+@media (max-width: 760px) {
+  .navlinks.many { display: none; }
+  .navmenu { display: block; }
+}
+
+/* Σελίδες ομάδας (θεραπευτές, διαχείριση): κυρίως υπολογιστής/tablet — πιο φαρδιά,
+   με δύο στήλες όπου βοηθά· στο κινητό όλα μία στήλη. */
+.staff main { max-width: 1100px; }
+.split { display: grid; gap: 0 28px; }
+@media (min-width: 980px) {
+  .today-grid { display: grid; gap: 0 28px; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "prog see" "week see"; align-items: start; }
+  .t-prog { grid-area: prog; } .t-see { grid-area: see; } .t-week { grid-area: week; }
+}
+@media (min-width: 980px) {
+  .split { grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); align-items: start; }
+  .split > .side { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow-y: auto; }
+}
 .redbar {
   position: fixed; left: 0; right: 0; bottom: 0; padding: 12px 16px;
   background: linear-gradient(transparent, var(--bg) 30%);
