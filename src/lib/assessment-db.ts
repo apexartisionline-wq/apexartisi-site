@@ -129,7 +129,12 @@ export async function recentAlerts(now = new Date()) {
   const rows = await prisma.teamAlert.findMany({ where: { createdAt: { gte: new Date(now.getTime() - 24 * 3600_000) } }, orderBy: { createdAt: "desc" } });
   const ids = [...new Set(rows.flatMap((r) => [r.memberId, r.byId]))];
   const names = new Map((await prisma.user.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } })).map((u) => [u.id, u.name]));
-  return rows.map((r) => ({ ...r, member: names.get(r.memberId) ?? "Μέλος", by: names.get(r.byId) ?? "", text: alertText(r.source, r.kind) }));
+  return rows.map((r) => ({ ...r, member: names.get(r.memberId) ?? "Μέλος", by: names.get(r.byId) ?? "", text: alertText(r.source, r.kind), mild: isMild(r.source, r.kind) }));
+}
+
+/** Η εγκυμοσύνη ειδοποιεί αμέσως, αλλά φαίνεται με κίτρινο (δεν είναι κίνδυνος όπως παιδί ή βία). */
+export function isMild(source: string, kind: string): boolean {
+  return source === "ASSESSMENT" && kind === "PREGNANCY";
 }
 
 /** Τα σοβαρά σημεία που ισχύουν τώρα (από την τελευταία μορφή της αξιολόγησης), με το πότε και από ποιον σημειώθηκαν. */
@@ -143,6 +148,6 @@ export async function assessmentFlags(memberId: string, now = new Date()) {
   const by = new Map((await prisma.user.findMany({ where: { id: { in: rows.map((r) => r.byId) } }, select: { id: true, name: true } })).map((u) => [u.id, u.name]));
   return kinds.map((k) => {
     const r = rows.find((x) => x.kind === k);
-    return { text: `${ALERTS[k]} (αρχική αξιολόγηση${r ? ` · ${by.get(r.byId) ?? ""}` : ""})`, at: r?.createdAt ?? latest.at };
+    return { kind: k, text: `${ALERTS[k]} (αρχική αξιολόγηση${r ? ` · ${by.get(r.byId) ?? ""}` : ""})`, at: r?.createdAt ?? latest.at };
   });
 }

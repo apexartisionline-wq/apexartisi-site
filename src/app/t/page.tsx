@@ -78,7 +78,11 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
   ].sort((a, b) => a.time.localeCompare(b.time));
 
   // Να το δεις: εκκρεμότητες για όποιον το δει πρώτος και μέλη με κόκκινο σήμα.
-  const red = (await Promise.all(members.map(async (m) => ({ m, f: (await memberSafety(m.id)).filter((x) => x.level === "red" || x.key === "risk_review") }))))
+  // Σοβαρά σημεία των τελευταίων 24 ωρών: ένα κουτί ανά μέλος· το ίδιο μέλος δεν ξαναβγαίνει στο «Να το δεις».
+  const shown = alerts.filter((a) => a.source !== "EMERGENCY" || user.role === "ADMIN");
+  const boxes = [...new Set(shown.map((a) => a.memberId))].map((id) => ({ id, items: shown.filter((a) => a.memberId === id) }));
+  const boxed = new Set(boxes.map((b) => b.id));
+  const red = (await Promise.all(members.filter((m) => !boxed.has(m.id)).map(async (m) => ({ m, f: (await memberSafety(m.id)).filter((x) => x.level === "red" || x.key === "risk_review") }))))
     .filter((x) => x.f.length > 0)
     .slice(0, 6);
   const memberName = new Map(members.map((m) => [m.id, m.name]));
@@ -96,10 +100,17 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
       </div>
       <p className="muted" style={{ margin: "2px 0 0" }}>{formatDate(date)} · {user.name}</p>
 
-      {alerts.filter((a) => a.source !== "EMERGENCY" || user.role === "ADMIN").map((a) => (
-        <Link key={a.id} href={`/t/members/${a.memberId}`} className="alertbar" role="alert" style={{ display: "block", textDecoration: "none" }}>
-          <strong>⚑ {a.member} — {a.text}</strong>
-          <div className="small">{ALERT_SOURCE[a.source] ?? ""} · {a.by}, {localParts(a.createdAt).date === today ? formatTime(a.createdAt) : formatWhen(a.createdAt)} {a.source === "ASSESSMENT" && " · μένει στο «Ασφάλεια» του φακέλου"}</div>
+      {boxes.map(({ id, items }) => (
+        <Link key={id} href={`/t/members/${id}`} className={`alertbar${items.every((a) => a.mild) ? " yellow" : ""}`} role="alert" style={{ display: "block", textDecoration: "none" }}>
+          <strong>⚑ {items[0].member}</strong>
+          <ul className="lines small">
+            {items.map((a) => (
+              <li key={a.id}>
+                <strong>{a.text}</strong> · {ALERT_SOURCE[a.source] ?? ""}, {a.by}, {localParts(a.createdAt).date === today ? formatTime(a.createdAt) : formatWhen(a.createdAt)}
+              </li>
+            ))}
+          </ul>
+          {items.some((a) => a.source === "ASSESSMENT") && <div className="small">Μένει στο «Ασφάλεια» του φακέλου</div>}
         </Link>
       ))}
 

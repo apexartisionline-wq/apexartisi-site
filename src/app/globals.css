@@ -186,6 +186,8 @@ nav.top img { height: 28px; }
 .alertbar form { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px; }
 .alertbar button { background: #fff; color: var(--red); border: 0; font-weight: 600; }
 .alertbar a { color: inherit; }
+.alertbar.yellow { background: var(--yellow); color: #fff; }
+.alertbar .lines { margin: 4px 0 0; padding-left: 18px; }
 .sticky-save { position: sticky; bottom: 0; background: var(--bg); padding: 10px 0 calc(10px + env(safe-area-inset-bottom)); display: flex; gap: 8px; }
 .sticky-save > * { flex: 1; }
 

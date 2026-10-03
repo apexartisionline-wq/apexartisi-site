@@ -47,10 +47,12 @@ export async function memberSafety(memberId: string, now = new Date()) {
     intakeComplete: intake.status.complete,
   });
   // Σοβαρά σημεία της αρχικής αξιολόγησης: μένουν όσο ισχύουν στην τελευταία της μορφή.
-  const fromAssessment = (await assessmentFlags(memberId, now)).map((f) => ({ level: "red" as const, text: f.text, at: f.at, href: `/t/members/${memberId}/assessment` }));
+  const fromAssessment = (await assessmentFlags(memberId, now)).map((f) => ({ level: (f.kind === "PREGNANCY" ? "yellow" : "red") as "red" | "yellow", key: `assessment_${f.kind}`, text: f.text, at: f.at, href: `/t/members/${memberId}/assessment` }));
   const trig = await riskTrigger(memberId);
   const review = trig ? [{ level: "yellow" as const, key: "risk_review", text: `Θέλει αξιολόγηση αναγκών ασφάλειας (μετά από ${trig.text})`, at: trig.at, href: `/t/members/${memberId}/risk` }] : [];
-  return [...fromAssessment, ...review, ...flags];
+  // Τα κόκκινα πρώτα (η εγκυμοσύνη είναι κίτρινη).
+  const all = [...fromAssessment, ...review, ...flags];
+  return [...all.filter((f) => f.level === "red"), ...all.filter((f) => f.level !== "red")];
 }
 
 export type CaseVersion = { id: string; data: CaseData; author: string; at: Date };
