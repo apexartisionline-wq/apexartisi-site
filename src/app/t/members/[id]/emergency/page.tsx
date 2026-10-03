@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { TourFor } from "@/components/TourFor";
 import { notFound, redirect } from "next/navigation";
 import { EC_WHEN, latestProfile } from "@/lib/assessment-db";
 import { logAccess } from "@/lib/audit";
@@ -50,7 +51,7 @@ export default async function EmergencyPage({ params }: { params: Promise<{ id: 
     <main>
       <p style={{ margin: "8px 0 0" }}><Link href={`/t/members/${id}/risk`}>‹ Ανάγκες ασφάλειας</Link></p>
       <h1>Έκτακτη ανάγκη — {member.name}</h1>
-      <div className="card">
+      <div className="card" data-tour="numbers">
         <strong>Μείνε μαζί του/της. Μην κλείσεις τη σύνδεση.</strong>
         <div className="row" style={{ gap: 8, marginTop: 10, flexWrap: "wrap" }}>
           <a className="btn red" href="tel:112">112 · Άμεσος κίνδυνος</a>
@@ -63,7 +64,7 @@ export default async function EmergencyPage({ params }: { params: Promise<{ id: 
         </div>
       </div>
       {!opened ? (
-        <form action={reveal} className="card">
+        <form action={reveal} className="card" data-tour="reveal">
           <input type="hidden" name="memberId" value={id} />
           <p style={{ marginTop: 0 }}>Τα στοιχεία (διεύθυνση, επαφή έκτακτης ανάγκης) τα βλέπει κανονικά μόνο η διαχείριση. Άνοιξέ τα μόνο αν κινδυνεύει τώρα. Θα καταγραφεί ότι τα άνοιξες και θα το δει η διαχείριση.</p>
           <button className="red big" type="submit" style={{ width: "100%" }}>Άνοιγμα στοιχείων τώρα</button>
@@ -84,6 +85,7 @@ export default async function EmergencyPage({ params }: { params: Promise<{ id: 
       ) : (
         <div className="card">Το μέλος δεν έχει συμπληρώσει στοιχεία. Πάρε αμέσως τη διαχείριση{s.adminPhone && <> στο <a href={`tel:${s.adminPhone.replace(/\s/g, "")}`}><strong>{s.adminPhone}</strong></a></>}{duty && <> ή τον/την {duty.name}{duty.phone && <> στο <a href={`tel:${duty.phone.replace(/\s/g, "")}`}>{duty.phone}</a></>}</>}.</div>
       )}
+      <TourFor id="emergency" userId={user.id} />
     </main>
   );
 }

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { TourFor } from "@/components/TourFor";
 import { dec, enc } from "@/lib/crypto";
 import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
@@ -380,7 +381,7 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
 
       <div className="split">
       <div className="side">
-      <SafetyZone memberId={b.memberId} />
+      <div data-tour="safety"><SafetyZone memberId={b.memberId} /></div>
       {ax?.data.summary && (
         <details className="card" open={!x.note}>
           <summary><strong>Σύνοψη από την αρχική αξιολόγηση</strong> <span className="muted small">· {ax.author}</span></summary>
@@ -389,7 +390,7 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
         </details>
       )}
 
-      <h2>Με μια ματιά</h2>
+      <h2 data-tour="glance">Με μια ματιά</h2>
       <div className="tiles">
         <div className="tile"><strong>{g.soberDays ?? "—"}</strong><span>μέρες νηφάλιος/α</span></div>
         <div className="tile"><strong>{g.cycle ? `${g.cycle.done} από ${g.cycle.length}` : "—"}</strong><span>ατομικές του μήνα</span></div>
@@ -403,7 +404,7 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
         {!intake.trigger && risk && ` · ${RISK_INFO[risk].action}`}
       </p>
 
-      <h2>Ανοιχτό από την προηγούμενη φορά</h2>
+      <h2 data-tour="open">Ανοιχτό από την προηγούμενη φορά</h2>
       <div className="card">
         {g.prev ? (
           <>
@@ -415,10 +416,10 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
         ) : <span className="muted">Πρώτη ατομική: δεν υπάρχει προηγούμενο σημείωμα.</span>}
       </div>
 
-      <h2>Στόχος της εβδομάδας</h2>
+      <h2 data-tour="goal">Στόχος της εβδομάδας</h2>
       <GoalWeekCard memberId={b.memberId} date={today} />
 
-      <h2>Απογραφές αυτής της εβδομάδας</h2>
+      <h2 data-tour="journal">Απογραφές αυτής της εβδομάδας</h2>
       <div className="card">
         {g.journal.written === 0 ? <span className="muted">Δεν έγραψε απογραφές τις τελευταίες 7 μέρες.</span> : (
           <>
@@ -450,7 +451,7 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
 
       </div>
       <div>
-      <h2>Σημειωματάριο</h2>
+      <h2 data-tour="notebook">Σημειωματάριο</h2>
       {sp.saved && <div className="notice">Αποθηκεύτηκε ✓</div>}
       {sp.saved && <ClearDraft k={`note-draft:${x.id}`} />}
       {sp.error && <div className="error">Δεν αποθηκεύτηκε: {sp.error}</div>}
@@ -480,6 +481,7 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
       )}
       </div>
       </div>
+      <TourFor id="session" userId={user.id} />
     </main>
   );
 }
@@ -521,7 +523,7 @@ async function PairSession({ x, user, sp }: { x: Slot; user: { id: string; role:
         </div>
       )}
 
-      <div className="pair-grid" style={{ marginTop: 12 }}>
+      <div className="pair-grid" style={{ marginTop: 12 }} data-tour="pair-members">
         {perMember.map(({ m, prev }) => (
           <section key={m.id} className="pair-col">
             <h2 style={{ marginTop: 0 }}>{m.name}</h2>
@@ -536,7 +538,7 @@ async function PairSession({ x, user, sp }: { x: Slot; user: { id: string; role:
         ))}
       </div>
 
-      <h2>Σημειωματάριο Therapair</h2>
+      <h2 data-tour="notebook">Σημειωματάριο Therapair</h2>
       {sp.saved && <div className="notice">Αποθηκεύτηκε ✓ — ένα σημείωμα στον φάκελο του καθενός.</div>}
       {sp.saved && <ClearDraft k={`pair-draft:${x.id}`} />}
       {sp.error && <div className="error">Δεν αποθηκεύτηκε: {sp.error}</div>}
@@ -586,6 +588,7 @@ async function PairSession({ x, user, sp }: { x: Slot; user: { id: string; role:
           )))}
         </details>
       )}
+      <TourFor id="pair" userId={user.id} />
     </main>
   );
 }

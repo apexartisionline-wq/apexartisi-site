@@ -59,6 +59,7 @@ model User {
   passwordHash String
   role         Role
   active       Boolean   @default(true)
+  toursSeen    String[]  @default([]) // ποιες ξεναγήσεις έχει δει (για να μην ανοίγουν ξανά μόνες τους)
   failedLogins Int       @default(0)
   // Δεύτερος παράγοντας (TOTP) για το προσωπικό· το μυστικό αποθηκεύεται κρυπτογραφημένο.
   totpSecret   String?

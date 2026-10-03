@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { TourFor } from "@/components/TourFor";
 import { notFound, redirect } from "next/navigation";
 import { RiskClient } from "@/components/RiskClient";
 import { logAccess } from "@/lib/audit";
@@ -47,13 +48,13 @@ export default async function RiskPage({ params, searchParams }: { params: Promi
       </p>
       {sp.saved && <div className="notice">Αποθηκεύτηκε ✓{current && current.level !== "LOW" && " Φαίνεται σήμερα στο «Σήμερα» όλης της ομάδας."}</div>}
       {sp.error && <div className="error">{sp.error}</div>}
-      {trigger && <div className="card small" style={{ borderColor: "var(--yellow)" }}>Θέλει αξιολόγηση: μετά από <strong>{trigger.text}</strong> ({formatWhen(trigger.at)}).</div>}
+      {trigger && <div className="card small" style={{ borderColor: "var(--yellow)" }} data-tour="trigger">Θέλει αξιολόγηση: μετά από <strong>{trigger.text}</strong> ({formatWhen(trigger.at)}).</div>}
       {canWrite && (
-        <p><Link className="btn red" href={`/t/members/${id}/emergency`}>Έκτακτη ανάγκη</Link> <span className="muted small">Μόνο σε άμεσο κίνδυνο: δείχνει διεύθυνση και επαφή για το 112.</span></p>
+        <p data-tour="emergency"><Link className="btn red" href={`/t/members/${id}/emergency`}>Έκτακτη ανάγκη</Link> <span className="muted small">Μόνο σε άμεσο κίνδυνο: δείχνει διεύθυνση και επαφή για το 112.</span></p>
       )}
 
       {showForm ? (
-        <RiskClient action={save} memberId={id} initialReason={reasonFromTrigger} />
+        <div data-tour="riskform"><RiskClient action={save} memberId={id} initialReason={reasonFromTrigger} /></div>
       ) : (
         canWrite && <p><Link className="btn" href={`/t/members/${id}/risk?new=1`}>Νέα αξιολόγηση</Link></p>
       )}
@@ -72,6 +73,7 @@ export default async function RiskPage({ params, searchParams }: { params: Promi
           ))}
         </>
       )}
+      <TourFor id="risk" userId={user.id} />
     </main>
   );
 }

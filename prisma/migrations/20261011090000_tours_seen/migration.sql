@@ -1,0 +1,1 @@
+ALTER TABLE "User" ADD COLUMN "toursSeen" TEXT[] DEFAULT ARRAY[]::TEXT[];

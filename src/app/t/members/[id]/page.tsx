@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { TourFor } from "@/components/TourFor";
 import { notFound } from "next/navigation";
 import { logAccess } from "@/lib/audit";
 import { RecentGoals } from "@/components/GoalWeek";
@@ -61,8 +62,8 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
   return (
     <main>
       <h1>{member.name}</h1>
-      <SafetyZone memberId={id} />
-      <div className="card">
+      <div data-tour="safety"><SafetyZone memberId={id} /></div>
+      <div className="card" data-tour="sober">
         <div className="row spread">
           <strong>{member.soberSince ? `Νηφάλιος/α ${sober ?? 0} μέρες` : "Νηφαλιότητα: δεν έχει γραφτεί"}</strong>
           {member.soberSince && <span className="muted small">από {gr(member.soberSince)}</span>}
@@ -74,7 +75,7 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
           </>
         )}
       </div>
-      <div className="card">
+      <div className="card" data-tour="consistency">
         <div className="row spread">
           <strong>{cycle ? `Μήνας ${months.length}: ατομικές ${cycle.done} από ${cycle.length} · ομάδες ${cycle.groups} από ${s.groupsPerCycle}` : "Δεν έχει ξεκινήσει μήνας"}</strong>
           <span className="muted small">Μέρα {programDay(member.programStartDate, today) ?? "—"} στο πρόγραμμα</span>
@@ -95,7 +96,7 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
         </div>
       </div>
       {sp.case && <div className="notice">Η σύνοψη αποθηκεύτηκε ✓</div>}
-      <h2>Κλινικός φάκελος</h2>
+      <h2 data-tour="clinical">Κλινικός φάκελος</h2>
       <div className="list">
         <Link href={`/t/members/${id}/risk`}>
           <span>
@@ -118,9 +119,9 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
           </span>
         </Link>
       </div>
-      <h2>Στόχοι εβδομάδας</h2>
+      <h2 data-tour="goals">Στόχοι εβδομάδας</h2>
       <RecentGoals memberId={id} today={today} />
-      <h2>Μήνες</h2>
+      <h2 data-tour="months">Μήνες</h2>
       <div className="list">
         <Link href={`/t/members/${id}/cycle`}><span>Ανασκόπηση τελευταίου κύκλου</span></Link>
         {months.map((c, i) => (
@@ -151,13 +152,14 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
           </p>
         )}
       </div>
-      <h2>Ατομικές και σημειώματα</h2>
+      <h2 data-tour="notes">Ατομικές και σημειώματα</h2>
       <div className="list">
         <Link href={`/t/members/${id}/notes`}><span>Όλα τα σημειώματα ({noteCount}), με φίλτρα</span></Link>
       </div>
       <MemberSessions memberId={id} limit={5} />
       <h2>Εργασίες</h2>
       <MemberAssignments memberId={id} />
+      <TourFor id="member" userId={user.id} />
     </main>
   );
 }

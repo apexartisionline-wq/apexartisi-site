@@ -1,5 +1,6 @@
 import { Announcements } from "@/components/Announcements";
 import Link from "next/link";
+import { TourFor } from "@/components/TourFor";
 import { JoinButton } from "@/components/JoinButton";
 import { enc } from "@/lib/crypto";
 import { redirect } from "next/navigation";
@@ -93,14 +94,14 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
     <main>
       <div className="row spread" style={{ alignItems: "baseline" }}>
         <h1 style={{ margin: "8px 0 0" }}>{isToday ? "Σήμερα" : formatDate(date)}</h1>
-        <span className="row" style={{ gap: 6 }}>
+        <span className="row" style={{ gap: 6 }} data-tour="days">
           <Link className="btn" href={`/t?date=${addDays(date, -1)}`}>{isToday ? "‹ Χθες" : "‹ Προηγούμενη"}</Link>
           {!isToday && <Link className="btn" href="/t">Σήμερα</Link>}
           <Link className="btn" href={`/t?date=${addDays(date, 1)}`}>{isToday ? "Αύριο ›" : "Επόμενη ›"}</Link>
         </span>
       </div>
       <p className="muted" style={{ margin: "2px 0 0" }}>{formatDate(date)} · {user.name}</p>
-      <details className="small" style={{ margin: "6px 0 0" }}>
+      <details className="small" style={{ margin: "6px 0 0" }} data-tour="legend">
         <summary className="muted">Τι σημαίνουν τα χρώματα</summary>
         <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>
           <li><strong style={{ color: "var(--red)" }}>Κόκκινο κουτί</strong>: σοβαρό σημείο των τελευταίων 24 ωρών (από αξιολόγηση, ανάγκες ασφάλειας, ημερολόγιο). Το βλέπει όλη η ομάδα· πάτα τη γραμμή για να πας εκεί που χρειάζεται.</li>
@@ -110,12 +111,12 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
         </ul>
       </details>
 
-      <AlertBoxes boxes={boxes} />
+      <div data-tour="alerts"><AlertBoxes boxes={boxes} /></div>
 
       <Announcements />
 
       <div className="today-grid">
-      <section className="t-prog">
+      <section className="t-prog" data-tour="program">
       <h2>Το πρόγραμμά μου</h2>
       <div className="list">
         {items.map((it) => (
@@ -138,7 +139,7 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
       </section>
 
       {(care.length > 0 || red.length > 0 || reviews.length > 0) && (
-        <section className="t-see">
+        <section className="t-see" data-tour="see">
           <h2>Να το δεις</h2>
           <div className="list">
             {red.map(({ m, f }) => (
@@ -169,7 +170,7 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
         </section>
       )}
 
-      <section className="t-week">
+      <section className="t-week" data-tour="week">
       <h2>Τις επόμενες 7 μέρες</h2>
       <div className="list">
         {/* Ομάδες και ατομικές μαζί, με σειρά ημέρας και ώρας. */}
@@ -185,6 +186,7 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
       </div>
       </section>
       </div>
+      <TourFor id="today" userId={user.id} />
     </main>
   );
 }
