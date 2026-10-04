@@ -22,6 +22,7 @@ export function navLinks(role: Role, opts: { hasPlan?: boolean; hasMessages?: bo
       { href: "/admin/settings", label: "Ρυθμίσεις" },
       { href: "/admin/audit", label: "Πρόσβαση" },
       { href: "/t", label: "Τα ραντεβού μου" },
+      { href: "/t/messages", label: "Μηνύματα ομάδας" },
       { href: "/account", label: "Λογαριασμός" },
     ];
   if (role === "THERAPIST")
@@ -29,6 +30,7 @@ export function navLinks(role: Role, opts: { hasPlan?: boolean; hasMessages?: bo
       { href: "/t", label: "Σήμερα" },
       { href: "/t/members", label: "Μέλη" },
       { href: "/t/consistency", label: "Συνέπεια" },
+      { href: "/t/messages", label: "Μηνύματα" },
       { href: "/t/lexiko", label: "Λεξιλόγιο" },
       { href: "/account", label: "Λογαριασμός" },
     ];

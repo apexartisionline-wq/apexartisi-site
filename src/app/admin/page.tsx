@@ -1,3 +1,4 @@
+import { StaffMessagesLine } from "@/components/StaffMessagesLine";
 import { memberIntake } from "@/lib/intake";
 import Link from "next/link";
 import { AlertBoxes } from "@/components/AlertBoxes";
@@ -32,6 +33,7 @@ async function dropoutDone(formData: FormData) {
 
 export default async function AdminToday({ searchParams }: { searchParams: Promise<{ dropout?: string }> }) {
   const sp = await searchParams;
+  const me = await requireRole("ADMIN");
   const s = await getSettings();
   const now = new Date();
   const today = localParts(now).date;
@@ -80,6 +82,7 @@ export default async function AdminToday({ searchParams }: { searchParams: Promi
   return (
     <>
       <h1>{formatDate(today)}</h1>
+      <StaffMessagesLine userId={me.id} />
       <AlertBoxes boxes={await alertBoxes("ADMIN")} />
 
       {help.length > 0 && (

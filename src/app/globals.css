@@ -263,6 +263,18 @@ nav.top img { height: 28px; }
 .step-card { display: flex; justify-content: space-between; align-items: center; gap: 8px; color: inherit; text-decoration: none; }
 .steps-members { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 6px 12px; }
 
+/* Μηνύματα ομάδας */
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.msg-layout { display: grid; gap: 12px; }
+@media (min-width: 820px) { .msg-layout { grid-template-columns: 300px 1fr; align-items: start; } }
+.list a.active { background: var(--soft); }
+.msg-list { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; max-height: 60vh; overflow-y: auto; }
+.msg { max-width: 85%; padding: 8px 12px; border-radius: 14px; }
+.msg.theirs { align-self: flex-start; background: var(--soft); }
+.msg.mine { align-self: flex-end; background: color-mix(in srgb, var(--accent) 14%, var(--surface)); }
+.msg-line { display: flex; justify-content: space-between; align-items: center; gap: 8px; color: inherit; text-decoration: none; border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--surface)); }
+.msg-meta { font-size: 0.75rem; color: var(--muted); margin-top: 4px; }
+
 /* Αλλαγή μέρας στο «Σήμερα» */
 .day-picker { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 .day-picker .btn { min-width: 40px; text-align: center; padding-left: 10px; padding-right: 10px; }

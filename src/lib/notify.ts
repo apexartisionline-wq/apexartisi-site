@@ -34,6 +34,8 @@ export async function sendQueuedPushes(now = new Date()): Promise<void> {
     const msg = q.msg as PushMessage;
     // Αν το μέλος έχει ήδη διαβάσει το μήνυμα μέσα στην εφαρμογή, δεν χρειάζεται ειδοποίηση το πρωί.
     if (msg.url === "/m/message" && !(await unreadTeamMessage(q.userId))) continue;
+    // Μήνυμα της ομάδας που διαβάστηκε ήδη μέσα στην εφαρμογή: όχι ειδοποίηση το πρωί.
+    if (msg.url.startsWith("/t/messages") && !(await prisma.staffMessage.findFirst({ where: { toId: q.userId, readAt: null }, select: { id: true } }))) continue;
     await notifyUsers([q.userId], msg);
   }
 }

@@ -2,6 +2,7 @@ import { Announcements } from "@/components/Announcements";
 import Link from "next/link";
 import { TourFor } from "@/components/TourFor";
 import { DayPicker } from "@/components/DayPicker";
+import { StaffMessagesLine } from "@/components/StaffMessagesLine";
 import { JoinButton } from "@/components/JoinButton";
 import { enc } from "@/lib/crypto";
 import { redirect } from "next/navigation";
@@ -108,6 +109,7 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
         </ul>
       </details>
 
+      <StaffMessagesLine userId={user.id} />
       <div data-tour="alerts"><AlertBoxes boxes={boxes} /></div>
 
       <Announcements />

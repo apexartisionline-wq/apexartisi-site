@@ -709,3 +709,17 @@ model MemberStep {
 
   @@index([memberId, createdAt])
 }
+
+// Μηνύματα μέσα στην ομάδα: θεραπευτής ↔ θεραπευτής ή διαχείριση, ένας προς έναν (απόφαση 4/10).
+// Κρυπτογραφημένα· δεν σβήνονται.
+model StaffMessage {
+  id        String    @id @default(cuid())
+  fromId    String
+  toId      String
+  body      String // κρυπτογραφημένο
+  createdAt DateTime  @default(now())
+  readAt    DateTime?
+
+  @@index([toId, readAt])
+  @@index([fromId, toId, createdAt])
+}
