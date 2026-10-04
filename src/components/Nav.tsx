@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getSettings } from "@/lib/settings";
 import { NavMenu } from "./NavMenu";
+import { BrandMark } from "./BrandMark";
 
 export async function Nav({ links, menu = false }: { links: { href: string; label: string }[]; menu?: boolean }) {
   const many = menu && links.length > 3;
@@ -10,8 +11,8 @@ export async function Nav({ links, menu = false }: { links: { href: string; labe
   return (
     <nav className="top">
       <Link href="/" className="brand">
-        <img src={s.logoUrl || "/icon.svg"} alt="" />
-        {s.appName}
+        {s.logoUrl ? <img src={s.logoUrl} alt="" /> : <BrandMark />}
+        <span className="brand-name">{s.appName}</span>
       </Link>
       {/* Σελίδες ομάδας στο κινητό: οι σύνδεσμοι μαζεύονται σε ένα «Μενού». */}
       <span className={many ? "navlinks many" : "navlinks"}>

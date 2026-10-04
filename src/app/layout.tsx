@@ -18,7 +18,9 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 // viewportFit «cover»: στο iPhone η εφαρμογή γεμίζει την οθόνη και τα περιθώρια μπαίνουν από το CSS (safe-area).
-export const viewport: Viewport = { themeColor: "#2f5d62", width: "device-width", initialScale: 1, viewportFit: "cover" };
+export const viewport: Viewport = {
+  themeColor: [{ media: "(prefers-color-scheme: light)", color: "#ffffff" }, { media: "(prefers-color-scheme: dark)", color: "#0c1620" }],
+  width: "device-width", initialScale: 1, viewportFit: "cover" };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
