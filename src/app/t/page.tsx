@@ -110,7 +110,8 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
       </details>
 
       <StaffMessagesLine userId={user.id} />
-      <div data-tour="alerts"><AlertBoxes boxes={boxes} /></div>
+      {/* Τα σοβαρά σημεία είναι «των τελευταίων 24 ωρών»: φαίνονται μόνο στο σημερινό «Σήμερα», όχι σε άλλη μέρα. */}
+      {isToday ? <div data-tour="alerts"><AlertBoxes boxes={boxes} /></div> : boxes.length > 0 && <p className="small muted">Τα σοβαρά σημεία των τελευταίων 24 ωρών φαίνονται στο <Link href="/t">«Σήμερα»</Link>.</p>}
 
       <Announcements />
 

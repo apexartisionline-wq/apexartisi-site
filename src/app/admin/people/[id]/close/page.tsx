@@ -44,7 +44,7 @@ export default async function ClosePage({ params, searchParams }: { params: Prom
   const lastData = last ? (JSON.parse(dec(last.data)) as { keeps: string; referral: string }) : null;
   return (
     <>
-      <p><Link href={`/admin/people/${id}`}>‹ {member.name}</Link></p>
+      <p><Link className="back" href={`/admin/people/${id}`}>‹ {member.name}</Link></p>
       <h1>Ολοκλήρωση συνεργασίας</h1>
       {sp.saved && <div className="notice">Αποθηκεύτηκε ✓{last?.sentAt && (sp.saved === "later" ? " Το μέλος το βλέπει ήδη στο app· η ειδοποίηση στο κινητό θα φύγει στις 08:00." : " Το μήνυμα στάλθηκε στο μέλος.")}</div>}
       {sp.error && <div className="error">Διάλεξε πώς έκλεισε.</div>}

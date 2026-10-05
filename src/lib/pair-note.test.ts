@@ -38,6 +38,6 @@ describe("Therapair: ποτέ στοιχεία του άλλου", () => {
     expect(pairSideSchema.safeParse({ came: false }).success).toBe(true);
   });
   it("ενημέρωση ομάδας όταν αλλάζει η ασφάλεια", () => {
-    expect(pairFlags(pairSideSchema.parse({ outcome: "x", safeOk: false, concern: "ενημέρωσα" })).notify).toBe(true);
+    expect(pairFlags(pairSideSchema.parse({ outcome: "x", safeOk: false, safetyText: "ενημέρωσα" })).notify).toBe(true);
   });
 });

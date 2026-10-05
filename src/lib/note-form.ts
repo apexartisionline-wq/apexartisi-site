@@ -40,12 +40,14 @@ export const noteFormSchema = z
     sober: z.boolean(),
     newSoberSince: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     safeOk: z.boolean(),
+    safetyText: text(2000), // «Ανησυχία: Ναι» → τι ανησυχεί και ποιος ενημερώθηκε (ξεχωριστή, υποχρεωτική γραμμή)
+    absentText: text(1000), // «Δεν ήρθε» → τι έγινε / τι κάνουμε
     concern: text(3000),
     notify: z.boolean(),
   })
   .superRefine((d, ctx) => {
-    if (!d.safeOk && !d.concern) ctx.addIssue({ code: "custom", path: ["concern"], message: "Γράψε τι ανησυχεί και ποιος ενημερώθηκε." });
-    if (!d.sober && !d.newSoberSince) ctx.addIssue({ code: "custom", path: ["newSoberSince"], message: "Βάλε τη νέα ημερομηνία νηφαλιότητας." });
+    if (!d.safeOk && !d.safetyText) ctx.addIssue({ code: "custom", path: ["safetyText"], message: "Γράψε τι ανησυχεί για την ασφάλεια και ποιος ενημερώθηκε." });
+    if (d.came && !d.sober && !d.newSoberSince) ctx.addIssue({ code: "custom", path: ["newSoberSince"], message: "Βάλε τη νέα ημερομηνία νηφαλιότητας." });
     if (d.came && !d.broughtText && !d.intervention && d.brought.length === 0) {
       ctx.addIssue({ code: "custom", path: ["broughtText"], message: "Γράψε τουλάχιστον τι έφερε ή σε τι επικεντρώθηκε η παρέμβαση." });
     }
@@ -57,7 +59,14 @@ export type NoteForm = z.infer<typeof noteFormSchema>;
 export function composeNote(d: NoteForm): string {
   const lines: string[] = [];
   const add = (label: string, value: string) => value && lines.push(`${label}: ${value}`);
-  if (!d.came) lines.push("Δεν ήρθε στην ατομική.");
+  if (!d.came) {
+    // «Δεν ήρθε»: μόνο τι έγινε / τι κάνουμε, ασφάλεια και προβληματισμός (όχι κλινικά πεδία).
+    lines.push("Δεν ήρθε στην ατομική.");
+    add("Τι έγινε / τι κάνουμε", d.absentText);
+    lines.push(d.safeOk ? "Ανησυχία για την ασφάλεια: Όχι." : `Ανησυχία για την ασφάλεια: Ναι — ${d.safetyText}`);
+    add("Προβληματισμός προς τη θεραπευτική ομάδα", d.concern);
+    return lines.join("\n");
+  }
   add("Πώς παρουσιάστηκε", [d.presented.join(", "), d.presentedText].filter(Boolean).join(" — "));
   add("Διάθεση", d.mood ?? "");
   add("Πόσο βοηθά τον εαυτό του/της", d.selfHelp ?? "");
@@ -70,7 +79,7 @@ export function composeNote(d: NoteForm): string {
   add("Πώς ήταν να είμαι μαζί του/της", d.felt);
   add("Τι προτείναμε", d.suggested);
   lines.push(d.sober ? "Νηφάλιος/α από την προηγούμενη φορά." : `Όχι νηφάλιος/α από την προηγούμενη φορά· νέα ημερομηνία νηφαλιότητας ${d.newSoberSince}.`);
-  lines.push(d.safeOk ? "Ανησυχία για την ασφάλεια: Όχι." : "Ανησυχία για την ασφάλεια: Ναι (βλ. προβληματισμό).");
+  lines.push(d.safeOk ? "Ανησυχία για την ασφάλεια: Όχι." : `Ανησυχία για την ασφάλεια: Ναι — ${d.safetyText || "βλ. προβληματισμό"}`);
   add("Προβληματισμός προς τη θεραπευτική ομάδα", d.concern);
   return lines.join("\n");
 }
@@ -78,7 +87,22 @@ export function composeNote(d: NoteForm): string {
 /** Τα δομημένα πεδία που χρησιμοποιούν η ζώνη ασφαλείας και τα φίλτρα. */
 export function noteFlags(d: NoteForm): { riskChange: "UP" | "SAME"; usedSince: "YES" | "NO"; notify: boolean } {
   // Η ενημέρωση της ομάδας γίνεται όταν το ζητήσει ο θεραπευτής, όταν αλλάξει η ασφάλεια ή όταν γράψει προβληματισμό.
-  return { riskChange: d.safeOk ? "SAME" : "UP", usedSince: d.sober ? "NO" : "YES", notify: d.notify || !d.safeOk || Boolean(d.concern) };
+  return { riskChange: d.safeOk ? "SAME" : "UP", usedSince: !d.came || d.sober ? "NO" : "YES", notify: d.notify || !d.safeOk || Boolean(d.concern) };
+}
+
+type Alertable = { safeOk?: boolean; safetyText?: string; concern?: string; notify?: boolean };
+/**
+ * Βγαίνει (ξανά) κίτρινη γραμμή 24 ωρών στην ομάδα; Την πρώτη φορά, ό,τι ζητά ενημέρωση.
+ * Σε διόρθωση, μόνο αν γράφτηκε κάτι καινούργιο (απόφαση 5/10): η ασφάλεια έγινε «Ναι» ή άλλαξε το τι ανησυχεί,
+ * άλλαξε ο προβληματισμός, ή πατήθηκε τώρα «Ενημέρωση ομάδας».
+ */
+export function alertWorthy(prev: Alertable | null, d: Alertable): boolean {
+  const t = (x?: string) => (x ?? "").trim();
+  const asks = Boolean(d.notify) || d.safeOk === false || Boolean(t(d.concern));
+  if (!prev) return asks;
+  return (d.safeOk === false && (prev.safeOk !== false || t(d.safetyText) !== t(prev.safetyText)))
+    || (Boolean(t(d.concern)) && t(d.concern) !== t(prev.concern))
+    || (Boolean(d.notify) && !prev.notify);
 }
 
 /** Ημέρες νηφαλιότητας μέχρι σήμερα (ημερομηνίες ΕΕΕΕ-ΜΜ-ΗΗ, ώρα Ελλάδας). */

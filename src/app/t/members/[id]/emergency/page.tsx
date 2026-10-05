@@ -49,7 +49,7 @@ export default async function EmergencyPage({ params }: { params: Promise<{ id: 
   const tel = (v: string) => <a href={`tel:${v.replace(/\s/g, "")}`}>{v}</a>;
   return (
     <main>
-      <p style={{ margin: "8px 0 0" }}><Link href={`/t/members/${id}/risk`}>‹ Ανάγκες ασφάλειας</Link></p>
+      <p style={{ margin: "8px 0 0" }}><Link className="back" href={`/t/members/${id}/risk`}>‹ Ανάγκες ασφάλειας</Link></p>
       <h1>Έκτακτη ανάγκη — {member.name}</h1>
       <div className="card" data-tour="numbers">
         <strong>Μείνε μαζί του/της. Μην κλείσεις τη σύνδεση.</strong>
@@ -59,7 +59,7 @@ export default async function EmergencyPage({ params }: { params: Promise<{ id: 
           <a className="btn" href="tel:1018">1018 · Γραμμή για την αυτοκτονία</a>
         </div>
         <div className="small" style={{ marginTop: 10 }}>
-          {s.adminPhone ? <>Διαχείριση: <a href={`tel:${s.adminPhone.replace(/\s/g, "")}`}><strong>{s.adminPhone}</strong></a></> : <span className="muted">Δεν έχει οριστεί τηλέφωνο διαχείρισης (Ρυθμίσεις).</span>}
+          {s.adminPhone ? <>Διαχείριση: <a href={`tel:${s.adminPhone.replace(/\s/g, "")}`}><strong>{s.adminPhone}</strong></a></> : <span className="muted">Η διαχείριση δεν έχει ορίσει ακόμα τηλέφωνο εδώ — πάρε την όπως την παίρνεις συνήθως.</span>}
           {duty && <> · Εφημερεύει τώρα: <strong>{duty.name}</strong>{duty.phone && <> · <a href={`tel:${duty.phone.replace(/\s/g, "")}`}>{duty.phone}</a></>}</>}
         </div>
       </div>

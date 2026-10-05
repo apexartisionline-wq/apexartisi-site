@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { NoteText } from "@/components/NoteText";
 import { TourFor } from "@/components/TourFor";
 import { SinceLast } from "@/components/SinceLast";
 import { dec, enc } from "@/lib/crypto";
@@ -23,7 +24,7 @@ import { composePairNote, nameVariants, type PairSide, pairFlags, pairSideSchema
 import { historyOf, keepHistory } from "@/lib/history";
 import { vocative } from "@/lib/vocative";
 import { currentRisk } from "@/lib/risk-db";
-import { composeNote, type NoteForm, noteFlags, noteFormSchema } from "@/lib/note-form";
+import { alertWorthy, composeNote, type NoteForm, noteFlags, noteFormSchema } from "@/lib/note-form";
 import { sessionGlance } from "@/lib/session-glance";
 import { getSettings } from "@/lib/settings";
 import { formatDate, formatHour, formatWhen, localParts } from "@/lib/time";
@@ -93,6 +94,13 @@ async function saveNote(formData: FormData) {
 
 // Σημειωματάριο ατομικής (δομημένο). Το κείμενο («content») γράφεται από τα πεδία,
 // ώστε φάκελος, αναζήτηση και ζώνη ασφαλείας να δουλεύουν όπως πριν.
+// Μία κίτρινη γραμμή 24 ωρών στο «Σήμερα» της ομάδας· όχι δεύτερη αν υπάρχει ήδη ενεργή για το ίδιο σημείωμα.
+async function raiseNoteAlert(memberId: string, kind: string, byId: string) {
+  const since = new Date(Date.now() - 24 * 3600_000);
+  if (await prisma.teamAlert.findFirst({ where: { memberId, source: "NOTE", kind, createdAt: { gte: since } } })) return;
+  await prisma.teamAlert.create({ data: { memberId, source: "NOTE", kind, byId } });
+}
+
 async function saveIndividual(formData: FormData) {
   "use server";
   const user = await requireRole("THERAPIST", "ADMIN");
@@ -129,12 +137,9 @@ async function saveIndividual(formData: FormData) {
   if (d.came) await markCame(id, x.startsAt);
   else await prisma.booking.updateMany({ where: { slotId: id }, data: { joinedAt: null } });
   // «Ενημέρωση ομάδας θεραπευτών τώρα»: ο προβληματισμός φαίνεται 24 ώρες στο «Σήμερα» όλης της ομάδας.
-  if (flags.notify) {
-    const kind = `CONCERN:${id}`;
-    if (!(await prisma.teamAlert.findFirst({ where: { memberId, source: "NOTE", kind } }))) {
-      await prisma.teamAlert.create({ data: { memberId, source: "NOTE", kind, byId: user.id } });
-    }
-  }
+  // Σε διόρθωση, ξανά μόνο αν γράφτηκε κάτι καινούργιο (alertWorthy).
+  const prevNote = x.note?.data ? (JSON.parse(dec(x.note.data)) as Partial<NoteForm>) : null;
+  if (alertWorthy(x.note ? (prevNote ?? {}) : null, d)) await raiseNoteAlert(memberId, `CONCERN:${id}`, user.id);
   await logAccess(user.id, memberId, "session_note_save");
   redirect(`/t/s/${id}?saved=1`);
 }
@@ -188,12 +193,8 @@ async function savePair(formData: FormData) {
     } else {
       await prisma.booking.updateMany({ where: { slotId: id, memberId }, data: { joinedAt: null } });
     }
-    if (flags.notify) {
-      const kind = `PAIR:${id}`;
-      if (!(await prisma.teamAlert.findFirst({ where: { memberId, source: "NOTE", kind } }))) {
-        await prisma.teamAlert.create({ data: { memberId, source: "NOTE", kind, byId: user.id } });
-      }
-    }
+    const prevSide = old?.data ? (JSON.parse(dec(old.data)) as Partial<PairSide>) : null;
+    if (alertWorthy(old ? (prevSide ?? {}) : null, d)) await raiseNoteAlert(memberId, `PAIR:${id}`, user.id);
     await logAccess(user.id, memberId, "session_note_save");
   }
   redirect(`/t/s/${id}?saved=1`);
@@ -262,7 +263,7 @@ export default async function SessionPage({
                 {formatDate(n.slot.date)} · {n.therapist.name}
                 {n.slot.kind === "PAIR" && " · Therapair"}
               </div>
-              <div className="body-text">{dec(n.content)}</div>
+              <NoteText text={dec(n.content)} />
               <NoteTags riskChange={n.riskChange} usedSince={n.usedSince} nextStep={dec(n.nextStep)} text={dec(n.content)} />
             </div>
           ))}
@@ -276,7 +277,7 @@ export default async function SessionPage({
       {!canWrite(x, user) ? (
         x.note ? (
           <div className="card">
-            <div className="body-text">{dec(x.note.content)}</div>
+            <NoteText text={dec(x.note.content)} />
             <NoteTags riskChange={x.note.riskChange} usedSince={x.note.usedSince} nextStep={dec(x.note.nextStep)} text={dec(x.note.content)} />
           </div>
         ) : <p className="muted">Δεν έχει γραφτεί σημείωμα ακόμα.</p>
@@ -322,7 +323,7 @@ export default async function SessionPage({
               <div className="muted">
                 Πριν από την αλλαγή της {formatWhen(v.createdAt)} · {editors.find((e) => e.id === v.editorId)?.name ?? "—"}
               </div>
-              <div className="body-text">{dec(v.content)}</div>
+              <NoteText text={dec(v.content)} />
               <NoteTags riskChange={v.riskChange} usedSince={v.usedSince} nextStep={dec(v.nextStep)} text={dec(v.content)} />
             </div>
           ))}
@@ -364,7 +365,7 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
 
   return (
     <main>
-      <p className="small"><Link href="/t">‹ Σήμερα</Link></p>
+      <p className="small"><Link className="back" href="/t">‹ Σήμερα</Link></p>
       <h1 style={{ marginBottom: 4 }}><Link href={`/t/members/${b.member.id}`} style={{ color: "inherit", textDecoration: "none" }}>{b.member.name}</Link></h1>
       <p className="muted" style={{ margin: 0 }}>Ατομική · {formatDate(x.date)} {formatHour(x.hour)}{number && ` · ${number}`}{x.therapist && ` · ${x.therapist.name}`}</p>
       <p className="row" style={{ margin: "10px 0 0", gap: 8 }}>
@@ -420,7 +421,7 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
       {g.prev && (
         <>
           <h2 data-tour="since">Από την προηγούμενη ατομική ως σήμερα</h2>
-          <SinceLast memberId={b.memberId} prev={g.prev} until={x.date < today ? x.date : today} />
+          <SinceLast memberId={b.memberId} prev={g.prev} until={x.date < today ? x.date : today} untilAt={x.startsAt < now ? x.startsAt : now} />
         </>
       )}
 
@@ -469,7 +470,7 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
         <NoteFormClient action={saveIndividual} hidden={{ slotId: x.id }} initial={initial} themeForms={g.forms} cameDefault={Boolean(b.joinedAt)} />
       ) : x.note ? (
         <div className="card">
-          <div className="body-text">{dec(x.note.content)}</div>
+          <NoteText text={dec(x.note.content)} />
           <div className="row spread small" style={{ marginTop: 10 }}>
             <span className="muted">{x.note.therapist.name} · {formatWhen(x.note.updatedAt)}</span>
             {writable && initial ? <Link href={`/t/s/${x.id}?edit=1`}>Αλλαγή</Link> : !initial && <span className="muted">παλιό σημείωμα</span>}
@@ -484,7 +485,7 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
           {versions.map((v) => (
             <div key={v.id} style={{ marginTop: 12 }}>
               <div className="muted">Πριν από την αλλαγή της {formatWhen(v.createdAt)} · {editors.get(v.editorId) ?? "—"}</div>
-              <div className="body-text">{dec(v.content)}</div>
+              <NoteText text={dec(v.content)} />
             </div>
           ))}
         </details>
@@ -520,7 +521,7 @@ async function PairSession({ x, user, sp }: { x: Slot; user: { id: string; role:
 
   return (
     <main>
-      <p className="small"><Link href="/t">‹ Σήμερα</Link></p>
+      <p className="small"><Link className="back" href="/t">‹ Σήμερα</Link></p>
       <h1 style={{ marginBottom: 4 }}><span className="badge">Therapair</span> {members.map((m, i) => <span key={m.id}>{i > 0 && " & "}<Link href={`/t/members/${m.id}`}>{m.name}</Link></span>)}</h1>
       <p className="muted" style={{ margin: 0 }}>{formatDate(x.date)} {formatHour(x.hour)}{x.therapist && ` · ${x.therapist.name}`}</p>
       {writable && !showForm && <p style={{ margin: "10px 0 0" }}><Link className="btn primary big" data-tour="edit-note" href={`/t/s/${x.id}?edit=1`}>Άλλαξε το σημείωμα</Link></p>}
@@ -546,7 +547,7 @@ async function PairSession({ x, user, sp }: { x: Slot; user: { id: string; role:
             {prev && (
               <div className="small">
                 <strong>Από την προηγούμενη ατομική ως σήμερα</strong>
-                <SinceLast memberId={m.id} prev={{ date: prev.date, by: prev.therapist, text: prev.text, slotId: prev.slotId, pair: prev.pair }} until={x.date < today ? x.date : today} />
+                <SinceLast memberId={m.id} prev={{ date: prev.date, by: prev.therapist, text: prev.text, slotId: prev.slotId, pair: prev.pair }} until={x.date < today ? x.date : today} untilAt={x.startsAt < now ? x.startsAt : now} />
               </div>
             )}
             <GoalWeekCard memberId={m.id} date={today} />
@@ -563,7 +564,7 @@ async function PairSession({ x, user, sp }: { x: Slot; user: { id: string; role:
           <summary>Η τελευταία αποθηκευμένη μορφή</summary>
           {members.map((m) => {
             const n = x.pairNotes.find((p) => p.memberId === m.id);
-            return n ? <div key={m.id} style={{ marginTop: 8 }}><div className="pair-name">{first(m.name)} · {n.therapist.name}, {formatWhen(n.updatedAt)}</div><div className="body-text">{dec(n.content)}</div></div> : null;
+            return n ? <div key={m.id} style={{ marginTop: 8 }}><div className="pair-name">{first(m.name)} · {n.therapist.name}, {formatWhen(n.updatedAt)}</div><NoteText text={dec(n.content)} /></div> : null;
           })}
         </details>
       )}
@@ -577,7 +578,7 @@ async function PairSession({ x, user, sp }: { x: Slot; user: { id: string; role:
               return (
                 <div key={m.id} className="card pair-col">
                   <div className="pair-name">Στον φάκελο: {first(m.name)}</div>
-                  {n ? <div className="body-text">{dec(n.content)}</div> : <span className="muted">Δεν γράφτηκε.</span>}
+                  {n ? <NoteText text={dec(n.content)} /> : <span className="muted">Δεν γράφτηκε.</span>}
                   {n && <div className="muted small" style={{ marginTop: 8 }}>{n.therapist.name} · {formatWhen(n.updatedAt)}</div>}
                 </div>
               );
@@ -588,7 +589,7 @@ async function PairSession({ x, user, sp }: { x: Slot; user: { id: string; role:
       ) : x.note ? (
         <div className="card">
           <div className="muted small">Παλιό κοινό σημείωμα (πριν από το σημειωματάριο Therapair)</div>
-          <div className="body-text">{dec(x.note.content)}</div>
+          <NoteText text={dec(x.note.content)} />
         </div>
       ) : (
         <p className="muted">{canWrite(x, user) ? "Το σημειωματάριο ανοίγει 15 λεπτά πριν από τη συνεδρία." : "Δεν έχει γραφτεί σημείωμα ακόμα."}</p>
@@ -599,7 +600,7 @@ async function PairSession({ x, user, sp }: { x: Slot; user: { id: string; role:
           {perMember.flatMap(({ m, history }) => history.map((h, i) => (
             <div key={`${m.id}${i}`} style={{ marginTop: 12 }}>
               <div className="muted">{first(m.name)} · πριν από την αλλαγή της {formatWhen(h.at)} · {h.by}</div>
-              <div className="body-text">{dec((h.before as { content: string }).content)}</div>
+              <NoteText text={dec((h.before as { content: string }).content)} />
             </div>
           )))}
         </details>

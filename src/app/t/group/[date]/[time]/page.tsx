@@ -81,6 +81,7 @@ export default async function GroupNotePage({
 
   return (
     <main>
+      <p style={{ margin: "8px 0 0" }}><Link className="back" href={`/t?date=${key.date}`}>‹ Σήμερα</Link></p>
       <p className="muted">Ομάδα · {formatDate(key.date)} {key.time} · συντονιστής: {coordinator?.name ?? "—"}</p>
       <h1>Σημείωμα ομάδας</h1>
       <div className="card small">

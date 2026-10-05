@@ -34,7 +34,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
   const tel = "\\+?[0-9 ]{10,15}";
   return (
     <main>
-      <p style={{ margin: "8px 0 0" }}><Link href="/m/start">‹ Πίσω</Link></p>
+      <p style={{ margin: "8px 0 0" }}><Link className="back" href="/m/start">‹ Πίσω</Link></p>
       <h1>Πριν την 1η ατομική</h1>
       <p className="muted">
         Λίγα στοιχεία για την ασφάλειά σου. Μετά την 1η ατομική τα βλέπει <strong>μόνο η διαχείριση του προγράμματος</strong> — όχι οι ψυχολόγοι και σύμβουλοι και όχι τα άλλα μέλη.

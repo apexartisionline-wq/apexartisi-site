@@ -30,7 +30,7 @@ export default async function MemberJournalPage({ params, searchParams }: { para
 
   return (
     <main>
-      <p className="small"><Link href={`/t/members/${id}`}>← {member.name}</Link></p>
+      <p className="small"><Link className="back" href={`/t/members/${id}`}>‹ {member.name}</Link></p>
       <h1 style={{ marginBottom: 4 }}>Απογραφές</h1>
       <p className="muted" style={{ marginTop: 0 }}>Ημερολόγιο ανάκαμψης · {formatDate(from)} – {formatDate(to)} · έγραψε {rows.length} από {DAYS} μέρες</p>
       <div className="row" style={{ gap: 6, margin: "8px 0 12px" }}>

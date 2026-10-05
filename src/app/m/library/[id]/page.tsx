@@ -16,7 +16,7 @@ export default async function LibraryItemPage({ params }: { params: Promise<{ id
   const src = `/api/library/${item.id}`;
   return (
     <main>
-      <p><Link href="/m/library">← Βιβλιοθήκη</Link></p>
+      <p><Link className="back" href="/m/library">‹ Βιβλιοθήκη</Link></p>
       <h1>{item.title}</h1>
       {item.description && <p>{item.description}</p>}
       <div className="watermarked" data-mark={mark}>

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { NoteText } from "./NoteText";
 import { NoteTags } from "@/components/NoteTags";
 import { dec } from "@/lib/crypto";
 import { hideOther, nameVariants } from "@/lib/pair-note";
@@ -48,11 +49,12 @@ export async function MemberSessions({ memberId, limit = 30 }: { memberId: strin
               </span>
             </div>
             {note ? (
-              <div className="body-text" style={{ marginTop: 8 }}>
-                {show(dec(note.content))}
+              // Κλειστό, σε μία γραμμή (λιγότερο σκρολάρισμα στο κινητό)· ανοίγει με πάτημα.
+              <details className="note-fold">
+                <summary>{preview(show(dec(note.content)))} <span className="muted small">— {note.therapist.name}</span></summary>
+                <NoteText text={show(dec(note.content))} style={{ marginTop: 8 }} />
                 <NoteTags riskChange={note.riskChange} usedSince={note.usedSince} nextStep={show(dec(note.nextStep))} text={show(dec(note.content))} />
-                <div className="muted small">— {note.therapist.name}</div>
-              </div>
+              </details>
             ) : (
               past && <div className="muted small" style={{ marginTop: 8 }}>Χωρίς σημείωμα.</div>
             )}
@@ -61,4 +63,11 @@ export async function MemberSessions({ memberId, limit = 30 }: { memberId: strin
       })}
     </>
   );
+}
+
+// Μία γραμμή για το κλειστό σημείωμα: «Τι έφερε» αν υπάρχει, αλλιώς η πρώτη γραμμή με περιεχόμενο.
+function preview(text: string): string {
+  const lines = text.split("\n").filter((l) => l.trim() && !l.startsWith("Therapair ("));
+  const line = lines.find((l) => l.startsWith("Τι έφερε:")) ?? lines.find((l) => l.startsWith("Τι εμφανίστηκε:")) ?? lines[0] ?? "";
+  return line.length > 110 ? `${line.slice(0, 110)}…` : line;
 }

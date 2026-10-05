@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { NoteText } from "@/components/NoteText";
 import { sinceLast } from "@/lib/since-last";
 import { GOAL_CHECK } from "@/lib/goals";
 import { formatDate } from "@/lib/time";
@@ -10,14 +11,15 @@ const dates = (ds: string[]) => ds.map(formatDate).join(", ");
  * «Από την προηγούμενη ατομική ως σήμερα»: το τελευταίο σημείωμα, οι ομάδες και οι απογραφές
  * ανάμεσα στις δύο ατομικές — για τον θεραπευτή που μπαίνει (οι θεραπευτές εναλλάσσονται).
  */
-export async function SinceLast({ memberId, prev, until, compact = false }: {
+export async function SinceLast({ memberId, prev, until, untilAt, compact = false }: {
   memberId: string;
   prev: { date: string; by: string; text: string; slotId: string; pair: boolean } | null;
   until: string;
+  untilAt: Date; // η ώρα της ατομικής (ή τώρα, αν δεν έχει γίνει ακόμα)
   compact?: boolean;
 }) {
   if (!prev) return null;
-  const d = await sinceLast(memberId, prev.date, until);
+  const d = await sinceLast(memberId, prev.date, until, untilAt);
   const j = d.journal;
   const cameN = d.groups.filter((g) => g.came).length;
   const goalTotal = j.goal.YES + j.goal.PARTLY + j.goal.NO;
@@ -29,7 +31,7 @@ export async function SinceLast({ memberId, prev, until, compact = false }: {
             <strong>Το τελευταίο σημείωμα</strong>{" "}
             <span className="muted small">· {prev.pair ? "Therapair · " : ""}{formatDate(prev.date)} · {prev.by}</span>
           </summary>
-          <div className="body-text" style={{ marginTop: 8 }}>{prev.text}</div>
+          <NoteText text={prev.text} style={{ marginTop: 8 }} />
           <Link className="small" href={`/t/s/${prev.slotId}`}>Άνοιγμα της ατομικής ›</Link>
         </details>
       )}
@@ -41,7 +43,7 @@ export async function SinceLast({ memberId, prev, until, compact = false }: {
               ήρθε σε <strong>{cameN} από {d.groups.length}</strong>
               <span className="since-days">
                 {d.groups.map((g) => (
-                  <span key={`${g.date}${g.time}`} className={`chip ${g.came ? "ok" : "no"}`} title={g.came ? "ήρθε" : "δεν ήρθε"}>
+                  <span key={`${g.date}${g.time}`} className={`daychip ${g.came ? "ok" : "no"}`} title={g.came ? "ήρθε" : "δεν ήρθε"}>
                     {formatDate(g.date)} {g.came ? "✓" : "✗"}
                   </span>
                 ))}

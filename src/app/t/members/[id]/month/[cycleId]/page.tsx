@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { NoteText } from "@/components/NoteText";
 import { notFound } from "next/navigation";
 import { PrintButton } from "@/components/PrintButton";
 import { logAccess } from "@/lib/audit";
@@ -33,7 +34,7 @@ export default async function MonthFolder({ params }: { params: Promise<{ id: st
 
   return (
     <main>
-      <p className="no-print" style={{ margin: "8px 0 0" }}><Link href={`/t/members/${id}`}>‹ {member.name}</Link></p>
+      <p className="no-print" style={{ margin: "8px 0 0" }}><Link className="back" href={`/t/members/${id}`}>‹ {member.name}</Link></p>
       <h1 style={{ marginBottom: 4 }}>{member.name} · Μήνας {n}</h1>
       <p className="muted" style={{ marginTop: 0 }}>{formatDate(pic.from)} – {formatDate(pic.to)}</p>
       <p className="no-print"><PrintButton /></p>
@@ -63,7 +64,7 @@ export default async function MonthFolder({ params }: { params: Promise<{ id: st
       {cycle.bookings.map((b, i) => { const note = b.slot.kind === "PAIR" ? b.slot.pairNotes[0] : b.slot.note; return (
         <div key={b.id} className="card small">
           <strong>{i + 1}. {formatDate(b.slot.date)}</strong> · {b.slot.kind === "PAIR" ? "Therapair" : "Ατομική"} · {note?.therapist.name ?? b.slot.therapist?.name ?? ""}{b.slot.startsAt > new Date() ? " · προγραμματισμένη" : !b.joinedAt && " · δεν ήρθε"}
-          {note ? <div className="body-text" style={{ marginTop: 6 }}>{b.slot.kind === "PAIR" ? hideOther(dec(note.content), b.slot.bookings.flatMap((o) => nameVariants(o.member.name, vocative))) : dec(note.content)}</div> : <div className="muted">Χωρίς σημείωμα.</div>}
+          {note ? <NoteText style={{ marginTop: 6 }} text={b.slot.kind === "PAIR" ? hideOther(dec(note.content), b.slot.bookings.flatMap((o) => nameVariants(o.member.name, vocative))) : dec(note.content)} /> : <div className="muted">Χωρίς σημείωμα.</div>}
         </div>
       ); })}
 

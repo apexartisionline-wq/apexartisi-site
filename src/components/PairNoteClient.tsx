@@ -25,8 +25,9 @@ export function PairNoteClient({ action, slotId, members, initial, themeForms, v
   const [m1, m2] = members;
   const [d, setD] = useState<Record<string, Partial<PairSide>>>({
     // «Ήρθε»: «Ναι» μόνο αν πάτησε «Σύνδεση» ή αν υπάρχει ήδη σημείωμα· αλλιώς το διαλέγει ο θεραπευτής.
-    [m1.id]: { ...fresh(Boolean(cameDefault[m1.id] || initial[m1.id])), ...initial[m1.id] },
-    [m2.id]: { ...fresh(Boolean(cameDefault[m2.id] || initial[m2.id])), ...initial[m2.id] },
+    // Σε διόρθωση ο διακόπτης «Ενημέρωση ομάδας» ξεκινά κλειστός (η ομάδα ενημερώθηκε ήδη την πρώτη φορά).
+    [m1.id]: { ...fresh(Boolean(cameDefault[m1.id] || initial[m1.id])), ...initial[m1.id], notify: false },
+    [m2.id]: { ...fresh(Boolean(cameDefault[m2.id] || initial[m2.id])), ...initial[m2.id], notify: false },
   });
   const [touched, setTouched] = useState(false);
   const set = <K extends keyof PairSide>(id: string, k: K, v: PairSide[K]) => {
@@ -37,7 +38,11 @@ export function PairNoteClient({ action, slotId, members, initial, themeForms, v
     const cur = (d[id][k] as string[] | undefined) ?? [];
     set(id, k, (cur.includes(v) ? cur.filter((y) => y !== v) : [...cur, v]) as never);
   };
-  const notifyOf = (s: Partial<PairSide>) => Boolean(s.notify || s.safeOk === false || s.concern?.trim());
+  const notifyOf = (s: Partial<PairSide>) => Boolean(s.notify);
+  // «Δεν ήρθε»: φεύγουν μόνο τα πεδία που φαίνονται.
+  const outOf = (s: Partial<PairSide>) => (s.came === false
+    ? { came: false, absentText: s.absentText, sober: true, safeOk: s.safeOk, safetyText: s.safetyText, concern: s.concern, notify: notifyOf(s) }
+    : { ...s, notify: notifyOf(s) });
 
   // Πρόχειρο στην καρτέλα (όπως στην ατομική): αν πέσει η σύνδεση, το σημειωματάριο ξαναβρίσκεται.
   const draftKey = `pair-draft:${slotId}`;
@@ -71,7 +76,7 @@ export function PairNoteClient({ action, slotId, members, initial, themeForms, v
   // Πριν την αποθήκευση: αν βρεθεί το όνομα του άλλου στο κείμενο του ενός, το λέμε στον θεραπευτή
   // (με το δεύτερο πάτημα αλλάζει αυτόματα σε «το άλλο μέλος»).
   const [warned, setWarned] = useState("");
-  const TEXTS = [["presentedText", "Πώς παρουσιάστηκε"], ["emergedText", "Τι εμφανίστηκε"], ["outcome", "Τι βγήκε"], ["positives", "Τα θετικά"], ["suggested", "Τι προτείναμε"], ["concern", "Προβληματισμός"]] as const;
+  const TEXTS = [["presentedText", "Πώς παρουσιάστηκε"], ["emergedText", "Τι εμφανίστηκε"], ["outcome", "Τι βγήκε"], ["positives", "Τα θετικά"], ["suggested", "Τι προτείναμε"], ["concern", "Προβληματισμός"], ["safetyText", "Ανησυχία για την ασφάλεια"], ["absentText", "Τι έγινε"]] as const;
   const nameHits = () => {
     const hits: string[] = [];
     for (const m of members) {
@@ -88,7 +93,7 @@ export function PairNoteClient({ action, slotId, members, initial, themeForms, v
     const undecided = members.find((m) => d[m.id].came === undefined);
     if (undecided) msg = `${first(undecided)}: διάλεξε «Ήρθε» ή «Δεν ήρθε».`;
     for (const m of msg ? [] : members) {
-      const r = pairSideSchema.safeParse({ ...d[m.id], notify: notifyOf(d[m.id]) });
+      const r = pairSideSchema.safeParse(outOf(d[m.id]));
       if (!r.success) {
         msg = `${m.name.split(" ")[0]}: ${r.error.issues[0]?.message ?? "κάτι λείπει."}`;
         break;
@@ -115,6 +120,8 @@ export function PairNoteClient({ action, slotId, members, initial, themeForms, v
 
   const first = (m: Member) => m.name.split(" ")[0];
   // Μία ερώτηση, δύο στήλες: μία για κάθε μέλος.
+  // «Δεν ήρθε»: τα κλινικά πεδία αυτού του μέλους κρύβονται (μένουν τι έγινε, ασφάλεια, προβληματισμός).
+  const clinical = (render: (m: Member) => React.ReactNode) => (m: Member) => (d[m.id].came === false ? <div className="muted small">Δεν ήρθε</div> : render(m));
   const both = (render: (m: Member) => React.ReactNode) => (
     <div className="pair-grid">
       {members.map((m) => (
@@ -146,7 +153,7 @@ export function PairNoteClient({ action, slotId, members, initial, themeForms, v
       ))}
     </div>
   );
-  const text = (m: Member, k: "presentedText" | "emergedText" | "outcome" | "positives" | "suggested" | "concern", label: string, ph = "", rows = 2) => (
+  const text = (m: Member, k: "presentedText" | "emergedText" | "outcome" | "positives" | "suggested" | "concern" | "safetyText" | "absentText", label: string, ph = "", rows = 2) => (
     <textarea aria-label={`${label} — ${first(m)}`} placeholder={ph} rows={rows} style={{ minHeight: rows * 24 + 20, marginTop: 8 }} value={(d[m.id][k] as string | undefined) ?? ""} onChange={(e) => set(m.id, k, e.target.value as never)} />
   );
   const pick2 = (m: Member, label: string, opts: [string, boolean][], k: "came" | "safeOk") => (
@@ -184,34 +191,50 @@ export function PairNoteClient({ action, slotId, members, initial, themeForms, v
     <form ref={formRef} action={action} onSubmit={check} className="note-form" id="notebook">
       <input type="hidden" name="slotId" value={slotId} />
       <input type="hidden" name="version" value={version} />
-      <input type="hidden" name="payload" value={JSON.stringify(Object.fromEntries(members.map((m) => [m.id, { ...d[m.id], notify: notifyOf(d[m.id]) }])))} />
+      <input type="hidden" name="payload" value={JSON.stringify(Object.fromEntries(members.map((m) => [m.id, outOf(d[m.id])])))} />
       {restored && <div className="notice">Βρέθηκε πρόχειρο που δεν είχε αποθηκευτεί — συνέχισε από εκεί.</div>}
       <p className="muted small" style={{ marginTop: 0 }}>
         Κάθε μέλος παίρνει <strong>δικό του σημείωμα</strong> στον φάκελό του. Γράψε <strong>χωρίς όνομα και χωρίς γένος</strong> για τον άλλον (π.χ. «στάθηκε δίπλα στο άλλο μέλος», όχι «δίπλα της»)· αν ξεφύγει όνομα, γράφεται αυτόματα «το άλλο μέλος».
         <br />✓ δίπλα σε ερώτηση = συμπληρώθηκε και για τους δύο. Πάτα τον τίτλο για να κλείσει. Ctrl + Enter = Αποθήκευση.
       </p>
 
-      <fieldset>{both((m) => pick2(m, "Ήρθε;", [["Ήρθε", true], ["Δεν ήρθε", false]], "came"))}</fieldset>
-      {sec("Πώς παρουσιάστηκε", filled("presented"), <>{both((m) => <>{multi(m, "presented", PRESENTED)}{text(m, "presentedText", "Πώς παρουσιάστηκε", "με λόγια", 1)}</>)}</>)}
-      {sec("Συνδέθηκε με το άλλο μέλος", filled("connected"), <>{both((m) => chips(m, "connected", CONNECTED))}</>)}
-      {sec("Δέχτηκε βοήθεια", filled("acceptedHelp"), <>{both((m) => chips(m, "acceptedHelp", ACCEPTED_HELP))}</>)}
-      {sec("Στάση", filled("stance"), <>{both((m) => chips(m, "stance", STANCE))}</>)}
-      {sec("Τι εμφανίστηκε", filled("emergedText"), <>{both((m) => <>{themeForms.length > 0 && multi(m, "emerged", themeForms)}{text(m, "emergedText", "Τι εμφανίστηκε", "με δικά σου λόγια", 3)}</>)}</>)}
-      {sec("Τι βγήκε από την κουβέντα", filled("outcome"), <>{both((m) => text(m, "outcome", "Τι βγήκε από την κουβέντα", "", 2))}</>)}
-      {sec("Τα θετικά", filled("positives"), <>{both((m) => text(m, "positives", "Τα θετικά", "π.χ. στάθηκε δίπλα στο άλλο μέλος", 1))}</>)}
-      {sec("Γράφει απογραφές;", filled("journaling"), <>{both((m) => journalChips(m))}</>)}
-      {sec("Τι προτείναμε", filled("suggested"), <>{both((m) => text(m, "suggested", "Τι προτείναμε", "φαίνεται στον επόμενο θεραπευτή", 1))}</>)}
+      <fieldset>{both((m) => (
+        <>
+          {pick2(m, "Ήρθε;", [["Ήρθε", true], ["Δεν ήρθε", false]], "came")}
+          {d[m.id].came === false && (
+            <>
+              <div className="muted small" style={{ marginTop: 6 }}>Δεν μετράει ως παρουσία. Γράψε μόνο τι έγινε / τι κάνουμε.</div>
+              {text(m, "absentText", "Τι έγινε / τι κάνουμε", "π.χ. ενημέρωσε ότι δεν μπορεί· θα κλείσει νέα ώρα", 2)}
+            </>
+          )}
+        </>
+      ))}</fieldset>
+      {sec("Πώς παρουσιάστηκε", filled("presented"), <>{both(clinical((m) => <>{multi(m, "presented", PRESENTED)}{text(m, "presentedText", "Πώς παρουσιάστηκε", "με λόγια", 1)}</>))}</>)}
+      {sec("Συνδέθηκε με το άλλο μέλος", filled("connected"), <>{both(clinical((m) => chips(m, "connected", CONNECTED)))}</>)}
+      {sec("Δέχτηκε βοήθεια", filled("acceptedHelp"), <>{both(clinical((m) => chips(m, "acceptedHelp", ACCEPTED_HELP)))}</>)}
+      {sec("Στάση", filled("stance"), <>{both(clinical((m) => chips(m, "stance", STANCE)))}</>)}
+      {sec("Τι εμφανίστηκε", filled("emergedText"), <>{both(clinical((m) => <>{themeForms.length > 0 && multi(m, "emerged", themeForms)}{text(m, "emergedText", "Τι εμφανίστηκε", "με δικά σου λόγια", 3)}</>))}</>)}
+      {sec("Τι βγήκε από την κουβέντα", filled("outcome"), <>{both(clinical((m) => text(m, "outcome", "Τι βγήκε από την κουβέντα", "", 2)))}</>)}
+      {sec("Τα θετικά", filled("positives"), <>{both(clinical((m) => text(m, "positives", "Τα θετικά", "π.χ. στάθηκε δίπλα στο άλλο μέλος", 1)))}</>)}
+      {sec("Γράφει απογραφές;", filled("journaling"), <>{both(clinical((m) => journalChips(m)))}</>)}
+      {sec("Τι προτείναμε", filled("suggested"), <>{both(clinical((m) => text(m, "suggested", "Τι προτείναμε", "φαίνεται στον επόμενο θεραπευτή", 1)))}</>)}
       <fieldset>
         <legend>Νηφαλιότητα και ασφάλεια</legend>
         {both((m) => (
           <>
-            {sw(m, "sober", "Νηφάλιος/α από την προηγούμενη φορά")}
-            {d[m.id].sober === false && (
+            {d[m.id].came !== false && sw(m, "sober", "Νηφάλιος/α από την προηγούμενη φορά")}
+            {d[m.id].came !== false && d[m.id].sober === false && (
               <label style={{ marginTop: 6 }}>Νέα ημερομηνία νηφαλιότητας
                 <input type="date" value={d[m.id].newSoberSince ?? ""} onChange={(e) => set(m.id, "newSoberSince", e.target.value as never)} />
               </label>
             )}
             {pick2(m, "Ανησυχία για την ασφάλεια;", [["Όχι", true], ["Ναι", false]], "safeOk")}
+            {d[m.id].safeOk === false && (
+              <div className="must">
+                <label>Τι ανησυχεί και ποιος ενημερώθηκε <span>· υποχρεωτικό</span></label>
+                {text(m, "safetyText", "Τι ανησυχεί και ποιος ενημερώθηκε", "π.χ. σκέψεις χωρίς σχέδιο· ενημέρωσα τη διαχείριση 10:50", 2)}
+              </div>
+            )}
           </>
         ))}
       </fieldset>
@@ -219,10 +242,9 @@ export function PairNoteClient({ action, slotId, members, initial, themeForms, v
         <legend>Προβληματισμός προς τη θεραπευτική ομάδα</legend>
         {both((m) => (
           <>
-            {d[m.id].safeOk === false && <div className="small" style={{ color: "var(--red)" }}>υποχρεωτικό: τι ανησυχεί και ποιος ενημερώθηκε</div>}
             {text(m, "concern", "Προβληματισμός", "Αν γράψεις εδώ, ενημερώνεται η ομάδα", 2)}
             {sw(m, "notify", "Ενημέρωση ομάδας τώρα")}
-            <div className="small muted">Βάζει μία κίτρινη γραμμή για 24 ώρες στο «Σήμερα» της ομάδας. Δεν στέλνει τίποτα στο μέλος.</div>
+            <div className="small muted">Βάζει μία κίτρινη γραμμή για 24 ώρες στο «Σήμερα» της ομάδας (μόνο του με «Ανησυχία: Ναι» ή προβληματισμό· σε διόρθωση μόνο για κάτι καινούργιο). Δεν στέλνει τίποτα στο μέλος.</div>
           </>
         ))}
       </fieldset>

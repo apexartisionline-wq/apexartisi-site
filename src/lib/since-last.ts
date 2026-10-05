@@ -10,9 +10,10 @@ import { addDays, athensToUtc, toMinutes } from "./time";
  * «Από την προηγούμενη ατομική ως σήμερα»: τι έγινε ανάμεσα στις δύο ατομικές (π.χ. Πέμπτη → Τρίτη),
  * για τον θεραπευτή που μπαίνει. Μόνο μετρήσεις από όσα έχουν καταγραφεί — όχι AI, όχι ερμηνεία.
  */
-export async function sinceLast(memberId: string, fromDate: string, untilDate: string) {
+export async function sinceLast(memberId: string, fromDate: string, untilDate: string, untilAt: Date = new Date()) {
   const s = await getSettings();
-  const now = new Date();
+  // Μόνο ό,τι έγινε πριν από την ώρα της ατομικής (ή πριν από τώρα, αν δεν έχει γίνει ακόμα).
+  const now = untilAt;
   const first = addDays(fromDate, 1);
   const last = addDays(untilDate, -1);
   const [groups, attended, journal, help] = await Promise.all([
@@ -21,7 +22,7 @@ export async function sinceLast(memberId: string, fromDate: string, untilDate: s
     prisma.journalEntry.findMany({ where: { memberId, date: { gt: fromDate, lt: untilDate } }, orderBy: { date: "asc" } }),
     prisma.helpRequest.count({ where: { memberId, isDrill: false, createdAt: { gte: athensToUtc(first, 0), lt: athensToUtc(untilDate, 0) } } }),
   ]);
-  // Μόνο ομάδες που έχουν ήδη γίνει (όχι η αποψινή αν δεν έχει έρθει η ώρα της).
+  // Μόνο ομάδες που είχαν ήδη γίνει ως την ατομική (όχι μια ομάδα της ίδιας μέρας μετά από αυτήν).
   const came = new Set(attended.map((a) => a.date));
   const pastGroups = groups.filter((g) => athensToUtc(g.date, Math.floor(toMinutes(g.time) / 60), toMinutes(g.time) % 60) < now);
   const groupRows = pastGroups.map((g) => ({ date: g.date, time: g.time, came: came.has(g.date) }));

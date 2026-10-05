@@ -28,7 +28,7 @@ export default async function CaseSummaryPage({ params }: { params: Promise<{ id
   const current = history[0]?.data ?? {};
   return (
     <main>
-      <p className="small"><Link href={`/t/members/${id}`}>← {member.name}</Link></p>
+      <p className="small"><Link className="back" href={`/t/members/${id}`}>‹ {member.name}</Link></p>
       <h1>Σύνοψη περίπτωσης</h1>
       <p className="muted small">
         Λίγες γραμμές, ώστε όποιος θεραπευτής αναλάβει να ξέρει πού βρίσκεται το μέλος. Τα σήματα ασφαλείας

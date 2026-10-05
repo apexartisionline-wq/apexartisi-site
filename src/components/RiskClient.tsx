@@ -63,7 +63,7 @@ export function RiskClient({ action, memberId, initialReason }: { action: (fd: F
           </span>
         </div>
         {level && (
-          <div className="q" style={{ background: level === "HIGH" ? "color-mix(in srgb, var(--red) 12%, transparent)" : level === "MEDIUM" ? "color-mix(in srgb, var(--yellow) 12%, transparent)" : undefined }}>
+          <div className="q" style={{ background: level === "HIGH" ? "var(--red-quiet)" : level === "MEDIUM" ? "var(--yellow-quiet)" : undefined }}>
             <strong className="small">Τι κάνουμε</strong>
             <ul className="small" style={{ margin: "6px 0 0", paddingLeft: 18 }}>{ACTIONS[level].map((a) => <li key={a}>{a}</li>)}</ul>
           </div>

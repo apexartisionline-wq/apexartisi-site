@@ -21,7 +21,7 @@ export default async function Lexiko() {
   await requireRole("THERAPIST", "ADMIN");
   return (
     <main>
-      <p className="small"><Link href="/t">‹ Σήμερα</Link></p>
+      <p className="small"><Link className="back" href="/t">‹ Σήμερα</Link></p>
       <h1>Λεξιλόγιο της ομάδας</h1>
       <div className="list">
         {WORDS.map(([w, t]) => (

@@ -35,7 +35,7 @@ export default async function AssignmentPage({ params, searchParams }: { params:
   if (!a) notFound();
   return (
     <main>
-      <p><Link href="/m/library">← Βιβλιοθήκη</Link></p>
+      <p><Link className="back" href="/m/library">‹ Βιβλιοθήκη</Link></p>
       <h1>{a.step && <span className="badge">Βήμα {a.step}</span>} {a.title}</h1>
       <p className="small muted">{formatDate(localParts(a.createdAt).date)}</p>
       {a.instructions && <div className="card" style={{ whiteSpace: "pre-wrap" }}>{a.instructions}</div>}

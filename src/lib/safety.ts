@@ -52,7 +52,8 @@ export async function savePlan(memberId: string, formData: FormData, byId: strin
   for (let i = 0; i < HELPERS_MAX; i++) {
     const name = str(`helperName${i}`, 120);
     let phone = str(`helperPhone${i}`, 30);
-    if (staffView && (phone === "" || phone === "•••")) phone = prev.helperList?.find((h) => h.name === name)?.phone ?? "";
+    // Ο θεραπευτής δεν γράφει τηλέφωνα: κρατιέται ό,τι υπήρχε (με το ίδιο όνομα, ή στην ίδια θέση).
+    if (staffView) phone = prev.helperList?.find((h) => h.name === name)?.phone ?? (prev.helperList?.[i]?.name ? "" : prev.helperList?.[i]?.phone ?? "");
     if (name || phone) data.helperList.push({ name, phone });
   }
   const stored = { enc: enc(JSON.stringify(data)) };

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { NoteText } from "@/components/NoteText";
 import { notFound } from "next/navigation";
 import { NoteTags } from "@/components/NoteTags";
 import { logAccess } from "@/lib/audit";
@@ -33,7 +34,7 @@ export default async function MemberNotesPage({ params, searchParams }: { params
 
   return (
     <main>
-      <p className="small"><Link href={`/t/members/${id}`}>← {member.name}</Link></p>
+      <p className="small"><Link className="back" href={`/t/members/${id}`}>‹ {member.name}</Link></p>
       <h1>Σημειώματα</h1>
       <form className="card small" method="get">
         <div className="row" style={{ flexWrap: "wrap", gap: 8 }}>
@@ -59,7 +60,7 @@ export default async function MemberNotesPage({ params, searchParams }: { params
             <Link href={`/t/s/${n.slotId}`}><strong>{formatDate(n.date)} {formatHour(n.hour)}</strong></Link>
             {" · "}{n.therapist}{n.pair && " · Therapair"}
           </div>
-          <div className="body-text" style={{ marginTop: 8 }}>{n.text}</div>
+          <NoteText text={n.text} style={{ marginTop: 8 }} />
           <NoteTags riskChange={n.riskChange} usedSince={n.usedSince} nextStep={n.next} text={n.text} />
         </div>
       ))}

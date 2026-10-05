@@ -21,7 +21,7 @@ export async function Nav({ links, menu = false }: { links: { href: string; labe
         ))}
       </span>
       {many && <NavMenu links={links} always={crowded} />}
-      <form action="/logout" method="post">
+      <form action="/logout" method="post" className={many ? "nav-logout has-menu" : "nav-logout"}>
         <button type="submit" style={{ padding: "6px 10px" }}>Έξοδος</button>
       </form>
     </nav>

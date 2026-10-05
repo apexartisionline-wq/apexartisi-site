@@ -29,12 +29,14 @@ export const pairSideSchema = z
     sober: z.boolean().default(true),
     newSoberSince: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     safeOk: z.boolean().default(true),
+    safetyText: text(2000), // «Ανησυχία: Ναι» → τι ανησυχεί και ποιος ενημερώθηκε
+    absentText: text(1000), // «Δεν ήρθε» → τι έγινε / τι κάνουμε
     concern: text(3000),
     notify: z.boolean().default(false),
   })
   .superRefine((d, ctx) => {
-    if (!d.safeOk && !d.concern) ctx.addIssue({ code: "custom", path: ["concern"], message: "Γράψε τι ανησυχεί και ποιος ενημερώθηκε." });
-    if (!d.sober && !d.newSoberSince) ctx.addIssue({ code: "custom", path: ["newSoberSince"], message: "Βάλε τη νέα ημερομηνία νηφαλιότητας." });
+    if (!d.safeOk && !d.safetyText) ctx.addIssue({ code: "custom", path: ["safetyText"], message: "Γράψε τι ανησυχεί για την ασφάλεια και ποιος ενημερώθηκε." });
+    if (d.came && !d.sober && !d.newSoberSince) ctx.addIssue({ code: "custom", path: ["newSoberSince"], message: "Βάλε τη νέα ημερομηνία νηφαλιότητας." });
     if (d.came && !d.emergedText && !d.outcome && d.emerged.length === 0) {
       ctx.addIssue({ code: "custom", path: ["emergedText"], message: "Γράψε τουλάχιστον τι εμφανίστηκε ή τι βγήκε από την κουβέντα." });
     }
@@ -115,7 +117,13 @@ export function composePairNote(d: PairSide, otherNames: string[]): string {
   const h = (s: string) => hideOther(s, otherNames);
   const lines: string[] = ["Therapair (με άλλο μέλος της ομάδας)."];
   const add = (label: string, value: string) => value && lines.push(`${label}: ${value}`);
-  if (!d.came) lines.push("Δεν ήρθε στο Therapair.");
+  if (!d.came) {
+    lines.push("Δεν ήρθε στο Therapair.");
+    add("Τι έγινε / τι κάνουμε", h(d.absentText));
+    lines.push(d.safeOk ? "Ανησυχία για την ασφάλεια: Όχι." : `Ανησυχία για την ασφάλεια: Ναι — ${h(d.safetyText)}`);
+    add("Προβληματισμός προς τη θεραπευτική ομάδα", h(d.concern));
+    return lines.join("\n");
+  }
   add("Πώς παρουσιάστηκε", [d.presented.join(", "), h(d.presentedText)].filter(Boolean).join(" — "));
   add("Συνδέθηκε με το άλλο μέλος", d.connected ?? "");
   add("Δέχτηκε βοήθεια", d.acceptedHelp ?? "");
@@ -126,7 +134,7 @@ export function composePairNote(d: PairSide, otherNames: string[]): string {
   add("Γράφει απογραφές", d.journaling ?? "");
   add("Τι προτείναμε", h(d.suggested));
   lines.push(d.sober ? "Νηφάλιος/α από την προηγούμενη φορά." : `Όχι νηφάλιος/α από την προηγούμενη φορά· νέα ημερομηνία νηφαλιότητας ${d.newSoberSince}.`);
-  lines.push(d.safeOk ? "Ανησυχία για την ασφάλεια: Όχι." : "Ανησυχία για την ασφάλεια: Ναι (βλ. προβληματισμό).");
+  lines.push(d.safeOk ? "Ανησυχία για την ασφάλεια: Όχι." : `Ανησυχία για την ασφάλεια: Ναι — ${h(d.safetyText) || "βλ. προβληματισμό"}`);
   add("Προβληματισμός προς τη θεραπευτική ομάδα", h(d.concern));
   return lines.join("\n");
 }
@@ -134,9 +142,9 @@ export function composePairNote(d: PairSide, otherNames: string[]): string {
 /** Τα ελεύθερα κείμενα χωρίς το όνομα του άλλου (για την αποθήκευση των δομημένων πεδίων). */
 export function scrubSide(d: PairSide, otherNames: string[]): PairSide {
   const h = (s: string) => hideOther(s, otherNames);
-  return { ...d, presentedText: h(d.presentedText), emergedText: h(d.emergedText), outcome: h(d.outcome), positives: h(d.positives), suggested: h(d.suggested), concern: h(d.concern) };
+  return { ...d, presentedText: h(d.presentedText), emergedText: h(d.emergedText), outcome: h(d.outcome), positives: h(d.positives), suggested: h(d.suggested), concern: h(d.concern), safetyText: h(d.safetyText), absentText: h(d.absentText) };
 }
 
 export function pairFlags(d: PairSide): { riskChange: "UP" | "SAME"; usedSince: "YES" | "NO"; notify: boolean } {
-  return { riskChange: d.safeOk ? "SAME" : "UP", usedSince: d.sober ? "NO" : "YES", notify: d.notify || !d.safeOk || Boolean(d.concern) };
+  return { riskChange: d.safeOk ? "SAME" : "UP", usedSince: !d.came || d.sober ? "NO" : "YES", notify: d.notify || !d.safeOk || Boolean(d.concern) };
 }

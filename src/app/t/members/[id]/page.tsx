@@ -65,6 +65,7 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
   );
   return (
     <main>
+      <p style={{ margin: "8px 0 0" }}><Link className="back" href="/t/members">‹ Μέλη</Link></p>
       <h1>{member.name}</h1>
       <div data-tour="safety"><SafetyZone memberId={id} /></div>
       <a className="card step-card" href="#ergasies" data-tour="step">
@@ -176,6 +177,7 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
       <div className="list">
         <Link href={`/t/members/${id}/notes`}><span>Όλα τα σημειώματα ({noteCount}), με φίλτρα</span></Link>
       </div>
+      <p className="muted small" style={{ margin: "4px 0 0" }}>Οι 5 πιο πρόσφατες (μαζί με τις προγραμματισμένες)· πάτα μία για να ανοίξει το σημείωμα.</p>
       <MemberSessions memberId={id} limit={5} />
       <h2 id="ergasies">Βήματα και εργασίες</h2>
       <MemberAssignments memberId={id} />

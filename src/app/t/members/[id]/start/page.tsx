@@ -100,7 +100,7 @@ export default async function IntakePage({ params, searchParams }: { params: Pro
 
   return (
     <main>
-      <p><Link href={`/t/members/${id}`}>← {member.name}</Link></p>
+      <p><Link className="back" href={`/t/members/${id}`}>‹ {member.name}</Link></p>
       <h1>{isAdmin ? "Έναρξη συνεργασίας" : "Κλινική έναρξη"}</h1>
       {isAdmin ? (
         <div className={status.complete ? "notice" : "card"} style={status.complete ? undefined : { borderColor: "var(--yellow)" }}>

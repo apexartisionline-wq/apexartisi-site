@@ -1,6 +1,6 @@
 import { HELPERS_MAX, PLAN_FIELDS, type PlanData } from "@/lib/safety";
 
-// staff: ο θεραπευτής δεν βλέπει τηλέφωνα — αν γράψει νέο, αντικαθιστά· αν το αφήσει κενό, κρατιέται το παλιό.
+// staff: ο θεραπευτής γράφει μόνο ονόματα και δεν βλέπει τηλέφωνα· τα τηλέφωνα που υπάρχουν κρατιούνται.
 export function SafetyPlanForm({ plan, action, hidden, staff = false }: { plan: PlanData | null; action: (fd: FormData) => Promise<void>; hidden?: Record<string, string>; staff?: boolean }) {
   const helpers = plan?.helperList ?? [];
   return (
@@ -12,20 +12,18 @@ export function SafetyPlanForm({ plan, action, hidden, staff = false }: { plan: 
         {Array.from({ length: HELPERS_MAX }, (_, i) => (
           <div key={i} className="grid2" style={{ marginBottom: 6 }}>
             <input name={`helperName${i}`} aria-label={`Όνομα ${i + 1}`} placeholder="Όνομα (π.χ. Άννα, αδελφή)" defaultValue={helpers[i]?.name ?? ""} />
-            <input
-              name={`helperPhone${i}`}
-              aria-label={`Τηλέφωνο ${i + 1}`}
-              type="tel"
-              inputMode="tel"
-              placeholder={staff ? (helpers[i]?.phone ? "τηλέφωνο κρυφό ✓" : "τηλέφωνο") : "Τηλέφωνο"}
-              defaultValue={staff ? "" : (helpers[i]?.phone ?? "")}
-            />
+            {staff ? (
+              // Ο θεραπευτής γράφει μόνο ονόματα (απόφαση 5/10)· τα τηλέφωνα τα βάζουν το μέλος ή η διαχείριση.
+              <span className="muted small" style={{ alignSelf: "center" }}>{helpers[i]?.phone ? "τηλέφωνο ✓ (κρυφό)" : helpers[i]?.name ? "χωρίς τηλέφωνο ακόμα" : ""}</span>
+            ) : (
+              <input name={`helperPhone${i}`} aria-label={`Τηλέφωνο ${i + 1}`} type="tel" inputMode="tel" placeholder="Τηλέφωνο" defaultValue={helpers[i]?.phone ?? ""} />
+            )}
           </div>
         ))}
-        {staff && <div className="muted small">Τα τηλέφωνα τα βλέπει μόνο το μέλος (στο κόκκινο κουμπί) και η διαχείριση.</div>}
+        {staff && <div className="muted small">Εδώ γράφεις μόνο ονόματα. Τα τηλέφωνα τα βάζει το ίδιο το μέλος (στο «Το πλάνο μου») ή η διαχείριση, και τα βλέπουν μόνο αυτοί.</div>}
         {plan?.helpers && (
           <div className="field">
-            <label className="small muted">Παλιό κείμενο</label>
+            <label className="small muted">Άνθρωποι, όπως είχαν γραφτεί παλιότερα σε ελεύθερο κείμενο (μπορείς να τους περάσεις στα ονόματα πάνω)</label>
             <textarea name="helpers" defaultValue={plan.helpers} style={{ minHeight: 50 }} />
           </div>
         )}

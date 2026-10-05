@@ -18,6 +18,10 @@ export function NavMenu({ links, always }: { links: { href: string; label: strin
         {links.map((l) => (
           <Link key={l.href} href={l.href} onClick={() => ref.current && (ref.current.open = false)}>{l.label}</Link>
         ))}
+        {/* Στο κινητό η «Έξοδος» είναι εδώ, στο τέλος (όχι δίπλα στο «Μενού», όπου πατιέται κατά λάθος). */}
+        <form action="/logout" method="post" className="navmenu-logout">
+          <button type="submit">Έξοδος</button>
+        </form>
       </div>
     </details>
   );

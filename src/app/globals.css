@@ -6,6 +6,7 @@
 @font-face { font-family: "Manrope"; font-style: normal; font-display: swap; font-weight: 200 800; src: url(/fonts/manrope-latin-wght-normal.woff2) format("woff2-variations"); unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD; }
 
 :root {
+  color-scheme: light dark; /* τα πεδία (ημερομηνία κ.λπ.) ακολουθούν το θέμα — ορατό εικονίδιο και στο σκοτεινό */
   --bg: #ffffff;          /* surface */
   --surface: #f3f9fc;     /* surface-raised: κάρτες, πλαίσια */
   --field: #ffffff;       /* πεδία φόρμας πάνω σε κάρτα */
@@ -122,7 +123,14 @@ label { display: block; font-size: .9rem; color: var(--muted); margin-bottom: 4p
 .error { padding: 12px 16px; border-radius: var(--radius); background: var(--red); color: var(--red-text); margin: 12px 0; }
 table { width: 100%; border-collapse: collapse; }
 th, td { text-align: left; padding: 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
-.table-wrap { overflow-x: auto; }
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch;
+  /* σκιά δεξιά όταν ο πίνακας συνεχίζει (για να φαίνεται ότι σύρεται) */
+  background: linear-gradient(to right, var(--surface) 30%, transparent) left / 24px 100% no-repeat local,
+              linear-gradient(to left, var(--surface) 30%, transparent) right / 24px 100% no-repeat local,
+              radial-gradient(farthest-side at 0 50%, rgba(12,22,32,.18), transparent) left / 10px 100% no-repeat scroll,
+              radial-gradient(farthest-side at 100% 50%, rgba(12,22,32,.18), transparent) right / 10px 100% no-repeat scroll;
+  background-color: var(--surface); }
+@media (max-width: 420px) { .table-wrap th, .table-wrap td { padding: 6px 5px; font-size: .85rem; } }
 nav.top {
   display: flex; gap: 4px; align-items: center; flex-wrap: wrap;
   max-width: 1100px; margin: 0 auto; padding: 12px 16px; border-bottom: 1px solid var(--line);
@@ -143,9 +151,17 @@ nav.top img { height: 28px; }
   background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 6px;
   display: flex; flex-direction: column; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
 }
+.navmenu-logout { display: none; border-top: 1px solid var(--line); margin-top: 4px; padding-top: 4px; }
+.navmenu-logout button { width: 100%; justify-content: flex-start; border: 0; background: none; color: var(--red-ink); padding: 8px 10px; }
 @media (max-width: 760px) {
   .navlinks.many { display: none; }
   .navmenu { display: block; }
+  /* Μία γραμμή: σήμα + «Μενού» + «?»· η «Έξοδος» πάει μέσα στο Μενού. */
+  nav.top { flex-wrap: nowrap; }
+  .nav-logout.has-menu { display: none; }
+  .navmenu-logout { display: block; }
+  nav.top .tour-btn { min-width: 44px; padding: 6px 12px; font-weight: 700; }
+  .tour-btn-label { display: none; }
 }
 
 /* Σελίδες ομάδας (θεραπευτές, διαχείριση): κυρίως υπολογιστής/tablet — πιο φαρδιά,
@@ -217,11 +233,11 @@ nav.top img { height: 28px; }
 .note-form legend { font-weight: 600; padding: 0; margin-bottom: 8px; float: left; width: 100%; }
 .note-form legend + * { clear: both; }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
-.chip { border: 1px solid var(--line); background: var(--surface); color: var(--text); border-radius: 999px; padding: 8px 14px; min-height: 40px; font: inherit; font-size: .95rem; cursor: pointer; }
+.chip { border: 1px solid var(--line); background: var(--field); color: var(--text); border-radius: 999px; padding: 8px 14px; min-height: 44px; font: inherit; font-size: .95rem; font-weight: 500; cursor: pointer; }
 .chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
 .switch { width: 51px; height: 31px; min-height: 31px; padding: 0; border-radius: 999px; background: var(--line); position: relative; border: 0; flex: none; }
 .switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.3); transition: left .2s; }
-.switch[aria-checked="true"] { background: var(--ok); }
+.switch[aria-checked="true"] { background: var(--accent); }
 .switch[aria-checked="true"]::after { left: 22px; }
 .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .tile { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; min-width: 0; }
@@ -247,9 +263,11 @@ nav.top img { height: 28px; }
 .sec .q > .lab { margin-bottom: 6px; }
 .sec .q.inline { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .sec .sub-q { padding-left: 12px; border-left: 3px solid var(--accent); margin-top: 8px; }
-.yn { display: inline-flex; background: var(--soft); border-radius: 10px; padding: 2px; flex: none; }
-.yn button { border: 0; background: transparent; min-height: 34px; padding: 4px 14px; border-radius: 8px; font: inherit; font-size: .95rem; color: var(--text); }
-.yn button[aria-pressed="true"] { background: var(--surface); box-shadow: 0 1px 3px rgba(0,0,0,.18); font-weight: 600; }
+/* Επιλογές Ναι/Όχι/… (ανάγκες ασφάλειας, αρχική αξιολόγηση): η επιλεγμένη γεμίζει με το accent, όπως στο σημειωματάριο. */
+.yn { display: inline-flex; flex-wrap: wrap; gap: 6px; flex: none; }
+.yn button { border: 1px solid var(--line); background: var(--field); min-height: 44px; padding: 6px 16px; border-radius: 999px; font: inherit; font-size: .95rem; font-weight: 500; color: var(--text); }
+.yn button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 700; }
+.yn button[aria-pressed="true"]::before { content: "✓ "; }
 .score { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 16px; border-top: 1px solid var(--line); background: var(--soft); }
 .score b { font-size: 1.4rem; }
 .badge.amber { background: var(--yellow); color: var(--yellow-text); }
@@ -288,9 +306,9 @@ nav.top img { height: 28px; }
 .since-list { margin: 10px 0 8px; padding-left: 18px; line-height: 1.5; }
 .since-list li { margin: 4px 0; }
 .since-days { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
-.chip { display: inline-block; font-size: 0.8rem; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); }
-.chip.ok { background: color-mix(in srgb, var(--accent) 12%, transparent); }
-.chip.no { color: var(--muted); }
+.daychip { display: inline-block; font-size: 0.8rem; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); }
+.daychip.ok { background: var(--soft); }
+.daychip.no { color: var(--muted); }
 .warn-text { color: var(--yellow-ink); }
 
 /* Απογραφές μέλους, μέρα-μέρα */
@@ -316,6 +334,22 @@ nav.top img { height: 28px; }
 .msg.mine { align-self: flex-end; background: color-mix(in srgb, var(--accent) 14%, var(--surface)); }
 .msg-line { display: flex; justify-content: space-between; align-items: center; gap: 8px; color: inherit; text-decoration: none; border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--surface)); }
 .msg-meta { font-size: 0.75rem; color: var(--muted); margin-top: 4px; }
+
+/* Υποχρεωτική γραμμή «τι ανησυχεί και ποιος ενημερώθηκε» όταν η ασφάλεια γίνεται «Ναι» */
+.must { margin-top: 10px; padding: 10px 12px; border: 1px solid var(--red); border-radius: var(--radius); background: var(--red-quiet); }
+.must label { color: var(--red-ink); font-weight: 700; margin-bottom: 6px; }
+.must label span { font-weight: 500; }
+.must textarea { margin-top: 0 !important; }
+
+/* «‹ Πίσω»: στο iPhone (εφαρμογή από την αρχική οθόνη) είναι ο μόνος δρόμος πίσω — μεγάλο για το δάχτυλο. */
+a.back { display: inline-flex; align-items: center; min-height: 44px; padding-right: 12px; font-weight: 600; font-size: 1rem; text-decoration: none; }
+
+/* Σημείωμα: έντονοι τίτλοι· στον φάκελο κλειστό σε μία γραμμή */
+.note-text > div + div { margin-top: 2px; }
+.note-text strong { font-weight: 700; }
+details.note-fold { margin-top: 8px; }
+details.note-fold > summary { cursor: pointer; color: var(--text); line-height: 1.5; }
+details.note-fold[open] > summary { color: var(--muted); }
 
 /* Αλλαγή μέρας στο «Σήμερα» */
 .day-picker { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }

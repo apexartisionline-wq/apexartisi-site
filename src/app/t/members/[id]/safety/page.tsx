@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { SafetyPlanForm } from "@/components/SafetyPlanForm";
 import { logAccess } from "@/lib/audit";
@@ -30,6 +31,7 @@ export default async function MemberSafetyPlan({ params, searchParams }: { param
   const show = (p: PlanData) => (admin ? p : planForStaff(p)!);
   return (
     <main>
+      <p style={{ margin: "8px 0 0" }}><Link className="back" href={`/t/members/${id}`}>‹ {member.name}</Link></p>
       <h1>Πλάνο ασφάλειας — {member.name}</h1>
       <p className="muted small">Γράφεται μαζί, μέσα στην ατομική, με τα λόγια του μέλους. Το μέλος το βλέπει μέσα στο κόκκινο κουμπί.</p>
       {sp.ok && <div className="notice">Αποθηκεύτηκε ✓</div>}

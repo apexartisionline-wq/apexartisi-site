@@ -68,8 +68,12 @@ export function Tour({ id, name, steps: all, auto }: { id: string; name: string;
   useLayoutEffect(() => {
     if (!step) return;
     const el = step.target ? (document.querySelector(step.target) as HTMLElement | null) : null;
+    let opened: HTMLDetailsElement | null = null;
     if (el) {
-      if (el.tagName === "DETAILS") (el as HTMLDetailsElement).open = true;
+      if (el.tagName === "DETAILS" && !(el as HTMLDetailsElement).open) {
+        (el as HTMLDetailsElement).open = true;
+        opened = el as HTMLDetailsElement;
+      }
       el.scrollIntoView({ block: el.tagName === "H2" ? "start" : "center", behavior: "instant" as ScrollBehavior });
     }
     measure();
@@ -88,6 +92,7 @@ export function Tour({ id, name, steps: all, auto }: { id: string; name: string;
     window.addEventListener("resize", measure);
     window.addEventListener("scroll", measure, true);
     return () => {
+      if (opened) opened.open = false;
       cancelAnimationFrame(raf);
       ro?.disconnect();
       window.removeEventListener("resize", measure);
@@ -151,7 +156,7 @@ export function Tour({ id, name, steps: all, auto }: { id: string; name: string;
 
   return (
     <>
-      {slot && createPortal(<button type="button" className="tour-btn" onClick={start}>? Ξενάγηση</button>, slot)}
+      {slot && createPortal(<button type="button" className="tour-btn" onClick={start} aria-label="Ξενάγηση"><span aria-hidden="true">?</span><span className="tour-btn-label"> Ξενάγηση</span></button>, slot)}
       {step && (
         <div className="tour" role="dialog" aria-modal="true" aria-label={`Ξενάγηση: ${name}`}>
           {rect ? (
