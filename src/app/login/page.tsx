@@ -21,7 +21,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       <div className="row" style={{ justifyContent: "center", marginBottom: 16 }}>
         <img src={s.logoUrl || "/icon.svg"} alt="" height={64} />
       </div>
-      <h1 style={{ textAlign: "center" }}>{s.appName}</h1>
+      <h1 style={{ textAlign: "center" }}><span className="apex-word big">{s.appName}</span></h1>
       {sp.e === "otp" && <div className="error">Για το προσωπικό χρειάζεται και ο 6ψήφιος κωδικός από την εφαρμογή επαλήθευσης.</div>}
       {sp.e && sp.e !== "otp" && <div className="error">Λάθος όνομα χρήστη ή κωδικός.</div>}
       <form action={doLogin} className="card">

@@ -9,7 +9,7 @@ export async function Nav({ links, menu = false }: { links: { href: string; labe
   const crowded = menu && links.length > 8;
   const s = await getSettings();
   return (
-    <nav className="top">
+    <nav className={many ? "top has-menu" : "top"}>
       <Link href="/" className="brand">
         {s.logoUrl ? <img src={s.logoUrl} alt="" /> : <BrandMark />}
         <span className="brand-name">{s.appName}</span>
