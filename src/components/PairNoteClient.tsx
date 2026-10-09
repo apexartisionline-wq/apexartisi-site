@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ThemeDetails, type ThemeDetail } from "@/components/ThemeDetails";
 import { JOURNALING, PRESENTED } from "@/lib/note-form";
 import { ACCEPTED_HELP, CONNECTED, findOther, nameVariants, type PairSide, pairSideSchema, STANCE } from "@/lib/pair-note";
 import { vocative } from "@/lib/vocative";
@@ -13,6 +14,7 @@ type Props = {
   members: [Member, Member];
   initial: Record<string, Partial<PairSide>>;
   themeForms: string[];
+  themeDetails?: ThemeDetail[];
   cameDefault: Record<string, boolean>; // πάτησε «Σύνδεση»;
   version: string; // πότε άλλαξε τελευταία φορά (για να μη σβήσει κάποιος αλλαγή άλλης συσκευής)
 };
@@ -21,7 +23,7 @@ const fresh = (came: boolean): Partial<PairSide> => ({ came: came ? true : undef
 
 // Σημειωματάριο Therapair: κάθε ερώτηση με τα δύο ονόματα δίπλα-δίπλα (στο κινητό το ένα κάτω από το άλλο).
 // Αποθηκεύεται ως ξεχωριστό σημείωμα στον φάκελο του καθενός.
-export function PairNoteClient({ action, slotId, members, initial, themeForms, version, cameDefault }: Props) {
+export function PairNoteClient({ action, slotId, members, initial, themeForms, themeDetails = [], version, cameDefault }: Props) {
   const [m1, m2] = members;
   const [d, setD] = useState<Record<string, Partial<PairSide>>>({
     // «Ήρθε»: «Ναι» μόνο αν πάτησε «Σύνδεση» ή αν υπάρχει ήδη σημείωμα· αλλιώς το διαλέγει ο θεραπευτής.
@@ -213,7 +215,7 @@ export function PairNoteClient({ action, slotId, members, initial, themeForms, v
       {sec("Συνδέθηκε με το άλλο μέλος", filled("connected"), <>{both(clinical((m) => chips(m, "connected", CONNECTED)))}</>)}
       {sec("Δέχτηκε βοήθεια", filled("acceptedHelp"), <>{both(clinical((m) => chips(m, "acceptedHelp", ACCEPTED_HELP)))}</>)}
       {sec("Στάση", filled("stance"), <>{both(clinical((m) => chips(m, "stance", STANCE)))}</>)}
-      {sec("Τι εμφανίστηκε", filled("emergedText"), <>{both(clinical((m) => <>{themeForms.length > 0 && multi(m, "emerged", themeForms)}{text(m, "emergedText", "Τι εμφανίστηκε", "με δικά σου λόγια", 3)}</>))}</>)}
+      {sec("Τι εμφανίστηκε", filled("emergedText"), <><ThemeDetails items={themeDetails} intro="Η θεματική της εβδομάδας, για να τη δεις εδώ:" />{both(clinical((m) => <>{themeForms.length > 0 && multi(m, "emerged", themeForms)}{text(m, "emergedText", "Τι εμφανίστηκε", "με δικά σου λόγια", 3)}</>))}</>)}
       {sec("Τι βγήκε από την κουβέντα", filled("outcome"), <>{both(clinical((m) => text(m, "outcome", "Τι βγήκε από την κουβέντα", "", 2)))}</>)}
       {sec("Τα θετικά", filled("positives"), <>{both(clinical((m) => text(m, "positives", "Τα θετικά", "π.χ. στάθηκε δίπλα στο άλλο μέλος", 1)))}</>)}
       {sec("Γράφει απογραφές;", filled("journaling"), <>{both(clinical((m) => journalChips(m)))}</>)}

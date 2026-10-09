@@ -1,14 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ThemeDetails, type ThemeDetail } from "@/components/ThemeDetails";
 import { useNoteForm } from "./useNoteForm";
 import { DEFENSES, JOURNALING, MOOD, type NoteForm, noteFormSchema, PRESENTED, PROCESS, SELF_HELP, THEMES } from "@/lib/note-form";
 
-type Props = { action: (formData: FormData) => void; hidden: Record<string, string>; initial: Partial<NoteForm> | null; themeForms: string[]; cameDefault?: boolean };
+type Props = { action: (formData: FormData) => void; hidden: Record<string, string>; initial: Partial<NoteForm> | null; themeForms: string[]; themeDetails?: ThemeDetail[]; cameDefault?: boolean };
 
 // Το σημειωματάριο της ατομικής: γρήγορες επιλογές + χώρος για δικά σου λόγια.
 // Στέλνει όλο το σημείωμα ως JSON (payload)· ο server το ελέγχει (note-form.ts).
-export function NoteFormClient({ action, hidden, initial, themeForms, cameDefault }: Props) {
+export function NoteFormClient({ action, hidden, initial, themeForms, themeDetails = [], cameDefault }: Props) {
   // «Ήρθε»: ξεκινά «Ναι» μόνο αν το μέλος πάτησε «Σύνδεση» (ή αν υπάρχει ήδη σημείωμα)· αλλιώς το διαλέγει ο θεραπευτής.
   // Σε διόρθωση ο διακόπτης «Ενημέρωση ομάδας» ξεκινά κλειστός: η ομάδα ενημερώθηκε ήδη την πρώτη φορά.
   const [d, setD] = useState<Partial<NoteForm>>({ came: initial ? (initial.came ?? true) : cameDefault ? true : undefined, sober: true, safeOk: true, ...initial, notify: false });
@@ -123,7 +124,7 @@ export function NoteFormClient({ action, hidden, initial, themeForms, cameDefaul
       <fieldset><legend>Διάθεση</legend>{single("mood", MOOD)}</fieldset>
       <fieldset><legend>Πόσο βοηθά τον εαυτό του/της</legend>{single("selfHelp", SELF_HELP)}</fieldset>
       <fieldset><legend>Πώς νιώθει μέσα στη διαδικασία</legend>{single("process", PROCESS)}</fieldset>
-      <fieldset><legend>Τι έφερε</legend>{multi("brought", [...themeForms, ...THEMES])}{text("broughtText", "Τι έφερε, με λόγια", "Με δικά σου λόγια")}</fieldset>
+      <fieldset><legend>Τι έφερε</legend>{multi("brought", [...themeForms, ...THEMES])}<ThemeDetails items={themeDetails} intro="Η θεματική της εβδομάδας, για να τη δεις εδώ:" />{text("broughtText", "Τι έφερε, με λόγια", "Με δικά σου λόγια")}</fieldset>
       <fieldset><legend>Σε τι επικεντρώθηκε η παρέμβαση</legend>{text("intervention", "Σε τι επικεντρώθηκε η παρέμβαση", "π.χ. να μείνει στο δικό του/της συναίσθημα")}</fieldset>
       <fieldset><legend>Ανταπόκριση και άμυνες</legend>{multi("defenses", DEFENSES)}{text("response", "Ανταπόκριση με λόγια", "π.χ. περιορισμένη ανταπόκριση στην ανατροφοδότηση", 1)}</fieldset>
       <fieldset><legend>Τα θετικά</legend>{text("positives", "Τα θετικά", "π.χ. επέλεξε να φύγει νωρίς", 1)}</fieldset>

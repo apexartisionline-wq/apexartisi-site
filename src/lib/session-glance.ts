@@ -24,9 +24,9 @@ export async function sessionGlance(memberId: string, beforeSlot: { id: string; 
     prisma.journalEntry.findMany({ where: { memberId, date: { gte: from7, lte: today } }, select: { date: true, craving: true, sleepHours: true, mood: true } }),
     prisma.assignment.findFirst({ where: { memberId }, orderBy: { createdAt: "desc" }, select: { id: true, title: true, answer: true, answeredAt: true } }),
     // Φόρμες της θεματικής αυτής της εβδομάδας (Δευτέρα–Κυριακή).
-    prisma.content.findMany({ where: { kind: "FORM", date: { gte: mondayOf(today), lte: addDays(mondayOf(today), 6) } }, orderBy: { date: "asc" }, select: { id: true, title: true, date: true } }),
+    prisma.content.findMany({ where: { kind: "FORM", date: { gte: mondayOf(today), lte: addDays(mondayOf(today), 6) } }, orderBy: { date: "asc" }, select: { id: true, title: true, date: true, body: true, url: true } }),
     // Το κείμενο της ημέρας, για να ξέρει ο θεραπευτής τι διάβασε σήμερα το μέλος.
-    prisma.content.findFirst({ where: { kind: "DAILY_TEXT", date: today }, select: { id: true, title: true, date: true } }),
+    prisma.content.findFirst({ where: { kind: "DAILY_TEXT", date: today }, select: { id: true, title: true, date: true, body: true, url: true } }),
   ]);
 
   const byDate = new Map(journal.map((j) => [j.date, j]));
@@ -60,6 +60,11 @@ export async function sessionGlance(memberId: string, beforeSlot: { id: string; 
     forms: forms.map((f, i) => `Φόρμα ${i + 1} · ${f.title}`).slice(0, 3),
     // Οι ίδιες φόρμες με σύνδεσμο, για να τις ανοίξει ο θεραπευτής («Υλικό»).
     theme: { forms: forms.slice(0, 3), dailyText },
+    // Τα ίδια, ανοιχτά μέσα στο σημειωματάριο (δίπλα στο «Τι έφερε»), για να τα διαβάζει χωρίς να φύγει.
+    themeDetails: [
+      ...forms.slice(0, 3).map((f, i) => ({ id: f.id, label: `Φόρμα ${i + 1}`, title: f.title, body: f.body, url: f.url })),
+      ...(dailyText ? [{ id: dailyText.id, label: "Κείμενο της ημέρας", title: dailyText.title, body: dailyText.body, url: dailyText.url }] : []),
+    ],
   };
 }
 

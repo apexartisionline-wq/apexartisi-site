@@ -470,7 +470,7 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
       {sp.saved && <ClearDraft k={`note-draft:${x.id}`} />}
       {sp.error && <div className="error">Δεν αποθηκεύτηκε: {sp.error}</div>}
       {showForm ? (
-        <NoteFormClient action={saveIndividual} hidden={{ slotId: x.id }} initial={initial} themeForms={g.forms} cameDefault={Boolean(b.joinedAt)} />
+        <NoteFormClient action={saveIndividual} hidden={{ slotId: x.id }} initial={initial} themeForms={g.forms} themeDetails={g.themeDetails} cameDefault={Boolean(b.joinedAt)} />
       ) : x.note ? (
         <div className="card">
           <NoteText text={dec(x.note.content)} />
@@ -507,9 +507,9 @@ async function PairSession({ x, user, sp }: { x: Slot; user: { id: string; role:
   const room = s.rooms[x.position - 1] ?? "";
   const today = localParts(now).date;
   const members = [...x.bookings].sort((p, q) => p.member.name.localeCompare(q.member.name, "el")).map((b) => b.member) as [{ id: string; name: string }, { id: string; name: string }];
-  const [joined, { forms, theme }, perMember] = await Promise.all([
+  const [joined, { forms, theme, themeDetails }, perMember] = await Promise.all([
     prisma.staffJoin.findFirst({ where: { kind: "SLOT", ref: x.id, userId: user.id }, orderBy: { at: "asc" } }),
-    sessionGlance(members[0].id, x).then((g) => ({ forms: g.forms, theme: g.theme })),
+    sessionGlance(members[0].id, x).then((g) => ({ forms: g.forms, theme: g.theme, themeDetails: g.themeDetails })),
     Promise.all(members.map(async (m) => ({
       m,
       prev: (await memberNotes(m.id, { before: x.startsAt, excludeSlot: x.id, take: 1 }))[0] ?? null,
@@ -574,7 +574,7 @@ async function PairSession({ x, user, sp }: { x: Slot; user: { id: string; role:
         </details>
       )}
       {showForm ? (
-        <PairNoteClient action={savePair} slotId={x.id} members={members} initial={initial} themeForms={forms} cameDefault={Object.fromEntries(x.bookings.map((bk) => [bk.memberId, Boolean(bk.joinedAt)]))} version={String(x.pairNotes.reduce((t, n) => Math.max(t, n.updatedAt.getTime()), 0) || "")} />
+        <PairNoteClient action={savePair} slotId={x.id} members={members} initial={initial} themeForms={forms} themeDetails={themeDetails} cameDefault={Object.fromEntries(x.bookings.map((bk) => [bk.memberId, Boolean(bk.joinedAt)]))} version={String(x.pairNotes.reduce((t, n) => Math.max(t, n.updatedAt.getTime()), 0) || "")} />
       ) : x.pairNotes.length > 0 ? (
         <>
           <div className="pair-grid">
