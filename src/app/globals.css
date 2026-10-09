@@ -148,6 +148,9 @@ nav.top a:hover { background: var(--soft); }
 nav.top .brand { font-weight: 700; margin-right: auto; display: flex; align-items: center; gap: 5px; padding: 2px 6px 2px 0; }
 nav.top .brand:hover { background: none; }
 nav.top img { height: 40px; }
+/* Πλήρες λογότυπο της ομάδας: ύψος 44px (το αρχείο έχει δικό του ελεύθερο χώρο γύρω του). */
+nav.top .brand-logo { height: 44px; width: auto; display: block; }
+@media (max-width: 760px) { nav.top .brand-logo { height: 36px; } }
 .navlinks { display: contents; }
 .navmenu { display: none; position: relative; }
 .navmenu.always { display: block; }
