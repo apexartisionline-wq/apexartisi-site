@@ -366,9 +366,9 @@ details.note-fold[open] > summary { color: var(--muted); }
 }
 
 /* Ξενάγηση */
-/* Το κουμπί «Ξενάγηση»: ήπιο χρώμα (soft accent), χωρίς σύμβολο, για να ξεχωρίζει από τους συνδέσμους. */
-.tour-btn { order: 99; padding: 6px 12px; font-weight: 600; background: var(--soft); color: var(--accent-strong); border-color: transparent; }
-.tour-btn:hover { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+/* Το κουμπί «Ξενάγηση»: πλήρες accent (απόφαση 9/10: έντονο), χωρίς σύμβολο, για να ξεχωρίζει από τους συνδέσμους. */
+.tour-btn { order: 99; padding: 6px 12px; font-weight: 700; background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+.tour-btn:hover { background: var(--accent-strong); color: var(--accent-text); border-color: var(--accent-strong); }
 nav.top > form { order: 100; }
 .tour { position: fixed; inset: 0; z-index: 100; }
 .tour-dim { position: fixed; inset: 0; background: rgba(12, 22, 32, 0.62); animation: tour-fade 0.2s ease; }
