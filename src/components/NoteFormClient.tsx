@@ -123,7 +123,7 @@ export function NoteFormClient({ action, hidden, initial, themeForms, themeDetai
       <fieldset><legend>Πώς παρουσιάστηκε</legend>{multi("presented", PRESENTED)}{text("presentedText", "Πώς παρουσιάστηκε, με λόγια", "π.χ. έντονη, συνεχής ροή λόγου", 1)}</fieldset>
       <fieldset><legend>Διάθεση</legend>{single("mood", MOOD)}</fieldset>
       <fieldset><legend>Πόσο βοηθά τον εαυτό του/της</legend>{single("selfHelp", SELF_HELP)}</fieldset>
-      <fieldset><legend>Πώς νιώθει μέσα στη διαδικασία</legend>{single("process", PROCESS)}</fieldset>
+      <fieldset><legend>Πώς νιώθει στη διαδικασία</legend>{single("process", PROCESS)}</fieldset>
       <fieldset><legend>Τι έφερε</legend>{multi("brought", [...themeForms, ...THEMES])}<ThemeDetails items={themeDetails} intro="Η θεματική της εβδομάδας, για να τη δεις εδώ:" />{text("broughtText", "Τι έφερε, με λόγια", "Με δικά σου λόγια")}</fieldset>
       <fieldset><legend>Σε τι επικεντρώθηκε η παρέμβαση</legend>{text("intervention", "Σε τι επικεντρώθηκε η παρέμβαση", "π.χ. να μείνει στο δικό του/της συναίσθημα")}</fieldset>
       <fieldset><legend>Ανταπόκριση και άμυνες</legend>{multi("defenses", DEFENSES)}{text("response", "Ανταπόκριση με λόγια", "π.χ. περιορισμένη ανταπόκριση στην ανατροφοδότηση", 1)}</fieldset>

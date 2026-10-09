@@ -58,7 +58,7 @@ export default async function PersonPage({ params, searchParams }: { params: Pro
             ) : <div className="small muted" style={{ marginTop: 6 }}>Δεν έχει δώσει άνθρωπο για έκτακτη ανάγκη.</div>}
             <details className="small" style={{ marginTop: 8 }}>
               <summary>Όλα τα στοιχεία από το μέλος</summary>
-              <div>{profile.data.fullName}{profile.data.preferredName && ` · τον/την λέμε ${profile.data.preferredName}`}</div>
+              <div>{profile.data.fullName}{profile.data.preferredName && ` · τον/τη λέμε ${profile.data.preferredName}`}</div>
               <div>Γέννηση: {profile.data.birthDate ? gr(profile.data.birthDate) : "—"}</div>
               <div>Email: {profile.data.email || "—"}</div>
             </details>

@@ -25,7 +25,7 @@ export default async function TherapistContent({ params }: { params: Promise<{ i
       {c.url && (
         <>
           <p><a className="btn primary" href={c.url} target="_blank" rel="noopener noreferrer">Άνοιξε τη φόρμα</a></p>
-          <p className="small muted">Ανοίγει για να τη δεις. Το μέλος τη συμπληρώνει από το δικό του «Κείμενα», με τον κωδικό του.</p>
+          <p className="small muted">Ανοίγει για να τη δεις. Το μέλος τη συμπληρώνει από τα δικά του «Κείμενα», με τον κωδικό του.</p>
         </>
       )}
       {!c.body && !c.url && <p className="muted">Μόνο τίτλος, χωρίς κείμενο.</p>}

@@ -75,6 +75,6 @@ export function draftMessage(firstName: string, p: Picture, month?: number): str
   if (p.soberDays && p.soberDays > 0) lines.push(`${plural(p.soberDays, "μέρα", "μέρες")} νηφαλιότητας. Δεν είναι απλώς ένας αριθμός· είναι κάθε μέρα που επέλεξες τον εαυτό σου.`);
 
   lines.push("Η προσπάθειά σου φαίνεται, και χαιρόμαστε που περπατάμε δίπλα σου. Ο επόμενος μήνας σε περιμένει — συνεχίζουμε μαζί.");
-  lines.push("Με εκτίμηση,\nη ομάδα του APEX");
+  lines.push("Με εκτίμηση,\nη ομάδα του Apex");
   return lines.join("\n\n");
 }

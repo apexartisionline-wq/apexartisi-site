@@ -92,7 +92,7 @@ export const profileSchema = z
 export type Profile = z.infer<typeof profileSchema>;
 export const EC_WHEN = { LIFE: "Μόνο αν κινδυνεύει η ζωή μου", LIFE_OR_LOST: "Και αν χαθεί κάθε επαφή μαζί μου" } as const;
 export const PROFILE_LABELS: Record<string, string> = {
-  fullName: "Ονοματεπώνυμο", preferredName: "Πώς θέλει να τον/την λέμε", birthDate: "Γέννηση", mobile: "Κινητό", email: "Email",
+  fullName: "Ονοματεπώνυμο", preferredName: "Πώς θέλει να τον/τη λέμε", birthDate: "Γέννηση", mobile: "Κινητό", email: "Email",
   address: "Διεύθυνση", abroadCountry: "Ζει εκτός Ελλάδας", ecName: "Επαφή έκτακτης ανάγκης", ecRelation: "Σχέση", ecPhone: "Τηλέφωνο επαφής",
   ecWhen: "Πότε καλούμε την επαφή", ecWhatToSay: "Τι λέμε στην επαφή",
 };

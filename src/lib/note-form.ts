@@ -76,7 +76,7 @@ export function composeNote(d: NoteForm): string {
   add("Ανταπόκριση και άμυνες", [d.defenses.join(", "), d.response].filter(Boolean).join(" — "));
   add("Τα θετικά", d.positives);
   add("Γράφει απογραφές", d.journaling ?? "");
-  add("Πώς ήταν να είμαι μαζί του/της", d.felt);
+  add("Πώς ήταν να είμαι μαζί του σήμερα", d.felt);
   add("Τι προτείναμε", d.suggested);
   lines.push(d.sober ? "Νηφάλιος/α από την προηγούμενη φορά." : `Όχι νηφάλιος/α από την προηγούμενη φορά· νέα ημερομηνία νηφαλιότητας ${d.newSoberSince}.`);
   lines.push(d.safeOk ? "Ανησυχία για την ασφάλεια: Όχι." : `Ανησυχία για την ασφάλεια: Ναι — ${d.safetyText || "βλ. προβληματισμό"}`);

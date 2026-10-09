@@ -53,7 +53,7 @@ export default async function CyclePage({ params, searchParams }: { params: Prom
             {row("Ομάδες", `${pic.groups.came} από ${pic.groups.total}`, pic.groups.came < pic.groups.total / 2)}
             {row("Απογραφές", `${pic.journal.written} από ${pic.journal.days} μέρες`)}
             {row("Κόκκινο κουμπί", String(pic.help), pic.help > 0)}
-            {row("Νηφαλιότητα", pic.soberDays !== null ? `${pic.soberDays} μέρες${pic.relapses ? ` · ${pic.relapses} αλλαγή ημερομηνίας στον κύκλο` : ""}` : "—", pic.relapses > 0)}
+            {row("Νηφαλιότητα", pic.soberDays !== null ? `${pic.soberDays} μέρες${pic.relapses ? ` · ${pic.relapses} ${pic.relapses === 1 ? "αλλαγή" : "αλλαγές"} ημερομηνίας στον κύκλο` : ""}` : "—", pic.relapses > 0)}
           </div>
           <h2>Στόχοι εβδομάδας</h2>
           {pic.weeks.length === 0 ? <div className="card muted small">Δεν έβαλε στόχους σε αυτόν τον κύκλο.</div> : (

@@ -105,7 +105,7 @@ export default async function IntakePage({ params, searchParams }: { params: Pro
       {isAdmin ? (
         <div className={status.complete ? "notice" : "card"} style={status.complete ? undefined : { borderColor: "var(--yellow)" }}>
           {status.complete
-            ? "Ολοκληρώθηκε ✓ Το μέλος έχει πλήρη πρόσβαση στο app."
+            ? "Ολοκληρώθηκε ✓ Το μέλος έχει πλήρη πρόσβαση στην εφαρμογή."
             : `Λείπουν: ${[...status.missingSteps.map((s) => s.doc), ...status.missingConsents.map((p) => p.doc)].join(", ")}. Μέχρι τότε το μέλος βλέπει μόνο τη σελίδα έναρξης και το κόκκινο κουμπί.`}
         </div>
       ) : null}

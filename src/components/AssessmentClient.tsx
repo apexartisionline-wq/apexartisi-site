@@ -331,7 +331,7 @@ export function AssessmentClient({ action, memberId, initial, profile, showAdmin
 
       <details className="sec" open={!initial.summary}>
         <summary>Σύνοψη για την ομάδα {mark(done.summary)}</summary>
-        {txt("summary", "5–8 γραμμές: τι τον/την φέρνει εδώ · τι συντηρεί τον εθισμό · τι προστατεύει · τι χρειάζεται πρώτα", "Το πρώτο που θα διαβάσει κάθε θεραπευτής στον φάκελο", 6)}
+        {txt("summary", "5–8 γραμμές: τι τον/τη φέρνει εδώ · τι συντηρεί τον εθισμό · τι προστατεύει · τι χρειάζεται πρώτα", "Το πρώτο που θα διαβάσει κάθε θεραπευτής στον φάκελο", 6)}
       </details>
 
       <div className="sticky-save">

@@ -43,7 +43,7 @@ export default async function MonthFolder({ params }: { params: Promise<{ id: st
       <div className="card stack small">
         <div>Ατομικές: <strong>{pic.sessions.done} από {pic.sessions.total}</strong>{pic.sessions.came < pic.sessions.done && <span className="muted"> (ήρθε σε {pic.sessions.came})</span>} · Ομάδες: <strong>{pic.groups.came} από {pic.groups.total}</strong></div>
         <div>Απογραφές: <strong>{pic.journal.written} από {pic.journal.days} μέρες</strong> · Κόκκινο κουμπί: <strong>{pic.help}</strong></div>
-        <div>Νηφαλιότητα: <strong>{pic.soberDays ?? "—"} μέρες</strong>{pic.relapses ? ` · ${pic.relapses} αλλαγή ημερομηνίας` : ""}</div>
+        <div>Νηφαλιότητα: <strong>{pic.soberDays ?? "—"} μέρες</strong>{pic.relapses ? ` · ${pic.relapses} ${pic.relapses === 1 ? "αλλαγή" : "αλλαγές"} ημερομηνίας` : ""}</div>
       </div>
 
       <h2>Ανασκόπηση θεραπευτή</h2>

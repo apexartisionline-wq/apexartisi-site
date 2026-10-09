@@ -150,7 +150,7 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
         )).reverse()}
       </div>
       <div className="list">
-        <Link href={`/t/members/${id}/incident`}><span>Συμβάντα{openIncidents > 0 && <span className="badge yellow" style={{ marginLeft: 6 }}>{openIncidents} ανοιχτό</span>}</span></Link>
+        <Link href={`/t/members/${id}/incident`}><span>Συμβάντα{openIncidents > 0 && <span className="badge yellow" style={{ marginLeft: 6 }}>{openIncidents} {openIncidents === 1 ? "ανοιχτό" : "ανοιχτά"}</span>}</span></Link>
       </div>
       <h2>Σύνοψη περίπτωσης</h2>
       <div className="card">

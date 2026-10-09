@@ -31,7 +31,7 @@ async function act(formData: FormData, send: boolean) {
     data: { text: enc(text), editedById: admin.id, ...(send ? { sentAt: new Date(), sentById: admin.id } : {}) },
   });
   await logAccess(admin.id, msg.memberId, send ? "monthly_message_send" : "monthly_message_edit");
-  if (send) await notifyMembers([msg.memberId], { title: "Ένα μήνυμα από την ομάδα σου", body: "Από την ομάδα του APEX", url: "/m/message", tag: "monthly" });
+  if (send) await notifyMembers([msg.memberId], { title: "Ένα μήνυμα από την ομάδα σου", body: "Από την ομάδα του Apex", url: "/m/message", tag: "monthly" });
   redirect(`/admin/messages?${send ? `sent=${quietUntil() ? "later" : "1"}` : "saved=1"}`);
 }
 

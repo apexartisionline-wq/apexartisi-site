@@ -49,7 +49,7 @@ export default async function MemberJournalPage({ params, searchParams }: { para
               <div className="journal-nums">
                 <span><b>{j.mood}</b>/10 διάθεση</span>
                 <span><b>{j.craving}</b>/10 λαχτάρα</span>
-                <span><b>{String(j.sleepHours).replace(".", ",")}</b> ώρες ύπνος</span>
+                <span><b>{String(j.sleepHours).replace(".", ",")}</b> ώρες ύπνου</span>
                 <span><b>{j.confidence}</b>/10 σιγουριά για αύριο</span>
               </div>
               <ul className="journal-ans">

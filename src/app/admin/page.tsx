@@ -135,7 +135,7 @@ export default async function AdminToday({ searchParams }: { searchParams: Promi
       {dropoutRows.length > 0 && (
         <section className="card" style={{ borderColor: "var(--yellow)" }}>
           <strong>Τηλεφωνήματα της διαχείρισης</strong>
-          <p className="muted small" style={{ margin: "4px 0 8px" }}>«Χωρίς επαφή»: 3 μέρες δεν μπήκε σε ομάδα, δεν έγραψε απογραφή, δεν μπήκε σε ατομική — ουδέτερο μήνυμα: «Γεια, από το APEX. Σε σκεφτόμαστε, πάρε μας όταν μπορείς.» «Ανάγκες ασφάλειας»: επαφή μέσα σε 24 ώρες (Αυξημένες) ή την επόμενη μέρα (Υψηλές).</p>
+          <p className="muted small" style={{ margin: "4px 0 8px" }}>«Χωρίς επαφή»: 3 μέρες δεν μπήκε σε ομάδα, δεν έγραψε απογραφή, δεν μπήκε σε ατομική — ουδέτερο μήνυμα: «Γεια, από το Apex. Σε σκεφτόμαστε, πάρε μας όταν μπορείς.» «Ανάγκες ασφάλειας»: επαφή μέσα σε 24 ώρες (Αυξημένες) ή την επόμενη μέρα (Υψηλές).</p>
           {sp.dropout === "need" && <div className="error small">Γράψε σύντομα τι έγινε.</div>}
           {dropoutRows.map(({ t, name, phone }) => (
             <form key={t.id} action={dropoutDone} className="row" style={{ gap: 6, flexWrap: "wrap", marginTop: 8 }}>

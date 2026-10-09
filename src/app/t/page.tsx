@@ -26,7 +26,7 @@ async function careDone(formData: FormData) {
   redirect("/t");
 }
 
-const CARE = { caring_24h: "Μήνυμα φροντίδας (24 ώρες μετά από κρίση)", caring_7d: "Μήνυμα φροντίδας (7 μέρες μετά από κρίση)", dropout: "Χωρίς επαφή μέρες: να επικοινωνήσει κάποιος", risk_24h: "Αυξημένες ανάγκες ασφάλειας: επαφή μέσα σε 24 ώρες", risk_next_day: "Υψηλές ανάγκες ασφάλειας: επαφή σήμερα" } as Record<string, string>;
+const CARE = { caring_24h: "Μήνυμα φροντίδας (24 ώρες μετά από κρίση)", caring_7d: "Μήνυμα φροντίδας (7 μέρες μετά από κρίση)", dropout: "Χωρίς επαφή εδώ και μέρες: να επικοινωνήσει κάποιος", risk_24h: "Αυξημένες ανάγκες ασφάλειας: επαφή μέσα σε 24 ώρες", risk_next_day: "Υψηλές ανάγκες ασφάλειας: επαφή σήμερα" } as Record<string, string>;
 
 type Item = { key: string; time: string; title: string; sub: string; href: string; join?: { kind: "SLOT" | "GROUP"; ref: string; room: string } };
 
@@ -67,7 +67,7 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
       key: `g${g.time}`,
       time: g.time,
       title: "Ομάδα",
-      sub: g.hasNote ? "Εσύ συντονίζεις · σύνοψη ✓" : "Εσύ συντονίζεις",
+      sub: g.hasNote ? "Εσύ συντονίζεις · σημείωμα ✓" : "Εσύ συντονίζεις",
       href: `/t/group/${g.date}/${g.time.replace(":", "")}`,
       join: { kind: "GROUP" as const, ref: `${g.date} ${g.time}`, room: s.groupRoomUrl },
     })),
