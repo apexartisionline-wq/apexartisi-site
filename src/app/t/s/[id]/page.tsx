@@ -12,6 +12,7 @@ import { NoteFormClient } from "@/components/NoteFormClient";
 import { PairNoteClient } from "@/components/PairNoteClient";
 import { NoteTags } from "@/components/NoteTags";
 import { SafetyZone } from "@/components/SafetyZone";
+import { ThemeWeek } from "@/components/ThemeWeek";
 import { latestAssessment, latestProfile } from "@/lib/assessment-db";
 import { logAccess } from "@/lib/audit";
 import { requireRole } from "@/lib/auth";
@@ -406,6 +407,8 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
         {!intake.trigger && risk && ` · ${RISK_INFO[risk].action}`}
       </p>
 
+      <ThemeWeek forms={g.theme.forms} dailyText={g.theme.dailyText} />
+
       <h2 data-tour="open">Ανοιχτό από την προηγούμενη φορά</h2>
       <div className="card">
         {g.prev ? (
@@ -504,9 +507,9 @@ async function PairSession({ x, user, sp }: { x: Slot; user: { id: string; role:
   const room = s.rooms[x.position - 1] ?? "";
   const today = localParts(now).date;
   const members = [...x.bookings].sort((p, q) => p.member.name.localeCompare(q.member.name, "el")).map((b) => b.member) as [{ id: string; name: string }, { id: string; name: string }];
-  const [joined, forms, perMember] = await Promise.all([
+  const [joined, { forms, theme }, perMember] = await Promise.all([
     prisma.staffJoin.findFirst({ where: { kind: "SLOT", ref: x.id, userId: user.id }, orderBy: { at: "asc" } }),
-    sessionGlance(members[0].id, x).then((g) => g.forms),
+    sessionGlance(members[0].id, x).then((g) => ({ forms: g.forms, theme: g.theme })),
     Promise.all(members.map(async (m) => ({
       m,
       prev: (await memberNotes(m.id, { before: x.startsAt, excludeSlot: x.id, take: 1 }))[0] ?? null,
@@ -533,6 +536,8 @@ async function PairSession({ x, user, sp }: { x: Slot; user: { id: string; role:
           {joined ? <a className="btn" href={room} target="_blank" rel="noopener noreferrer">Άνοιγμα Zoom</a> : canWrite(x, user) && <JoinButton kind="SLOT" refId={x.id} roomUrl={room} next={`/t/s/${x.id}`} />}
         </div>
       )}
+
+      <ThemeWeek forms={theme.forms} dailyText={theme.dailyText} compact />
 
       <div className="pair-grid" style={{ marginTop: 12 }} data-tour="pair-members">
         {perMember.map(({ m, prev }) => (

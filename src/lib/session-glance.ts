@@ -14,7 +14,7 @@ export async function sessionGlance(memberId: string, beforeSlot: { id: string; 
   const now = new Date();
   const today = localParts(now).date;
   const from7 = addDays(today, -6);
-  const [member, cycle, consistency, help14, prev, journal, assignment, forms] = await Promise.all([
+  const [member, cycle, consistency, help14, prev, journal, assignment, forms, dailyText] = await Promise.all([
     prisma.user.findUniqueOrThrow({ where: { id: memberId }, select: { programStartDate: true, soberSince: true } }),
     cycleInfo(memberId),
     memberConsistency(memberId, 4, now),
@@ -24,7 +24,9 @@ export async function sessionGlance(memberId: string, beforeSlot: { id: string; 
     prisma.journalEntry.findMany({ where: { memberId, date: { gte: from7, lte: today } }, select: { date: true, craving: true, sleepHours: true, mood: true } }),
     prisma.assignment.findFirst({ where: { memberId }, orderBy: { createdAt: "desc" }, select: { id: true, title: true, answer: true, answeredAt: true } }),
     // Φόρμες της θεματικής αυτής της εβδομάδας (Δευτέρα–Κυριακή).
-    prisma.content.findMany({ where: { kind: "FORM", date: { gte: mondayOf(today), lte: addDays(mondayOf(today), 6) } }, orderBy: { date: "asc" }, select: { title: true } }),
+    prisma.content.findMany({ where: { kind: "FORM", date: { gte: mondayOf(today), lte: addDays(mondayOf(today), 6) } }, orderBy: { date: "asc" }, select: { id: true, title: true, date: true } }),
+    // Το κείμενο της ημέρας, για να ξέρει ο θεραπευτής τι διάβασε σήμερα το μέλος.
+    prisma.content.findFirst({ where: { kind: "DAILY_TEXT", date: today }, select: { id: true, title: true, date: true } }),
   ]);
 
   const byDate = new Map(journal.map((j) => [j.date, j]));
@@ -56,6 +58,8 @@ export async function sessionGlance(memberId: string, beforeSlot: { id: string; 
     },
     assignment: assignment ? { id: assignment.id, title: assignment.title, answered: Boolean(assignment.answeredAt), length: dec(assignment.answer).length } : null,
     forms: forms.map((f, i) => `Φόρμα ${i + 1} · ${f.title}`).slice(0, 3),
+    // Οι ίδιες φόρμες με σύνδεσμο, για να τις ανοίξει ο θεραπευτής («Υλικό»).
+    theme: { forms: forms.slice(0, 3), dailyText },
   };
 }
 
