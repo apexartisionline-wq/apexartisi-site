@@ -159,13 +159,12 @@ nav.top img { height: 28px; }
 @media (max-width: 760px) {
   .navlinks.many { display: none; }
   .navmenu { display: block; }
-  /* Μία γραμμή (μόνο όπου υπάρχει «Μενού»): σήμα + «Μενού» + «?»· η «Έξοδος» πάει μέσα στο Μενού.
+  /* Μία γραμμή (μόνο όπου υπάρχει «Μενού»): σήμα + «Μενού» + «Ξενάγηση»· η «Έξοδος» πάει μέσα στο Μενού.
      Το μενού του μέλους (χωρίς «Μενού») τυλίγεται κανονικά — αλλιώς η σελίδα ξεχειλώνει στο πλάι. */
   nav.top.has-menu { flex-wrap: nowrap; }
   .nav-logout.has-menu { display: none; }
   .navmenu-logout { display: block; }
-  nav.top .tour-btn { min-width: 44px; padding: 6px 12px; font-weight: 700; }
-  .tour-btn-label { display: none; }
+  nav.top .tour-btn { padding: 6px 10px; font-size: 0.9rem; }
 }
 
 /* Σελίδες ομάδας (θεραπευτές, διαχείριση): κυρίως υπολογιστής/tablet — πιο φαρδιά,
@@ -367,7 +366,9 @@ details.note-fold[open] > summary { color: var(--muted); }
 }
 
 /* Ξενάγηση */
-.tour-btn { order: 99; padding: 6px 10px; }
+/* Το κουμπί «Ξενάγηση»: ήπιο χρώμα (soft accent), χωρίς σύμβολο, για να ξεχωρίζει από τους συνδέσμους. */
+.tour-btn { order: 99; padding: 6px 12px; font-weight: 600; background: var(--soft); color: var(--accent-strong); border-color: transparent; }
+.tour-btn:hover { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
 nav.top > form { order: 100; }
 .tour { position: fixed; inset: 0; z-index: 100; }
 .tour-dim { position: fixed; inset: 0; background: rgba(12, 22, 32, 0.62); animation: tour-fade 0.2s ease; }

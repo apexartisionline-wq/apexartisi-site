@@ -156,7 +156,7 @@ export function Tour({ id, name, steps: all, auto }: { id: string; name: string;
 
   return (
     <>
-      {slot && createPortal(<button type="button" className="tour-btn" onClick={start} aria-label="Ξενάγηση"><span aria-hidden="true">?</span><span className="tour-btn-label"> Ξενάγηση</span></button>, slot)}
+      {slot && createPortal(<button type="button" className="tour-btn" onClick={start}>Ξενάγηση</button>, slot)}
       {step && (
         <div className="tour" role="dialog" aria-modal="true" aria-label={`Ξενάγηση: ${name}`}>
           {rect ? (
