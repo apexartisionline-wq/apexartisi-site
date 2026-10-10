@@ -83,6 +83,22 @@ export function HelpFlow({
 
   return (
     <div className="stack">
+      {/* Πρώτα το δικό του: το πλάνο και το μήνυμα από τον εαυτό του (απόφαση 10/10 — «θα το βλέπεις πρώτο»)· μετά η ομάδα και οι γραμμές. */}
+      {plan && (
+        <section className="card">
+          <h2 style={{ marginTop: 0 }}>Το πλάνο σου</h2>
+          {plan}
+        </section>
+      )}
+
+      {hasSelfMessage && (
+        <section className="card">
+          <h2 style={{ marginTop: 0 }}>Ένα μήνυμα από σένα</h2>
+          <p className="muted small">Βάλε ακουστικά αν είσαι σε δημόσιο χώρο.</p>
+          <audio controls preload="none" src="/api/self-message" style={{ width: "100%" }} />
+        </section>
+      )}
+
       {!asked ? (
         <button className="red big" onClick={askHuman}>Θέλω να μιλήσω με άνθρωπο τώρα</button>
       ) : (
@@ -93,7 +109,7 @@ export function HelpFlow({
             <p><strong>Μιλήσατε ✓</strong> Είμαστε εδώ και αύριο.</p>
           ) : status?.claimedByName ? (
             <p>
-              <strong>Ο/η {status.claimedByName} σε παίρνει τώρα.</strong>
+              <strong>Σε παίρνει τώρα: {status.claimedByName}.</strong>
               <br />
               <span className="muted small">Μπορεί να σε καλέσει από αριθμό που δεν γνωρίζεις.</span>
             </p>
@@ -111,21 +127,6 @@ export function HelpFlow({
           <summary className="small">Γραμμές βοήθειας</summary>
           {lines}
         </details>
-      )}
-
-      {plan && (
-        <section className="card">
-          <h2 style={{ marginTop: 0 }}>Το πλάνο σου</h2>
-          {plan}
-        </section>
-      )}
-
-      {hasSelfMessage && (
-        <section className="card">
-          <h2 style={{ marginTop: 0 }}>Ένα μήνυμα από σένα</h2>
-          <p className="muted small">Βάλε ακουστικά αν είσαι σε δημόσιο χώρο.</p>
-          <audio controls preload="none" src="/api/self-message" style={{ width: "100%" }} />
-        </section>
       )}
 
       <section className="card">
