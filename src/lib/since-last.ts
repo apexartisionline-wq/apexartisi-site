@@ -16,11 +16,17 @@ export async function sinceLast(memberId: string, fromDate: string, untilDate: s
   const now = untilAt;
   const first = addDays(fromDate, 1);
   const last = addDays(untilDate, -1);
-  const [groups, attended, journal, help] = await Promise.all([
+  const [groups, attended, journal, help, mentions] = await Promise.all([
     first <= untilDate ? groupDays(first, untilDate, s) : Promise.resolve([]),
     prisma.attendance.findMany({ where: { memberId, date: { gte: first, lte: untilDate } }, select: { date: true } }),
     prisma.journalEntry.findMany({ where: { memberId, date: { gt: fromDate, lt: untilDate } }, orderBy: { date: "asc" } }),
     prisma.helpRequest.count({ where: { memberId, isDrill: false, createdAt: { gte: athensToUtc(first, 0), lt: athensToUtc(untilDate, 0) } } }),
+    // «Προσοχή σε…» από τα σημειώματα ομάδας του διαστήματος.
+    prisma.groupMention.findMany({
+      where: { memberId, groupSession: { date: { gte: first, lte: untilDate } } },
+      include: { groupSession: { select: { date: true, time: true, coordinator: { select: { name: true } } } } },
+      orderBy: { groupSession: { date: "asc" } },
+    }),
   ]);
   // Μόνο ομάδες που είχαν ήδη γίνει ως την ατομική (όχι μια ομάδα της ίδιας μέρας μετά από αυτήν).
   const came = new Set(attended.map((a) => a.date));
@@ -37,6 +43,9 @@ export async function sinceLast(memberId: string, fromDate: string, untilDate: s
     from: first,
     until: last,
     groups: groupRows,
+    mentions: mentions
+      .filter((m) => athensToUtc(m.groupSession.date, Math.floor(toMinutes(m.groupSession.time) / 60), toMinutes(m.groupSession.time) % 60) < now)
+      .map((m) => ({ date: m.groupSession.date, time: m.groupSession.time, by: m.groupSession.coordinator?.name ?? "", text: dec(m.text) })),
     journal: {
       days,
       written: journal.length,

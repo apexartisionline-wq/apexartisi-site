@@ -373,6 +373,7 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
         <Link className="btn" href={`/t/members/${b.member.id}`}>Κλινικός φάκελος ›</Link>
         {!assessed && <Link className="btn primary" href={`/t/members/${b.member.id}/assessment`}>Αρχική αξιολόγηση ›</Link>}
         {writable && x.note && !showForm && initial && <Link className="btn primary" data-tour="edit-note" href={`/t/s/${x.id}?edit=1`}>Άλλαξε το σημείωμα</Link>}
+        {showForm && <a className="btn primary" href="#notebook">Στο σημειωματάριο ↓</a>}
       </p>
 
       {x.date === today && room && (
@@ -393,10 +394,10 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
         </details>
       )}
 
-      <h2 data-tour="glance">Με μια ματιά</h2>
+      <h2 data-tour="glance">Με μια ματιά{x.date < today && <span className="muted small" style={{ fontWeight: 400 }}> · όπως είναι σήμερα, όχι τότε</span>}</h2>
       <div className="tiles">
         <div className="tile"><strong>{g.soberDays ?? "—"}</strong><span>μέρες νηφάλιος/α</span></div>
-        <div className="tile"><strong>{g.cycle ? `${g.cycle.done} από ${g.cycle.length}` : "—"}</strong><span>ατομικές του μήνα που πέρασαν</span></div>
+        <div className="tile" title={g.cycle ? `Από τις ${g.cycle.length} ατομικές του μήνα έχουν γίνει ${g.cycle.done}· ήρθε στις ${g.cycle.attended}` : undefined}><strong>{g.cycle ? `${g.cycle.attended} από ${g.cycle.done}` : "—"}</strong><span>ήρθε στις ατομικές του μήνα που έγιναν</span></div>
         <div className={`tile${g.groups.total && g.groups.done / g.groups.total < 0.6 ? " warn" : ""}`} title={`Τις τελευταίες 4 εβδομάδες ήρθε σε ${g.groups.done} από ${g.groups.total} ομάδες`}><strong>{g.cycle ? `${g.cycle.groups} από ${s.groupsPerCycle}` : "—"}</strong><span>ομάδες του μήνα</span></div>
         <div className="tile"><strong>{g.journal.written}/7</strong><span>απογραφές εβδ.</span></div>
         <div className={`tile${g.help14 ? " warn" : ""}`}><strong>{g.help14}</strong><span>κόκκινο κουμπί, 14 μ.</span></div>

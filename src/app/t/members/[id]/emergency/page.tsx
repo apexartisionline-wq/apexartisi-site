@@ -85,7 +85,7 @@ export default async function EmergencyPage({ params }: { params: Promise<{ id: 
       ) : (
         <div className="card">Το μέλος δεν έχει συμπληρώσει στοιχεία. Πάρε αμέσως τη διαχείριση{s.adminPhone && <> στο <a href={`tel:${s.adminPhone.replace(/\s/g, "")}`}><strong>{s.adminPhone}</strong></a></>}{duty && <> ή τον/την {duty.name}{duty.phone && <> στο <a href={`tel:${duty.phone.replace(/\s/g, "")}`}>{duty.phone}</a></>}</>}.</div>
       )}
-      <TourFor id="emergency" userId={user.id} />
+      <TourFor id="emergency" userId={user.id} auto={false} />
     </main>
   );
 }

@@ -29,11 +29,14 @@ export async function cycleInfo(memberId: string) {
   if (!cycle) return null;
   const now = new Date();
   const numbers = new Map(cycle.bookings.map((b, i) => [b.id, i + 1]));
-  const done = cycle.bookings.filter((b) => b.slot.startsAt <= now).length;
+  const passed = cycle.bookings.filter((b) => b.slot.startsAt <= now);
+  const done = passed.length;
+  // Ήρθε = πάτησε «Σύνδεση» ή το σημείωμα λέει «Ήρθε» (και τα δύο γράφουν joinedAt) — ίδιος κανόνας παντού.
+  const attended = passed.filter((b) => b.joinedAt).length;
   // Ομάδες του κύκλου: παρουσίες μέσα στην περίοδό του (όπως και στον φάκελο του μήνα).
   const { from, to } = cyclePeriod(cycle);
   const groups = await prisma.attendance.count({ where: { memberId, date: { gte: from, lte: to } } });
-  return { cycle, length: cycle.length, done, booked: cycle.bookings.length, numbers, groups };
+  return { cycle, length: cycle.length, done, attended, booked: cycle.bookings.length, numbers, groups };
 }
 
 type Tx = Omit<typeof prisma, "$connect" | "$disconnect" | "$on" | "$transaction" | "$extends">;

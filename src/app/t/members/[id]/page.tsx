@@ -11,6 +11,7 @@ import { auditScore, dastScore, gr, pgsiScore, questionnaires } from "@/lib/asse
 import { latestAssessment } from "@/lib/assessment-db";
 import { requireRole } from "@/lib/auth";
 import { soberDays } from "@/lib/note-form";
+import { dec } from "@/lib/crypto";
 import { prisma } from "@/lib/db";
 import { caseHistory, memberConsistency } from "@/lib/handover";
 import { CASE_FIELDS } from "@/lib/handover-rules";
@@ -32,7 +33,7 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
   if (!member) notFound();
   await logAccess(user.id, id, "member_file_view");
   const today = localParts(new Date()).date;
-  const [cycle, intake, consistency, [summary], plan, noteCount, ax, journal7, step, stepWork] = await Promise.all([
+  const [cycle, intake, consistency, [summary], plan, noteCount, ax, journal7, step, stepWork, groupMentions] = await Promise.all([
     cycleInfo(id),
     memberIntake(member),
     memberConsistency(id),
@@ -43,6 +44,12 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
     prisma.journalEntry.count({ where: { memberId: id, date: { gte: addDays(today, -6), lte: today } } }),
     currentStep(id),
     lastStepWork(id),
+    // «Προσοχή σε…» από τα σημειώματα ομάδας των τελευταίων 4 εβδομάδων (η φόρμα της ομάδας υπόσχεται ότι φαίνονται εδώ).
+    prisma.groupMention.findMany({
+      where: { memberId: id, groupSession: { date: { gte: addDays(today, -27) } } },
+      include: { groupSession: { select: { date: true, time: true, coordinator: { select: { name: true } } } } },
+      orderBy: { groupSession: { date: "desc" } },
+    }),
   ]);
   const sober = soberDays(member.soberSince, today);
   const openIncidents = await prisma.incident.count({ where: { memberId: id, closedAt: null } });
@@ -92,7 +99,7 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
       </div>
       <div className="card" data-tour="consistency">
         <div className="row spread">
-          <strong>{cycle ? `Μήνας ${months.length}: ατομικές ${cycle.done} από ${cycle.length} · ομάδες ${cycle.groups} από ${s.groupsPerCycle}` : "Δεν έχει ξεκινήσει μήνας"}</strong>
+          <strong>{cycle ? `Μήνας ${months.length}: ατομικές ήρθε σε ${cycle.attended} από ${cycle.done} που έγιναν (${cycle.length} στον μήνα) · ομάδες ${cycle.groups} από ${s.groupsPerCycle}` : "Δεν έχει ξεκινήσει μήνας"}</strong>
           <span className="muted small">Μέρα {programDay(member.programStartDate, today) ?? "—"} στο πρόγραμμα</span>
         </div>
         <div className="muted small" style={{ marginTop: 10 }}>Συνέπεια τις τελευταίες {consistency.weeks} εβδομάδες</div>
@@ -109,6 +116,18 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
           Ατομικές: <strong>ήρθε σε {consistency.sessionsDone} από {consistency.sessionsTotal}</strong>
           {consistency.sessionsTotal > consistency.sessionsDone && <span className="muted"> · δεν ήρθε σε {consistency.sessionsTotal - consistency.sessionsDone}</span>}
         </div>
+        {groupMentions.length > 0 && (
+          <div style={{ marginTop: 10 }}>
+            <strong>Από τις ομάδες («Προσοχή σε…»):</strong>
+            <ul className="small" style={{ margin: "4px 0 0", paddingLeft: 18 }}>
+              {groupMentions.map((gm) => (
+                <li key={gm.id}>
+                  «{dec(gm.text)}» <span className="muted">· <Link href={`/t/group/${gm.groupSession.date}/${gm.groupSession.time.replace(":", "")}`}>{formatDate(gm.groupSession.date)} {gm.groupSession.time}</Link>{gm.groupSession.coordinator && ` · ${gm.groupSession.coordinator.name}`}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
       {sp.case && <div className="notice">Η σύνοψη αποθηκεύτηκε ✓</div>}
       <h2 data-tour="clinical">Κλινικός φάκελος</h2>

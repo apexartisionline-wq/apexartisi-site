@@ -51,6 +51,12 @@ export async function SinceLast({ memberId, prev, until, untilAt, compact = fals
             </>
           )}
         </li>
+        {d.mentions.length > 0 && (
+          <li>
+            <strong>Από τις ομάδες («Προσοχή σε…»):</strong>{" "}
+            {d.mentions.map((m, i) => <span key={`${m.date}${m.time}`}>{i > 0 && " · "}«{m.text}» <span className="muted small">({formatDate(m.date)}{m.by && `, ${m.by}`})</span></span>)}
+          </li>
+        )}
         <li>
           <strong>Απογραφές:</strong>{" "}
           {j.days === 0 ? <span className="muted">δεν πέρασε ολόκληρη μέρα από την προηγούμενη ατομική.</span> : j.written === 0 ? <span className="warn-text">δεν έγραψε καμία ({j.days} {j.days === 1 ? "μέρα" : "μέρες"}).</span> : (

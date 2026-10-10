@@ -191,7 +191,8 @@ nav.top .brand-logo { height: 44px; width: auto; display: block; }
 }
 @media (min-width: 980px) {
   .split { grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); align-items: start; }
-  .split > .side { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow-y: auto; }
+  /* Η αριστερή στήλη ρέει κανονικά (απόφαση 10/10): με sticky και δικό της scroll έκρυβε το μισό περιεχόμενο χωρίς ένδειξη. */
+  .split > .side { min-width: 0; }
 }
 .redbar {
   position: fixed; left: 0; right: 0; bottom: 0; padding: 12px 16px;

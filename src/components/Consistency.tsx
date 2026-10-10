@@ -52,7 +52,7 @@ export async function Consistency({ weeks, basePath, canEdit }: { weeks: number;
     orderBy: { name: "asc" },
     include: {
       attendances: { where: { date: { gte: from } } },
-      bookings: { where: { slot: { date: { gte: from }, startsAt: { lt: now } } }, select: { joinedAt: true } },
+      bookings: { where: { slot: { date: { gte: from }, startsAt: { lt: now } } }, select: { joinedAt: true, slot: { select: { date: true } } } },
       journal: { where: { date: { gte: from } }, select: { date: true } },
     },
   });
@@ -63,14 +63,17 @@ export async function Consistency({ weeks, basePath, canEdit }: { weeks: number;
     const present = new Set(m.attendances.map((a) => a.date));
     const groups = dates.filter((d) => present.has(d)).length;
     const journalDays = Math.max(0, daysBetween(start, today) + 1);
+    // Ίδιο διάστημα με τον φάκελο (memberConsistency): μόνο μετά την έναρξη του προγράμματος του μέλους.
+    const bookings = m.bookings.filter((b) => b.slot.date >= start);
+    const journal = m.journal.filter((j) => j.date >= start);
     return {
       m,
       dates,
       present,
       groups,
-      sessionsDone: m.bookings.filter((b) => b.joinedAt).length,
-      sessionsTotal: m.bookings.length,
-      journal: m.journal.length,
+      sessionsDone: bookings.filter((b) => b.joinedAt).length,
+      sessionsTotal: bookings.length,
+      journal: journal.length,
       journalDays,
       score: pct(groups, dates.length) ?? 101,
     };
