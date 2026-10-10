@@ -143,6 +143,12 @@ nav.top {
 .brand-name { font-size: 1.6rem; }
 @media (max-width: 760px) { .brand-mark { width: 34px; height: 34px; } .brand-name { font-size: 1.4rem; } }
 .apex-word.big { font-size: 2rem; display: inline-block; }
+/* Σελίδα εισόδου: μεγάλο σήμα, δαχτυλίδι 84px δίπλα σε «Apex» 3.2rem, ως ένα λογότυπο. */
+.login-brand { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 0 0 28px; }
+.login-brand .login-mark { width: 84px; height: 84px; color: var(--accent); }
+.login-brand img { height: 84px; width: auto; }
+.login-brand .apex-word { font-size: 3.2rem; letter-spacing: -0.03em; line-height: 1; }
+@media (max-width: 420px) { .login-brand .login-mark, .login-brand img { width: 64px; height: 64px; } .login-brand .apex-word { font-size: 2.5rem; } }
 nav.top a { padding: 6px 10px; border-radius: var(--radius-sm); text-decoration: none; color: var(--text); font-weight: 500; }
 nav.top a:hover { background: var(--soft); }
 nav.top .brand { font-weight: 700; margin-right: auto; display: flex; align-items: center; gap: 5px; padding: 2px 6px 2px 0; }

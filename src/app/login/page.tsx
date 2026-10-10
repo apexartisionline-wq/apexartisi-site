@@ -1,6 +1,7 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { currentUser, homeFor, login } from "@/lib/auth";
+import { BrandMark } from "@/components/BrandMark";
 import { getSettings } from "@/lib/settings";
 
 async function doLogin(formData: FormData) {
@@ -18,10 +19,12 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   const [s, sp] = await Promise.all([getSettings(), searchParams]);
   return (
     <main style={{ maxWidth: 420, paddingTop: "8vh" }}>
-      <div className="row" style={{ justifyContent: "center", marginBottom: 16 }}>
-        <img src={s.logoUrl || "/icon.svg"} alt="" height={64} />
-      </div>
-      <h1 style={{ textAlign: "center" }}><span className="apex-word big">{s.appName}</span></h1>
+      {/* Ένα μεγάλο, ενιαίο σήμα: δαχτυλίδι + «Apex» στην ίδια γραμμή, χωρίς πλακίδιο (απόφαση 10/10).
+          Μένει το ουδέτερο «Apex» γιατί τη σελίδα τη βλέπουν και τα μέλη (απόφαση 4/10). */}
+      <h1 className="login-brand" aria-label={s.appName}>
+        {s.logoUrl ? <img src={s.logoUrl} alt="" /> : <BrandMark className="login-mark" />}
+        <span className="apex-word">{s.appName}</span>
+      </h1>
       {sp.e === "otp" && <div className="error">Για το προσωπικό χρειάζεται και ο 6ψήφιος κωδικός από την εφαρμογή επαλήθευσης.</div>}
       {sp.e && sp.e !== "otp" && <div className="error">Λάθος όνομα χρήστη ή κωδικός.</div>}
       <form action={doLogin} className="card">
