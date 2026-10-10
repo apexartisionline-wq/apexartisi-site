@@ -102,7 +102,7 @@ a:hover { color: var(--accent-strong); }
 .btn.primary, button.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
 .btn.primary:hover, button.primary:hover { background: var(--accent-strong); border-color: var(--accent-strong); color: var(--accent-text); }
 :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
-.btn.big { width: 100%; padding: 16px; font-size: 1.1rem; font-weight: 600; }
+.btn.big, button.big { width: 100%; padding: 16px; font-size: 1.1rem; font-weight: 600; }
 .btn.red, button.red { background: var(--red); color: var(--red-text); border-color: var(--red); }
 .btn[aria-disabled="true"], button:disabled { opacity: .5; pointer-events: none; }
 input, select, textarea {
@@ -143,12 +143,39 @@ nav.top {
 .brand-name { font-size: 1.6rem; }
 @media (max-width: 760px) { .brand-mark { width: 34px; height: 34px; } .brand-name { font-size: 1.4rem; } }
 .apex-word.big { font-size: 2rem; display: inline-block; }
-/* Σελίδα εισόδου: μεγάλο σήμα, δαχτυλίδι 84px δίπλα σε «Apex» 3.2rem, ως ένα λογότυπο. */
-.login-brand { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 0 0 28px; }
-.login-brand .login-mark { width: 84px; height: 84px; color: var(--accent); }
-.login-brand img { height: 84px; width: auto; }
-.login-brand .apex-word { font-size: 3.2rem; letter-spacing: -0.03em; line-height: 1; }
-@media (max-width: 420px) { .login-brand .login-mark, .login-brand img { width: 64px; height: 64px; } .login-brand .apex-word { font-size: 2.5rem; } }
+/* Σελίδα εισόδου (κοινή πρόταση τριών ειδικών, 10/10): στο φως το φόντο της σελίδας γίνεται το «χαρτί» του brand
+   και οι κάρτες λευκές, ώστε το λογότυπο να ακουμπά σε ήρεμο φόντο και η κάρτα να έχει βάθος χωρίς σκιές·
+   στο σκοτάδι η συνηθισμένη λογική (φόντο #0C1620, κάρτες #132231) ισχύει ήδη. Ένα accent: σήμα, λέξη, «Είσοδος». */
+@media (prefers-color-scheme: light) {
+  body:has(main.login) { background: var(--surface); }
+  main.login .card { background: var(--bg); }
+}
+main.login { max-width: 420px; padding-top: min(12vh, 96px); padding-bottom: 40px; }
+main.login .card { border-radius: var(--radius-lg); padding: 24px; box-shadow: none; margin: 0; }
+.login-brand { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 0; }
+.login-brand .login-mark { width: 52px; height: 52px; color: var(--accent); }
+.login-brand img { height: 52px; width: auto; }
+.login-brand .apex-word { font-size: 3rem; letter-spacing: -0.03em; line-height: 1; }
+.login-hello { text-align: center; font-size: 1.0625rem; margin: 8px 0 32px; }
+.login-card label { font-size: 0.9375rem; margin-bottom: 6px; }
+.login-card .field { margin-bottom: 16px; }
+.login-card input { min-height: 48px; }
+.login-card button.big { min-height: 52px; padding: 14px 16px; margin-top: 4px; border-radius: var(--radius); }
+.login-error { padding: 12px 14px; border-radius: var(--radius); background: var(--red-quiet); color: var(--red-ink); border: 1px solid var(--red); margin: 0 0 16px; font-size: 0.9375rem; }
+.login-otp { margin-top: 16px; font-size: 0.9375rem; color: var(--muted); }
+.login-otp summary { cursor: pointer; }
+.login-otp input { margin-top: 8px; }
+.login-forgot { margin: 16px 0 0; font-size: 0.9375rem; line-height: 1.5; }
+.login-help { margin-top: 24px !important; border-color: var(--red) !important; }
+.login-lines { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+.login-lines .btn { width: 100%; min-height: 48px; display: flex; align-items: center; justify-content: center; text-align: center; }
+@media (max-width: 420px) {
+  main.login { padding-top: 48px; }
+  main.login .card { padding: 20px; }
+  .login-brand { gap: 10px; }
+  .login-brand .login-mark, .login-brand img { width: 44px; height: 44px; }
+  .login-brand .apex-word { font-size: 2.5rem; }
+}
 nav.top a { padding: 6px 10px; border-radius: var(--radius-sm); text-decoration: none; color: var(--text); font-weight: 500; }
 nav.top a:hover { background: var(--soft); }
 nav.top .brand { font-weight: 700; margin-right: auto; display: flex; align-items: center; gap: 5px; padding: 2px 6px 2px 0; }

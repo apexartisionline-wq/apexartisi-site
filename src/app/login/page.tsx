@@ -18,48 +18,48 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   if (user) redirect(homeFor(user.role));
   const [s, sp] = await Promise.all([getSettings(), searchParams]);
   return (
-    <main style={{ maxWidth: 420, paddingTop: "8vh" }}>
-      {/* Ένα μεγάλο, ενιαίο σήμα: δαχτυλίδι + «Apex» στην ίδια γραμμή, χωρίς πλακίδιο (απόφαση 10/10).
+    <main className="login">
+      {/* Σήμα ισορροπημένο: δαχτυλίδι όσο το ύψος της λέξης, χωρίς πλακίδιο (απόφαση 10/10, τρεις ειδικοί).
           Μένει το ουδέτερο «Apex» γιατί τη σελίδα τη βλέπουν και τα μέλη (απόφαση 4/10). */}
       <h1 className="login-brand" aria-label={s.appName}>
         {s.logoUrl ? <img src={s.logoUrl} alt="" /> : <BrandMark className="login-mark" />}
         <span className="apex-word">{s.appName}</span>
       </h1>
-      {sp.e === "otp" && <div className="error">Για το προσωπικό χρειάζεται και ο 6ψήφιος κωδικός από την εφαρμογή επαλήθευσης.</div>}
-      {sp.e && sp.e !== "otp" && <div className="error">Λάθος όνομα χρήστη ή κωδικός.</div>}
-      <form action={doLogin} className="card">
+      <p className="login-hello muted">Καλώς ήρθες.</p>
+      <form action={doLogin} className="card login-card">
+        {sp.e === "otp" && <div className="login-error" role="alert">Για την ομάδα μας χρειάζεται και ο εξαψήφιος κωδικός από την εφαρμογή επαλήθευσης.</div>}
+        {sp.e && sp.e !== "otp" && <div className="login-error" role="alert">Δεν ταιριάζουν το όνομα και ο κωδικός. Δοκίμασε ξανά ή ζήτα νέο από την ομάδα μας.</div>}
         <div className="field">
           <label htmlFor="username">Όνομα χρήστη</label>
           <input id="username" name="username" autoComplete="username" autoCapitalize="none" required />
         </div>
         <div className="field">
           <label htmlFor="code">Προσωπικός κωδικός</label>
-          <input id="code" name="code" type="password" autoComplete="current-password" required />
+          <input id="code" name="code" type="password" autoComplete="current-password" enterKeyHint="go" required />
         </div>
         {sp.e === "otp" ? (
           <div className="field">
-            <label htmlFor="otp">6ψήφιος κωδικός επαλήθευσης</label>
+            <label htmlFor="otp">Εξαψήφιος κωδικός επαλήθευσης</label>
             <input id="otp" name="otp" inputMode="numeric" autoComplete="one-time-code" pattern="\d{6}" required autoFocus />
           </div>
-        ) : (
-          <details className="small" style={{ marginBottom: 12 }}>
-            <summary>Προσωπικό: κωδικός επαλήθευσης</summary>
-            <input name="otp" inputMode="numeric" autoComplete="one-time-code" placeholder="6 ψηφία" />
+        ) : null}
+        <button className="primary big" type="submit">Είσοδος</button>
+        {sp.e !== "otp" && (
+          <details className="login-otp">
+            <summary>Για την ομάδα μας · κωδικός επαλήθευσης</summary>
+            <input name="otp" inputMode="numeric" autoComplete="one-time-code" placeholder="6 ψηφία" aria-label="Κωδικός επαλήθευσης" />
           </details>
         )}
-        <button className="primary big" type="submit">Είσοδος</button>
-        <p className="muted small" style={{ marginTop: 12 }}>
-          Ξέχασες τον κωδικό; Επικοινώνησε με την ομάδα μας και θα σου δώσουμε νέο.
-        </p>
+        <p className="login-forgot"><strong>Ξέχασες τον κωδικό;</strong> <span className="muted">Επικοινώνησε με την ομάδα μας και θα σου δώσουμε νέο.</span></p>
       </form>
-      <div className="card" style={{ borderColor: "var(--red)" }}>
+      <div className="card login-help">
         <strong>Αν κινδυνεύεις τώρα, κάλεσε:</strong>
-        <div className="stack" style={{ marginTop: 8 }}>
+        <div className="login-lines">
           {s.helplines.map((l) => (
             <a key={l.number} className={`btn${l.number === "112" ? " red" : ""}`} href={`tel:${l.number}`}>{l.number} · {l.label}</a>
           ))}
         </div>
-        <p className="muted small" style={{ marginTop: 8 }}>{s.crisisNotice}</p>
+        <p className="muted small" style={{ margin: "10px 0 0" }}>{s.crisisNotice}</p>
       </div>
     </main>
   );
