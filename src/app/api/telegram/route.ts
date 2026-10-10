@@ -25,6 +25,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true });
   }
   const res = await claim(cb.data.slice("claim:".length), therapist.id);
-  await answerCallback(cb.id, res.ok ? "Το ανέλαβες. Πάρε τηλέφωνο τώρα και δήλωσε «μιλήσαμε» στο app." : `Το έχει ήδη ο/η ${res.claimedBy ?? "—"}.`);
+  await answerCallback(cb.id, res.ok ? "Το ανέλαβες. Πάρε τηλέφωνο τώρα και δήλωσε «μιλήσαμε» στο app." : `Το έχει ήδη: ${res.claimedBy ?? "—"}.`);
   return NextResponse.json({ ok: true });
 }

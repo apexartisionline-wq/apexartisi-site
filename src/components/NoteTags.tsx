@@ -15,7 +15,7 @@ export function NoteTags({ riskChange, usedSince, nextStep, text }: { riskChange
           Χρήση: {USED_SINCE[usedSince as UsedSince] ?? usedSince}
         </span>
       )}
-      {nextStep && <div style={{ marginTop: 4 }}><span className="muted">Επόμενο βήμα:</span> {nextStep}</div>}
+      {nextStep && <div style={{ marginTop: 4 }}><span className="muted">Τι προτείναμε:</span> {nextStep}</div>}
     </div>
   );
 }

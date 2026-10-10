@@ -133,7 +133,7 @@ export function AssessmentClient({ action, memberId, initial, profile, showAdmin
             profile.rows.map(([k, v]) => <div key={k} className="q inline"><span className="muted">{k}</span><span style={{ textAlign: "right" }}>{v}</span></div>)
           )}
           <div className="q inline">
-            <span>Τα επιβεβαίωσα μαζί του/της</span>
+            <span>Τα επιβεβαίωσα με το μέλος</span>
             <button type="button" role="switch" aria-checked={d.profileConfirmed} aria-label="Τα επιβεβαίωσα" className="switch" onClick={() => set("profileConfirmed", !d.profileConfirmed)} />
           </div>
           <div className="q muted small">Μετά την ολοκλήρωση τα βλέπει μόνο η διαχείριση.</div>
@@ -142,8 +142,8 @@ export function AssessmentClient({ action, memberId, initial, profile, showAdmin
 
       <details className="sec" open={!(initial.whyNow || initial.workOn)}>
         <summary>Γιατί τώρα {mark(done.why)}</summary>
-        {txt("whyNow", "«Γιατί τώρα;» (με τα λόγια του/της)")}
-        {txt("workOn", "Τι θέλει να δουλέψει στον εαυτό του/της")}
+        {txt("whyNow", "«Γιατί τώρα;» (με τα λόγια του)")}
+        {txt("workOn", "Τι θέλει να δουλέψει στον εαυτό του")}
         <div className="q">
           <div className="lab">Αποχή</div>
           {chipsOne(ABSTINENCE, d.abstinence, (v) => set("abstinence", v))}
@@ -226,10 +226,10 @@ export function AssessmentClient({ action, memberId, initial, profile, showAdmin
           </>
         )}
         <div className="q muted small">Δοκιμή: τα κείμενα των ερωτηματολογίων είναι προσωρινά, μέχρι τις άδειες.</div>
-        {yn("overdoseEver", "Υπερδοσολογία ποτέ", {
+        {yn("overdoseEver", "Υπερδοσολογία, έστω μία φορά", {
           sub: field("Πότε η τελευταία (έστω περίπου)", <input type="date" value={d.overdoseLast ?? ""} onChange={(e) => set("overdoseLast", e.target.value || undefined)} />),
         })}
-        {yn("seizuresEver", "Στερητικά με σπασμούς ποτέ")}
+        {yn("seizuresEver", "Στερητικά με σπασμούς, έστω μία φορά")}
         {yn("ost", "Μεθαδόνη / βουπρενορφίνη τώρα")}
         {q.pgsi && yn("debtThreats", "Τζόγος: χρέη με απειλές τώρα", { hint: SAY.debt })}
         {warnings.map((w) => <div key={w} className="q error small">{w}</div>)}
@@ -260,7 +260,7 @@ export function AssessmentClient({ action, memberId, initial, profile, showAdmin
       <details className="sec">
         <summary>Ψυχιατρικό και φάρμακα {mark(done.psych)}</summary>
         <div className="q">
-          <div className="lab">Διαγνώσεις που του/της έχουν πει</div>
+          <div className="lab">Διαγνώσεις που του έχουν πει</div>
           <div className="chips">
             {DIAGNOSES.map((o) => <button key={o} type="button" className="chip" aria-pressed={d.diagnoses.includes(o)} onClick={() => set("diagnoses", d.diagnoses.includes(o) ? d.diagnoses.filter((x) => x !== o) : [...d.diagnoses, o])}>{o}</button>)}
           </div>
@@ -268,8 +268,8 @@ export function AssessmentClient({ action, memberId, initial, profile, showAdmin
           {say(SAY.diagnoses)}
         </div>
         {yn("psychoticNow", "Ψυχωσικά συμπτώματα τώρα", { sub: <span className="small" style={{ color: "var(--red)" }}>Φαίνεται στο «Ασφάλεια» του φακέλου και στο «Σήμερα» της ομάδας.</span> })}
-        {yn("attemptEver", "Απόπειρα / αυτοτραυματισμός ποτέ", { sub: <span className="small">Κάνε και την αξιολόγηση αναγκών ασφάλειας (03).</span> })}
-        {yn("hospitalisedEver", "Νοσηλεία σε ψυχιατρική κλινική ποτέ")}
+        {yn("attemptEver", "Απόπειρα / αυτοτραυματισμός, έστω μία φορά", { sub: <span className="small">Κάνε και την αξιολόγηση αναγκών ασφάλειας (03).</span> })}
+        {yn("hospitalisedEver", "Νοσηλεία σε ψυχιατρική κλινική, έστω μία φορά")}
         <div className="q">
           <div className="lab">Τραύμα <span className="muted small">(χωρίς λεπτομέρειες)</span></div>
           {chipsOne(TRAUMA, d.trauma, (v) => set("trauma", v))}
@@ -284,7 +284,7 @@ export function AssessmentClient({ action, memberId, initial, profile, showAdmin
                 {field("Δόση", <input value={m.dose} onChange={(e) => upd({ dose: e.target.value })} />)}
               </div>
               {field("Για ποιο λόγο", <input value={m.why} onChange={(e) => upd({ why: e.target.value })} />)}
-              <div className="small muted" style={{ marginTop: 8 }}>Το παίρνει όπως του/της το έγραψαν</div>
+              <div className="small muted" style={{ marginTop: 8 }}>Το παίρνει όπως το έγραψε ο γιατρός</div>
               {chipsOne(AS_PRESCRIBED, m.asPrescribed, (v) => upd({ asPrescribed: v }))}
             </div>
           );
@@ -297,7 +297,7 @@ export function AssessmentClient({ action, memberId, initial, profile, showAdmin
       <details className="sec">
         <summary>Υγεία {mark(done.health)}</summary>
         {yn("pregnant", "Εγκυμοσύνη τώρα / πιθανή", { hint: SAY.pregnant, sub: <span className="small" style={{ color: "var(--red)" }}>Φαίνεται στο «Ασφάλεια» του φακέλου και στο «Σήμερα»· παραπομπή σε γιατρό.</span> })}
-        {txt("healthNote", "Κάτι για την υγεία του/της που πρέπει να ξέρουμε;")}
+        {txt("healthNote", "Κάτι για την υγεία του που πρέπει να ξέρουμε;")}
       </details>
 
       <details className="sec">
@@ -331,7 +331,7 @@ export function AssessmentClient({ action, memberId, initial, profile, showAdmin
 
       <details className="sec" open={!initial.summary}>
         <summary>Σύνοψη για την ομάδα {mark(done.summary)}</summary>
-        {txt("summary", "5–8 γραμμές: τι τον/τη φέρνει εδώ · τι συντηρεί τον εθισμό · τι προστατεύει · τι χρειάζεται πρώτα", "Το πρώτο που θα διαβάσει κάθε θεραπευτής στον φάκελο", 6)}
+        {txt("summary", "5–8 γραμμές: τι φέρνει το μέλος εδώ · τι συντηρεί τον εθισμό · τι προστατεύει · τι χρειάζεται πρώτα", "Το πρώτο που θα διαβάσει κάθε θεραπευτής στον φάκελο", 6)}
       </details>
 
       <div className="sticky-save">

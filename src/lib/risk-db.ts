@@ -71,6 +71,6 @@ export async function riskTrigger(memberId: string): Promise<Trigger | null> {
  */
 export async function currentRisk(memberId: string) {
   const [[last], trigger] = await Promise.all([riskHistory(memberId, 1), riskTrigger(memberId)]);
-  const label = trigger ? "Θέλει αξιολόγηση" : last ? LEVELS[last.level] : "Δεν χρειάστηκε αξιολόγηση";
+  const label = trigger ? "Θέλει αξιολόγηση" : last ? LEVELS[last.level] : "Δεν έχει χρειαστεί";
   return { level: last?.level ?? null, at: last?.at ?? null, author: last?.author ?? "", trigger, label };
 }

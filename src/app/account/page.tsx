@@ -118,7 +118,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
             <h2>Δεύτερος κωδικός (επαλήθευση σε δύο βήματα)</h2>
             {sp.ok2fa && <div className="notice">Ενεργοποιήθηκε ✓</div>}
             {user.totpEnabled ? (
-              <div className="card">Ενεργός ✓ Στη σύνδεση θα ζητείται και ο 6ψήφιος κωδικός από την εφαρμογή σου.</div>
+              <div className="card">Ενεργός ✓ Στην είσοδο θα ζητείται και ο 6ψήφιος κωδικός από την εφαρμογή σου.</div>
             ) : (
               <div className="card stack">
                 {sp.setup2fa && !qr && <div className="error">Για το προσωπικό απαιτείται δεύτερος κωδικός πριν ανοίξουν οι φάκελοι.</div>}

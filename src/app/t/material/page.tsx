@@ -47,7 +47,7 @@ export default async function TherapistMaterial() {
   return (
     <main>
       <p className="small"><Link className="back" href="/t">‹ Σήμερα</Link></p>
-      <h1>Υλικό για τα μέλη</h1>
+      <h1>Υλικό</h1>
       <p className="muted">Ό,τι στέλνει η διαχείριση στα μέλη, για να ξέρεις τι δουλεύουν. Οι εργασίες και τα βήματα κάθε μέλους είναι στον φάκελό του.</p>
 
       <h2>Θεματική αυτής της εβδομάδας</h2>

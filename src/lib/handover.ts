@@ -11,7 +11,7 @@ import { groupStarted, groupsOn } from "./program";
 import { getSettings } from "./settings";
 import { addDays, formatDate, localParts } from "./time";
 
-/** Σήματα ασφαλείας ενός μέλους (βλ. handover-rules.ts). Δεν διαβάζει το ημερολόγιο. */
+/** Σήματα ασφάλειας ενός μέλους (βλ. handover-rules.ts). Δεν διαβάζει το ημερολόγιο. */
 export async function memberSafety(memberId: string, now = new Date()) {
   const member = await prisma.user.findUniqueOrThrow({ where: { id: memberId } });
   const since14 = new Date(now.getTime() - 14 * 24 * 3600_000);
@@ -55,7 +55,7 @@ export async function memberSafety(memberId: string, now = new Date()) {
   const fromJournal = journal.map((j) => ({
     level: "red" as const,
     key: `journal_${j.date}`,
-    text: `Έγραψε στο ημερολόγιο (${formatDate(j.date)}): ${[j.used && "έκανε χρήση", (j.selfHarm === "YES" || j.selfHarm === "UNSURE") && "σκέψεις να κάνει κακό στον εαυτό του/της"].filter(Boolean).join(" · ")}`,
+    text: `Έγραψε στο ημερολόγιο (${formatDate(j.date)}): ${[j.used && "έκανε χρήση", (j.selfHarm === "YES" || j.selfHarm === "UNSURE") && "σκέψεις να κάνει κακό στον εαυτό του"].filter(Boolean).join(" · ")}`,
     at: j.updatedAt,
     href: `/t/members/${memberId}`,
   }));

@@ -49,17 +49,17 @@ describe("safetyFlags", () => {
   it("σιωπή μετά από dropoutDays, αλλά όχι διπλό με ανοιχτό τηλεφώνημα", () => {
     expect(safetyFlags({ ...base, lastContact: ago(5) })[0].text).toBe("Χωρίς επαφή 5 μέρες");
     const f = safetyFlags({ ...base, lastContact: ago(5), openDropout: true });
-    expect(f.map((x) => x.text)).toEqual(["Χάθηκε 5 μέρες · τηλεφωνεί η διαχείριση"]);
+    expect(f.map((x) => x.text)).toEqual(["Χωρίς επαφή 5 μέρες · τηλεφωνεί η διαχείριση"]);
   });
 
-  it("χαμένη ατομική: κίτρινο, κόκκινο αν υπάρχει σήμα κινδύνου", () => {
+  it("χαμένη ατομική: κίτρινο, κόκκινο αν υπάρχει σήμα ασφάλειας", () => {
     expect(safetyFlags({ ...base, missed: [{ at: ago(30), slotId: "old" }] })).toEqual([]);
     expect(safetyFlags({ ...base, missed: [{ at: ago(2), slotId: "m" }] })).toEqual([
       expect.objectContaining({ level: "yellow", text: "Δεν ήρθε στην ατομική", href: "/t/s/m" }),
     ]);
     const f = safetyFlags({ ...base, helpRequests: [{ createdAt: ago(5) }], missed: [{ at: ago(2), slotId: "m" }] });
     expect(f.map((x) => x.level)).toEqual(["red", "red"]);
-    expect(f[1].text).toContain("μετά από σήμα κινδύνου");
+    expect(f[1].text).toContain("μετά από σήμα ασφάλειας");
   });
 
   it("χρήση «δεν ξέρουμε» μόνο αν είναι η πιο πρόσφατη απάντηση", () => {

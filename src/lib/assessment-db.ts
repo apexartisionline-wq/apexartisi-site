@@ -92,7 +92,7 @@ export const profileSchema = z
 export type Profile = z.infer<typeof profileSchema>;
 export const EC_WHEN = { LIFE: "Μόνο αν κινδυνεύει η ζωή μου", LIFE_OR_LOST: "Και αν χαθεί κάθε επαφή μαζί μου" } as const;
 export const PROFILE_LABELS: Record<string, string> = {
-  fullName: "Ονοματεπώνυμο", preferredName: "Πώς θέλει να τον/τη λέμε", birthDate: "Γέννηση", mobile: "Κινητό", email: "Email",
+  fullName: "Ονοματεπώνυμο", preferredName: "Πώς θέλει να το λέμε", birthDate: "Γέννηση", mobile: "Κινητό", email: "Email",
   address: "Διεύθυνση", abroadCountry: "Ζει εκτός Ελλάδας", ecName: "Επαφή έκτακτης ανάγκης", ecRelation: "Σχέση", ecPhone: "Τηλέφωνο επαφής",
   ecWhen: "Πότε καλούμε την επαφή", ecWhatToSay: "Τι λέμε στην επαφή",
 };
@@ -126,9 +126,9 @@ export const ALERT_SOURCE: Record<string, string> = { ASSESSMENT: "Αρχική 
 
 export function alertText(source: string, kind: string): string {
   if (source === "ASSESSMENT") return ALERTS[kind as AlertKind] ?? kind;
-  if (source === "RISK") return kind === "HIGH" ? "Υψηλές ανάγκες ασφάλειας · τον/την παίρνει η διαχείριση την επόμενη μέρα" : "Αυξημένες ανάγκες ασφάλειας · τον/την παίρνει η διαχείριση μέσα σε 24 ώρες";
+  if (source === "RISK") return kind === "HIGH" ? "Υψηλές ανάγκες ασφάλειας · τηλεφωνεί η διαχείριση την επόμενη μέρα" : "Αυξημένες ανάγκες ασφάλειας · τηλεφωνεί η διαχείριση μέσα σε 24 ώρες";
   if (source === "EMERGENCY") return "Άνοιξαν τα στοιχεία έκτακτης ανάγκης";
-  if (source === "JOURNAL") return "Έγραψε στο ημερολόγιο ότι είχε σκέψεις να κάνει κακό στον εαυτό του/της";
+  if (source === "JOURNAL") return "Έγραψε στο ημερολόγιο ότι είχε σκέψεις να κάνει κακό στον εαυτό του";
   if (source === "NOTE") return "Προβληματισμός προς τη θεραπευτική ομάδα — άνοιξε το σημείωμα";
   return kind;
 }

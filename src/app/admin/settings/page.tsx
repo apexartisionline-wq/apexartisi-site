@@ -168,8 +168,8 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
             <F label="Κρατήσεις ανοίγουν"><input name="bookingOpenTime" type="time" defaultValue={s.bookingOpenTime} /></F>
             <F label="Κρατήσεις κλείνουν"><input name="bookingCloseTime" type="time" defaultValue={s.bookingCloseTime} /></F>
             <F label="Ραντεβού την εβδομάδα"><input name="sessionsPerWeek" type="number" min={1} defaultValue={s.sessionsPerWeek} /></F>
-            <F label="Συνεδρίες ανά κύκλο"><input name="cycleLength" type="number" min={1} defaultValue={s.cycleLength} /></F>
-            <F label="Διάρκεια συνεδρίας (λεπτά)"><input name="sessionMinutes" type="number" min={1} defaultValue={s.sessionMinutes} /></F>
+            <F label="Ατομικές ανά κύκλο"><input name="cycleLength" type="number" min={1} defaultValue={s.cycleLength} /></F>
+            <F label="Διάρκεια ατομικής (λεπτά)"><input name="sessionMinutes" type="number" min={1} defaultValue={s.sessionMinutes} /></F>
             <F label="Κουμπί ανοίγει λεπτά πριν"><input name="sessionJoinBeforeMinutes" type="number" min={0} defaultValue={s.sessionJoinBeforeMinutes} /></F>
             <F label="Ώρες ατομικών (π.χ. 10, 11, 12)"><input name="sessionHours" defaultValue={s.sessionHours.join(", ")} /></F>
             <F label="Διάρκεια Therapair (λεπτά)"><input name="pairMinutes" type="number" min={1} defaultValue={s.pairMinutes} /></F>
@@ -193,7 +193,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
             <F label="Μέγιστες επαναλήψεις ειδοποίησης"><input name="helpMaxAlerts" type="number" min={1} defaultValue={s.helpMaxAlerts} /></F>
             <F label="Ειδοποίηση αποχής μετά από (μέρες χωρίς ομάδα, ημερολόγιο ή κράτηση)"><input name="dropoutDays" type="number" min={1} defaultValue={s.dropoutDays} /></F>
           </div>
-          <label><strong>Γραμμές βοήθειας</strong> (φαίνονται από την αρχή στο κόκκινο κουμπί και στη σύνδεση — να επιβεβαιωθούν)</label>
+          <label><strong>Γραμμές βοήθειας</strong> (φαίνονται από την αρχή στο κόκκινο κουμπί και στην είσοδο — να επιβεβαιωθούν)</label>
           {[0, 1, 2, 3, 4, 5].map((i) => (
             <div className="row" key={i} style={{ marginBottom: 6, flexWrap: "nowrap" }}>
               <input name={`hl${i}_number`} defaultValue={s.helplines[i]?.number ?? ""} placeholder="αριθμός" style={{ width: 110 }} />
@@ -204,7 +204,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
             <textarea name="helplineText" defaultValue={s.helplineText} style={{ minHeight: 80 }} />
           </F>
           <F label="Τηλέφωνο διαχείρισης (το βλέπει η ομάδα στην «Έκτακτη ανάγκη»)"><input name="adminPhone" defaultValue={s.adminPhone} inputMode="tel" /></F>
-          <F label="Επισήμανση για κρίσεις (ημερολόγιο, κόκκινο κουμπί, σύνδεση) — κείμενο του νομικού συμβούλου">
+          <F label="Επισήμανση για κρίσεις (ημερολόγιο, κόκκινο κουμπί, είσοδος) — κείμενο του νομικού συμβούλου">
             <textarea name="crisisNotice" defaultValue={s.crisisNotice} style={{ minHeight: 80 }} />
           </F>
         </section>

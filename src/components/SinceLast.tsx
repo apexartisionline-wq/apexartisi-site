@@ -69,7 +69,7 @@ export async function SinceLast({ memberId, prev, until, untilAt, compact = fals
         {(j.used.length > 0 || j.selfHarm.length > 0 || d.help > 0) && (
           <li className="warn-text">
             {j.used.length > 0 && <>Έγραψε ότι έκανε χρήση: {dates(j.used)}. </>}
-            {j.selfHarm.length > 0 && <>Σκέψεις να κάνει κακό στον εαυτό του/της: {dates(j.selfHarm)}. </>}
+            {j.selfHarm.length > 0 && <>Σκέψεις να κάνει κακό στον εαυτό του: {dates(j.selfHarm)}. </>}
             {d.help > 0 && <>Κόκκινο κουμπί: {d.help} {d.help === 1 ? "φορά" : "φορές"}.</>}
           </li>
         )}

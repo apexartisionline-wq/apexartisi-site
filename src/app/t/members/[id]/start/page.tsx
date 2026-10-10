@@ -75,7 +75,7 @@ async function recordConsents(formData: FormData) {
 
 const ERR: Record<string, string> = {
   psy: "Αυτό το βήμα το σημειώνει ψυχολόγος.",
-  risk: "Διάλεξε επίπεδο κινδύνου.",
+  risk: "Διάλεξε επίπεδο αναγκών ασφάλειας.",
   admin: "Τα πρακτικά βήματα τα σημειώνει η διαχείριση.",
   plan: "Γράψε πρώτα το πλάνο ασφάλειας μαζί με το μέλος· μετά σημείωσε το βήμα.",
 };
@@ -101,7 +101,7 @@ export default async function IntakePage({ params, searchParams }: { params: Pro
   return (
     <main>
       <p><Link className="back" href={`/t/members/${id}`}>‹ {member.name}</Link></p>
-      <h1>{isAdmin ? "Έναρξη συνεργασίας" : "Κλινική έναρξη"}</h1>
+      <h1>{isAdmin ? "Έναρξη συνεργασίας" : "Έναρξη συνεργασίας (κλινικά βήματα)"}</h1>
       {isAdmin ? (
         <div className={status.complete ? "notice" : "card"} style={status.complete ? undefined : { borderColor: "var(--yellow)" }}>
           {status.complete

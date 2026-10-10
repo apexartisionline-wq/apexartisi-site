@@ -5,7 +5,7 @@ import { memberSafety } from "@/lib/handover";
 import { formatDate, formatHour } from "@/lib/time";
 
 // Όλα τα ενεργά μέλη (όλοι οι θεραπευτές δουλεύουν με όλους). Λίστα τύπου iOS:
-// πρώτα όσοι έχουν σήμα ασφαλείας, με μια τελεία και το πιο σημαντικό σήμα από κάτω.
+// πρώτα όσοι έχουν σήμα ασφάλειας, με μια τελεία και το πιο σημαντικό σήμα από κάτω.
 export default async function MembersOverview() {
   await requireRole("THERAPIST", "ADMIN");
   const now = new Date();

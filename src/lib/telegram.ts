@@ -31,7 +31,7 @@ export async function sendHelpAlert(opts: {
   const { requestId, who, repeat, claimedBy, drill } = opts;
   const head = drill ? "🧪 ΔΟΚΙΜΗ — " : "🔴 ";
   const text = claimedBy
-    ? `${head}${who}: ο/η ${claimedBy} το ανέλαβε αλλά δεν έχει δηλωθεί «μιλήσαμε». Μπορεί κάποιος να βοηθήσει;`
+    ? `${head}${who}: ${claimedBy} το ανέλαβε αλλά δεν έχει δηλωθεί «μιλήσαμε». Μπορεί κάποιος να βοηθήσει;`
     : `${head}${repeat > 0 ? `ΞΑΝΑ (${repeat + 1}η φορά) — ` : ""}${who} πάτησε το κόκκινο κουμπί.`;
   const msg = await call("sendMessage", {
     chat_id: chatId(),
@@ -44,7 +44,7 @@ export async function sendHelpAlert(opts: {
 export async function markClaimed(messageIds: number[], who: string, claimer: string): Promise<void> {
   await Promise.allSettled(
     messageIds.map((message_id) =>
-      call("editMessageText", { chat_id: chatId(), message_id, text: `✅ ${who}: το ανέλαβε ο/η ${claimer}.` }),
+      call("editMessageText", { chat_id: chatId(), message_id, text: `✅ ${who}: το ανέλαβε ${claimer}.` }),
     ),
   );
 }

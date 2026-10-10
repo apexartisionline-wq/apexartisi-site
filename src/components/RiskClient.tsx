@@ -36,13 +36,14 @@ export function RiskClient({ action, memberId, initialReason }: { action: (fd: F
 
       <details className="sec" open>
         <summary>Ερωτήσεις</summary>
-        <div className="q muted small">💬 Ρώτα ευθέως· η ερώτηση δεν βάζει την ιδέα, συνήθως ανακουφίζει. Στο Zoom: ξέρε πού βρίσκεται τώρα.</div>
-        {QUESTIONS.map(([k, q]) => {
+        <div className="q muted small">💬 Ρώτα ευθέως· η ερώτηση δεν βάζει την ιδέα, συνήθως ανακουφίζει. Στο Zoom: ρώτα από πού μιλάει (διεύθυνση), μήπως χρειαστεί.</div>
+        {QUESTIONS.map(([k, q, say]) => {
           const v = d[k] as YN;
           const pick = (x: YN) => set(k, (v === x ? undefined : x) as never);
           return (
             <div key={k} className="q">
               <div className="lab">{q}</div>
+              <div className="muted small" style={{ marginBottom: 6 }}>💬 {say}</div>
               <span className="yn" role="group" aria-label={q}>
                 <button type="button" aria-pressed={v === true} onClick={() => pick(true)}>Ναι</button>
                 <button type="button" aria-pressed={v === false} onClick={() => pick(false)}>Όχι</button>
@@ -70,7 +71,7 @@ export function RiskClient({ action, memberId, initialReason }: { action: (fd: F
         )}
         <div className="q">
           <div className="lab">Τι βλέπω και τι κάνουμε (2–3 γραμμές)</div>
-          <textarea aria-label="Γιατί" rows={4} placeholder="π.χ. σκέψεις χωρίς πρόθεση μετά το κόκκινο κουμπί· ενημερώσαμε το πλάνο· τον παίρνει η Άννα αύριο" value={d.rationale ?? ""} onChange={(e) => set("rationale", e.target.value)} />
+          <textarea aria-label="Γιατί" rows={4} placeholder="π.χ. σκέψεις χωρίς πρόθεση μετά το κόκκινο κουμπί· ενημερώσαμε το πλάνο· τηλεφωνεί η διαχείριση αύριο" value={d.rationale ?? ""} onChange={(e) => set("rationale", e.target.value)} />
         </div>
       </details>
 

@@ -85,7 +85,7 @@ export function PairNoteClient({ action, slotId, members, initial, themeForms, t
       const other = members.find((o) => o.id !== m.id)!;
       for (const [k, label] of TEXTS) {
         const words = findOther(String(d[m.id][k] ?? ""), nameVariants(other.name, vocative));
-        if (words.length) hits.push(`στο «${label}» (${first(m)}): ${words.join(", ")}`);
+        if (words.length) hits.push(`Στο «${label}» (στήλη ${first(m)}) γράφεις το όνομα του άλλου μέλους («${words.join("», «")}»)`);
       }
     }
     return hits;
@@ -106,7 +106,7 @@ export function PairNoteClient({ action, slotId, members, initial, themeForms, t
       const hits = nameHits().join(" · ");
       if (hits && hits !== warned) {
         setWarned(hits);
-        msg = `Βρέθηκε το όνομα του άλλου μέλους ${hits}. Άλλαξέ το σε «το άλλο μέλος» — ή πάτα ξανά «Αποθήκευση» και θα αλλάξει αυτόματα.`;
+        msg = `${hits}. Άλλαξέ το σε «το άλλο μέλος», ή πάτα ξανά «Αποθήκευση» και αλλάζει μόνο του.`;
       }
     }
     if (!msg) {
@@ -219,12 +219,12 @@ export function PairNoteClient({ action, slotId, members, initial, themeForms, t
       {sec("Τι βγήκε από την κουβέντα", filled("outcome"), <>{both(clinical((m) => text(m, "outcome", "Τι βγήκε από την κουβέντα", "", 2)))}</>)}
       {sec("Τα θετικά", filled("positives"), <>{both(clinical((m) => text(m, "positives", "Τα θετικά", "π.χ. στάθηκε δίπλα στο άλλο μέλος", 1)))}</>)}
       {sec("Γράφει απογραφές;", filled("journaling"), <>{both(clinical((m) => journalChips(m)))}</>)}
-      {sec("Τι προτείναμε", filled("suggested"), <>{both(clinical((m) => text(m, "suggested", "Τι προτείναμε", "φαίνεται στον επόμενο θεραπευτή", 1)))}</>)}
+      {sec("Τι προτείναμε", filled("suggested"), <>{both(clinical((m) => text(m, "suggested", "Τι προτείναμε", "φαίνεται στην επόμενη ατομική", 1)))}</>)}
       <fieldset>
         <legend>Νηφαλιότητα και ασφάλεια</legend>
         {both((m) => (
           <>
-            {d[m.id].came !== false && sw(m, "sober", "Νηφάλιος/α από την προηγούμενη φορά")}
+            {d[m.id].came !== false && sw(m, "sober", "Νηφαλιότητα από την προηγούμενη φορά")}
             {d[m.id].came !== false && d[m.id].sober === false && (
               <label style={{ marginTop: 6 }}>Νέα ημερομηνία νηφαλιότητας
                 <input type="date" value={d[m.id].newSoberSince ?? ""} onChange={(e) => set(m.id, "newSoberSince", e.target.value as never)} />

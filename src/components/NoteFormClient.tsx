@@ -117,22 +117,22 @@ export function NoteFormClient({ action, hidden, initial, themeForms, themeDetai
 
       <fieldset>{pick2("Ήρθε στην ατομική;", [["Ήρθε", true], ["Δεν ήρθε", false]], d.came, (v) => set("came", v as never))}{d.came === false && <p className="muted small" style={{ margin: "6px 0 0" }}>Δεν μετράει ως παρουσία. Γράψε μόνο ό,τι χρειάζεται (π.χ. αν ενημέρωσε, τι κάνουμε).</p>}</fieldset>
       {d.came === false ? (
-        <fieldset><legend>Τι έγινε / τι κάνουμε</legend>{text("absentText", "Τι έγινε / τι κάνουμε", "π.χ. ενημέρωσε το πρωί ότι είναι άρρωστος· θα κλείσει νέα ώρα", 2)}</fieldset>
+        <fieldset><legend>Τι έγινε / τι κάνουμε</legend>{text("absentText", "Τι έγινε / τι κάνουμε", "π.χ. ενημέρωσε το πρωί ότι δεν μπορεί· θα κλείσει νέα ώρα", 2)}</fieldset>
       ) : (
         <>
       <fieldset><legend>Πώς παρουσιάστηκε</legend>{multi("presented", PRESENTED)}{text("presentedText", "Πώς παρουσιάστηκε, με λόγια", "π.χ. έντονη, συνεχής ροή λόγου", 1)}</fieldset>
       <fieldset><legend>Διάθεση</legend>{single("mood", MOOD)}</fieldset>
-      <fieldset><legend>Πόσο βοηθά τον εαυτό του/της</legend>{single("selfHelp", SELF_HELP)}</fieldset>
+      <fieldset><legend>Πόσο βοηθά τον εαυτό του</legend>{single("selfHelp", SELF_HELP)}</fieldset>
       <fieldset><legend>Πώς νιώθει στη διαδικασία</legend>{single("process", PROCESS)}</fieldset>
       <fieldset><legend>Τι έφερε</legend>{multi("brought", [...themeForms, ...THEMES])}<ThemeDetails items={themeDetails} intro="Η θεματική της εβδομάδας, για να τη δεις εδώ:" />{text("broughtText", "Τι έφερε, με λόγια", "Με δικά σου λόγια")}</fieldset>
-      <fieldset><legend>Σε τι επικεντρώθηκε η παρέμβαση</legend>{text("intervention", "Σε τι επικεντρώθηκε η παρέμβαση", "π.χ. να μείνει στο δικό του/της συναίσθημα")}</fieldset>
-      <fieldset><legend>Ανταπόκριση και άμυνες</legend>{multi("defenses", DEFENSES)}{text("response", "Ανταπόκριση με λόγια", "π.χ. περιορισμένη ανταπόκριση στην ανατροφοδότηση", 1)}</fieldset>
+      <fieldset><legend>Σε τι επικεντρώθηκε η παρέμβαση</legend>{text("intervention", "Σε τι επικεντρώθηκε η παρέμβαση", "π.χ. να μείνει στο συναίσθημά του")}</fieldset>
+      <fieldset><legend>Ανταπόκριση και άμυνες</legend>{multi("defenses", DEFENSES)}{text("response", "Ανταπόκριση με λόγια", "π.χ. άκουσε, αλλά δεν πήρε την ανατροφοδότηση", 1)}</fieldset>
       <fieldset><legend>Τα θετικά</legend>{text("positives", "Τα θετικά", "π.χ. επέλεξε να φύγει νωρίς", 1)}</fieldset>
       <fieldset><legend>Γράφει απογραφές;</legend>{single("journaling", JOURNALING)}</fieldset>
-      <fieldset><legend>Πώς ήταν να είμαι μαζί του/της σήμερα <span className="muted small">προαιρετικό</span></legend>{text("felt", "Πώς ήταν να είμαι μαζί του/της σήμερα", "Ως παρατήρηση για τη σχέση", 2)}</fieldset>
-      <fieldset><legend>Τι προτείναμε</legend>{text("suggested", "Τι προτείναμε", "Φαίνεται στον επόμενο θεραπευτή", 1)}</fieldset>
+      <fieldset><legend>Πώς ήταν να είμαι μαζί του σήμερα <span className="muted small">προαιρετικό</span></legend>{text("felt", "Πώς ήταν να είμαι μαζί του σήμερα", "Ως παρατήρηση για τη σχέση", 2)}</fieldset>
+      <fieldset><legend>Τι προτείναμε</legend>{text("suggested", "Τι προτείναμε", "Φαίνεται στην επόμενη ατομική", 1)}</fieldset>
           <fieldset>
-            {toggleRow("sober", "Νηφάλιος/α από την προηγούμενη φορά")}
+            {toggleRow("sober", "Νηφαλιότητα από την προηγούμενη φορά")}
             {!d.sober && (
               <label style={{ marginTop: 8 }}>Νέα ημερομηνία νηφαλιότητας
                 <input type="date" value={d.newSoberSince ?? ""} onChange={(e) => set("newSoberSince", e.target.value as never)} required />
@@ -146,7 +146,7 @@ export function NoteFormClient({ action, hidden, initial, themeForms, themeDetai
         {!d.safeOk && (
           <div className="must">
             <label htmlFor="safetyText">Τι ανησυχεί και ποιος ενημερώθηκε <span>· υποχρεωτικό</span></label>
-            <textarea id="safetyText" rows={2} style={{ minHeight: 68 }} placeholder="π.χ. σκέψεις χωρίς σχέδιο· ενημέρωσα τηλεφωνικά τη Δήμητρα (ψυχολόγο) 10:50" value={d.safetyText ?? ""} onChange={(e) => set("safetyText", e.target.value as never)} />
+            <textarea id="safetyText" rows={2} style={{ minHeight: 68 }} placeholder="π.χ. σκέψεις χωρίς σχέδιο· ενημέρωσα τηλεφωνικά τη Χ. (ψυχολόγο) 10:50" value={d.safetyText ?? ""} onChange={(e) => set("safetyText", e.target.value as never)} />
           </div>
         )}
       </fieldset>

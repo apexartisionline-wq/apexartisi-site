@@ -73,10 +73,10 @@ export default async function AdminToday({ searchParams }: { searchParams: Promi
   }));
 
   const todo = [
-    requests && { href: "/admin/requests", text: `${requests} αιτήματα αλλαγής ραντεβού` },
-    flags && { href: "/admin/bookings", text: `${flags} ραντεβού θέλουν έλεγχο εναλλαγής βιωματικού/κλινικού` },
-    pairs && { href: "/admin/bookings", text: `${pairs} Therapair θέλουν έγκριση ζευγαριού` },
-    unassigned && { href: "/admin/slots", text: `${unassigned} θέσεις τις επόμενες 7 μέρες χωρίς θεραπευτή` },
+    requests && { href: "/admin/requests", text: `${requests} ${requests === 1 ? "αίτημα" : "αιτήματα"} αλλαγής ραντεβού` },
+    flags && { href: "/admin/bookings", text: `${flags} ραντεβού ${flags === 1 ? "θέλει" : "θέλουν"} έλεγχο εναλλαγής βιωματικού/κλινικού` },
+    pairs && { href: "/admin/bookings", text: `${pairs} Therapair ${pairs === 1 ? "θέλει" : "θέλουν"} έγκριση ζευγαριού` },
+    unassigned && { href: "/admin/slots", text: `${unassigned} ${unassigned === 1 ? "θέση" : "θέσεις"} τις επόμενες 7 μέρες χωρίς θεραπευτή` },
   ].filter(Boolean) as { href: string; text: string }[];
 
   return (
@@ -92,7 +92,7 @@ export default async function AdminToday({ searchParams }: { searchParams: Promi
             {help.map((h) => (
               <li key={h.id}>
                 {h.member.name} · {h.createdAt.toLocaleTimeString("el-GR", { timeZone: "Europe/Athens", hour: "2-digit", minute: "2-digit" })} ·{" "}
-                {h.claimedByName ? <span className="badge ok">το ανέλαβε ο/η {h.claimedByName}</span> : <span className="badge red">δεν το ανέλαβε κανείς</span>}
+                {h.claimedByName ? <span className="badge ok">το ανέλαβε: {h.claimedByName}</span> : <span className="badge red">δεν το ανέλαβε κανείς</span>}
               </li>
             ))}
           </ul>

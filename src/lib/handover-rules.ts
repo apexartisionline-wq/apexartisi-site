@@ -1,4 +1,4 @@
-// Κανόνες της «ζώνης ασφαλείας» στην καρτέλα μέλους (χωρίς AI, χωρίς το ημερολόγιο).
+// Κανόνες της «ζώνης ασφάλειας» στην καρτέλα μέλους (χωρίς AI, χωρίς το ημερολόγιο).
 // Απλοί και ορατοί: κάθε σήμα λέει τι το προκάλεσε και πότε.
 
 export const RISK_CHANGE = { UP: "Αυξήθηκαν", SAME: "Ίδιες", DOWN: "Μειώθηκαν" } as const; // ανάγκες ασφάλειας
@@ -13,7 +13,7 @@ export const CASE_FIELDS = [
   { key: "helps", label: "Τι βοηθά", hint: "προστατευτικοί παράγοντες, στρατηγικές που δούλεψαν" },
   { key: "notHelps", label: "Τι δεν βοήθησε", hint: "" },
   { key: "open", label: "Εκκρεμότητες / τι έχει συμφωνηθεί", hint: "" },
-  { key: "next", label: "Για τον επόμενο θεραπευτή", hint: "τι να προσέξει ή να ρωτήσει" },
+  { key: "next", label: "Για την επόμενη ατομική", hint: "τι να προσέξει ή να ρωτήσει" },
 ] as const;
 export type CaseData = Partial<Record<(typeof CASE_FIELDS)[number]["key"], string>>;
 
@@ -35,7 +35,7 @@ export type SafetyInput = {
 const DAY = 24 * 3600_000;
 const daysAgo = (now: Date, d: Date) => Math.floor((now.getTime() - d.getTime()) / DAY);
 
-/** Σήματα ασφαλείας: πρώτα τα κόκκινα, και μέσα σε κάθε χρώμα με σειρά σπουδαιότητας. */
+/** Σήματα ασφάλειας: πρώτα τα κόκκινα, και μέσα σε κάθε χρώμα με σειρά σπουδαιότητας. */
 export function safetyFlags(x: SafetyInput): Flag[] {
   const flags: Flag[] = [];
   const within = (d: Date, days: number) => x.now.getTime() - d.getTime() <= days * DAY;
@@ -64,19 +64,19 @@ export function safetyFlags(x: SafetyInput): Flag[] {
     flags.push({ level: "yellow", text: "Χρήση: δεν ξέρουμε (τελευταίο σημείωμα)", at: lastUse.at, href: `/t/s/${lastUse.slotId}` });
   }
 
-  // Χαμένη ατομική τις τελευταίες 14 μέρες· κόκκινο αν υπάρχει ήδη σήμα κινδύνου.
+  // Χαμένη ατομική τις τελευταίες 14 μέρες· κόκκινο αν υπάρχει ήδη σήμα ασφάλειας.
   const missed = x.missed.filter((m) => within(m.at, 14)).sort((a, b) => b.at.getTime() - a.at.getTime())[0];
   if (missed) {
     const afterRisk = flags.some((f) => f.level === "red");
     flags.push({
       level: afterRisk ? "red" : "yellow",
-      text: afterRisk ? "Δεν ήρθε στην ατομική, μετά από σήμα κινδύνου" : "Δεν ήρθε στην ατομική",
+      text: afterRisk ? "Δεν ήρθε στην ατομική, μετά από σήμα ασφάλειας" : "Δεν ήρθε στην ατομική",
       at: missed.at,
       href: `/t/s/${missed.slotId}`,
     });
   }
 
-  if (x.openDropout) flags.push({ level: "yellow", text: x.lastContact ? `Χάθηκε ${daysAgo(x.now, x.lastContact)} μέρες · τηλεφωνεί η διαχείριση` : "Χωρίς επαφή · τηλεφωνεί η διαχείριση" });
+  if (x.openDropout) flags.push({ level: "yellow", text: x.lastContact ? `Χωρίς επαφή ${daysAgo(x.now, x.lastContact)} μέρες · τηλεφωνεί η διαχείριση` : "Χωρίς επαφή · τηλεφωνεί η διαχείριση" });
   else if (x.lastContact && !within(x.lastContact, x.dropoutDays)) {
     flags.push({ level: "yellow", text: `Χωρίς επαφή ${daysAgo(x.now, x.lastContact)} μέρες`, at: x.lastContact });
   }

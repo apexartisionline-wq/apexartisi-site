@@ -1,2 +1,2 @@
 // Λέξεις για τις απαντήσεις του ημερολογίου ανάκαμψης («απογραφές»), ίδιες παντού.
-export const SELF_HARM = { NO: "όχι", PASSING: "πέρασε μια σκέψη", YES: "ναι", UNSURE: "δεν είμαι σίγουρος/η" } as const;
+export const SELF_HARM = { NO: "όχι", PASSING: "πέρασε μια σκέψη", YES: "ναι", UNSURE: "δεν ξέρω" } as const;

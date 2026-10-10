@@ -3,9 +3,12 @@ import { z } from "zod";
 // Σημειωματάριο ατομικής, με τη σειρά που γράφει η ομάδα (βλ. CLAUDE.md, «Αποφάσεις»).
 // Οι επιλογές είναι γρήγορες· κάθε ενότητα έχει και χώρο για δικά του λόγια.
 
-export const PRESENTED = ["Ήρεμος/η", "Χαρούμενος/η", "Φορτισμένος/η", "Αγχωμένος/η", "Κλειστός/ή", "Θυμωμένος/η", "Λυπημένος/η"] as const;
+export const PRESENTED = ["Ήρεμα", "Χαρούμενα", "Φορτισμένα", "Αγχωμένα", "Κλειστά", "Θυμωμένα", "Λυπημένα"] as const;
+// Παλιές τιμές (πριν τις 10/10) που υπάρχουν σε αποθηκευμένα σημειώματα: μένουν έγκυρες, δεν προσφέρονται στη φόρμα.
+const PRESENTED_LEGACY = ["Ήρεμος/η", "Χαρούμενος/η", "Φορτισμένος/η", "Αγχωμένος/η", "Κλειστός/ή", "Θυμωμένος/η", "Λυπημένος/η"] as const;
 export const MOOD = ["Χαμηλή", "Μέτρια", "Καλή"] as const;
-export const SELF_HELP = ["Δυσκολεύεται", "Κάνει βήματα, με διακυμάνσεις", "Φροντίζει ενεργά τον εαυτό του/της"] as const;
+export const SELF_HELP = ["Δυσκολεύεται", "Κάνει βήματα, με διακυμάνσεις", "Φροντίζει ενεργά τον εαυτό του"] as const;
+const SELF_HELP_LEGACY = ["Φροντίζει ενεργά τον εαυτό του/της"] as const;
 export const PROCESS = ["Απόμακρα / με αντίσταση", "Αμφίθυμα", "Με ασφάλεια, συμμετέχει"] as const;
 export const THEMES = [
   "Σχέση με τον εαυτό", "Σχέσεις / σύντροφος", "Οικογένεια", "Παρελθόν", "Ντροπή", "Ενοχή / επανορθώσεις", "Φόβοι",
@@ -23,10 +26,10 @@ const pick = <T extends readonly string[]>(opts: T) => z.enum(opts as unknown as
 export const noteFormSchema = z
   .object({
     came: z.boolean().default(true), // «Ήρθε / Δεν ήρθε»· αν δεν ήρθε, το σημείωμα δεν μετράει ως παρουσία
-    presented: z.array(pick(PRESENTED)).default([]),
+    presented: z.array(pick([...PRESENTED, ...PRESENTED_LEGACY])).default([]),
     presentedText: text(500),
     mood: pick(MOOD).optional(),
-    selfHelp: pick(SELF_HELP).optional(),
+    selfHelp: pick([...SELF_HELP, ...SELF_HELP_LEGACY]).optional(),
     process: pick(PROCESS).optional(),
     brought: z.array(z.string().max(120)).max(30).default([]), // θέματα + «Φόρμα Ν · …» της θεματικής
     broughtText: text(6000),
@@ -69,7 +72,7 @@ export function composeNote(d: NoteForm): string {
   }
   add("Πώς παρουσιάστηκε", [d.presented.join(", "), d.presentedText].filter(Boolean).join(" — "));
   add("Διάθεση", d.mood ?? "");
-  add("Πόσο βοηθά τον εαυτό του/της", d.selfHelp ?? "");
+  add("Πόσο βοηθά τον εαυτό του", d.selfHelp ?? "");
   add("Πώς νιώθει στη διαδικασία", d.process ?? "");
   add("Τι έφερε", [d.brought.join(", "), d.broughtText].filter(Boolean).join(" — "));
   add("Σε τι επικεντρώθηκε η παρέμβαση", d.intervention);
@@ -78,13 +81,13 @@ export function composeNote(d: NoteForm): string {
   add("Γράφει απογραφές", d.journaling ?? "");
   add("Πώς ήταν να είμαι μαζί του σήμερα", d.felt);
   add("Τι προτείναμε", d.suggested);
-  lines.push(d.sober ? "Νηφάλιος/α από την προηγούμενη φορά." : `Όχι νηφάλιος/α από την προηγούμενη φορά· νέα ημερομηνία νηφαλιότητας ${d.newSoberSince}.`);
+  lines.push(d.sober ? "Νηφαλιότητα από την προηγούμενη φορά: ναι." : `Νηφαλιότητα από την προηγούμενη φορά: όχι· νέα ημερομηνία νηφαλιότητας ${d.newSoberSince}.`);
   lines.push(d.safeOk ? "Ανησυχία για την ασφάλεια: Όχι." : `Ανησυχία για την ασφάλεια: Ναι — ${d.safetyText || "βλ. προβληματισμό"}`);
   add("Προβληματισμός προς τη θεραπευτική ομάδα", d.concern);
   return lines.join("\n");
 }
 
-/** Τα δομημένα πεδία που χρησιμοποιούν η ζώνη ασφαλείας και τα φίλτρα. */
+/** Τα δομημένα πεδία που χρησιμοποιούν η ζώνη ασφάλειας και τα φίλτρα. */
 export function noteFlags(d: NoteForm): { riskChange: "UP" | "SAME"; usedSince: "YES" | "NO"; notify: boolean } {
   // Η ενημέρωση της ομάδας γίνεται όταν το ζητήσει ο θεραπευτής, όταν αλλάξει η ασφάλεια ή όταν γράψει προβληματισμό.
   return { riskChange: d.safeOk ? "SAME" : "UP", usedSince: !d.came || d.sober ? "NO" : "YES", notify: d.notify || !d.safeOk || Boolean(d.concern) };

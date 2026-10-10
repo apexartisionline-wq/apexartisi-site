@@ -52,7 +52,7 @@ export default async function EmergencyPage({ params }: { params: Promise<{ id: 
       <p style={{ margin: "8px 0 0" }}><Link className="back" href={`/t/members/${id}/risk`}>‹ Ανάγκες ασφάλειας</Link></p>
       <h1>Έκτακτη ανάγκη — {member.name}</h1>
       <div className="card" data-tour="numbers">
-        <strong>Μείνε μαζί του/της. Μην κλείσεις τη σύνδεση.</strong>
+        <strong>Μείνε με το μέλος στη γραμμή. Μην κλείσεις τη σύνδεση.</strong>
         <div className="row" style={{ gap: 8, marginTop: 10, flexWrap: "wrap" }}>
           <a className="btn red" href="tel:112">112 · Άμεσος κίνδυνος</a>
           <a className="btn" href="tel:166">166 · ΕΚΑΒ (ασθενοφόρο)</a>
@@ -80,10 +80,10 @@ export default async function EmergencyPage({ params }: { params: Promise<{ id: 
               <strong>{p.ecName}</strong>{p.ecRelation && ` (${p.ecRelation})`} · {tel(p.ecPhone)}
               <div className="small muted">{p.ecWhen ? EC_WHEN[p.ecWhen] : "Δεν έχει πει πότε"}{p.ecWhatToSay && ` · Τι λέμε: ${p.ecWhatToSay}`}</div>
             </div>
-          ) : <div className="muted">Δεν έχει δώσει.</div>}
+          ) : <div className="muted">Δεν έχει δώσει επαφή έκτακτης ανάγκης.</div>}
         </div>
       ) : (
-        <div className="card">Το μέλος δεν έχει συμπληρώσει στοιχεία. Πάρε αμέσως τη διαχείριση{s.adminPhone && <> στο <a href={`tel:${s.adminPhone.replace(/\s/g, "")}`}><strong>{s.adminPhone}</strong></a></>}{duty && <> ή τον/την {duty.name}{duty.phone && <> στο <a href={`tel:${duty.phone.replace(/\s/g, "")}`}>{duty.phone}</a></>}</>}.</div>
+        <div className="card">Το μέλος δεν έχει συμπληρώσει στοιχεία. Πάρε αμέσως τη διαχείριση{s.adminPhone && <> στο <a href={`tel:${s.adminPhone.replace(/\s/g, "")}`}><strong>{s.adminPhone}</strong></a></>}{duty && <> ή όποιον εφημερεύει: {duty.name}{duty.phone && <> στο <a href={`tel:${duty.phone.replace(/\s/g, "")}`}>{duty.phone}</a></>}</>}.</div>
       )}
       <TourFor id="emergency" userId={user.id} auto={false} />
     </main>

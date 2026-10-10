@@ -87,7 +87,7 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
       </a>
       <div className="card" data-tour="sober">
         <div className="row spread">
-          <strong>{member.soberSince ? `Νηφάλιος/α ${sober ?? 0} μέρες` : "Νηφαλιότητα: δεν έχει γραφτεί"}</strong>
+          <strong>{member.soberSince ? `${sober ?? 0} μέρες νηφαλιότητας` : "Νηφαλιότητα: δεν έχει γραφτεί"}</strong>
           {member.soberSince && <span className="muted small">από {gr(member.soberSince)}</span>}
         </div>
         {ax?.data.summary && (
@@ -155,7 +155,7 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
         <Link href={`/t/members/${id}/assessment`}>
           <span>
             <div>Αρχική αξιολόγηση</div>
-            <div className="sub">{assessment && ax?.complete ? `✓ ${formatDate(localParts(assessment.doneAt).date)}, ${staffNames.get(assessment.doneById) ?? ""}` : ax ? `Σε εξέλιξη · ${ax.author}` : "Δεν έχει γίνει ακόμα — την κάνει ψυχολόγος στην επόμενη ατομική"}</div>
+            <div className="sub">{assessment && ax?.complete ? `✓ ${formatDate(localParts(assessment.doneAt).date)}, ${staffNames.get(assessment.doneById) ?? ""}` : ax ? `Σε εξέλιξη · ${ax.author}` : "Δεν έχει γίνει ακόμα · ψυχολόγος, 1η ατομική (~40′)"}</div>
           </span>
         </Link>
       </div>

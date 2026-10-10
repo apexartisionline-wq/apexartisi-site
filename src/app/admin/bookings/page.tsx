@@ -143,7 +143,7 @@ export default async function BookingsPage({ searchParams }: { searchParams: Pro
       <div className="card table-wrap">
         <table>
           <thead>
-            <tr><th>Μέρα</th><th>Ώρα</th><th>Δωμ.</th><th>Είδος</th><th>Μέλος</th><th>Θεραπευτής</th><th>Μπήκε</th><th>Διάρκεια</th><th>Σημ.</th><th>Αλλαγή</th></tr>
+            <tr><th>Μέρα</th><th>Ώρα</th><th>Δωμ.</th><th>Είδος</th><th>Μέλος</th><th>Θεραπευτής</th><th>Μπήκε</th><th>Διάρκεια</th><th>Σημείωμα</th><th>Αλλαγή</th></tr>
           </thead>
           <tbody>
             {slots.flatMap((x) =>

@@ -25,7 +25,8 @@ export const TREATMENT_END = ["Ολοκληρώθηκε", "Διακόπηκε", 
 const OLD_END: Record<string, string> = { Ολοκλήρωση: "Ολοκληρώθηκε", Διακοπή: "Διακόπηκε" };
 export const AS_PRESCRIBED = ["Ναι", "Όχι πάντα", "Όχι"] as const;
 export const TRAUMA = ["Ναι", "Όχι", "Δεν θέλω να πω"] as const;
-export const ABSTINENCE = ["Δεσμευμένος/η στην αποχή", "Όχι ακόμα"] as const;
+export const ABSTINENCE = ["Δέσμευση στην αποχή", "Όχι ακόμα"] as const;
+const ABSTINENCE_LEGACY = ["Δεσμευμένος/η στην αποχή"] as const;
 
 // ⚠ ΔΟΚΙΜΗ: προσωρινά κείμενα. Σε πραγματικά μέλη μόνο με γραπτή άδεια και επίσημη ελληνική έκδοση
 // (docs/clinical/erotimatologia-adeies.md). Το AUDIT είναι η απόδοση του σχεδίου 02.
@@ -102,7 +103,7 @@ export const assessmentSchema = z.object({
   violenceText: text(1000),
   // 11. Κίνητρο
   whyNow: text(2000),
-  abstinence: pick(ABSTINENCE).optional(),
+  abstinence: pick([...ABSTINENCE, ...ABSTINENCE_LEGACY]).optional(),
   workOn: text(2000),
   strengths: text(2000),
   fears: text(2000),
@@ -234,7 +235,7 @@ export function assessmentLines(d: Assessment, opts: { admin: boolean }): { titl
     sec("Γιατί τώρα", [
       ["Γιατί τώρα", d.whyNow],
       ["Αποχή", d.abstinence],
-      ["Τι θέλει να δουλέψει στον εαυτό του/της", d.workOn],
+      ["Τι θέλει να δουλέψει στον εαυτό του", d.workOn],
       ["Μεγαλύτερη αποχή", [d.longestAbstinence, d.longestHelped && `τη βοήθησε: ${d.longestHelped}`, d.longestEnded && `την έληξε: ${d.longestEnded}`].filter(Boolean).join(" · ")],
     ]),
     sec("Ιστορικό χρήσης", [
@@ -246,17 +247,17 @@ export function assessmentLines(d: Assessment, opts: { admin: boolean }): { titl
       ["AUDIT", fmt(auditScore(d.audit))],
       ["DAST-10", q.dast ? fmt(dastScore(d.dast)) : undefined],
       ["PGSI", q.pgsi ? fmt(pgsiScore(d.pgsi)) : undefined],
-      { q: "Υπερδοσολογία ποτέ", v: d.overdoseEver, extra: d.overdoseLast && `τελευταία ${gr(d.overdoseLast)}` },
-      { q: "Στερητικά με σπασμούς", v: d.seizuresEver },
+      { q: "Υπερδοσολογία, έστω μία φορά", v: d.overdoseEver, extra: d.overdoseLast && `τελευταία ${gr(d.overdoseLast)}` },
+      { q: "Στερητικά με σπασμούς, έστω μία φορά", v: d.seizuresEver },
       { q: "Μεθαδόνη / βουπρενορφίνη", v: d.ost },
       ...(q.pgsi ? [{ q: "Χρέη με απειλές", v: d.debtThreats } as Row] : []),
     ]),
     sec("Προηγούμενες θεραπείες", d.treatments.map((t, i): Row => [`${i + 1}. ${t.where}${t.whereText ? ` · ${t.whereText}` : ""}`, [t.when, t.duration, t.ended, t.helped && `βοήθησε: ${t.helped}`].filter(Boolean).join(" · ") || "—"])),
     sec("Ψυχιατρικό", [
-      ["Διαγνώσεις που του/της έχουν πει", [d.diagnoses.join(", "), d.diagnosesText].filter(Boolean).join(" — ")],
+      ["Διαγνώσεις που του έχουν πει", [d.diagnoses.join(", "), d.diagnosesText].filter(Boolean).join(" — ")],
       { q: "Ψυχωσικά τώρα", v: d.psychoticNow },
-      { q: "Απόπειρα / αυτοτραυματισμός ποτέ", v: d.attemptEver },
-      { q: "Νοσηλεία ποτέ", v: d.hospitalisedEver },
+      { q: "Απόπειρα / αυτοτραυματισμός, έστω μία φορά", v: d.attemptEver },
+      { q: "Νοσηλεία σε ψυχιατρική κλινική, έστω μία φορά", v: d.hospitalisedEver },
       ["Τραύμα", d.trauma],
       ...d.meds.filter((m) => m.name).map((m): Row => [`Φάρμακο: ${m.name}`, [m.dose, m.why, m.asPrescribed && `το παίρνει όπως γράφεται: ${m.asPrescribed.toLowerCase()}`].filter(Boolean).join(" · ") || "—"]),
       ["Ψυχίατρος", d.psychiatristName],

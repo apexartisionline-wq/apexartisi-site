@@ -43,7 +43,7 @@ export default async function RiskPage({ params, searchParams }: { params: Promi
       <p style={{ margin: "8px 0 0" }}><Link className="back" href={`/t/members/${id}`}>‹ {member.name}</Link></p>
       <h1 style={{ marginBottom: 4 }}>Ανάγκες ασφάλειας</h1>
       <p className="muted" style={{ marginTop: 0 }}>
-        {current ? `Τώρα: ${LEVELS[current.level]} · ${current.author}, ${formatWhen(current.at)}` : trigger ? "Δεν έχει γίνει αξιολόγηση ακόμα" : "Δεν έχει χρειαστεί αξιολόγηση"}
+        {current ? `Τώρα: ${LEVELS[current.level]} · ${current.author}, ${formatWhen(current.at)}` : trigger ? "Δεν έχει γίνει αξιολόγηση ακόμα" : "Δεν έχει χρειαστεί"}
         {" · "}<Link href={`/t/members/${id}/safety`}>Πλάνο ασφάλειας ›</Link>
       </p>
       {sp.saved && <div className="notice">Αποθηκεύτηκε ✓{current && current.level !== "LOW" && " Φαίνεται σήμερα στο «Σήμερα» όλης της ομάδας."}</div>}

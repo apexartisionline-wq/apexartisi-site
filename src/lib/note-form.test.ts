@@ -57,7 +57,7 @@ describe("composeNote / noteFlags", () => {
     const t = composeNote(noteFormSchema.parse({ ...base, came: false, absentText: "ενημέρωσε ότι είναι άρρωστος", mood: "Χαμηλή" }));
     expect(t).toContain("Τι έγινε / τι κάνουμε: ενημέρωσε ότι είναι άρρωστος");
     expect(t).not.toContain("Διάθεση");
-    expect(t).not.toContain("Νηφάλιος");
+    expect(t).not.toContain("Νηφαλιότητα από την προηγούμενη φορά");
   });
   it("«Γράφει απογραφές» μετά τα θετικά", () => {
     const t = composeNote(noteFormSchema.parse({ ...base, positives: "ήρθε στην ώρα του", journaling: "Λίγο" }));

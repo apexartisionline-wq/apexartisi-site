@@ -58,7 +58,7 @@ export function PushToggle({ vapidKey }: { vapidKey: string }) {
       </div>
     );
   if (state === "unsupported") return <p className="muted small">Αυτός ο browser δεν υποστηρίζει ειδοποιήσεις.</p>;
-  if (state === "denied") return <p className="small">Οι ειδοποιήσεις είναι μπλοκαρισμένες. Άνοιξέ τες από τις ρυθμίσεις του κινητού για το Apex.</p>;
+  if (state === "denied") return <p className="small">Οι ειδοποιήσεις είναι μπλοκαρισμένες. Άνοιξέ τις από τις ρυθμίσεις του κινητού για το Apex.</p>;
   if (state === "error") return <p className="small">Κάτι δεν πήγε καλά. Δοκίμασε ξανά.</p>;
   return state === "on" ? (
     <div className="row spread"><span>Ενεργές σε αυτή τη συσκευή ✓</span><button onClick={disable}>Απενεργοποίηση</button></div>

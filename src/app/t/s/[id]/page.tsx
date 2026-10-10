@@ -94,7 +94,7 @@ async function saveNote(formData: FormData) {
 }
 
 // Σημειωματάριο ατομικής (δομημένο). Το κείμενο («content») γράφεται από τα πεδία,
-// ώστε φάκελος, αναζήτηση και ζώνη ασφαλείας να δουλεύουν όπως πριν.
+// ώστε φάκελος, αναζήτηση και ζώνη ασφάλειας να δουλεύουν όπως πριν.
 // Μία κίτρινη γραμμή 24 ωρών στο «Σήμερα» της ομάδας· όχι δεύτερη αν υπάρχει ήδη ενεργή για το ίδιο σημείωμα.
 async function raiseNoteAlert(memberId: string, kind: string, byId: string) {
   const since = new Date(Date.now() - 24 * 3600_000);
@@ -255,9 +255,9 @@ export default async function SessionPage({
       {members.map(({ booking, number, previous }) => (
         <section key={booking.id}>
           <h2>
-            Πριν: {booking.member.name} <span className="muted small">{number && `· ${number}`}</span>
+            Προηγούμενα σημειώματα — {booking.member.name} <span className="muted small">{number && `· ${number}`}</span>
           </h2>
-          {previous.length === 0 && <p className="muted">Δεν υπάρχει προηγούμενο σημείωμα.</p>}
+          {previous.length === 0 && <p className="muted">Πρώτη ατομική: δεν υπάρχει προηγούμενο σημείωμα.</p>}
           {previous.map((n) => (
             <div className="card" key={n.id}>
               <div className="muted small">
@@ -271,10 +271,10 @@ export default async function SessionPage({
         </section>
       ))}
 
-      <h2>{pair ? "Κοινό σημείωμα" : "Σημείωμα αυτής της συνεδρίας"}</h2>
+      <h2>{pair ? "Κοινό σημείωμα" : "Σημείωμα αυτής της ατομικής"}</h2>
       {pair && <p className="muted small">Φαίνεται στους φακέλους και των δύο μελών.</p>}
       {sp.saved && <div className="notice">Αποθηκεύτηκε ✓</div>}
-      {sp.error && <div className="error">Το σημείωμα δεν αποθηκεύτηκε: συμπλήρωσε ανάγκες ασφάλειας και χρήση (και το κείμενο έως {NOTE_MAX.toLocaleString("el-GR")} χαρακτήρες).</div>}
+      {sp.error && <div className="error">Δεν αποθηκεύτηκε: λείπουν «Ανάγκες ασφάλειας» ή «Χρήση», ή το κείμενο ξεπερνά τους {NOTE_MAX.toLocaleString("el-GR")} χαρακτήρες.</div>}
       {!canWrite(x, user) ? (
         x.note ? (
           <div className="card">
@@ -303,8 +303,8 @@ export default async function SessionPage({
             </label>
           </div>
           <label className="field">
-            Επόμενο βήμα
-            <input name="nextStep" defaultValue={dec(x.note?.nextStep)} maxLength={1000} placeholder="τι συμφωνήσαμε / τι να δει ο επόμενος" />
+            Τι προτείναμε
+            <input name="nextStep" defaultValue={dec(x.note?.nextStep)} maxLength={1000} placeholder="τι συμφωνήσαμε / τι να δει η επόμενη ατομική" />
           </label>
           <div className="row spread" style={{ marginTop: 12 }}>
             <span className="muted small">
@@ -314,7 +314,7 @@ export default async function SessionPage({
           </div>
         </form>
       ) : (
-        <p className="muted">Το σημείωμα γράφεται μετά τη συνεδρία.</p>
+        <p className="muted">Το σημείωμα γράφεται μετά την ατομική.</p>
       )}
       {versions.length > 0 && (
         <details className="card small">
@@ -396,15 +396,15 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
 
       <h2 data-tour="glance">Με μια ματιά{x.date < today && <span className="muted small" style={{ fontWeight: 400 }}> · όπως είναι σήμερα, όχι τότε</span>}</h2>
       <div className="tiles">
-        <div className="tile"><strong>{g.soberDays ?? "—"}</strong><span>μέρες νηφάλιος/α</span></div>
+        <div className="tile"><strong>{g.soberDays ?? "—"}</strong><span>μέρες νηφαλιότητας</span></div>
         <div className="tile" title={g.cycle ? `Από τις ${g.cycle.length} ατομικές του μήνα έχουν γίνει ${g.cycle.done}· ήρθε στις ${g.cycle.attended}` : undefined}><strong>{g.cycle ? `${g.cycle.attended} από ${g.cycle.done}` : "—"}</strong><span>ήρθε στις ατομικές του μήνα που έγιναν</span></div>
         <div className={`tile${g.groups.total && g.groups.done / g.groups.total < 0.6 ? " warn" : ""}`} title={`Τις τελευταίες 4 εβδομάδες ήρθε σε ${g.groups.done} από ${g.groups.total} ομάδες`}><strong>{g.cycle ? `${g.cycle.groups} από ${s.groupsPerCycle}` : "—"}</strong><span>ομάδες του μήνα</span></div>
-        <div className="tile"><strong>{g.journal.written}/7</strong><span>απογραφές εβδ.</span></div>
-        <div className={`tile${g.help14 ? " warn" : ""}`}><strong>{g.help14}</strong><span>κόκκινο κουμπί, 14 μ.</span></div>
+        <div className="tile"><strong>{g.journal.written}/7</strong><span>απογραφές 7 ημ.</span></div>
+        <div className={`tile${g.help14 ? " warn" : ""}`}><strong>{g.help14}</strong><span>κόκκινο κουμπί 14 ημ.</span></div>
         <div className="tile"><strong style={{ fontSize: "0.95rem", paddingTop: 4, overflowWrap: "anywhere", hyphens: "auto" }}>{intake.trigger ? intake.label : risk ? RISK_LEVELS[risk] : "—"}</strong><span>ανάγκες ασφάλειας</span></div>
       </div>
       <p className="muted small">
-        {g.soberSince ? `Νηφάλιος/α από ${formatDate(g.soberSince)}` : "Δεν έχει οριστεί ημερομηνία νηφαλιότητας"}
+        {g.soberSince ? `Νηφαλιότητα από ${formatDate(g.soberSince)}` : "Δεν έχει οριστεί ημερομηνία νηφαλιότητας"}
         {!intake.trigger && risk && ` · ${RISK_INFO[risk].action}`}
       </p>
 
@@ -414,7 +414,7 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
       <div className="card">
         {g.prev ? (
           <>
-            <div>{g.prev.next || <span className="muted">Δεν άφησε κάτι για τον επόμενο.</span>}</div>
+            <div>{g.prev.next || <span className="muted">Δεν άφησε κάτι για την επόμενη ατομική.</span>}</div>
             <div className="muted small" style={{ marginTop: 6 }}>
               {g.prev.by} · {formatDate(g.prev.date)} · <Link href={`/t/s/${g.prev.slotId}`}>όλο το σημείωμα</Link> · <Link href={`/t/members/${b.member.id}/notes`}>όλα τα σημειώματα</Link>
             </div>
@@ -432,7 +432,7 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
       <h2 data-tour="goal">Στόχος της εβδομάδας</h2>
       <GoalWeekCard memberId={b.memberId} date={today} />
 
-      <h2 data-tour="journal">Απογραφές αυτής της εβδομάδας</h2>
+      <h2 data-tour="journal">Απογραφές — τελευταίες 7 μέρες</h2>
       <div className="card">
         {g.journal.written === 0 ? <span className="muted">Δεν έγραψε απογραφές τις τελευταίες 7 μέρες.</span> : (
           <>
@@ -481,7 +481,7 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
           </div>
         </div>
       ) : (
-        <p className="muted">{canWrite(x, user) ? "Το σημειωματάριο ανοίγει 15 λεπτά πριν από τη συνεδρία." : "Δεν έχει γραφτεί σημείωμα ακόμα."}</p>
+        <p className="muted">{canWrite(x, user) ? "Το σημειωματάριο ανοίγει 15 λεπτά πριν από την ώρα της." : "Δεν έχει γραφτεί σημείωμα ακόμα."}</p>
       )}
       {versions.length > 0 && (
         <details className="card small">
@@ -547,7 +547,7 @@ async function PairSession({ x, user, sp }: { x: Slot; user: { id: string; role:
             <SafetyZone memberId={m.id} />
             <div className="card small">
               <strong>Ανοιχτό από την προηγούμενη φορά</strong>
-              <div style={{ marginTop: 4 }}>{prev ? (prev.next || <span className="muted">Δεν άφησε κάτι για τον επόμενο.</span>) : <span className="muted">Δεν υπάρχει προηγούμενο σημείωμα.</span>}</div>
+              <div style={{ marginTop: 4 }}>{prev ? (prev.next || <span className="muted">Δεν άφησε κάτι για την επόμενη ατομική.</span>) : <span className="muted">Πρώτη ατομική: δεν υπάρχει προηγούμενο σημείωμα.</span>}</div>
               {prev && <div className="muted" style={{ marginTop: 4 }}>{prev.therapist} · {formatDate(prev.date)} · <Link href={`/t/members/${m.id}/notes`}>όλα τα σημειώματα</Link></div>}
             </div>
             {prev && (
@@ -598,7 +598,7 @@ async function PairSession({ x, user, sp }: { x: Slot; user: { id: string; role:
           <NoteText text={dec(x.note.content)} />
         </div>
       ) : (
-        <p className="muted">{canWrite(x, user) ? "Το σημειωματάριο ανοίγει 15 λεπτά πριν από τη συνεδρία." : "Δεν έχει γραφτεί σημείωμα ακόμα."}</p>
+        <p className="muted">{canWrite(x, user) ? "Το σημειωματάριο ανοίγει 15 λεπτά πριν από την ώρα της." : "Δεν έχει γραφτεί σημείωμα ακόμα."}</p>
       )}
       {perMember.some((p) => p.history.length > 0) && (
         <details className="card small">

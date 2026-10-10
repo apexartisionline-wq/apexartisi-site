@@ -31,8 +31,8 @@ export default async function CaseSummaryPage({ params }: { params: Promise<{ id
       <p className="small"><Link className="back" href={`/t/members/${id}`}>‹ {member.name}</Link></p>
       <h1>Σύνοψη περίπτωσης</h1>
       <p className="muted small">
-        Λίγες γραμμές, ώστε όποιος θεραπευτής αναλάβει να ξέρει πού βρίσκεται το μέλος. Τα σήματα ασφαλείας
-        (κίνδυνος, κόκκινο κουμπί, χρήση) φαίνονται αυτόματα στην καρτέλα και δεν χρειάζεται να γραφτούν εδώ.
+        Λίγες γραμμές, ώστε όποιος θεραπευτής αναλάβει να ξέρει πού βρίσκεται το μέλος. Τα σήματα ασφάλειας
+        (ανάγκες ασφάλειας, κόκκινο κουμπί, χρήση) φαίνονται αυτόματα στην καρτέλα και δεν χρειάζεται να γραφτούν εδώ.
       </p>
       <form action={save} className="card">
         <input type="hidden" name="memberId" value={id} />

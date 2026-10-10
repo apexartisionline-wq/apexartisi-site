@@ -54,7 +54,7 @@ export default async function MemberJournalPage({ params, searchParams }: { para
               </div>
               <ul className="journal-ans">
                 <li>Χρήση: {j.used ? <strong className="warn-text">ναι</strong> : "όχι"}</li>
-                <li>Σκέψεις να κάνει κακό στον εαυτό του/της: {j.selfHarm === "YES" || j.selfHarm === "UNSURE" ? <strong className="warn-text">{SELF_HARM[j.selfHarm]}</strong> : SELF_HARM[j.selfHarm]}</li>
+                <li>Σκέψεις να κάνει κακό στον εαυτό του: {j.selfHarm === "YES" || j.selfHarm === "UNSURE" ? <strong className="warn-text">{SELF_HARM[j.selfHarm]}</strong> : SELF_HARM[j.selfHarm]}</li>
                 {j.goalCheck && <li>Συνεπής με τον στόχο: <strong>{GOAL_CHECK[j.goalCheck as GoalCheck] ?? j.goalCheck}</strong>{goalNote && <> — «{goalNote}»</>}</li>}
                 {win && <li>Μια νίκη σήμερα: «{win}»</li>}
               </ul>

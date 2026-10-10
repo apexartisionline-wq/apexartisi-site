@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { requireMember } from "@/lib/intake";
 import { prisma } from "@/lib/db";
 
-// Προβολή μόνο μέσα στο app, με το κωδικό του μέλους πάνω στο υλικό (αποτρεπτικό, όχι κλείδωμα).
+// Προβολή μόνο μέσα στο app, με τον κωδικό του μέλους πάνω στο υλικό (αποτρεπτικό, όχι κλείδωμα).
 export default async function LibraryItemPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await requireMember();
   const { id } = await params;

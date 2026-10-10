@@ -3,13 +3,13 @@ import { memberSafety } from "@/lib/handover";
 import { RISK_INFO, RISK_LEVELS } from "@/lib/intake-rules";
 import { formatDate, localParts } from "@/lib/time";
 
-// Ζώνη ασφαλείας στην κορυφή της καρτέλας μέλους: κανόνες, όχι AI (βλ. handover-rules.ts).
+// Ζώνη ασφάλειας στην κορυφή της καρτέλας μέλους: κανόνες, όχι AI (βλ. handover-rules.ts).
 export async function SafetyZone({ memberId }: { memberId: string }) {
   const flags = await memberSafety(memberId);
   if (flags.length === 0) {
     return (
       <div className="card small">
-        <span className="badge ok">Ασφάλεια</span> Δεν υπάρχει ενεργό σήμα.
+        <span className="badge ok">Ασφάλεια</span> Κανένα ανοιχτό σήμα.
         <Explain />
       </div>
     );

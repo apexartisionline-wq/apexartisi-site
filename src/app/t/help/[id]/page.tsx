@@ -53,7 +53,7 @@ export default async function HelpRequestPage({ params, searchParams }: { params
           </p>
         </div>
       )}
-      {sp.done && <div className="notice">Καταγράφηκε ✓ Θα σου θυμίσουμε μήνυμα φροντίδας σε 24 ώρες και σε 7 μέρες.</div>}
+      {sp.done && <div className="notice">Καταγράφηκε ✓ Σε 24 ώρες και σε 7 μέρες θα σου θυμίσουμε το μήνυμα φροντίδας.</div>}
       {sp.e && <div className="error">Γράψε σύντομα την έκβαση.</div>}
       {req.talkedAt ? (
         <div className="card">
@@ -67,7 +67,7 @@ export default async function HelpRequestPage({ params, searchParams }: { params
         </form>
       ) : (
         <div className="card">
-          <p>Το ανέλαβε ο/η <strong>{req.claimedByName}</strong> στις {fmt(req.claimedAt)}.</p>
+          <p>Το ανέλαβε: <strong>{req.claimedByName}</strong>, {fmt(req.claimedAt)}.</p>
           {(mine || user.role === "ADMIN") && (
             <form action={doTalked} className="stack">
               <input type="hidden" name="id" value={req.id} />

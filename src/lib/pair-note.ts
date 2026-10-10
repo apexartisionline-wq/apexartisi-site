@@ -6,7 +6,9 @@ import { JOURNALING, PRESENTED } from "./note-form";
 
 export const CONNECTED = ["Ναι", "Λίγο", "Όχι"] as const;
 export const ACCEPTED_HELP = ["Ναι", "Λίγο", "Όχι"] as const;
-export const STANCE = ["Δεκτικός/ή", "Αμφίθυμος/η", "Άρνηση"] as const;
+export const STANCE = ["Δεκτικότητα", "Αμφιθυμία", "Άρνηση"] as const;
+const STANCE_LEGACY = ["Δεκτικός/ή", "Αμφίθυμος/η"] as const;
+const PRESENTED_LEGACY = ["Ήρεμος/η", "Χαρούμενος/η", "Φορτισμένος/η", "Αγχωμένος/η", "Κλειστός/ή", "Θυμωμένος/η", "Λυπημένος/η"] as const;
 
 const text = (max: number) => z.string().trim().max(max).default("");
 const pick = <T extends readonly string[]>(opts: T) => z.enum(opts as unknown as [string, ...string[]]);
@@ -15,11 +17,11 @@ const pick = <T extends readonly string[]>(opts: T) => z.enum(opts as unknown as
 export const pairSideSchema = z
   .object({
     came: z.boolean().default(true),
-    presented: z.array(pick(PRESENTED)).default([]),
+    presented: z.array(pick([...PRESENTED, ...PRESENTED_LEGACY])).default([]),
     presentedText: text(500),
     connected: pick(CONNECTED).optional(),
     acceptedHelp: pick(ACCEPTED_HELP).optional(),
-    stance: pick(STANCE).optional(),
+    stance: pick([...STANCE, ...STANCE_LEGACY]).optional(),
     emerged: z.array(z.string().max(120)).max(10).default([]), // «Φόρμα Ν · …» της θεματικής της εβδομάδας
     emergedText: text(4000),
     outcome: text(3000),
@@ -133,7 +135,7 @@ export function composePairNote(d: PairSide, otherNames: string[]): string {
   add("Τα θετικά", h(d.positives));
   add("Γράφει απογραφές", d.journaling ?? "");
   add("Τι προτείναμε", h(d.suggested));
-  lines.push(d.sober ? "Νηφάλιος/α από την προηγούμενη φορά." : `Όχι νηφάλιος/α από την προηγούμενη φορά· νέα ημερομηνία νηφαλιότητας ${d.newSoberSince}.`);
+  lines.push(d.sober ? "Νηφαλιότητα από την προηγούμενη φορά: ναι." : `Νηφαλιότητα από την προηγούμενη φορά: όχι· νέα ημερομηνία νηφαλιότητας ${d.newSoberSince}.`);
   lines.push(d.safeOk ? "Ανησυχία για την ασφάλεια: Όχι." : `Ανησυχία για την ασφάλεια: Ναι — ${h(d.safetyText) || "βλ. προβληματισμό"}`);
   add("Προβληματισμός προς τη θεραπευτική ομάδα", h(d.concern));
   return lines.join("\n");

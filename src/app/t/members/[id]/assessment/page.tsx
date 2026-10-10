@@ -103,7 +103,7 @@ export default async function AssessmentPage({ params, searchParams }: { params:
       const rows: [string, string][] = p
         ? ([
             ["Ονοματεπώνυμο", p.data.fullName],
-            ["Τον/την λέμε", p.data.preferredName],
+            ["Πώς θέλει να το λέμε", p.data.preferredName],
             ["Γέννηση", p.data.birthDate && `${gr(p.data.birthDate)} (${age(p.data.birthDate)} ετών)`],
             ["Κινητό", p.data.mobile],
             ["Email", p.data.email],

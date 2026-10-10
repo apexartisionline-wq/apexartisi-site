@@ -133,7 +133,7 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
             )}
           </div>
         ))}
-        {items.length === 0 && <div className="muted">Δεν έχεις ομάδα ή συνεδρία αυτή τη μέρα.</div>}
+        {items.length === 0 && <div className="muted">Δεν έχεις ομάδα ή ατομική αυτή τη μέρα.</div>}
       </div>
       {isToday && items.length > 0 && <p className="muted small">Το «Σύνδεση» ανοίγει το Zoom και καταγράφει την ώρα που μπήκες.</p>}
       </section>
