@@ -20,7 +20,7 @@ export async function Nav({ links, menu = false }: { links: { href: string; labe
           </picture>
         ) : (
           <>
-            {s.logoUrl ? <img src={s.logoUrl} alt="" /> : <BrandMark />}
+            {s.logoUrl ? <img src={s.logoUrl} alt="" /> : <BrandMark echo />}
             <span className="brand-name">{s.appName}</span>
           </>
         )}

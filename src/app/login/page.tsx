@@ -22,7 +22,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       {/* Σήμα ισορροπημένο: δαχτυλίδι όσο το ύψος της λέξης, χωρίς πλακίδιο (απόφαση 10/10, τρεις ειδικοί).
           Μένει το ουδέτερο «Apex» γιατί τη σελίδα τη βλέπουν και τα μέλη (απόφαση 4/10). */}
       <h1 className="login-brand" aria-label={s.appName}>
-        {s.logoUrl ? <img src={s.logoUrl} alt="" /> : <BrandMark className="login-mark" />}
+        {s.logoUrl ? <img src={s.logoUrl} alt="" /> : <BrandMark className="login-mark" echo />}
         <span className="apex-word">{s.appName}</span>
       </h1>
       {/* Γραμμές ταυτότητας κάτω από το σήμα (απόφαση 10/10). */}
@@ -55,15 +55,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
         )}
         <p className="login-forgot"><strong>Ξέχασες τον κωδικό;</strong> <span className="muted">Επικοινώνησε με την ομάδα μας και θα σου δώσουμε νέο.</span></p>
       </form>
-      <div className="card login-help">
-        <strong>Αν κινδυνεύεις τώρα, κάλεσε:</strong>
-        <div className="login-lines">
-          {s.helplines.map((l) => (
-            <a key={l.number} className={`btn${l.number === "112" ? " red" : ""}`} href={`tel:${l.number}`}>{l.number} · {l.label}</a>
-          ))}
-        </div>
-        <p className="muted small" style={{ margin: "10px 0 0" }}>{s.crisisNotice}</p>
-      </div>
+      {/* Χωρίς κουτί γραμμών βοήθειας εδώ (απόφαση 10/10): η είσοδος μένει καθαρή· οι γραμμές είναι μέσα στην εφαρμογή (κόκκινο κουμπί). */}
     </main>
   );
 }
