@@ -25,6 +25,9 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
         {s.logoUrl ? <img src={s.logoUrl} alt="" /> : <BrandMark className="login-mark" />}
         <span className="apex-word">{s.appName}</span>
       </h1>
+      {/* Γραμμές ταυτότητας κάτω από το σήμα (απόφαση 10/10). */}
+      <p className="login-tagline">Το πρώτο οικοσύστημα Apex Protocol</p>
+      <p className="login-global">Apex Protocol Global</p>
       <p className="login-hello muted">Καλώς ήρθες.</p>
       <form action={doLogin} className="card login-card">
         {sp.e === "otp" && <div className="login-error" role="alert">Για την ομάδα μας χρειάζεται και ο εξαψήφιος κωδικός από την εφαρμογή επαλήθευσης.</div>}

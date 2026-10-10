@@ -156,7 +156,9 @@ main.login .card { border-radius: var(--radius-lg); padding: 24px; box-shadow: n
 .login-brand .login-mark { width: 52px; height: 52px; color: var(--accent); }
 .login-brand img { height: 52px; width: auto; }
 .login-brand .apex-word { font-size: 3rem; letter-spacing: -0.03em; line-height: 1; }
-.login-hello { text-align: center; font-size: 1.0625rem; margin: 8px 0 32px; }
+.login-tagline { text-align: center; font-size: 1.0625rem; font-weight: 600; color: var(--text); margin: 10px 0 0; }
+.login-global { text-align: center; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin: 4px 0 0; }
+.login-hello { text-align: center; font-size: 1.0625rem; margin: 18px 0 24px; }
 .login-card label { font-size: 0.9375rem; margin-bottom: 6px; }
 .login-card .field { margin-bottom: 16px; }
 .login-card input { min-height: 48px; }
