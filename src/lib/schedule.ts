@@ -9,10 +9,10 @@ import { addDays, athensToUtc, localParts, mondayOf, toMinutes } from "./time";
 
 // Κατηγορίες ειδοποιήσεων μέλους (το μέλος κλείνει όποια θέλει). Ουδέτερα κείμενα.
 export const MEMBER_PREFS = [
-  { key: "daily", label: "Κείμενο της ημέρας (09:00)" },
+  { key: "daily", label: "Κείμενο της ημέρας" },
   { key: "reminders", label: "15′ πριν από ομάδα ή ατομική" },
-  { key: "journal", label: "Ημερολόγιο (20:00)" },
-  { key: "booking", label: "Κράτηση της Δευτέρας" },
+  { key: "journal", label: "Ημερολόγιο (το βράδυ)" },
+  { key: "booking", label: "Κρατήσεις της εβδομάδας" },
 ] as const;
 
 export type Prefs = Partial<Record<(typeof MEMBER_PREFS)[number]["key"], boolean>>;

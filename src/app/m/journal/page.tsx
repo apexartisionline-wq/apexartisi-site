@@ -116,7 +116,7 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
             <Link className="btn red" href="/m/help?ask=1">Ναι, να με πάρει κάποιος</Link>
             <Link className="btn" href="/m">Όχι τώρα</Link>
           </div>
-          <p className="muted small">Η απάντησή σου στο ημερολόγιο δεν ειδοποιεί κανέναν από μόνη της. Αν αλλάξεις γνώμη, το κόκκινο κουμπί είναι πάντα εδώ.</p>
+          <p className="muted small">Ό,τι γράφεις εδώ το βλέπει μόνο η ομάδα σου. Αν αλλάξεις γνώμη, το κόκκινο κουμπί είναι πάντα εδώ.</p>
         </div>
       )}
       <section className="card">

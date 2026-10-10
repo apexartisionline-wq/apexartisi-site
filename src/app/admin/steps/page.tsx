@@ -18,7 +18,7 @@ async function sendStep(formData: FormData) {
   if (!STEPS.includes(step) || !title || memberIds.length === 0) redirect("/admin/steps?e=1");
   const members = await prisma.user.findMany({ where: { id: { in: memberIds }, role: "MEMBER", active: true }, select: { id: true } });
   await prisma.assignment.createMany({ data: members.map((m) => ({ memberId: m.id, step, title, instructions, createdById: user.id })) });
-  await notifyMembers(members.map((m) => m.id), { title: `Βήμα ${step}: νέα εργασία στη βιβλιοθήκη`, url: "/m/library", tag: "assignment" });
+  await notifyMembers(members.map((m) => m.id), { title: "Νέα εργασία στη βιβλιοθήκη", url: "/m/library", tag: "assignment" });
   redirect(`/admin/steps?ok=${members.length}`);
 }
 

@@ -106,7 +106,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
                   <input type="checkbox" name={p.key} defaultChecked={(user.notifyPrefs as Prefs)?.[p.key] !== false} style={{ width: "auto" }} /> {p.label}
                 </label>
               ))}
-              <p className="muted small">Οι ειδοποιήσεις δεν λένε ποτέ τι αφορούν. Τίποτα μετά τις 22:00.</p>
+              <p className="muted small">Οι ειδοποιήσεις δεν λένε τίποτα προσωπικό. Τίποτα από τις 22:00 ως τις 08:00.</p>
               <button type="submit">Αποθήκευση</button>
             </form>
           )}

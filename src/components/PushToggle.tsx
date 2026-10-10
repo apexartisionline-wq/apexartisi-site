@@ -48,12 +48,12 @@ export function PushToggle({ vapidKey }: { vapidKey: string }) {
     setState("off");
   }
 
-  if (!vapidKey) return <p className="muted small">Οι ειδοποιήσεις δεν έχουν ρυθμιστεί ακόμα στον server.</p>;
+  if (!vapidKey) return <p className="muted small">Οι ειδοποιήσεις δεν είναι έτοιμες ακόμα.</p>;
   if (state === "loading") return <p className="muted small">…</p>;
   if (state === "ios-install")
     return (
       <div className="notice small">
-        Στο iPhone οι ειδοποιήσεις δουλεύουν μόνο αν προσθέσεις το Apex στην αρχική οθόνη: πάτα το κουμπί
+        Στο iPhone οι ειδοποιήσεις δουλεύουν μόνο αν προσθέσεις το Apex στην οθόνη Αφετηρίας: πάτα το κουμπί
         «Κοινοποίηση» (τετράγωνο με βέλος) → «Προσθήκη στην οθόνη Αφετηρίας», άνοιξε το Apex από εκεί και έλα ξανά εδώ.
       </div>
     );

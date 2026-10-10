@@ -27,7 +27,7 @@ async function book(formData: FormData) {
   redirect(res.ok ? "/m/book?ok=1" : `/m/book?e=${encodeURIComponent(res.reason)}`);
 }
 
-// Αναίρεση: μόνο όσο είναι ανοιχτές οι κρατήσεις και μόνο για ραντεβού αυτής της εβδομάδας.
+// Ακύρωση: μόνο όσο είναι ανοιχτές οι κρατήσεις και μόνο για ραντεβού αυτής της εβδομάδας.
 async function undo(formData: FormData) {
   "use server";
   const user = await requireMember();
@@ -76,8 +76,8 @@ export default async function BookPage({
   return (
     <main>
       <h1>Ραντεβού της εβδομάδας</h1>
-      {sp.ok && <div className="notice">Το ραντεβού κλείστηκε ✓ Μπορείς να το αναιρέσεις μέχρι τις {formatTime(w.closesAt)}.</div>}
-      {sp.undone && <div className="notice">Το ραντεβού αναιρέθηκε.</div>}
+      {sp.ok && <div className="notice">Το ραντεβού κλείστηκε ✓ Μπορείς να το ακυρώσεις μέχρι τις {formatTime(w.closesAt)}.</div>}
+      {sp.undone && <div className="notice">Το ραντεβού ακυρώθηκε.</div>}
       {sp.e && <div className="error">{sp.e}</div>}
 
       <section className="card">
@@ -92,7 +92,7 @@ export default async function BookPage({
             {w.open && b.slot.startsAt > now && (
               <form action={undo}>
                 <input type="hidden" name="id" value={b.id} />
-                <button type="submit" style={{ padding: "6px 10px" }}>Αναίρεση</button>
+                <button type="submit" style={{ padding: "6px 10px" }}>Ακύρωση</button>
               </form>
             )}
           </div>
@@ -105,7 +105,7 @@ export default async function BookPage({
             <strong>{formatDate(confirm.date)} στις {formatHour(confirm.hour)}</strong> · {KINDS[confirm.kind]} ({slotMinutes(confirm.kind, s)}′)
           </p>
           {confirm.kind === "PAIR" && (
-            <p className="muted small">Στο Therapair δουλεύετε δύο μέλη μαζί με έναν σύμβουλο. Το ζευγάρι το εγκρίνει η ομάδα.</p>
+            <p className="muted small">Στο Therapair δουλεύεις μαζί με ένα ακόμη μέλος και έναν σύμβουλο. Το ζευγάρι το εγκρίνει η ομάδα.</p>
           )}
           <div className="row">
             <form action={book}>
@@ -122,7 +122,7 @@ export default async function BookPage({
           Οι κρατήσεις γίνονται κάθε Δευτέρα έως τις {s.bookingCloseTime}. Για αλλαγή ή ακύρωση στείλε αίτημα από την αρχική σελίδα.
         </div>
       ) : left === 0 ? (
-        <div className="notice">Έκλεισες και τα {s.sessionsPerWeek} ραντεβού της εβδομάδας.</div>
+        <div className="notice">Έκλεισες {s.sessionsPerWeek === 1 ? "το ραντεβού" : `και τα ${s.sessionsPerWeek} ραντεβού`} της εβδομάδας.</div>
       ) : (
         <>
           <p className="muted">

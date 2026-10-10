@@ -63,7 +63,7 @@ export async function saveAssessment(memberId: string, user: { id: string; role:
 // ── Στοιχεία του μέλους (μόνο διαχείριση) ─────────────────────────────────
 
 const text = (max: number) => z.string().trim().max(max).default("");
-const phone = z.string().trim().max(30).refine((v) => v === "" || /^\+?[0-9 ]{10,15}$/.test(v), "Γράψε το τηλέφωνο μόνο με αριθμούς (10 ψηφία).").default("");
+const phone = z.string().trim().max(30).refine((v) => v === "" || /^\+?[0-9 ]{10,15}$/.test(v), "Γράψε το τηλέφωνο με αριθμούς, π.χ. 69xxxxxxxx ή +30 …").default("");
 export const profileSchema = z
   .object({
     fullName: text(120),
