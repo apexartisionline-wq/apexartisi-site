@@ -30,7 +30,8 @@ async function doTalked(formData: FormData) {
 export default async function HelpRequestPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ e?: string; done?: string }> }) {
   const user = await requireRole("THERAPIST", "ADMIN");
   const [{ id }, sp] = await Promise.all([params, searchParams]);
-  const req = await prisma.helpRequest.findUnique({ where: { id }, include: { member: true } });
+  // Τηλέφωνα μελών: ποτέ στους θεραπευτές (απόφαση 10/10 για το κόκκινο κουμπί) — το φορτώνουμε μόνο για τη διαχείριση.
+  const req = await prisma.helpRequest.findUnique({ where: { id }, include: { member: { select: { name: true, phone: user.role === "ADMIN" } } } });
   if (!req) notFound();
   await logAccess(user.id, req.isDrill ? null : req.memberId, "help_view");
   const mine = req.claimedById === user.id;
@@ -40,10 +41,12 @@ export default async function HelpRequestPage({ params, searchParams }: { params
       <h1>{req.isDrill ? "Δοκιμαστικό αίτημα" : req.member.name}</h1>
       {!req.isDrill && (
         <div className="card">
-          {req.member.phone ? (
+          {user.role !== "ADMIN" ? (
+            <p style={{ margin: 0 }}><strong>Το τηλέφωνο του μέλους το έχει μόνο η διαχείριση.</strong> Πάρε τη διαχείριση για να επικοινωνήσει με το μέλος ή να σε συνδέσει.</p>
+          ) : req.member.phone ? (
             <a className="btn primary big" href={`tel:${req.member.phone}`}>📞 Κάλεσε {req.member.phone}</a>
           ) : (
-            <div className="error">Δεν υπάρχει καταχωρημένο τηλέφωνο. Δες τον φάκελο ή κάλεσε τη διαχείριση.</div>
+            <div className="error">Δεν υπάρχει καταχωρημένο τηλέφωνο. Δες τον φάκελο του μέλους.</div>
           )}
           <p className="small" style={{ marginTop: 8 }}>
             <Link href={`/t/members/${req.memberId}`}>Φάκελος</Link> · <Link href={`/t/members/${req.memberId}/safety`}>Πλάνο ασφάλειας</Link>
@@ -75,7 +78,7 @@ export default async function HelpRequestPage({ params, searchParams }: { params
           )}
         </div>
       )}
-      <p className="muted small">Αν υπάρχει άμεσος κίνδυνος για τη ζωή: 112 / ΕΚΑΒ 166. Δες τα πρωτόκολλα κρίσης.</p>
+      <p className="muted small">Αν υπάρχει άμεσος κίνδυνος για τη ζωή: 112 / ΕΚΑΒ 166. {!req.isDrill && <>Τι κάνουμε ανά επίπεδο: <Link href={`/t/members/${req.memberId}/risk`}>Ανάγκες ασφάλειας</Link>.</>}</p>
     </main>
   );
 }
