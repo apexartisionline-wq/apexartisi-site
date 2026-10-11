@@ -119,17 +119,17 @@ export default async function BookPage({
         </section>
       ) : !w.open ? (
         <div className="notice">
-          Οι κρατήσεις γίνονται κάθε Δευτέρα έως τις {s.bookingCloseTime}. Για αλλαγή ή ακύρωση στείλε αίτημα από την αρχική σελίδα.
+          Οι κρατήσεις γίνονται κάθε Δευτέρα έως τις {s.bookingCloseTime}. Για αλλαγή ή ακύρωση στείλε αίτημα από το «Σήμερα».
         </div>
       ) : left === 0 ? (
         <div className="notice">Έκλεισες {s.sessionsPerWeek === 1 ? "το ραντεβού" : `και τα ${s.sessionsPerWeek} ραντεβού`} της εβδομάδας.</div>
       ) : (
         <>
           <p className="muted">
-            Διάλεξε {left === 1 ? "ακόμα μία ώρα" : `${left} ώρες`}. Οι κρατήσεις κλείνουν στις {formatTime(w.closesAt)}.
+            Διάλεξε {left === 1 ? (mine.length === 0 ? "μία ώρα" : "ακόμα μία ώρα") : `${left} ώρες`}. Οι κρατήσεις κλείνουν στις {formatTime(w.closesAt)}.
           </p>
           {days.length === 0 && (
-            <div className="notice">Δεν υπάρχουν ελεύθερες ώρες αυτή τη στιγμή. Στείλε αίτημα από την αρχική σελίδα και θα σε βοηθήσουμε.</div>
+            <div className="notice">Δεν υπάρχουν ελεύθερες ώρες αυτή τη στιγμή. Στείλε αίτημα από το «Σήμερα» και θα σε βοηθήσουμε.</div>
           )}
           {days.map((date) => (
             <section className="card" key={date}>

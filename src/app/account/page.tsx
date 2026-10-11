@@ -174,8 +174,8 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
         )}
         <h2>Συσκευές</h2>
         <form action={signOutAll} className="card row spread">
-          <span>Αν χάθηκε ή δόθηκε το κινητό σου, αποσυνδέσου από όλες τις συσκευές.</span>
-          <button type="submit">Αποσύνδεση παντού</button>
+          <span>Αν έχασες το κινητό σου ή το έδωσες σε άλλον, βγες από όλες τις συσκευές.</span>
+          <button type="submit">Έξοδος από όλες τις συσκευές</button>
         </form>
       </main>
     </>

@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 import { sessionJoinable } from "@/lib/program";
 import { getSettings } from "@/lib/settings";
 
-// «Μπες στη συνεδρία σου»: το μέλος πατά πάντα το ίδιο κουμπί και το app τον
+// «Μπες στην ατομική σου»: το μέλος πατά πάντα το ίδιο κουμπί και το app τον
 // στέλνει στο δωμάτιο της θέσης του.
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

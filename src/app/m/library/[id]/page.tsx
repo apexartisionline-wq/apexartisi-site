@@ -29,7 +29,7 @@ export default async function LibraryItemPage({ params }: { params: Promise<{ id
           <a className="btn primary big" href={item.url} target="_blank" rel="noopener noreferrer">Άνοιγμα βίντεο</a>
         )}
       </div>
-      <p className="small muted">Το υλικό είναι για τη δική σου χρήση μέσα στο πρόγραμμα. Σε παρακαλούμε μην το μοιράζεσαι.</p>
+      <p className="small muted">Το υλικό είναι για τη δική σου χρήση μέσα στο πρόγραμμα. Σε παρακαλούμε, μην το μοιράζεσαι.</p>
     </main>
   );
 }

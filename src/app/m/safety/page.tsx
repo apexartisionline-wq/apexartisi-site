@@ -16,7 +16,7 @@ export default async function MySafetyPlan({ searchParams }: { searchParams: Pro
   if (!plan) redirect("/m");
   return (
     <main>
-      <h1>Το πλάνο ασφάλειάς μου</h1>
+      <h1>Το πλάνο μου</h1>
       <p className="muted">Το γράψαμε μαζί σε μια ατομική. Θα το βλέπεις πρώτο όταν πατάς το κόκκινο κουμπί. Μπορείς να το αλλάζεις.</p>
       {sp.ok && <div className="notice">Αποθηκεύτηκε ✓</div>}
       <SafetyPlanForm plan={plan} action={save} />

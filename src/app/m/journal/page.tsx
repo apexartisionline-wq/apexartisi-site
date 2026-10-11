@@ -94,7 +94,7 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
     return (
       <main>
         <h1>Ημερολόγιο ανάκαμψης</h1>
-        <p>Το ημερολόγιο δεν είναι ενεργό για σένα, γιατί δεν έχεις δώσει συγκατάθεση γι' αυτό. Αν το θέλεις, μίλα με την ομάδα.</p>
+        <p>Το ημερολόγιο δεν είναι ανοιχτό για σένα, γιατί δεν έχεις πει «ναι» γι' αυτό. Αν το θέλεις, μίλα με την ομάδα.</p>
       </main>
     );
   }
@@ -110,7 +110,7 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
       {sp.saved === "1" && <div className="notice">Αποθηκεύτηκε ✓</div>}
       {sp.saved === "care" && (
         <div className="card" style={{ borderColor: "var(--red)" }}>
-          <p style={{ marginTop: 0 }}>Αποθηκεύτηκε. Ευχαριστούμε που το έγραψες ειλικρινά.</p>
+          <p style={{ marginTop: 0 }}>Αποθηκεύτηκε. Σε ευχαριστούμε που το έγραψες.</p>
           <p><strong>Θέλεις να σε πάρει κάποιος από την ομάδα τώρα;</strong></p>
           <div className="stack">
             <Link className="btn red" href="/m/help?ask=1">Ναι, να με πάρει κάποιος</Link>

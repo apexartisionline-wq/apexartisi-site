@@ -54,7 +54,7 @@ export function canBook(args: {
   if (slot.date < w.weekStart || slot.date > w.weekEnd)
     return { ok: false, reason: "Η ώρα δεν είναι σε αυτή την εβδομάδα." };
   if (!slot.therapistId || slot.booked || slot.startsAt <= now)
-    return { ok: false, reason: "Η θέση δεν είναι πια ελεύθερη." };
+    return { ok: false, reason: "Η ώρα δεν είναι πια ελεύθερη." };
   if (memberBookingsThisWeek.length >= settings.sessionsPerWeek)
     return { ok: false, reason: `Έχεις ήδη κλείσει ${settings.sessionsPerWeek} ραντεβού αυτή την εβδομάδα.` };
   if (memberBookingsThisWeek.some((b) => b.date === slot.date))
@@ -69,7 +69,7 @@ export function slotMinutes(kind: "INDIVIDUAL" | "PAIR", s: Settings): number {
 
 export const slotCapacity = (kind: "INDIVIDUAL" | "PAIR") => (kind === "PAIR" ? 2 : 1);
 
-/** Είναι ανοιχτό το κουμπί «Μπες στη συνεδρία σου»; */
+/** Είναι ανοιχτό το κουμπί «Μπες στην ατομική σου»; */
 export function sessionJoinable(startsAt: Date, now: Date, s: Settings, minutes = s.sessionMinutes): boolean {
   const from = startsAt.getTime() - s.sessionJoinBeforeMinutes * 60_000;
   const to = startsAt.getTime() + minutes * 60_000;

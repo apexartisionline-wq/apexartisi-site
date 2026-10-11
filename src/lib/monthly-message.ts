@@ -70,7 +70,7 @@ export function draftMessage(firstName: string, p: Picture, month?: number): str
   if (p.sessions.came > 0) was.push(plural(p.sessions.came, "ατομική", "ατομικές"));
   if (was.length) lines.push(`Ήσουν εκεί: σε ${list(was)}. Ακόμα κι όταν δεν ήταν εύκολο, εμφανίστηκες για τον εαυτό σου — και αυτό μετράει.`);
 
-  if (p.journal.written > 0) lines.push(`${p.journal.written === 1 ? "Το βράδυ" : `Τα ${p.journal.written} βράδια`} που έγραψες απογραφές δείχνουν ότι θέλεις να κοιτάζεις τον εαυτό σου με ειλικρίνεια και φροντίδα.`);
+  if (p.journal.written > 0) lines.push(`${p.journal.written === 1 ? "Το βράδυ" : `Τα ${p.journal.written} βράδια`} που έγραψες στο ημερολόγιό σου δείχνουν ότι θέλεις να κοιτάζεις τον εαυτό σου με ειλικρίνεια και φροντίδα.`);
 
   if (p.soberDays && p.soberDays > 0) lines.push(`${plural(p.soberDays, "μέρα", "μέρες")} νηφαλιότητας. Δεν είναι απλώς ένας αριθμός· είναι κάθε μέρα που επέλεξες τον εαυτό σου.`);
 

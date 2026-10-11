@@ -31,7 +31,7 @@ export default async function MemberLibrary({ searchParams }: { searchParams: Pr
       <h1>Βιβλιοθήκη</h1>
       <form action={saveStep} className="card">
         <label htmlFor="step"><strong>Σε ποιο βήμα βρίσκεσαι;</strong></label>
-        <p className="small muted" style={{ margin: "2px 0 8px" }}>Το βλέπουν οι θεραπευτές σου, για να ξέρουν πού είσαι.</p>
+        <p className="small muted" style={{ margin: "2px 0 8px" }}>Το βλέπει η ομάδα σου, για να ξέρει πού είσαι.</p>
         <div className="row" style={{ gap: 8, flexWrap: "nowrap" }}>
           <select id="step" name="step" defaultValue={step?.step ?? ""} required style={{ flex: 1 }}>
             <option value="" disabled>Διάλεξε βήμα</option>
@@ -49,7 +49,7 @@ export default async function MemberLibrary({ searchParams }: { searchParams: Pr
           {mine.map((a) => (
             <Link key={a.id} href={`/m/library/a/${a.id}`} className="card row spread">
               <span>{a.step && <span className="badge">Βήμα {a.step}</span>} <strong>{a.title}</strong><br /><span className="small muted">{formatDate(localParts(a.createdAt).date)}</span></span>
-              <span className="small">{a.answeredAt ? "✓ απαντήθηκε" : "να τη γράψω"}</span>
+              <span className="small">{a.answeredAt ? "✓ την έγραψα" : "να τη γράψω"}</span>
             </Link>
           ))}
         </div>

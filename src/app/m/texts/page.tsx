@@ -17,7 +17,7 @@ export default async function TextsPage() {
   const visible = items.filter((c) => isPublished(c.date, c.kind === "DAILY_TEXT" ? s.dailyTextTime : s.formsTime, now));
   return (
     <main>
-      <h1>Κείμενα και φόρμες</h1>
+      <h1>Κείμενα</h1>
       {visible.length === 0 && <p className="muted">Δεν υπάρχει κάτι ακόμα.</p>}
       {visible.map((c) => (
         <div className="card" key={c.id}>

@@ -111,7 +111,7 @@ export function HelpFlow({
             <p>
               <strong>Σε παίρνει τώρα: {status.claimedByName}.</strong>
               <br />
-              <span className="muted small">Μπορεί να σε καλέσει από αριθμό που δεν γνωρίζεις.</span>
+              <span className="muted small">Μπορεί να σε καλέσει από άγνωστο αριθμό — σήκωσέ το.</span>
             </p>
           ) : (
             !sending && !failed && <p>Η ομάδα ειδοποιήθηκε. Κάποιος θα σε πάρει σύντομα. Αν δεν μπορείς να περιμένεις, κάλεσε τώρα.</p>

@@ -130,7 +130,7 @@ export async function moveBooking(bookingId: string, date: string, hour: number,
       });
     });
   } catch (e) {
-    if (e instanceof Error && e.message === "FULL") return { ok: false, reason: "Η θέση γέμισε μόλις τώρα." };
+    if (e instanceof Error && e.message === "FULL") return { ok: false, reason: "Η ώρα γέμισε μόλις τώρα." };
     throw e;
   }
   return { ok: true, bookingId };

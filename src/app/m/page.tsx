@@ -76,7 +76,7 @@ export default async function MemberHome() {
         <span className="muted small">Ο στόχος μου αυτή την εβδομάδα</span>
         <div style={{ fontSize: "1.1rem", marginTop: 2 }}>{goal ? `«${goal.text}»` : <span className="muted">Γράψε έναν μικρό στόχο για την εβδομάδα ›</span>}</div>
       </Link>
-      {fresh && <p className="muted small">Ο κύκλος σου ολοκληρώθηκε — ο επόμενος ξεκινά με το επόμενο ραντεβού σου.</p>}
+      {fresh && <p className="muted small">Ο μήνας σου ολοκληρώθηκε — ο επόμενος ξεκινά με το επόμενο ραντεβού σου.</p>}
 
       {requests.filter((r) => r.status !== "PENDING").map((r) => (
         <div className="notice" key={r.id}>
@@ -92,14 +92,14 @@ export default async function MemberHome() {
           <section className="card" key={b.id}>
             <div className="row spread">
               <div>
-                <strong>{b.slot.kind === "PAIR" ? "Το Therapair σου" : "Η συνεδρία σου"}</strong>
+                <strong>{b.slot.kind === "PAIR" ? "Το Therapair σου" : "Η ατομική σου"}</strong>
                 <div className="muted">
                   {formatDate(b.slot.date)} στις {formatHour(b.slot.hour)}
                   {cycle?.numbers.get(b.id) && ` · ατομική ${cycle.numbers.get(b.id)} από ${cycle.length}`}
                 </div>
               </div>
               <form action={`/m/join/${b.id}`} method="post">
-                <button className="primary" disabled={!joinable}>Μπες στη συνεδρία σου</button>
+                <button className="primary" disabled={!joinable}>Μπες στην ατομική σου</button>
               </form>
             </div>
             <div className="row spread small" style={{ marginTop: 8 }}>
