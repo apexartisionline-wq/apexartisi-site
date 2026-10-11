@@ -17,6 +17,7 @@ async function main() {
   if (await prisma.user.findUnique({ where: { username: "eva" } })) {
     console.log("[demo] Η βάση έχει ήδη στοιχεία· δεν προστίθεται τίποτα.");
     await ensureAssessmentChecks();
+    await ensureDemoAccess(password);
     return;
   }
   const passwordHash = await bcrypt.hash(password, 12);
@@ -127,6 +128,26 @@ async function ensureAssessmentChecks() {
     });
   }
   console.log(`[demo] Αρχική αξιολόγηση σημειωμένη για ${withRecord.length} μέλη με ιστορικό.`);
+}
+
+/**
+ * Οι ψεύτικοι λογαριασμοί της δοκιμής μπαίνουν πάντα με το DEMO_PASSWORD: σε κάθε build ξανά ο ίδιος
+ * κωδικός, χωρίς κλείδωμα από λάθος προσπάθειες (11/10: η θεραπεύτρια δεν μπορούσε να μπει).
+ * Αφορά μόνο τα ψεύτικα ονόματα· λογαριασμοί που φτιάχνει η διαχείριση δεν αγγίζονται.
+ */
+const DEMO_USERNAMES = ["eva", "anna", "vasilis", "dimitra", "nikos", "eleni", "giorgos", "maria"];
+async function ensureDemoAccess(password: string) {
+  const users = await prisma.user.findMany({ where: { username: { in: DEMO_USERNAMES } }, select: { id: true, username: true, passwordHash: true } });
+  let reset = 0;
+  for (const u of users) {
+    const same = await bcrypt.compare(password, u.passwordHash);
+    if (!same) reset++;
+    await prisma.user.update({
+      where: { id: u.id },
+      data: { ...(same ? {} : { passwordHash: await bcrypt.hash(password, 12) }), failedLogins: 0, lockedUntil: null, active: true },
+    });
+  }
+  console.log(`[demo] Ψεύτικοι λογαριασμοί: ${users.length} ξεκλείδωτοι, ${reset} με κωδικό που ξαναμπήκε.`);
 }
 
 main()
