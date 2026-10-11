@@ -9,7 +9,7 @@ export default async function HelpPage({ searchParams }: { searchParams: Promise
   const [s, plan, sp] = await Promise.all([getSettings(), getPlan(user.id), searchParams]);
   const hasPlan = plan && Object.entries(plan).some(([k, v]) => (k === "helperList" ? (v as unknown[]).length > 0 : Boolean(v)));
   return (
-    <main>
+    <main className="help">
       <HelpFlow
         autoAsk={sp.ask === "1"}
         hasSelfMessage={Boolean(user.selfMessageType)}

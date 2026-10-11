@@ -64,6 +64,12 @@ export async function saveAssessment(memberId: string, user: { id: string; role:
 
 const text = (max: number) => z.string().trim().max(max).default("");
 const phone = z.string().trim().max(30).refine((v) => v === "" || /^\+?[0-9 ]{10,15}$/.test(v), "Γράψε το τηλέφωνο με αριθμούς, π.χ. 69xxxxxxxx ή +30 …").default("");
+/** Η πιο πρόσφατη ημερομηνία γέννησης που δίνει 18 χρόνια σήμερα (σε UTC, αρκεί για τον έλεγχο). */
+function adultCutoff(): string {
+  const d = new Date();
+  d.setUTCFullYear(d.getUTCFullYear() - 18);
+  return d.toISOString().slice(0, 10);
+}
 export const profileSchema = z
   .object({
     fullName: text(120),
@@ -84,6 +90,7 @@ export const profileSchema = z
     if (!p.fullName) need("fullName", "Ονοματεπώνυμο");
     if (!p.birthDate) need("birthDate", "Ημερομηνία γέννησης");
     else if (p.birthDate > new Date().toISOString().slice(0, 10) || p.birthDate < "1900-01-01") need("birthDate", "Η ημερομηνία γέννησης δεν φαίνεται σωστή.");
+    else if (p.birthDate > adultCutoff()) need("birthDate", "Ημερομηνία γέννησης: το πρόγραμμα είναι για ενήλικες (18 και άνω). Αν έγινε λάθος, διόρθωσέ την.");
     if (!p.mobile) need("mobile", "Κινητό");
     if (!p.address) need("address", "Διεύθυνση");
     if (p.ecName && !p.ecPhone) need("ecPhone", "Τηλέφωνο του ανθρώπου για έκτακτη ανάγκη");

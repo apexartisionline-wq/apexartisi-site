@@ -235,6 +235,8 @@ nav.top .brand-logo { height: 44px; width: auto; display: block; }
   background: linear-gradient(transparent, var(--bg) 30%);
 }
 .redbar .btn { max-width: 728px; margin: 0 auto; display: flex; }
+/* Μέσα στη σελίδα του κόκκινου κουμπιού η μπάρα είναι περιττή και κάλυπτε τον κύκλο της ανάσας (δοκιμή 11/10). */
+body:has(main.help) .redbar { display: none; }
 .whereami { display: flex; gap: 16px; flex-wrap: wrap; }
 .whereami div { flex: 1; min-width: 140px; }
 .whereami strong { display: block; font-size: 1.4rem; }

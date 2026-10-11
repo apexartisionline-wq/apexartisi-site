@@ -16,6 +16,7 @@ async function main() {
   if (!password || password.length < 8) throw new Error("Χρειάζεται DEMO_PASSWORD (τουλάχιστον 8 χαρακτήρες).");
   if (await prisma.user.findUnique({ where: { username: "eva" } })) {
     console.log("[demo] Η βάση έχει ήδη στοιχεία· δεν προστίθεται τίποτα.");
+    await ensureAssessmentChecks();
     return;
   }
   const passwordHash = await bcrypt.hash(password, 12);
@@ -51,8 +52,10 @@ async function main() {
     created.push(m);
     await prisma.cycle.create({ data: { memberId: m.id, length: 8 } });
     if (!intakeDone) continue;
-    // Αξιολόγηση, ανάγκες ασφάλειας και πλάνο σημειώνονται μόνο από τις σελίδες τους (μία αλήθεια).
-    for (const key of ["online_consent", "agreement"]) {
+    // Ανάγκες ασφάλειας και πλάνο σημειώνονται μόνο από τις σελίδες τους (μία αλήθεια).
+    // Η αρχική αξιολόγηση σημειώνεται ως «έγινε» (από την ψυχολόγο), αλλιώς η έναρξη δεν ολοκληρώνεται
+    // και το μέλος με ιστορικό δεν βλέπει ποτέ το «Σήμερα» (βρέθηκε στη δοκιμή 11/10).
+    for (const key of ["online_consent", "agreement", "assessment"]) {
       await prisma.intakeCheck.create({ data: { memberId: m.id, key, doneById: staff[0].id } });
     }
     for (const purpose of ["record", "journal", "forms", "telegram", "self_message", "emergency_contact", "confidentiality"]) {
@@ -106,6 +109,24 @@ async function main() {
   console.log(`[demo] Έτοιμο. Λογαριασμοί (κωδικός: DEMO_PASSWORD):
   Εύα: eva · θεραπευτές: anna, vasilis, dimitra · μέλη: nikos, eleni, giorgos, maria (νέο μέλος)`);
   void eva;
+}
+
+/**
+ * Σε βάση που σπάρθηκε πριν τις 11/10: τα ψεύτικα μέλη με ιστορικό (έχουν συγκατάθεση «φάκελος»)
+ * παίρνουν το σημάδι «Αρχική αξιολόγηση: έγινε», ώστε να ανοίξει το «Σήμερα» τους. Ξανατρέχει άφοβα.
+ */
+async function ensureAssessmentChecks() {
+  const anna = await prisma.user.findUnique({ where: { username: "anna" } });
+  if (!anna) return;
+  const withRecord = await prisma.consent.findMany({ where: { purpose: "record", choice: "YES" }, select: { memberId: true }, distinct: ["memberId"] });
+  for (const { memberId } of withRecord) {
+    await prisma.intakeCheck.upsert({
+      where: { memberId_key: { memberId, key: "assessment" } },
+      create: { memberId, key: "assessment", doneById: anna.id },
+      update: {},
+    });
+  }
+  console.log(`[demo] Αρχική αξιολόγηση σημειωμένη για ${withRecord.length} μέλη με ιστορικό.`);
 }
 
 main()

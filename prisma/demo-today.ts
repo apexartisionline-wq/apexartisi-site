@@ -38,9 +38,15 @@ async function main() {
       data: { therapistId: therapist.id, kind: pair ? "PAIR" : "INDIVIDUAL", pairApprovedAt: pair ? new Date() : null },
     });
     for (const m of members) {
-      const cycle = await prisma.cycle.findFirst({ where: { memberId: m.id, closedAt: null }, orderBy: { startedAt: "desc" } });
+      // Ίδιος κανόνας με την κράτηση: γεμάτος κύκλος κλείνει και ανοίγει νέος (αλλιώς «ατομική 9 από 8»).
+      let cycle = await prisma.cycle.findFirst({ where: { memberId: m.id, closedAt: null }, orderBy: { startedAt: "desc" }, include: { _count: { select: { bookings: true } } } });
+      if (cycle && cycle._count.bookings >= cycle.length) {
+        await prisma.cycle.update({ where: { id: cycle.id }, data: { closedAt: new Date() } });
+        cycle = null;
+      }
+      const cycleId = cycle?.id ?? (await prisma.cycle.create({ data: { memberId: m.id, length: 8 } })).id;
       await prisma.booking.create({
-        data: { slotId: slot.id, memberId: m.id, cycleId: cycle?.id, kind: therapist.therapistKind === "BIOMATIC" ? "BIOMATIC" : "CLINICAL" },
+        data: { slotId: slot.id, memberId: m.id, cycleId, kind: therapist.therapistKind === "BIOMATIC" ? "BIOMATIC" : "CLINICAL" },
       });
     }
   }

@@ -8,7 +8,7 @@ import { bookingWindow, canRequestChange, groupsOn, isAfter, joinableGroup, sess
 import { weekGoal } from "@/lib/goals";
 import { getSettings } from "@/lib/settings";
 import { vocative } from "@/lib/vocative";
-import { formatDate, formatHour, formatTime, localParts } from "@/lib/time";
+import { formatDate, formatHour, formatTime, isAfterLocal, localParts } from "@/lib/time";
 
 export default async function MemberHome() {
   const user = await requireMember();
@@ -127,7 +127,7 @@ export default async function MemberHome() {
         {text ? (
           <p><Link href={`/m/texts/${text.id}`}>{text.title}</Link></p>
         ) : (
-          <p className="muted">Έρχεται στις {s.dailyTextTime}.</p>
+          <p className="muted">{isAfterLocal(today, s.dailyTextTime) ? "Δεν υπάρχει κείμενο για σήμερα." : `Έρχεται στις ${s.dailyTextTime}.`}</p>
         )}
       </section>
 

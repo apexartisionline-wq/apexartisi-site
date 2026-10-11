@@ -57,7 +57,7 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
             <textarea id="message" name="message" style={{ minHeight: 80 }} placeholder="π.χ. Πέμπτη απόγευμα" />
           </div>
           <button className="primary" type="submit">Στείλε το αίτημα</button>
-          <p className="muted small">Την αλλαγή την κάνει η ομάδα· θα δεις την απάντηση στην αρχική σου σελίδα.</p>
+          <p className="muted small">Την αλλαγή την κάνει η ομάδα· θα δεις την απάντηση στο «Σήμερα».</p>
         </form>
       )}
     </main>
