@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { TourFor } from "@/components/TourFor";
+import { FolderTabs } from "@/components/FolderTabs";
 import { notFound } from "next/navigation";
 import { logAccess } from "@/lib/audit";
 import { RecentGoals } from "@/components/GoalWeek";
@@ -74,6 +75,7 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
     <main>
       <p style={{ margin: "8px 0 0" }}><Link className="back" href="/t/members">‹ Μέλη</Link></p>
       <h1>{member.name}</h1>
+      <FolderTabs memberId={id} active="glance" />
       <div data-tour="safety"><SafetyZone memberId={id} /></div>
       <a className="card step-card" href="#ergasies" data-tour="step">
         <span>

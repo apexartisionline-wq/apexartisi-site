@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { FolderTabs } from "@/components/FolderTabs";
 import { NoteText } from "@/components/NoteText";
 import { notFound } from "next/navigation";
 import { PrintButton } from "@/components/PrintButton";
@@ -35,6 +36,7 @@ export default async function MonthFolder({ params }: { params: Promise<{ id: st
   return (
     <main>
       <p className="no-print" style={{ margin: "8px 0 0" }}><Link className="back" href={`/t/members/${id}`}>‹ {member.name}</Link></p>
+      <div className="no-print"><FolderTabs memberId={id} active="month" /></div>
       <h1 style={{ marginBottom: 4 }}>{member.name} · Μήνας {n}</h1>
       <p className="muted" style={{ marginTop: 0 }}>{formatDate(pic.from)} – {formatDate(pic.to)}</p>
       <p className="no-print"><PrintButton /></p>

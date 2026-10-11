@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { FolderTabs } from "@/components/FolderTabs";
 import { notFound } from "next/navigation";
 import { logAccess } from "@/lib/audit";
 import { requireRole } from "@/lib/auth";
@@ -31,6 +32,7 @@ export default async function MemberJournalPage({ params, searchParams }: { para
   return (
     <main>
       <p className="small"><Link className="back" href={`/t/members/${id}`}>‹ {member.name}</Link></p>
+      <FolderTabs memberId={id} active="journal" />
       <h1 style={{ marginBottom: 4 }}>Απογραφές</h1>
       <p className="muted" style={{ marginTop: 0 }}>Ημερολόγιο ανάκαμψης · {formatDate(from)} – {formatDate(to)} · έγραψε {rows.length} από {DAYS} μέρες</p>
       <div className="row" style={{ gap: 6, margin: "8px 0 12px" }}>

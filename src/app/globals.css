@@ -31,6 +31,10 @@
   --radius: 12px;         /* radius-md: κάρτες, κουμπιά */
   --radius-sm: 6px;       /* πεδία, badges */
   --radius-lg: 20px;
+  --note-box: #ffffff;    /* κουτί ερώτησης στο σημειωματάριο */
+  --note-text: #0c1620;
+  --note-muted: #3f5864;
+  --note-chip: #f3f9fc;
   --font: Manrope, "Helvetica Neue", Arial, system-ui, sans-serif;
 }
 @media (prefers-color-scheme: dark) {
@@ -56,6 +60,10 @@
     --ok: #5cc98c;
     --ok-text: #0c1620;
     --shadow: none;
+    --note-box: #22364a;
+    --note-text: #ffffff;
+    --note-muted: #d7e3ea;
+    --note-chip: #132231;
   }
 }
 * { box-sizing: border-box; }
@@ -276,11 +284,25 @@ body:has(main.help) .redbar { display: none; }
 }
 
 /* Σημειωματάριο: ομάδες επιλογών τύπου iOS. */
-.note-form { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
-.note-form fieldset { border: 0; margin: 0; padding: 14px 16px; min-width: 0; }
-.note-form fieldset + fieldset { border-top: 1px solid var(--line); }
-.note-form legend { font-weight: 600; padding: 0; margin-bottom: 8px; float: left; width: 100%; }
+/* Σημειωματάριο (απόφαση 11/10, σχόλιο θεραπεύτριας): κάθε ερώτηση σε δικό της ανοιχτό κουτί που ξεχωρίζει
+   από το φόντο, γράμματα πιο έντονα (στο σκούρο θέμα καθαρά λευκά). Η δομή μένει ίδια. */
+.note-form { background: var(--surface); border: 0; border-radius: var(--radius); padding: 10px; color: var(--note-text); }
+.note-form fieldset { border: 1px solid var(--line); background: var(--note-box); border-radius: var(--radius); margin: 0 0 10px; padding: 14px 16px; min-width: 0; box-shadow: var(--shadow); }
+.note-form > fieldset:last-of-type { margin-bottom: 0; }
+.note-form legend { font-weight: 700; font-size: 1.05rem; color: var(--note-text); padding: 0; margin-bottom: 10px; float: left; width: 100%; }
+.note-form label { color: var(--note-muted); font-size: .95rem; }
+.note-form .muted { color: var(--note-muted); }
+.note-form .chip, .note-form .yn button { background: var(--note-chip); font-size: 1rem; }
+.note-form input, .note-form textarea, .note-form select { font-size: 1rem; }
+.note-form .pair-sec { border: 1px solid var(--line); background: var(--note-box); border-radius: var(--radius); margin: 0 0 10px; padding: 10px 16px; box-shadow: var(--shadow); }
+.note-form .pair-sec > summary { font-size: 1.05rem; color: var(--note-text); }
+.note-form .pair-name { font-size: 1rem; }
 .note-form legend + * { clear: both; }
+/* Καρτέλες του φακέλου του μέλους (11/10). */
+.folder-tabs { display: flex; gap: 6px; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; margin: 10px 0 14px; padding-bottom: 2px; }
+.folder-tabs::-webkit-scrollbar { display: none; }
+.folder-tabs a { flex: none; min-height: 40px; display: inline-flex; align-items: center; padding: 6px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font-weight: 600; font-size: .95rem; text-decoration: none; white-space: nowrap; }
+.folder-tabs a[aria-current='page'] { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .chip { border: 1px solid var(--line); background: var(--field); color: var(--text); border-radius: 999px; padding: 8px 14px; min-height: 44px; font: inherit; font-size: .95rem; font-weight: 500; cursor: pointer; }
 .chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }

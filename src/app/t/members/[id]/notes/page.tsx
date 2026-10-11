@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { FolderTabs } from "@/components/FolderTabs";
 import { NoteText } from "@/components/NoteText";
 import { notFound } from "next/navigation";
 import { NoteTags } from "@/components/NoteTags";
@@ -35,6 +36,7 @@ export default async function MemberNotesPage({ params, searchParams }: { params
   return (
     <main>
       <p className="small"><Link className="back" href={`/t/members/${id}`}>‹ {member.name}</Link></p>
+      <FolderTabs memberId={id} active="notes" />
       <h1>Σημειώματα</h1>
       <form className="card small" method="get">
         <div className="row" style={{ flexWrap: "wrap", gap: 8 }}>

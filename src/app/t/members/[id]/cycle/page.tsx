@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { FolderTabs } from "@/components/FolderTabs";
 import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
 import { logAccess } from "@/lib/audit";
@@ -40,6 +41,7 @@ export default async function CyclePage({ params, searchParams }: { params: Prom
   return (
     <main>
       <p style={{ margin: "8px 0 0" }}><Link className="back" href={`/t/members/${id}`}>‹ {member.name}</Link></p>
+      <FolderTabs memberId={id} active="month" />
       <h1 style={{ marginBottom: 4 }}>Ανασκόπηση κύκλου</h1>
       {sp.saved && <div className="notice">Αποθηκεύτηκε ✓</div>}
       {sp.error && <div className="error">Γράψε και τις δύο γραμμές.</div>}

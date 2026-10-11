@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { FolderTabs } from "@/components/FolderTabs";
 import { notFound, redirect } from "next/navigation";
 import { AssessmentClient } from "@/components/AssessmentClient";
 import { assessmentLines, assessmentSchema, gr, missingForComplete, stripAdminOnly } from "@/lib/assessment";
@@ -64,6 +65,7 @@ export default async function AssessmentPage({ params, searchParams }: { params:
   const header = (
     <>
       <p style={{ margin: "8px 0 0" }}><Link className="back" href={`/t/members/${id}`}>‹ {member.name}</Link></p>
+      <FolderTabs memberId={id} active="history" />
       <h1 style={{ marginBottom: 4 }}>Αρχική αξιολόγηση</h1>
       <p className="muted" style={{ marginTop: 0 }}>
         {latest ? `${complete ? "Ολοκληρώθηκε" : "Σε εξέλιξη"} · ${latest.author}, ${formatWhen(latest.at)}${versions > 1 ? ` · ${versions} αποθηκεύσεις` : ""}` : "Δεν έχει ξεκινήσει · ψυχολόγος, 1η ατομική, ~40′"}

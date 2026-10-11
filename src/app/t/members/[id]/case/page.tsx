@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { FolderTabs } from "@/components/FolderTabs";
 import { notFound, redirect } from "next/navigation";
 import { logAccess } from "@/lib/audit";
 import { requireRole } from "@/lib/auth";
@@ -29,6 +30,7 @@ export default async function CaseSummaryPage({ params }: { params: Promise<{ id
   return (
     <main>
       <p className="small"><Link className="back" href={`/t/members/${id}`}>‹ {member.name}</Link></p>
+      <FolderTabs memberId={id} />
       <h1>Σύνοψη περίπτωσης</h1>
       <p className="muted small">
         Λίγες γραμμές, ώστε όποιος θεραπευτής αναλάβει να ξέρει πού βρίσκεται το μέλος. Τα σήματα ασφάλειας

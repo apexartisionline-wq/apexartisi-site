@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { FolderTabs } from "@/components/FolderTabs";
 import { TourFor } from "@/components/TourFor";
 import { notFound, redirect } from "next/navigation";
 import { RiskClient } from "@/components/RiskClient";
@@ -41,6 +42,7 @@ export default async function RiskPage({ params, searchParams }: { params: Promi
   return (
     <main>
       <p style={{ margin: "8px 0 0" }}><Link className="back" href={`/t/members/${id}`}>‹ {member.name}</Link></p>
+      <FolderTabs memberId={id} active="safety" />
       <h1 style={{ marginBottom: 4 }}>Ανάγκες ασφάλειας</h1>
       <p className="muted" style={{ marginTop: 0 }}>
         {current ? `Τώρα: ${LEVELS[current.level]} · ${current.author}, ${formatWhen(current.at)}` : trigger ? "Δεν έχει γίνει αξιολόγηση ακόμα" : "Δεν έχει χρειαστεί"}
