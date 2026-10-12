@@ -3,6 +3,7 @@ import Link from "next/link";
 import { memberConsents, requireMember } from "@/lib/intake";
 import { prisma } from "@/lib/db";
 import { withMemberCode } from "@/lib/forms";
+import { ensureDemoToday } from "@/lib/demo-session";
 import { cycleInfo, isPublished, journalDate } from "@/lib/member";
 import { bookingWindow, canRequestChange, groupsOn, isAfter, joinableGroup, sessionJoinable, slotMinutes } from "@/lib/program";
 import { weekGoal } from "@/lib/goals";
@@ -17,6 +18,7 @@ export default async function MemberHome() {
   const today = localParts(now);
   const window = bookingWindow(now, s);
 
+  await ensureDemoToday();
   const [cycle, contents, upcoming, journal, attended, requests, consents] = await Promise.all([
     cycleInfo(user.id),
     prisma.content.findMany({ where: { date: today.date }, orderBy: { title: "asc" } }),

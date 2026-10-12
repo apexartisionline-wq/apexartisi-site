@@ -14,6 +14,7 @@ import { dueCycleReviews } from "@/lib/cycle-review";
 import { groupDays } from "@/lib/groups";
 import { memberSafety } from "@/lib/handover";
 import { getSettings } from "@/lib/settings";
+import { ensureDemoToday, isDemoSite, startDemoSession } from "@/lib/demo-session";
 import { addDays, formatDate, formatHour, localParts } from "@/lib/time";
 
 async function careDone(formData: FormData) {
@@ -32,12 +33,21 @@ type Item = { key: string; time: string; title: string; sub: string; href: strin
 
 // «Σήμερα»: το πρόγραμμα του θεραπευτή σε μία λίστα, με «Σύνδεση» σε κάθε γραμμή,
 // και από κάτω μόνο όσα πρέπει να δει πριν ξεκινήσει.
+// Μόνο στη δοκιμαστική εγκατάσταση: φτιάχνει μια ατομική «τώρα» με ψεύτικο μέλος, για να δοκιμάσει κανείς τη σύνδεση.
+async function demoStart() {
+  "use server";
+  const user = await requireRole("THERAPIST", "ADMIN");
+  await startDemoSession(user);
+  redirect("/t");
+}
+
 export default async function TherapistDay({ searchParams }: { searchParams: Promise<{ date?: string }> }) {
   const user = await requireRole("THERAPIST", "ADMIN");
   const sp = await searchParams;
   const today = localParts(new Date()).date;
   const date = sp.date && /^\d{4}-\d{2}-\d{2}$/.test(sp.date) ? sp.date : today;
   const s = await getSettings();
+  if (date === today) await ensureDemoToday();
 
   const [boxes, care, slots, week, groups, members] = await Promise.all([
     alertBoxes(user.role),
@@ -136,6 +146,16 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
         {items.length === 0 && <div className="muted">Δεν έχεις ομάδα ή ατομική αυτή τη μέρα.</div>}
       </div>
       {isToday && items.length > 0 && <p className="muted small">Το «Σύνδεση» ανοίγει το Zoom και καταγράφει την ώρα που μπήκες.</p>}
+      {isToday && isDemoSite() && (
+        <form action={demoStart} className="card" style={{ marginTop: 10 }}>
+          <strong>Δοκιμαστική ατομική</strong>
+          <p className="small muted" style={{ margin: "4px 0 8px" }}>
+            Για να δεις πώς συνδέεσαι και τι βλέπεις μέσα στην ατομική: φτιάχνει μια ατομική τώρα με ψεύτικο μέλος. Θα εμφανιστεί πάνω στο πρόγραμμά σου·
+            πάτα «Σύνδεση» (ανοίγει το Zoom σε νέα καρτέλα και η σελίδα της ατομικής εδώ) και γράψε το σημείωμα.
+          </p>
+          <button type="submit">Ξεκίνα δοκιμαστική ατομική τώρα</button>
+        </form>
+      )}
       </section>
 
       {(care.length > 0 || red.length > 0 || reviews.length > 0) && (
