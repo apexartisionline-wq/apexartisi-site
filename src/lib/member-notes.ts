@@ -2,7 +2,7 @@ import "server-only";
 import { dec } from "./crypto";
 import { latestProfile } from "./assessment-db";
 import { prisma } from "./db";
-import { type Handover, handoverOf, type NoteForm } from "./note-form";
+import { extractSafety, type Handover, handoverOf, type NoteForm, type NoteSafety } from "./note-form";
 import { hideOther, nameVariants } from "./pair-note";
 import { vocative } from "./vocative";
 
@@ -17,12 +17,14 @@ export type MemberNote = {
   pair: boolean;
   therapistId: string;
   therapist: string;
+  therapistKind: string | null; // ψυχολόγος / βιωματικός — για την εναλλαγή
   text: string;
   next: string;
   riskChange: string | null;
   usedSince: string | null;
   createdAt: Date;
   handover: Handover; // συνέχεια (13/10): κενά στα παλιά σημειώματα
+  safety: NoteSafety; // γραμμή ασφάλειας + προβληματισμός, για τον επόμενο θεραπευτή
 };
 
 type Opts = { before?: Date; since?: Date; excludeSlot?: string; take?: number };
@@ -30,7 +32,7 @@ type Opts = { before?: Date; since?: Date; excludeSlot?: string; take?: number }
 export async function memberNotes(memberId: string, o: Opts = {}): Promise<MemberNote[]> {
   const startsAt = { ...(o.before ? { lt: o.before } : {}), ...(o.since ? { gte: o.since } : {}) };
   const slotWhere = { ...(o.excludeSlot ? { id: { not: o.excludeSlot } } : {}), ...(o.before || o.since ? { startsAt } : {}) };
-  const sel = { therapist: { select: { id: true, name: true } }, slot: { select: { id: true, date: true, hour: true, startsAt: true } } } as const;
+  const sel = { therapist: { select: { id: true, name: true, therapistKind: true } }, slot: { select: { id: true, date: true, hour: true, startsAt: true } } } as const;
   const parsed = (raw: string): Partial<NoteForm> | null => { if (!raw) return null; try { return JSON.parse(dec(raw)) as Partial<NoteForm>; } catch { return null; } };
   const [single, pair] = await Promise.all([
     // Στα Therapair δεν διαβάζουμε το παλιό κοινό σημείωμα θέσης (θα είχε και στοιχεία του άλλου).
@@ -64,12 +66,14 @@ export async function memberNotes(memberId: string, o: Opts = {}): Promise<Membe
     pair: isPair,
     therapistId: n.therapist.id,
     therapist: n.therapist.name,
+    therapistKind: n.therapist.therapistKind,
     text: isPair ? safe(n.id, dec(n.content)) : dec(n.content),
     next: isPair ? safe(n.id, dec(n.nextStep)) : dec(n.nextStep),
     riskChange: n.riskChange,
     usedSince: n.usedSince,
     createdAt: n.createdAt,
-    handover: (() => { const h = handoverOf(isPair ? null : parsed(n.data), isPair ? safe(n.id, dec(n.nextStep)) : dec(n.nextStep)); return isPair ? h : h; })(),
+    handover: handoverOf(isPair ? null : parsed(n.data), isPair ? safe(n.id, dec(n.nextStep)) : dec(n.nextStep)),
+    safety: extractSafety(isPair ? safe(n.id, dec(n.content)) : dec(n.content)),
   }));
   rows.sort((a, b) => b.startsAt.getTime() - a.startsAt.getTime());
   return o.take ? rows.slice(0, o.take) : rows;

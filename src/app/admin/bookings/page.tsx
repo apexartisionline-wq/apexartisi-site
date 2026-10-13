@@ -3,6 +3,10 @@ import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/auth";
 import { bookHour, cancelBooking, moveBooking } from "@/lib/booking";
 import { prisma } from "@/lib/db";
+import { notifyMembers } from "@/lib/notify";
+
+// Κάθε αλλαγή ραντεβού από τη διαχείριση φτάνει στο μέλος (ουδέτερο κείμενο, χωρίς ονόματα), για να μην το μάθει από το «Σήμερα» τυχαία.
+const tellMember = (memberId: string, body: string) => notifyMembers([memberId], { title: "Το πρόγραμμά σου άλλαξε", body, url: "/m" }).catch(() => undefined);
 import { addDays, formatDate, formatHour, localParts, mondayOf } from "@/lib/time";
 
 const isDate = (d: unknown): d is string => typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d);
@@ -12,7 +16,9 @@ const kindOf = (v: FormDataEntryValue | null) => (v === "PAIR" ? "PAIR" : "INDIV
 async function cancel(formData: FormData) {
   "use server";
   await requireRole("ADMIN");
+  const b = await prisma.booking.findUnique({ where: { id: String(formData.get("id")) }, select: { memberId: true, slot: { select: { date: true } } } });
   await cancelBooking(String(formData.get("id")));
+  if (b) await tellMember(b.memberId, `Η ατομική της ${formatDate(b.slot.date)} ακυρώθηκε. Δες το «Σήμερα» για το πρόγραμμά σου.`);
   back(formData.get("week"), "ok=1");
 }
 
@@ -20,6 +26,10 @@ async function move(formData: FormData) {
   "use server";
   await requireRole("ADMIN");
   const res = await moveBooking(String(formData.get("id")), String(formData.get("date")), Number(formData.get("hour")), kindOf(formData.get("kind")));
+  if (res.ok) {
+    const b = await prisma.booking.findUnique({ where: { id: res.bookingId }, select: { memberId: true } });
+    if (b) await tellMember(b.memberId, `Η ατομική σου μεταφέρθηκε: ${formatDate(String(formData.get("date")))} ${formatHour(Number(formData.get("hour")))}.`);
+  }
   back(formData.get("week"), res.ok ? "ok=1" : `e=${encodeURIComponent(res.reason)}`);
 }
 
@@ -67,6 +77,7 @@ async function bookFor(formData: FormData) {
     kind: kindOf(formData.get("kind")),
     byAdmin: true,
   });
+  if (res.ok) await tellMember(String(formData.get("memberId")), `Κλείστηκε ατομική για σένα: ${formatDate(String(formData.get("date")))} ${formatHour(Number(formData.get("hour")))}.`);
   back(formData.get("week"), res.ok ? "ok=1" : `e=${encodeURIComponent(res.reason)}`);
 }
 

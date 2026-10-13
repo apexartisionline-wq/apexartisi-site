@@ -17,6 +17,12 @@ import { localParts } from "./time";
 
 export type Viewer = { role: string; therapistKind: string | null };
 
+/** Λέξη για τον τύπο θεραπευτή, όπου χρειάζεται να ξέρει ο επόμενος ποιος είχε την προηγούμενη ατομική (εναλλαγή). */
+export const KIND_WORD: Record<string, string> = { CLINICAL: "ψυχολόγος", BIOMATIC: "βιωματικός", BOTH: "ψυχολόγος και βιωματικός" };
+export const kindWord = (k: string | null | undefined): string => (k ? KIND_WORD[k] ?? "" : "");
+/** «Όνομα (ψυχολόγος)» — χωρίς διπλή ετικέτα αν το όνομα την περιέχει ήδη (π.χ. ψεύτικοι λογαριασμοί «Άννα Κ. (ψυχολόγος)»). */
+export const nameWithKind = (name: string, k: string | null | undefined): string => { const w = kindWord(k); return w && !name.includes(w.split(" ")[0]) ? `${name} (${w})` : name; };
+
 /** Ψυχολόγος (κλινικός ή «και τα δύο») ή διαχείριση. Ίδιος κανόνας με την εγγραφή (canWriteRisk/canWriteAssessment). */
 export const isPsychologist = (u: Viewer): boolean => u.role === "ADMIN" || u.therapistKind === "CLINICAL" || u.therapistKind === "BOTH";
 

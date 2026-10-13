@@ -46,7 +46,7 @@ export async function sessionGlance(memberId: string, beforeSlot: { id: string; 
     sessions: { done: consistency.sessionsDone, total: consistency.sessionsTotal, noRecord: consistency.sessions.noRecord },
     help14,
     prev: prev
-      ? { by: prev.therapist, date: prev.date, next: prev.next, slotId: prev.slotId, text: prev.text, pair: prev.pair, handover: prev.handover }
+      ? { by: prev.therapist, byKind: prev.therapistKind, date: prev.date, next: prev.next, slotId: prev.slotId, text: prev.text, pair: prev.pair, handover: prev.handover, safety: prev.safety, usedSince: prev.usedSince }
       : null,
     journal: {
       days,

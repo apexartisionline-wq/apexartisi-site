@@ -124,6 +124,27 @@ export function soberDays(since: string | null | undefined, today: string): numb
   return n >= 0 ? n : null;
 }
 
+/**
+ * Η γραμμή ασφάλειας και ο προβληματισμός ενός σημειώματος, από το κείμενό του (ίδιο για ατομική, Therapair, παλιά).
+ * Για τον επόμενο θεραπευτή (εναλλαγή κλινικού/βιωματικού): να μη χάνεται το «Ανησυχία: Ναι — …» επειδή
+ * είναι στο τέλος του σημειώματος και κόβεται από την προεπισκόπηση.
+ */
+export type NoteSafety = { safeOk: boolean | null; safetyText: string; concern: string };
+export function extractSafety(text: string): NoteSafety {
+  const out: NoteSafety = { safeOk: null, safetyText: "", concern: "" };
+  for (const raw of text.split("\n")) {
+    const line = raw.trim();
+    if (line.startsWith("Ανησυχία για την ασφάλεια:")) {
+      const v = line.slice("Ανησυχία για την ασφάλεια:".length).trim();
+      if (/^Όχι/i.test(v)) out.safeOk = true;
+      else if (/^Ναι/i.test(v)) { out.safeOk = false; out.safetyText = v.replace(/^Ναι\s*[—–-]?\s*/i, "").trim(); }
+    } else if (line.startsWith("Προβληματισμός προς τη θεραπευτική ομάδα:")) {
+      out.concern = line.slice("Προβληματισμός προς τη θεραπευτική ομάδα:".length).trim();
+    }
+  }
+  return out;
+}
+
 /** Τα πεδία συνέχειας ενός σημειώματος (κενά στα παλιά). */
 export type Handover = { suggested: string; agreed: string; openIssues: string; handover: string };
 export function handoverOf(d: Partial<NoteForm> | null | undefined, fallbackNext = ""): Handover {

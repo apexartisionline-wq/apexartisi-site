@@ -28,6 +28,8 @@ export async function saveRisk(memberId: string, user: { id: string }, d: RiskRe
   const parsed = riskSchema.parse(d);
   const level = parsed.level as Level;
   const now = new Date();
+  // Μία ανοιχτή ενέργεια επαφής ανά μέλος: αν η διαχείριση δεν πρόλαβε την προηγούμενη, δεν της προστίθεται δεύτερη.
+  const openContact = level === "LOW" ? null : await prisma.careTask.findFirst({ where: { memberId, kind: "risk_contact", doneAt: null }, select: { id: true } });
   await prisma.$transaction([
     prisma.riskReview.create({ data: { memberId, level, data: enc(JSON.stringify(parsed)), authorId: user.id } }),
     // Το βήμα «risk» της έναρξης κρατά το τρέχον επίπεδο (το διαβάζουν φάκελος και σήματα).
@@ -41,7 +43,7 @@ export async function saveRisk(memberId: string, user: { id: string }, d: RiskRe
       : [
           prisma.teamAlert.create({ data: { memberId, source: "RISK", kind: level, byId: user.id } }),
           // Την επαφή (24 ώρες / επόμενη μέρα) την κάνει η διαχείριση: τηλέφωνο + «τι έγινε» στο «Σήμερα» της.
-          prisma.careTask.create({ data: { memberId, kind: "risk_contact", dueAt: now } }),
+          ...(openContact ? [] : [prisma.careTask.create({ data: { memberId, kind: "risk_contact", dueAt: now } })]),
         ]),
   ]);
   await logAccess(user.id, memberId, `risk_review_${level}`);
@@ -73,4 +75,28 @@ export async function currentRisk(memberId: string) {
   const [[last], trigger] = await Promise.all([riskHistory(memberId, 1), riskTrigger(memberId)]);
   const label = trigger ? "Θέλει αξιολόγηση" : last ? LEVELS[last.level] : "Δεν έχει χρειαστεί";
   return { level: last?.level ?? null, at: last?.at ?? null, author: last?.author ?? "", trigger, label };
+}
+
+/**
+ * Η επόμενη προγραμματισμένη ατομική του μέλους με ψυχολόγο (κλινικό ή «και τα δύο»), για να φαίνεται πού θα γίνει
+ * μια αξιολόγηση που εκκρεμεί όταν η αμέσως επόμενη ατομική είναι με βιωματικό (εναλλαγή). Μόνο πληροφορία δρομολόγησης·
+ * δεν ορίζει προθεσμία.
+ */
+export async function nextClinicalSession(memberId: string, now = new Date()) {
+  const b = await prisma.booking.findFirst({
+    where: { memberId, slot: { startsAt: { gt: now }, therapist: { therapistKind: { in: ["CLINICAL", "BOTH"] } } } },
+    orderBy: { slot: { startsAt: "asc" } },
+    select: { slot: { select: { id: true, date: true, startsAt: true, therapist: { select: { name: true } } } } },
+  });
+  return b ? { slotId: b.slot.id, date: b.slot.date, startsAt: b.slot.startsAt, therapist: b.slot.therapist?.name ?? "" } : null;
+}
+
+/** Η αμέσως επόμενη ατομική (όποιου τύπου), με τον τύπο του θεραπευτή — για τη δρομολόγηση στο «Σήμερα» της διαχείρισης. */
+export async function nextSession(memberId: string, now = new Date()) {
+  const b = await prisma.booking.findFirst({
+    where: { memberId, slot: { startsAt: { gt: now } } },
+    orderBy: { slot: { startsAt: "asc" } },
+    select: { slot: { select: { id: true, date: true, startsAt: true, therapist: { select: { name: true, therapistKind: true } } } } },
+  });
+  return b ? { slotId: b.slot.id, date: b.slot.date, startsAt: b.slot.startsAt, therapist: b.slot.therapist?.name ?? "", kind: b.slot.therapist?.therapistKind ?? null } : null;
 }

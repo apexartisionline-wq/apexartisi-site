@@ -1,4 +1,5 @@
 import "server-only";
+import { ADMIN_CARE } from "./actions-core";
 import { enc } from "./crypto";
 import { prisma } from "./db";
 import { notifyRole, notifyUsers } from "./notify";
@@ -99,7 +100,9 @@ export async function claim(requestId: string, userId: string): Promise<{ ok: bo
 export async function markTalked(requestId: string, userId: string, outcome: string): Promise<void> {
   const req = await prisma.helpRequest.findUnique({ where: { id: requestId } });
   if (!req || req.talkedAt) return;
-  await prisma.helpRequest.update({ where: { id: requestId }, data: { talkedAt: new Date(), outcome: enc(outcome.slice(0, 2000)), resolvedAt: new Date(), ...(req.claimedAt ? {} : { claimedAt: new Date(), claimedById: userId }) } });
+  // «Μιλήσαμε» χωρίς προηγούμενη ανάληψη: κρατιέται και το όνομα, για να φαίνεται ποιος το έκανε (αρχείο, ενέργειες).
+  const claimer = req.claimedAt ? null : await prisma.user.findUnique({ where: { id: userId }, select: { name: true } });
+  await prisma.helpRequest.update({ where: { id: requestId }, data: { talkedAt: new Date(), outcome: enc(outcome.slice(0, 2000)), resolvedAt: new Date(), ...(req.claimedAt ? {} : { claimedAt: new Date(), claimedById: userId, claimedByName: claimer?.name ?? null }) } });
   if (!req.isDrill) {
     const now = Date.now();
     await prisma.careTask.createMany({
@@ -140,7 +143,7 @@ export async function escalatePending(onlyId?: string): Promise<number> {
 /** Υπενθυμίσεις για μηνύματα φροντίδας που έφτασαν (καλείται από το cron). */
 export async function remindCareTasks(): Promise<void> {
   // Οι θεραπευτές: μόνο τα μηνύματα φροντίδας· τα τηλεφωνήματα (χωρίς επαφή, ανάγκες ασφάλειας) είναι της διαχείρισης.
-  const due = await prisma.careTask.count({ where: { doneAt: null, dueAt: { lte: new Date() }, kind: { notIn: ["dropout", "risk_contact"] } } });
+  const due = await prisma.careTask.count({ where: { doneAt: null, dueAt: { lte: new Date() }, kind: { notIn: [...ADMIN_CARE] } } });
   if (due > 0) await notifyRole("THERAPIST", { title: "Μήνυμα φροντίδας προς μέλος", url: "/t", tag: "care" });
   const calls = await prisma.careTask.count({ where: { doneAt: null, dueAt: { lte: new Date() }, kind: "risk_contact" } });
   if (calls > 0) await notifyRole("ADMIN", { title: "Τηλεφώνημα σε μέλος σήμερα", url: "/admin", tag: "calls" });

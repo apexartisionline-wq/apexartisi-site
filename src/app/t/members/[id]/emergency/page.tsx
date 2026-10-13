@@ -17,7 +17,7 @@ async function reveal(formData: FormData) {
   if (!canWriteRisk(user)) notFound();
   const memberId = String(formData.get("memberId"));
   if (!(await prisma.user.findFirst({ where: { id: memberId, role: "MEMBER" }, select: { id: true } }))) notFound();
-  // Καταγράφεται ποιος άνοιξε τα στοιχεία και πότε· φαίνεται στο «Σήμερα» όλων (άρα και της διαχείρισης).
+  // Καταγράφεται ποιος άνοιξε τα στοιχεία και πότε· το βλέπει μόνο η διαχείριση στο «Σήμερα» της (απόφαση: όχι όλη η ομάδα).
   await prisma.teamAlert.create({ data: { memberId, source: "EMERGENCY", kind: "REVEAL", byId: user.id } });
   await logAccess(user.id, memberId, "emergency_reveal");
   // Η διαχείριση ενημερώνεται αμέσως (ουδέτερο κείμενο, χωρίς όνομα μέλους στην οθόνη κλειδώματος).

@@ -41,7 +41,7 @@ export default async function MemberHome() {
   ]);
 
   // «Μήνας Χ μαζί μας» = ο κύκλος στον οποίο βρίσκεται· και ο στόχος της εβδομάδας με τα λόγια του.
-  const [monthNo, goal] = await Promise.all([prisma.cycle.count({ where: { memberId: user.id } }), weekGoal(user.id, journalDate(now, s))]);
+  const [monthNo, goal] = await Promise.all([prisma.cycle.count({ where: { memberId: user.id } }), weekGoal(user.id, localParts(now).date)]);
   const unreadMessage =
     (await prisma.monthlyMessage.findFirst({ where: { memberId: user.id, sentAt: { not: null }, readAt: null }, select: { id: true } })) ??
     (await prisma.closure.findFirst({ where: { memberId: user.id, sentAt: { not: null }, readAt: null }, select: { id: true } }));

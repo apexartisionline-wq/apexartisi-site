@@ -54,7 +54,13 @@ export default async function AssessmentPage({ params, searchParams }: { params:
         <p className="muted" style={{ marginTop: 0 }}>
           {latest ? `${latest.complete ? "Ολοκληρώθηκε" : "Σε εξέλιξη"} · ${latest.author}, ${formatWhen(latest.at)}` : "Δεν έχει ξεκινήσει · ψυχολόγος, 1η ατομική, ~40′"}
         </p>
-        <div className="card small">Το περιεχόμενο της αρχικής αξιολόγησης το βλέπει ψυχολόγος. Ό,τι έχει κλινική σημασία για όλη την ομάδα (σοβαρά σημεία, νηφαλιότητα) φαίνεται στο «Ασφάλεια» και στον φάκελο.</div>
+        {latest?.data.summary && (
+          <>
+            <h2>Σύνοψη για την ομάδα</h2>
+            <div className="card body-text wm">{latest.data.summary}</div>
+          </>
+        )}
+        <div className="card small">Το υπόλοιπο της αρχικής αξιολόγησης (ιστορικό, ερωτηματολόγια, στοιχεία) το βλέπει ψυχολόγος. Ό,τι έχει κλινική σημασία για όλη την ομάδα (σοβαρά σημεία, νηφαλιότητα) φαίνεται στο «Ασφάλεια» και στον φάκελο.</div>
       </main>
     );
   }
@@ -112,7 +118,8 @@ export default async function AssessmentPage({ params, searchParams }: { params:
     );
   }
 
-  if (canEdit) {
+  // Εδώ φτάνει μόνο ψυχολόγος/διαχείριση (canEdit = ίδιος κανόνας με isPsychologist).
+  {
     const initial = latest ? (admin || !complete ? latest.data : stripAdminOnly(latest.data)) : assessmentSchema.parse({});
     // Τα στοιχεία του μέλους φαίνονται στον ψυχολόγο μόνο όσο η αξιολόγηση είναι ανοιχτή.
     let profile = null;
@@ -143,23 +150,6 @@ export default async function AssessmentPage({ params, searchParams }: { params:
       </main>
     );
   }
-
-  // Ανάγνωση (βιωματικοί σύμβουλοι): χωρίς στοιχεία ταυτότητας και πεδία διαχείρισης.
-  if (!latest) {
-    return (
-      <main>
-        {header}
-        <div className="card muted">Την κάνει ψυχολόγος στην 1η ατομική.</div>
-      </main>
-    );
-  }
-  return (
-    <main>
-      {header}
-      <ReadView d={latest.data} admin={false} />
-      {historyList}
-    </main>
-  );
 }
 
 function ReadView({ d, admin }: { d: ReturnType<typeof assessmentSchema.parse>; admin: boolean }) {

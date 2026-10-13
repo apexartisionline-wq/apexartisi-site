@@ -6,7 +6,7 @@ import { ActionRow, type StaffOption } from "@/components/ActionRow";
 import { NoteSummary } from "@/components/NoteSummary";
 import { EmptyState, PageHead, Panel, Pill, PresenceStat } from "@/components/ui";
 import { notFound } from "next/navigation";
-import { isPsychologist, seesJournalDetail, seesMonthFolder } from "@/lib/access";
+import { isPsychologist, nameWithKind, seesJournalDetail, seesMonthFolder } from "@/lib/access";
 import { logAccess } from "@/lib/audit";
 import { currentStep, lastStepWork } from "@/lib/steps";
 import { SafetyZone } from "@/components/SafetyZone";
@@ -94,7 +94,7 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
     user.role === "ADMIN" ? prisma.user.findMany({ where: { role: { in: ["THERAPIST", "ADMIN"] }, active: true }, select: { id: true, name: true, therapistKind: true, role: true }, orderBy: { name: "asc" } }) : Promise.resolve([]),
   ]);
   const viewer = { id: user.id, role: user.role, therapistKind: user.therapistKind };
-  const staff: StaffOption[] = staffRows.map((u) => ({ id: u.id, name: u.name, clinician: u.role === "ADMIN" || u.therapistKind === "CLINICAL" || u.therapistKind === "BOTH" }));
+  const staff: StaffOption[] = staffRows.map((u) => ({ id: u.id, name: u.name, clinician: u.role === "ADMIN" || u.therapistKind === "CLINICAL" || u.therapistKind === "BOTH", admin: u.role === "ADMIN" }));
 
   return (
     <main className="wide">
@@ -145,19 +145,26 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
             <div className="linkrow" style={{ alignItems: "flex-start" }} data-tour="notes">
               <span className="grow">
                 <strong>Τελευταίο διαθέσιμο σημείωμα</strong>
-                {last ? <NoteSummary author={`${last.therapist}${last.pair ? " · Therapair" : ""}`} at={last.date} text={last.text} href={`/t/s/${last.slotId}`} label="Άνοιγμα σημειώματος" /> : <div className="hint">Δεν υπάρχει σημείωμα ακόμα.</div>}
+                {last ? <NoteSummary author={`${nameWithKind(last.therapist, last.therapistKind)}${last.pair ? " · Therapair" : ""}`} at={last.date} text={last.text} href={`/t/s/${last.slotId}`} label="Άνοιγμα σημειώματος" /> : <div className="hint">Δεν υπάρχει σημείωμα ακόμα.</div>}
               </span>
             </div>
             <div className="linkrow" style={{ alignItems: "flex-start" }}>
               <span className="grow">
                 <strong>Ανοιχτά θέματα και συμφωνημένα επόμενα βήματα</strong>
+                {last && (last.safety.safeOk === false || last.safety.concern || last.usedSince === "YES") && (
+                  <div className="warn-text small wm" style={{ margin: "4px 0 6px" }}>
+                    {last.safety.safeOk === false && <div><strong>Ανησυχία για την ασφάλεια (τελευταίο σημείωμα):</strong> {last.safety.safetyText || "βλ. προβληματισμό"}</div>}
+                    {last.usedSince === "YES" && <div><strong>Χρήση από την προηγούμενη επαφή:</strong> ναι</div>}
+                    {last.safety.concern && <div><strong>Προβληματισμός προς την ομάδα:</strong> {last.safety.concern}</div>}
+                  </div>
+                )}
                 {h && (h.agreed || h.openIssues || h.handover || h.suggested) ? (
                   <div className="stack wm" style={{ marginTop: 4 }}>
                     {h.agreed && <div><span className="muted small">Συμφωνήθηκε ως επόμενο βήμα</span><div>{h.agreed}</div></div>}
                     {h.openIssues && <div><span className="muted small">Έμεινε ανοιχτό</span><div>{h.openIssues}</div></div>}
                     {h.handover && <div><span className="muted small">Για τον επόμενο θεραπευτή</span><div>{h.handover}</div></div>}
                     {h.suggested && <div><span className="muted small">Τι προτείναμε</span><div>{h.suggested}</div></div>}
-                    <div className="hint">από το σημείωμα της {formatDate(last!.date)} · {last!.therapist}</div>
+                    <div className="hint">από το σημείωμα της {formatDate(last!.date)} · {nameWithKind(last!.therapist, last!.therapistKind)}</div>
                   </div>
                 ) : <div className="hint">Δεν έχει καταγραφεί κάτι στο τελευταίο σημείωμα.</div>}
                 {groupMentions.length > 0 && (
@@ -236,11 +243,11 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
               Ανάγκες ασφάλειας: <strong>{risk.label}</strong>{risk.level && risk.at && !risk.trigger && ` · ${RISK_INFO[risk.level].action} · ${formatDate(localParts(risk.at).date)}, ${risk.author}`}
               {" · "}<Link href={`/t/members/${id}/risk`}>Ανάγκες ›</Link> · <Link href={`/t/members/${id}/safety`}>Πλάνο {plan ? `(${formatDate(localParts(plan.updatedAt).date)})` : "(δεν έχει γραφτεί)"} ›</Link>
             </div>
-            {ax?.data.summary && isPsychologist(user) && (
+            {ax?.data.summary && (
               <details className="fold" style={{ marginTop: 6 }}>
                 <summary>Σύνοψη από την αρχική αξιολόγηση</summary>
-                <div className="hint">{ax.author}{scores.length > 0 && ` · ${scores.join(" · ")} (περίοδος βαριάς χρήσης)`}</div>
-                <div className="body-text">{ax.data.summary}</div>
+                <div className="hint">{ax.author}{isPsychologist(user) && scores.length > 0 && ` · ${scores.join(" · ")} (περίοδος βαριάς χρήσης)`}</div>
+                <div className="body-text wm">{ax.data.summary}</div>
               </details>
             )}
           </section>

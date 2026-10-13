@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { requireMember } from "@/lib/intake";
 import { bookHour, cancelBooking, openHours } from "@/lib/booking";
 import { prisma } from "@/lib/db";
+import { notifyRole } from "@/lib/notify";
 import { cycleInfo } from "@/lib/member";
 import { bookingWindow, slotMinutes } from "@/lib/program";
 import { getSettings } from "@/lib/settings";
@@ -39,6 +40,8 @@ async function undo(formData: FormData) {
   });
   if (!w.open || !b || b.slot.startsAt <= new Date() || b.slot.date < w.weekStart || b.slot.date > w.weekEnd) redirect("/m/book");
   await cancelBooking(b.id);
+  // Η διαχείριση (που φτιάχνει το πρόγραμμα) το μαθαίνει αμέσως· οι θεραπευτές το βλέπουν στο «Σήμερα» τους.
+  await notifyRole("ADMIN", { title: "Ακύρωση ατομικής από μέλος", body: `${user.name} · ${formatDate(b.slot.date)} ${formatHour(b.slot.hour)}`, url: "/admin/bookings" }).catch(() => undefined);
   revalidatePath("/m");
   redirect("/m/book?undone=1");
 }

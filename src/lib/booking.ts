@@ -10,7 +10,7 @@ export type BookResult = { ok: true; bookingId: string } | { ok: false; reason: 
 class BookingError extends Error {}
 
 /** Ο τύπος θεραπευτή της πιο κοντινής ατομικής του μέλους πριν (αλλιώς μετά) από τη στιγμή. */
-async function neighbourKind(memberId: string, at: Date, exceptBookingId?: string): Promise<Kind | null> {
+export async function neighbourKind(memberId: string, at: Date, exceptBookingId?: string): Promise<Kind | null> {
   const base = { memberId, kind: { not: null }, ...(exceptBookingId ? { id: { not: exceptBookingId } } : {}) } as const;
   const before = await prisma.booking.findFirst({
     where: { ...base, slot: { startsAt: { lt: at } } },
@@ -66,7 +66,12 @@ export async function bookHour(args: {
 
   const free = await freeSlots(date, hour, kind, memberId, byAdmin ? new Date(0) : now);
   if (free.length === 0) return { ok: false, reason: "Η ώρα δεν είναι πια ελεύθερη." };
-  const needed = neededKind(await neighbourKind(memberId, free[0].startsAt));
+  const prevKind = await neighbourKind(memberId, free[0].startsAt);
+  // Χωρίς προηγούμενη ατομική και χωρίς ολοκληρωμένη αρχική αξιολόγηση: η 1η ατομική είναι με ψυχολόγο
+  // (απόφαση 02: «ψυχολόγος στην 1η ατομική, ~40′»). Αν δεν υπάρχει, σημειώνεται για έλεγχο όπως κάθε απόκλιση.
+  const needed = prevKind
+    ? neededKind(prevKind)
+    : (await prisma.assessment.findFirst({ where: { memberId, complete: true }, select: { id: true } })) ? null : "CLINICAL";
   const capacity = slotCapacity(kind);
 
   const tried = new Set<string>();

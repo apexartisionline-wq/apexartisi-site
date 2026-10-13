@@ -8,7 +8,7 @@ import { notifyRole } from "@/lib/notify";
 import { journalDate } from "@/lib/member";
 import { GOAL_CHECK, setWeekGoal, weekGoal } from "@/lib/goals";
 import { getSettings } from "@/lib/settings";
-import { formatDate } from "@/lib/time";
+import { formatDate, localParts } from "@/lib/time";
 
 const scale = z.coerce.number().int().min(0).max(10);
 const schema = z.object({
@@ -65,7 +65,8 @@ async function saveGoal(formData: FormData) {
   if (!(await hasConsent(user.id, "journal"))) redirect("/m/journal");
   const s = await getSettings();
   const text = z.string().trim().min(1).max(300).safeParse(String(formData.get("goal") ?? ""));
-  if (text.success) await setWeekGoal(user.id, journalDate(new Date(), s), text.data);
+  // Ημερολογιακή μέρα: στόχος που γράφεται Δευτέρα πρωί ανήκει σε αυτή την εβδομάδα (όχι στην προηγούμενη, όπως η «μέρα» του ημερολογίου πριν τις 20:00).
+  if (text.success) await setWeekGoal(user.id, localParts(new Date()).date, text.data);
   redirect("/m/journal?goal=1");
 }
 
@@ -100,7 +101,7 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
   }
   const [entry, goal] = await Promise.all([
     prisma.journalEntry.findUnique({ where: { memberId_date: { memberId: user.id, date } } }),
-    weekGoal(user.id, date),
+    weekGoal(user.id, localParts(new Date()).date),
   ]);
 
   return (

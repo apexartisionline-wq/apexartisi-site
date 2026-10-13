@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/auth";
 import { cancelBooking, moveBooking } from "@/lib/booking";
 import { prisma } from "@/lib/db";
+import { notifyMembers } from "@/lib/notify";
 import { formatDate, formatHour, localParts } from "@/lib/time";
 
 const fmt = (d: Date) => d.toLocaleString("el-GR", { timeZone: "Europe/Athens", dateStyle: "short", timeStyle: "short" });
@@ -27,6 +28,8 @@ async function handle(formData: FormData) {
     where: { id },
     data: { status: action === "decline" ? "DECLINED" : "DONE", reply, handledAt: new Date() },
   });
+  // Το μέλος μαθαίνει την απάντηση με ειδοποίηση (εκτός ήσυχων ωρών), όχι μόνο αν ανοίξει το «Σήμερα».
+  await notifyMembers([req.memberId], { title: "Απάντηση στο αίτημά σου για το ραντεβού", body: action === "decline" ? "Δεν έγινε αλλαγή. Δες το «Σήμερα»." : "Έγινε. Δες το νέο πρόγραμμά σου στο «Σήμερα».", url: "/m" }).catch(() => undefined);
   redirect("/admin/requests?ok=1");
 }
 

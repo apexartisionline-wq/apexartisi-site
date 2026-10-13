@@ -13,11 +13,11 @@ import { getSettings } from "./settings";
 import { countPresence, sessionPresence } from "./presence";
 import { addDays, formatDate, localParts } from "./time";
 
-/** Σήματα ασφάλειας ενός μέλους (βλ. handover-rules.ts). Δεν διαβάζει το ημερολόγιο. */
+/** Σήματα ασφάλειας ενός μέλους (βλ. handover-rules.ts). Από το ημερολόγιο παίρνει μόνο τα δύο σημάδια και την ημερομηνία τελευταίας εγγραφής — όχι κείμενα. */
 export async function memberSafety(memberId: string, now = new Date()) {
   const member = await prisma.user.findUniqueOrThrow({ where: { id: memberId } });
   const since14 = new Date(now.getTime() - 14 * 24 * 3600_000);
-  const [intake, plan, help, notes, attendance, booking, openDropout, s, missed] = await Promise.all([
+  const [intake, plan, help, notes, attendance, booking, openDropout, s, missed, lastJournal] = await Promise.all([
     memberIntake(member),
     prisma.safetyPlan.findUnique({ where: { memberId }, select: { updatedAt: true } }),
     prisma.helpRequest.findMany({ where: { memberId, isDrill: false, createdAt: { gte: new Date(now.getTime() - 14 * 24 * 3600_000) } }, select: { createdAt: true } }),
@@ -32,10 +32,12 @@ export async function memberSafety(memberId: string, now = new Date()) {
       where: { memberId, OR: [{ confirmedCame: false }, { confirmedCame: null, joinedAt: null }], slot: { startsAt: { gte: since14, lt: new Date(now.getTime() - 3600_000) } } },
       select: { slotId: true, confirmedCame: true, slot: { select: { startsAt: true } } },
     }),
+    // Η απογραφή μετράει ως επαφή (κανόνας «Χωρίς επαφή»: ομάδα, απογραφή, ατομική) — ίδιος ορισμός με το dropout.ts.
+    prisma.journalEntry.findFirst({ where: { memberId }, orderBy: { date: "desc" }, select: { date: true } }),
   ]);
   const risk = intake.checks.find((c) => c.key === "risk");
   // Τελευταία επαφή από ομάδα ή ατομική.
-  const contacts = [attendance?.joinedAt, booking?.joinedAt].filter((d): d is Date => Boolean(d));
+  const contacts = [attendance?.joinedAt, booking?.joinedAt, lastJournal ? new Date(`${lastJournal.date}T20:00:00Z`) : null].filter((d): d is Date => Boolean(d));
   const flags = safetyFlags({
     now,
     risk: risk ? { value: risk.value, at: risk.doneAt } : null,
@@ -56,13 +58,11 @@ export async function memberSafety(memberId: string, now = new Date()) {
     select: { date: true, used: true, selfHarm: true, updatedAt: true },
     orderBy: { date: "desc" },
   });
-  const fromJournal = journal.map((j) => ({
-    level: "red" as const,
-    key: `journal_${j.date}`,
-    text: `Έγραψε στο ημερολόγιο (${formatDate(j.date)}): ${[j.used && "έκανε χρήση", (j.selfHarm === "YES" || j.selfHarm === "UNSURE") && "σκέψεις να κάνει κακό στον εαυτό του"].filter(Boolean).join(" · ")}`,
-    at: j.updatedAt,
-    href: `/t/members/${memberId}`,
-  }));
+  // Δύο χωριστές γραμμές (σκέψεις / χρήση): το κόκκινο κουτί 24 ωρών καλύπτει μόνο τις σκέψεις, η χρήση δεν πρέπει να κρυφτεί μαζί του.
+  const fromJournal = journal.flatMap((j) => [
+    ...((j.selfHarm === "YES" || j.selfHarm === "UNSURE") ? [{ level: "red" as const, key: `journal_${j.date}`, text: `Έγραψε στο ημερολόγιο (${formatDate(j.date)}): σκέψεις να κάνει κακό στον εαυτό του`, at: j.updatedAt, href: `/t/members/${memberId}` }] : []),
+    ...(j.used ? [{ level: "red" as const, key: `journal_used_${j.date}`, text: `Έγραψε στο ημερολόγιο (${formatDate(j.date)}): έκανε χρήση`, at: j.updatedAt, href: `/t/members/${memberId}` }] : []),
+  ]);
   const trig = await riskTrigger(memberId);
   const review = trig ? [{ level: "yellow" as const, key: "risk_review", trigText: trig.text, text: `Θέλει αξιολόγηση αναγκών ασφάλειας (μετά από ${trig.text})`, at: trig.at, href: `/t/members/${memberId}/risk` }] : [];
   // Τα κόκκινα πρώτα (η εγκυμοσύνη είναι κίτρινη).

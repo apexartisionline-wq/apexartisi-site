@@ -12,6 +12,7 @@ import { prisma } from "@/lib/db";
 import { ACTIONS, LEVELS, type Level, QUESTIONS, riskSchema } from "@/lib/risk";
 import { canWriteRisk, riskHistory, riskTrigger, saveRisk } from "@/lib/risk-db";
 import { formatWhen } from "@/lib/time";
+import { onCallNow } from "@/lib/help";
 
 async function save(formData: FormData) {
   "use server";
@@ -37,6 +38,13 @@ export default async function RiskPage({ params, searchParams }: { params: Promi
   if (!member) notFound();
   await logAccess(user.id, id, "risk_view");
   const [history, trigger] = await Promise.all([riskHistory(id), riskTrigger(id)]);
+  // Για όποιον δεν ανοίγει την «Έκτακτη ανάγκη»: ποιον καλεί τώρα (σε υπηρεσία, διαχείριση) — τηλέφωνα προσωπικού, όχι μέλους.
+  const dutyId = canWriteRisk(user) ? null : await onCallNow();
+  const reach = canWriteRisk(user) ? [] : await prisma.user.findMany({
+    where: { active: true, OR: [{ role: "ADMIN" }, ...(dutyId ? [{ id: dutyId }] : [])] },
+    select: { id: true, name: true, phone: true, role: true },
+    orderBy: { name: "asc" },
+  });
   const canWrite = canWriteRisk(user);
   // Απαντήσεις και αιτιολόγηση: μόνο ψυχολόγος (απόφαση 13/10, src/lib/access.ts)· οι υπόλοιποι βλέπουν το επίπεδο.
   const detail = isPsychologist(user);
@@ -72,7 +80,12 @@ export default async function RiskPage({ params, searchParams }: { params: Promi
           {canWrite ? (
             <p data-tour="emergency" style={{ margin: "10px 0 0" }}><Link className="btn red" href={`/t/members/${id}/emergency`}>Έκτακτη ανάγκη</Link> <span className="muted small">Μόνο σε άμεσο κίνδυνο: δείχνει διεύθυνση και επαφή για το 112.</span></p>
           ) : (
-            <p className="hint" style={{ margin: "8px 0 0" }}>Την «Έκτακτη ανάγκη» (διεύθυνση και επαφή για το 112) την ανοίγει ψυχολόγος.</p>
+            <div className="hint" style={{ margin: "8px 0 0" }} data-tour="reach">
+              Την «Έκτακτη ανάγκη» (διεύθυνση και επαφή για το 112) την ανοίγει ψυχολόγος ή η διαχείριση. Μείνε με το μέλος στη γραμμή και κάλεσε αμέσως:{" "}
+              {reach.length === 0 ? "τη διαχείριση." : reach.map((u, i) => (
+                <span key={u.id}>{i > 0 && " · "}<strong>{u.name}</strong>{u.id === dutyId ? " (σε υπηρεσία)" : u.role === "ADMIN" ? " (διαχείριση)" : ""}{u.phone && <> <a href={`tel:${u.phone.replace(/\s/g, "")}`}>{u.phone}</a></>}</span>
+              ))}
+            </div>
           )}
         </div>
       </div>

@@ -20,7 +20,7 @@ import { EmptyState, ErrorNote, PageHead, Panel, Pill, PresenceStat } from "@/co
 import { describeSources, PRESENCE_HINT, PRESENCE_LABEL, sessionPresence } from "@/lib/presence";
 import { ThemeWeek } from "@/components/ThemeWeek";
 import { latestAssessment, latestProfile } from "@/lib/assessment-db";
-import { isPsychologist, seesJournalDetail } from "@/lib/access";
+import { isPsychologist, nameWithKind, seesJournalDetail } from "@/lib/access";
 import { logAccess } from "@/lib/audit";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
@@ -31,7 +31,7 @@ import { memberNotes } from "@/lib/member-notes";
 import { composePairNote, nameVariants, type PairSide, pairFlags, pairSideSchema, scrubSide } from "@/lib/pair-note";
 import { historyOf, keepHistory } from "@/lib/history";
 import { vocative } from "@/lib/vocative";
-import { currentRisk } from "@/lib/risk-db";
+import { currentRisk, nextClinicalSession } from "@/lib/risk-db";
 import { alertWorthy, composeNote, type NoteForm, noteFlags, noteFormSchema } from "@/lib/note-form";
 import { sessionGlance } from "@/lib/session-glance";
 import { getSettings } from "@/lib/settings";
@@ -103,6 +103,8 @@ async function saveNote(formData: FormData) {
   }
   // Παλιό ελεύθερο σημείωμα: γράφτηκε, άρα ο θεραπευτής επιβεβαιώνει ότι ήρθε.
   for (const b of x.bookings) await confirmPresence(id, b.memberId, true, user.id);
+  // Όπως στο δομημένο σημειωματάριο: αύξηση αναγκών ασφάλειας = μία κίτρινη γραμμή 24 ωρών στην ομάδα.
+  if (riskChange === "UP") for (const b of x.bookings) await raiseNoteAlert(b.memberId, `CONCERN:${id}`, user.id);
   redirect(`/t/s/${id}?saved=1`);
 }
 
@@ -376,7 +378,9 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
   const n = (v: number | null) => (v === null ? "—" : String(v).replace(".", ","));
   const h = g.prev?.handover;
   const hasHandover = Boolean(h && (h.agreed || h.openIssues || h.handover));
-
+  // Για τον επόμενο θεραπευτή (εναλλαγή κλινικού/βιωματικού): η γραμμή ασφάλειας και ο προβληματισμός του προηγούμενου
+  // σημειώματος φαίνονται ξεχωριστά — είναι στο τέλος του κειμένου και κόβονται από την προεπισκόπηση.
+  const prevSafety = Boolean(g.prev && (g.prev.safety.safeOk === false || g.prev.safety.concern || g.prev.usedSince === "YES"));
   const endsAt = new Date(x.startsAt.getTime() + s.sessionMinutes * 60_000);
   const presence = sessionPresence({ startsAt: x.startsAt, endsAt, now, joinedAt: b.joinedAt, confirmedCame: b.confirmedCame });
   const pl = PRESENCE_LABEL[presence];
@@ -384,6 +388,8 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
   const staff: StaffOption[] = user.role === "ADMIN"
     ? (await prisma.user.findMany({ where: { role: { in: ["THERAPIST", "ADMIN"] }, active: true }, select: { id: true, name: true, therapistKind: true, role: true }, orderBy: { name: "asc" } })).map((u) => ({ id: u.id, name: u.name, clinician: u.role === "ADMIN" || u.therapistKind === "CLINICAL" || u.therapistKind === "BOTH", admin: u.role === "ADMIN" }))
     : [];
+  // Εκκρεμεί αξιολόγηση αναγκών ασφάλειας από ψυχολόγο και ο θεραπευτής της ατομικής δεν είναι: πού θα γίνει.
+  const nextClinical = intake.trigger && !isPsychologist(viewer) ? await nextClinicalSession(b.memberId, now) : null;
 
   return (
     <main className="wide">
@@ -433,11 +439,26 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
               Ανάγκες ασφάλειας: <strong>{intake.trigger ? intake.label : risk ? RISK_LEVELS[risk] : "δεν έχει χρειαστεί"}</strong>{!intake.trigger && risk && ` · ${RISK_INFO[risk].action}`}
               {g.help14 > 0 && <> · κόκκινο κουμπί {g.help14} {g.help14 === 1 ? "φορά" : "φορές"} σε 14 ημέρες</>}
             </p>
+            {intake.trigger && !isPsychologist(viewer) && (
+              <p className="hint" style={{ margin: "4px 0 0" }} data-tour="route-psy">
+                Την αξιολόγηση την κάνει ψυχολόγος — όχι σε αυτή την ατομική. {nextClinical ? <>Επόμενη ατομική με ψυχολόγο: <Link href={`/t/s/${nextClinical.slotId}`}>{formatDate(nextClinical.date)} {formatTime(nextClinical.startsAt)}{nextClinical.therapist && ` · ${nextClinical.therapist}`}</Link>.</> : <>Δεν έχει προγραμματιστεί ατομική με ψυχολόγο — το βλέπει η διαχείριση στο «Σήμερα» της.</>} Ό,τι δεις σήμερα, γράψ' το στην «Ενημέρωση ομάδας».
+              </p>
+            )}
           </Panel>
 
           <Panel title="Ανοιχτό από την προηγούμενη φορά" id="open" tour="open">
             {g.prev ? (
               <>
+                {prevSafety && (
+                  <div className="attn yellow wm" style={{ marginBottom: 8 }} data-tour="prev-safety">
+                    <span className="iconbox yellow"><Icon name="alert" size={18} /></span>
+                    <div className="attn-body small">
+                      {g.prev.safety.safeOk === false && <div><strong>Ανησυχία για την ασφάλεια στο προηγούμενο σημείωμα:</strong> {g.prev.safety.safetyText || "βλ. προβληματισμό"}</div>}
+                      {g.prev.usedSince === "YES" && <div><strong>Χρήση από την προηγούμενη επαφή:</strong> ναι (κατά το προηγούμενο σημείωμα)</div>}
+                      {g.prev.safety.concern && <div><strong>Προβληματισμός προς την ομάδα:</strong> {g.prev.safety.concern}</div>}
+                    </div>
+                  </div>
+                )}
                 {hasHandover ? (
                   <div className="stack wm">
                     {h!.agreed && <div><span className="muted small">Συμφωνήθηκε ως επόμενο βήμα</span><div>{h!.agreed}</div></div>}
@@ -448,7 +469,7 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
                 ) : (
                   <div>{g.prev.next ? <><span className="muted small">Τι προτείναμε</span><div>{g.prev.next}</div></> : <span className="muted">Δεν άφησε κάτι για την επόμενη ατομική.</span>}</div>
                 )}
-                <NoteSummary author={`${g.prev.by}${g.prev.pair ? " · Therapair" : ""}`} at={g.prev.date} text={g.prev.text} href={`/t/s/${g.prev.slotId}`} label="Δες το σημείωμα" />
+                <NoteSummary author={`${nameWithKind(g.prev.by, g.prev.byKind)}${g.prev.pair ? " · Therapair" : ""}`} at={g.prev.date} text={g.prev.text} href={`/t/s/${g.prev.slotId}`} label="Δες το σημείωμα" />
               </>
             ) : <EmptyState>Πρώτη ατομική: δεν υπάρχει προηγούμενο σημείωμα.</EmptyState>}
           </Panel>
@@ -468,7 +489,7 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
           )}
 
           <Panel title="Στόχος και εργασία" tour="goal">
-            <GoalWeekCard memberId={b.memberId} date={today} />
+            <GoalWeekCard detail={seesJournalDetail(viewer)} memberId={b.memberId} date={today} />
             {g.assignment ? (
               <Link className="linkrow" href={`/t/members/${b.member.id}/assignments`}>
                 <span className="iconbox"><Icon name="doc" /></span>
@@ -482,11 +503,11 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
             <ThemeWeek forms={g.theme.forms} dailyText={g.theme.dailyText} compact />
           </Panel>
 
-          {ax?.data.summary && isPsychologist(viewer) && (
+          {ax?.data.summary && (
             <details className="panel fold">
               <summary>Σύνοψη από την αρχική αξιολόγηση <span className="muted small">· {ax.author}</span></summary>
-              <div className="body-text" style={{ marginTop: 8 }}>{ax.data.summary}</div>
-              <Link className="small" href={`/t/members/${b.memberId}/assessment`}>Όλη η αξιολόγηση ›</Link>
+              <div className="body-text wm" style={{ marginTop: 8 }}>{ax.data.summary}</div>
+              {isPsychologist(viewer) && <Link className="small" href={`/t/members/${b.memberId}/assessment`}>Όλη η αξιολόγηση ›</Link>}
             </details>
           )}
         </div>
@@ -594,7 +615,14 @@ async function PairSession({ x, user, sp }: { x: Slot; user: { id: string; role:
             <div className="panel small">
               <strong>Ανοιχτό από την προηγούμενη φορά</strong>
               <div style={{ marginTop: 4 }}>{prev ? (prev.next || <span className="muted">Δεν άφησε κάτι για την επόμενη ατομική.</span>) : <span className="muted">Πρώτη ατομική: δεν υπάρχει προηγούμενο σημείωμα.</span>}</div>
-              {prev && <div className="muted" style={{ marginTop: 4 }}>{prev.therapist} · {formatDate(prev.date)} · <Link href={`/t/members/${m.id}/notes`}>όλα τα σημειώματα</Link></div>}
+              {prev && (prev.safety.safeOk === false || prev.safety.concern || prev.usedSince === "YES") && (
+                <div className="warn-text wm" style={{ marginTop: 6 }}>
+                  {prev.safety.safeOk === false && <div><strong>Ανησυχία για την ασφάλεια:</strong> {prev.safety.safetyText || "βλ. προβληματισμό"}</div>}
+                  {prev.usedSince === "YES" && <div><strong>Χρήση από την προηγούμενη επαφή:</strong> ναι</div>}
+                  {prev.safety.concern && <div><strong>Προβληματισμός:</strong> {prev.safety.concern}</div>}
+                </div>
+              )}
+              {prev && <div className="muted" style={{ marginTop: 4 }}>{nameWithKind(prev.therapist, prev.therapistKind)} · {formatDate(prev.date)} · <Link href={`/t/members/${m.id}/notes`}>όλα τα σημειώματα</Link></div>}
             </div>
             {prev && (
               <div className="small">
@@ -602,7 +630,7 @@ async function PairSession({ x, user, sp }: { x: Slot; user: { id: string; role:
                 <SinceLast journalDetail={seesJournalDetail(viewer)} memberId={m.id} prev={{ date: prev.date, by: prev.therapist, text: prev.text, slotId: prev.slotId, pair: prev.pair }} until={x.date < today ? x.date : today} untilAt={x.startsAt < now ? x.startsAt : now} />
               </div>
             )}
-            <GoalWeekCard memberId={m.id} date={today} />
+            <GoalWeekCard detail={seesJournalDetail(viewer)} memberId={m.id} date={today} />
           </section>
         ))}
       </div>

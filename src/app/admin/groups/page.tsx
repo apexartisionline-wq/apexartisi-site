@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { notifyMembers } from "@/lib/notify";
 import { cancelBooking } from "@/lib/booking";
 import { ensureGroupSession, groupDays } from "@/lib/groups";
 import { keepHistory } from "@/lib/history";
@@ -56,6 +57,12 @@ async function declareHoliday(formData: FormData) {
     });
     await cancelBooking(b.id);
   }
+  // Τα μέλη που έχασαν ατομική το μαθαίνουν και με ειδοποίηση (η φράση της αργίας εγκρίθηκε 13/10).
+  await notifyMembers([...new Set(bookings.map((b) => b.memberId))], {
+    title: "Το πρόγραμμά σου άλλαξε",
+    body: `${formatDate(date)}: αργία — δεν γίνονται ατομικές.${groupTime ? ` Στη θέση τους, ομάδα στις ${groupTime}.` : ""}`,
+    url: "/m",
+  }).catch(() => undefined);
   if (groupTime) {
     const row = await ensureGroupSession(date, groupTime);
     await prisma.groupSession.update({ where: { id: row.id }, data: { coordinatorId } });

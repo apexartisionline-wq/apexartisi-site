@@ -3,7 +3,9 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { SlotKind } from "@prisma/client";
 import { requireRole } from "@/lib/auth";
+import { neighbourKind } from "@/lib/booking";
 import { prisma } from "@/lib/db";
+import { neededKind } from "@/lib/program";
 import { getSettings } from "@/lib/settings";
 import { addDays, athensToUtc, formatDate, formatHour, localParts, mondayOf } from "@/lib/time";
 
@@ -44,12 +46,15 @@ async function saveDay(formData: FormData) {
       if (slot.therapistId !== therapistId || kindChange) {
         await prisma.slot.update({ where: { id: slot.id }, data: { therapistId, ...(kindChange ? { kind } : {}) } });
         if (slot.therapistId !== therapistId && booked) {
-          // Η Εύα άλλαξε θεραπευτή: η εναλλαγή θεωρείται ελεγμένη.
-          const tk = kindOf.get(therapistId);
-          await prisma.booking.updateMany({
-            where: { slotId: slot.id },
-            data: { alternationOk: true, ...(tk && tk !== "BOTH" ? { kind: tk } : {}) },
-          });
+          // Η διαχείριση άλλαξε θεραπευτή σε κλεισμένη θέση: η εναλλαγή ξαναελέγχεται με τους γείτονες κάθε κράτησης
+          // (όχι σιωπηρή έγκριση)· αν δεν τηρείται, το ραντεβού ξαναμπαίνει στο «Για έλεγχο».
+          const tk = kindOf.get(therapistId) ?? null;
+          for (const b of await prisma.booking.findMany({ where: { slotId: slot.id }, select: { id: true, memberId: true, kind: true } })) {
+            const needed = neededKind(await neighbourKind(b.memberId, slot.startsAt, b.id));
+            const kind = tk && tk !== "BOTH" ? tk : (needed ?? b.kind);
+            const ok = !needed || !tk || tk === "BOTH" || tk === needed;
+            await prisma.booking.update({ where: { id: b.id }, data: { alternationOk: ok, kind } });
+          }
         }
       }
     } else {

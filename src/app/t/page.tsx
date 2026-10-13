@@ -145,6 +145,13 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
   )));
   const memberIds = members.map((m) => m.id);
   const memberName = new Map(members.map((m) => [m.id, m.name]));
+  // Αρχική αξιολόγηση που δεν έγινε: ενέργεια ψυχολόγου, για μέλη με ατομική τις επόμενες 7 μέρες (εκεί θα γίνει).
+  const [assessedRows, upcomingRows] = await Promise.all([
+    prisma.assessment.findMany({ where: { memberId: { in: memberIds }, complete: true }, select: { memberId: true }, distinct: ["memberId"] }),
+    prisma.booking.findMany({ where: { memberId: { in: memberIds }, slot: { startsAt: { gt: now, lte: new Date(now.getTime() + 7 * 86_400_000) } } }, select: { memberId: true }, distinct: ["memberId"] }),
+  ]);
+  const assessed = new Set(assessedRows.map((r) => r.memberId));
+  const upcoming = new Set(upcomingRows.map((r) => r.memberId));
   const [flagsAll, reviews, itemRows, careRows, helpRows] = await Promise.all([
     Promise.all(memberIds.map(async (id) => [id, await memberSafety(id)] as const)),
     dueCycleReviews(memberIds),
@@ -167,7 +174,7 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
     const list = buildActions({
       memberId: id, memberName: memberName.get(id) ?? "Μέλος",
       riskTrigger: rr?.at ? { at: rr.at, text: (rr as { trigText?: string }).trigText ?? "νέα αφορμή" } : null,
-      initialAssessmentMissing: null,
+      initialAssessmentMissing: !assessed.has(id) && upcoming.has(id) ? { detail: "δεν έχει γίνει ακόμα · στην επόμενη ατομική με ψυχολόγο", since: null } : null,
       cycleReviewDue: rev ? { cycleId: rev.cycleId, since: cycleSince.get(rev.cycleId) ?? null } : null,
       care: careRows.filter((c) => c.memberId === id && c.dueAt <= now),
       help: helpRows.filter((h) => h.memberId === id),
