@@ -1,0 +1,17 @@
+/* Οδηγός ομάδας: αναζήτηση και σύντομες αναπτυσσόμενες απαντήσεις. */
+.search { display: flex; align-items: center; gap: 10px; margin: 0 0 6px; }
+.searchLabel { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; margin: 0; flex: none; }
+.search input { flex: 1; min-width: 0; min-height: 44px; }
+@media (max-width: 600px) {
+  .searchLabel span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+}
+.entry { border-top: 1px solid var(--line); padding: 6px 0; }
+.entry:first-of-type { border-top: 0; }
+.entry > summary { min-height: 44px; }
+.answer { margin: 4px 0 8px 18px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; }
+.answer dt { font-size: .8rem; font-weight: 700; color: var(--muted); text-transform: none; margin-top: 8px; }
+.answer dt:first-child { margin-top: 0; }
+.answer dd { margin: 0; }
+.answer p { margin: 0; }
+.answer ul { margin: 0; padding-left: 18px; }
+.answer li { margin-bottom: 3px; }

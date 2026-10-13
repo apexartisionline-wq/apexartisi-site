@@ -1,0 +1,22 @@
+/* Υλικό: λίστες με κουμπί «Άνοιγμα» και ξεχωριστό τμήμα για ό,τι δεν έχει βγει ακόμα στα μέλη. */
+.search { flex-wrap: nowrap; }
+.search input { min-height: 44px; width: 220px; max-width: 100%; }
+.srOnly { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; margin: 0; }
+.filterNote { margin: 0 0 12px; }
+.item { align-items: flex-start; }
+.item :global(.btn) { flex: none; min-height: 44px; align-self: center; }
+.icon { width: 40px; height: 40px; }
+.desc { font-size: .9rem; margin-top: 2px; }
+.status { margin-top: 4px; }
+.sub { font-size: 1rem; margin: 14px 0 4px; }
+.week { border-top: 1px solid var(--line); padding: 4px 0; }
+.week:first-of-type { border-top: 0; }
+.week > summary { min-height: 44px; }
+.week > summary :global(.grow) { flex: 1; min-width: 0; }
+/* Μελλοντικό υλικό: διακεκομμένο περίγραμμα, για να μη μπερδεύεται με ό,τι έχει ήδη σταλεί. */
+.upcoming { border-style: dashed; border-width: 2px; box-shadow: none; }
+@media (max-width: 600px) {
+  .search { width: 100%; }
+  .search input { flex: 1; width: auto; min-width: 0; }
+  .item .status :global(.pill) { margin-left: 0; white-space: normal; }
+}
