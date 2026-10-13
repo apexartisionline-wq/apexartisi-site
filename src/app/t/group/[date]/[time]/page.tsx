@@ -119,11 +119,11 @@ export default async function GroupNotePage({
         </form>
       ) : session?.noteAt ? (
         <div className="card stack">
-          <div><strong>Θέμα</strong><div className="body-text">{dec(session.theme) || "—"}</div></div>
-          <div><strong>Ατμόσφαιρα</strong><div className="body-text">{dec(session.atmosphere) || "—"}</div></div>
+          <div><strong>Θέμα</strong><div className="body-text wm">{dec(session.theme) || "—"}</div></div>
+          <div><strong>Ατμόσφαιρα</strong><div className="body-text wm">{dec(session.atmosphere) || "—"}</div></div>
           {mentions.length > 0 && (
             <div><strong>Προσοχή σε</strong>
-              <ul>{mentions.map((m) => <li key={m.id}>{m.member.name}: {dec(m.text)}</li>)}</ul>
+              <ul className="wm">{mentions.map((m) => <li key={m.id}>{m.member.name}: {dec(m.text)}</li>)}</ul>
             </div>
           )}
         </div>

@@ -5,6 +5,7 @@ import { AssessmentClient } from "@/components/AssessmentClient";
 import { assessmentLines, assessmentSchema, gr, missingForComplete, stripAdminOnly } from "@/lib/assessment";
 import { dec } from "@/lib/crypto";
 import { canWriteAssessment, EC_WHEN, latestAssessment, latestProfile, saveAssessment } from "@/lib/assessment-db";
+import { isPsychologist } from "@/lib/access";
 import { logAccess } from "@/lib/audit";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
@@ -41,10 +42,25 @@ export default async function AssessmentPage({ params, searchParams }: { params:
   const [{ id }, sp] = await Promise.all([params, searchParams]);
   const member = await prisma.user.findFirst({ where: { id, role: "MEMBER" }, select: { id: true, name: true, soberSince: true } });
   if (!member) notFound();
+  const latest = await latestAssessment(id);
+  // Μόνο ψυχολόγος (ή η διαχείριση) βλέπει την αξιολόγηση (απόφαση 13/10, src/lib/access.ts)· οι υπόλοιποι μία γραμμή.
+  if (!isPsychologist(user)) {
+    await logAccess(user.id, id, "assessment_status_view");
+    return (
+      <main>
+        <p style={{ margin: "8px 0 0" }}><Link className="back" href={`/t/members/${id}`}>‹ {member.name}</Link></p>
+        <FolderTabs memberId={id} active="history" />
+        <h1 style={{ marginBottom: 4 }}>Αρχική αξιολόγηση</h1>
+        <p className="muted" style={{ marginTop: 0 }}>
+          {latest ? `${latest.complete ? "Ολοκληρώθηκε" : "Σε εξέλιξη"} · ${latest.author}, ${formatWhen(latest.at)}` : "Δεν έχει ξεκινήσει · ψυχολόγος, 1η ατομική, ~40′"}
+        </p>
+        <div className="card small">Το περιεχόμενο της αρχικής αξιολόγησης το βλέπει ψυχολόγος. Ό,τι έχει κλινική σημασία για όλη την ομάδα (σοβαρά σημεία, νηφαλιότητα) φαίνεται στο «Ασφάλεια» και στον φάκελο.</div>
+      </main>
+    );
+  }
   await logAccess(user.id, id, "assessment_view");
   const admin = user.role === "ADMIN";
   const canEdit = canWriteAssessment(user);
-  const latest = await latestAssessment(id);
   const complete = Boolean(latest?.complete);
   const history = await prisma.assessment.findMany({ where: { memberId: id }, orderBy: { createdAt: "desc" }, select: { id: true, authorId: true, createdAt: true, complete: true } });
   const versions = history.length;

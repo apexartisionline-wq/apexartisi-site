@@ -6,6 +6,7 @@ import { ActionRow, type StaffOption } from "@/components/ActionRow";
 import { NoteSummary } from "@/components/NoteSummary";
 import { EmptyState, PageHead, Panel, Pill, PresenceStat } from "@/components/ui";
 import { notFound } from "next/navigation";
+import { isPsychologist, seesJournalDetail, seesMonthFolder } from "@/lib/access";
 import { logAccess } from "@/lib/audit";
 import { currentStep, lastStepWork } from "@/lib/steps";
 import { SafetyZone } from "@/components/SafetyZone";
@@ -151,7 +152,7 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
               <span className="grow">
                 <strong>Ανοιχτά θέματα και συμφωνημένα επόμενα βήματα</strong>
                 {h && (h.agreed || h.openIssues || h.handover || h.suggested) ? (
-                  <div className="stack" style={{ marginTop: 4 }}>
+                  <div className="stack wm" style={{ marginTop: 4 }}>
                     {h.agreed && <div><span className="muted small">Συμφωνήθηκε ως επόμενο βήμα</span><div>{h.agreed}</div></div>}
                     {h.openIssues && <div><span className="muted small">Έμεινε ανοιχτό</span><div>{h.openIssues}</div></div>}
                     {h.handover && <div><span className="muted small">Για τον επόμενο θεραπευτή</span><div>{h.handover}</div></div>}
@@ -220,7 +221,7 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
               {consistency.groupDays.map((d) => <span key={d.date} title={`${formatDate(d.date)}: ${d.present ? "καταγράφηκε παρουσία" : "χωρίς καταγραφή παρουσίας"}`} className={`dot${d.present ? " ok" : ""}`} />)}
             </div>
             <div className="kv" style={{ marginTop: 8 }}><span>Απογραφές</span><strong>{journal7} από 7 <span className="muted small">τελευταίες 7 ημέρες</span></strong></div>
-            <p className="hint" style={{ margin: "6px 0 0" }}><Link href={`/t/members/${id}/journal`}>Όλες οι απογραφές, μέρα-μέρα ›</Link> · <Link href="/t/consistency">Συνέπεια όλων ›</Link></p>
+            <p className="hint" style={{ margin: "6px 0 0" }}><Link href={`/t/members/${id}/journal`}>{seesJournalDetail(user) ? "Όλες οι απογραφές, μέρα-μέρα ›" : "Απογραφές (αριθμοί) ›"}</Link> · <Link href="/t/consistency">Συνέπεια όλων ›</Link></p>
           </Panel>
 
           <section className="panel sober" data-tour="sober">
@@ -235,7 +236,7 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
               Ανάγκες ασφάλειας: <strong>{risk.label}</strong>{risk.level && risk.at && !risk.trigger && ` · ${RISK_INFO[risk.level].action} · ${formatDate(localParts(risk.at).date)}, ${risk.author}`}
               {" · "}<Link href={`/t/members/${id}/risk`}>Ανάγκες ›</Link> · <Link href={`/t/members/${id}/safety`}>Πλάνο {plan ? `(${formatDate(localParts(plan.updatedAt).date)})` : "(δεν έχει γραφτεί)"} ›</Link>
             </div>
-            {ax?.data.summary && (
+            {ax?.data.summary && isPsychologist(user) && (
               <details className="fold" style={{ marginTop: 6 }}>
                 <summary>Σύνοψη από την αρχική αξιολόγηση</summary>
                 <div className="hint">{ax.author}{scores.length > 0 && ` · ${scores.join(" · ")} (περίοδος βαριάς χρήσης)`}</div>
@@ -263,7 +264,7 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
           </Panel>
 
           <Panel title="Μήνες" tour="months">
-            <MonthLinks memberId={id} />
+            {seesMonthFolder(user) ? <MonthLinks memberId={id} /> : <p className="hint" style={{ margin: 0 }}>Ο φάκελος κάθε μήνα (με λήψη PDF) είναι στη διαχείριση. Η ανασκόπηση κύκλου: <Link href={`/t/members/${id}/cycle`}>Μήνες ›</Link> · <Link href={`/t/members/${id}/incident`}>Συμβάντα ›</Link></p>}
           </Panel>
         </div>
       </div>

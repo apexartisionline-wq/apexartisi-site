@@ -20,6 +20,7 @@ import { EmptyState, ErrorNote, PageHead, Panel, Pill, PresenceStat } from "@/co
 import { describeSources, PRESENCE_HINT, PRESENCE_LABEL, sessionPresence } from "@/lib/presence";
 import { ThemeWeek } from "@/components/ThemeWeek";
 import { latestAssessment, latestProfile } from "@/lib/assessment-db";
+import { isPsychologist, seesJournalDetail } from "@/lib/access";
 import { logAccess } from "@/lib/audit";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
@@ -392,7 +393,7 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
         sub={<>Ατομική · {formatDate(x.date)} {formatSpan(x.startsAt, s.sessionMinutes)}{number && ` · ${number}`}{x.therapist && ` · ${x.therapist.name}`}</>}
       >
         <Link className="btn outline" href={`/t/members/${b.member.id}`}><Icon name="folder" size={18} /> Κλινικός φάκελος</Link>
-        {!assessed && <Link className="btn outline" href={`/t/members/${b.member.id}/assessment`}>Αρχική αξιολόγηση ›</Link>}
+        {!assessed && isPsychologist(viewer) && <Link className="btn outline" href={`/t/members/${b.member.id}/assessment`}>Αρχική αξιολόγηση ›</Link>}
         {x.date === today && room && canWrite(x, user) && (
           joined
             ? <a className="btn primary" href={room} target="_blank" rel="noopener noreferrer"><Icon name="video" size={18} /> Άνοιγμα Zoom</a>
@@ -438,7 +439,7 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
             {g.prev ? (
               <>
                 {hasHandover ? (
-                  <div className="stack">
+                  <div className="stack wm">
                     {h!.agreed && <div><span className="muted small">Συμφωνήθηκε ως επόμενο βήμα</span><div>{h!.agreed}</div></div>}
                     {h!.openIssues && <div><span className="muted small">Έμεινε ανοιχτό</span><div>{h!.openIssues}</div></div>}
                     {h!.handover && <div><span className="muted small">Για τον επόμενο θεραπευτή</span><div>{h!.handover}</div></div>}
@@ -460,7 +461,7 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
               <details className="fold" style={{ marginTop: 8 }}>
                 <summary>Αναλυτική εικόνα (ομάδες, απογραφές, κόκκινο κουμπί)</summary>
                 <div style={{ marginTop: 8 }}>
-                  <SinceLast memberId={b.memberId} prev={g.prev} until={x.date < today ? x.date : today} untilAt={x.startsAt < now ? x.startsAt : now} compact />
+                  <SinceLast journalDetail={seesJournalDetail(viewer)} memberId={b.memberId} prev={g.prev} until={x.date < today ? x.date : today} untilAt={x.startsAt < now ? x.startsAt : now} compact />
                 </div>
               </details>
             </Panel>
@@ -481,7 +482,7 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
             <ThemeWeek forms={g.theme.forms} dailyText={g.theme.dailyText} compact />
           </Panel>
 
-          {ax?.data.summary && (
+          {ax?.data.summary && isPsychologist(viewer) && (
             <details className="panel fold">
               <summary>Σύνοψη από την αρχική αξιολόγηση <span className="muted small">· {ax.author}</span></summary>
               <div className="body-text" style={{ marginTop: 8 }}>{ax.data.summary}</div>
@@ -598,7 +599,7 @@ async function PairSession({ x, user, sp }: { x: Slot; user: { id: string; role:
             {prev && (
               <div className="small">
                 <strong>Από την προηγούμενη ατομική ως σήμερα</strong>
-                <SinceLast memberId={m.id} prev={{ date: prev.date, by: prev.therapist, text: prev.text, slotId: prev.slotId, pair: prev.pair }} until={x.date < today ? x.date : today} untilAt={x.startsAt < now ? x.startsAt : now} />
+                <SinceLast journalDetail={seesJournalDetail(viewer)} memberId={m.id} prev={{ date: prev.date, by: prev.therapist, text: prev.text, slotId: prev.slotId, pair: prev.pair }} until={x.date < today ? x.date : today} untilAt={x.startsAt < now ? x.startsAt : now} />
               </div>
             )}
             <GoalWeekCard memberId={m.id} date={today} />

@@ -689,3 +689,17 @@ details.fold[open] > summary::before { transform: rotate(90deg); }
 .attn-main { font-size: .95rem; }
 .panel-head h2.with-icon { display: flex; align-items: center; gap: 12px; }
 .panel-head h2.with-icon .iconbox { width: 38px; height: 38px; }
+
+/* Σημειώματα για θεραπευτές (απόφαση 13/10, src/lib/access.ts): υδατογράφημα με όνομα και ώρα, χωρίς επιλογή/αντιγραφή,
+   χωρίς εκτύπωση. Η διαχείριση δεν έχει .wm-scope. */
+.wm-scope { --wm: var(--wm-l); }
+@media (prefers-color-scheme: dark) { .wm-scope { --wm: var(--wm-d); } }
+.wm-scope .note-text, .wm-scope .notesum-prev, .wm-scope .wm {
+  background-image: var(--wm); background-repeat: repeat; background-position: 0 0;
+  -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+}
+.wm-scope .note-text, .wm-scope .wm { padding: 6px 8px; border-radius: var(--radius-sm, 6px); }
+@media print {
+  .wm-scope .note-text > *, .wm-scope .notesum-prev, .wm-scope .wm > * { display: none !important; }
+  .wm-scope .note-text::before, .wm-scope .wm::before { content: "Τα σημειώματα δεν εκτυπώνονται."; font-style: italic; }
+}

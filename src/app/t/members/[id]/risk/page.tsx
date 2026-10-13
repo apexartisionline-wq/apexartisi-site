@@ -5,6 +5,7 @@ import { notFound, redirect } from "next/navigation";
 import { Icon } from "@/components/Icon";
 import { RiskClient } from "@/components/RiskClient";
 import { TwoPlans } from "@/components/TwoPlans";
+import { isPsychologist } from "@/lib/access";
 import { logAccess } from "@/lib/audit";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
@@ -37,6 +38,8 @@ export default async function RiskPage({ params, searchParams }: { params: Promi
   await logAccess(user.id, id, "risk_view");
   const [history, trigger] = await Promise.all([riskHistory(id), riskTrigger(id)]);
   const canWrite = canWriteRisk(user);
+  // Απαντήσεις και αιτιολόγηση: μόνο ψυχολόγος (απόφαση 13/10, src/lib/access.ts)· οι υπόλοιποι βλέπουν το επίπεδο.
+  const detail = isPsychologist(user);
   const current = history[0];
   const reasonFromTrigger = trigger ? ({ "κόκκινο κουμπί": "Κόκκινο κουμπί", υποτροπή: "Υποτροπή", "ανησυχία στο σημείωμα": "Ανησυχία στο σημείωμα", "σκέψεις στο ημερολόγιο": "Σκέψεις στο ημερολόγιο" } as Record<string, string>)[trigger.text] : undefined;
   const showForm = canWrite && (sp.new === "1" || !current || trigger);
@@ -92,7 +95,10 @@ export default async function RiskPage({ params, searchParams }: { params: Promi
       )}
       {!canWrite && trigger && <p className="muted small">Την κάνει ψυχολόγος.</p>}
 
-      {history.length > 0 && (
+      {history.length > 0 && !detail && (
+        <p className="muted small">{history.length} {history.length === 1 ? "αξιολόγηση" : "αξιολογήσεις"} · τις απαντήσεις και την αιτιολόγηση τις βλέπει ψυχολόγος.</p>
+      )}
+      {history.length > 0 && detail && (
         <>
           <h2>Ιστορικό</h2>
           {history.map((h) => (

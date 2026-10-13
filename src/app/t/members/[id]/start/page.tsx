@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { isPsychologist } from "@/lib/access";
 import { logAccess } from "@/lib/audit";
 import { requireRole } from "@/lib/auth";
 import { dec, enc } from "@/lib/crypto";
@@ -140,7 +141,7 @@ export default async function IntakePage({ params, searchParams }: { params: Pro
                 ))}
               </details>
             )}
-            {c && dec(c.note) && <p className="small" style={{ whiteSpace: "pre-wrap" }}>{dec(c.note)}</p>}
+            {c && dec(c.note) && (!(s.key === "assessment" || s.key === "risk") || isPsychologist(user)) && <p className="small" style={{ whiteSpace: "pre-wrap" }}>{dec(c.note)}</p>}
             {s.key === "assessment" || s.key === "risk" ? (
               <Link className="btn" href={`/t/members/${id}/${s.key}`}>{c ? "Άνοιγμα" : "Ξεκίνα"} ›</Link>
             ) : allowed ? (

@@ -3,6 +3,7 @@ import { FolderTabs } from "@/components/FolderTabs";
 import { NoteText } from "@/components/NoteText";
 import { notFound } from "next/navigation";
 import { PrintButton } from "@/components/PrintButton";
+import { seesMonthFolder } from "@/lib/access";
 import { logAccess } from "@/lib/audit";
 import { requireRole } from "@/lib/auth";
 import { dec } from "@/lib/crypto";
@@ -18,6 +19,8 @@ import { formatDate, formatWhen, localParts } from "@/lib/time";
 // «τι έκανε αυτός ο άνθρωπος αυτόν τον μήνα» — εικόνα, ανασκόπηση, σημειώματα, στόχοι, μήνυμα.
 export default async function MonthFolder({ params }: { params: Promise<{ id: string; cycleId: string }> }) {
   const user = await requireRole("THERAPIST", "ADMIN");
+  // Ο φάκελος μήνα (με λήψη PDF) είναι της διαχείρισης (απόφαση 13/10, src/lib/access.ts).
+  if (!seesMonthFolder(user)) notFound();
   const { id, cycleId } = await params;
   const member = await prisma.user.findFirst({ where: { id, role: "MEMBER" }, select: { id: true, name: true } });
   const cycle = await prisma.cycle.findFirst({

@@ -5,6 +5,7 @@ import { FolderTabs } from "@/components/FolderTabs";
 import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
 import { logAccess } from "@/lib/audit";
+import { seesJournalDetail } from "@/lib/access";
 import { requireRole } from "@/lib/auth";
 import { cyclePicture, cycleReviews, cycleSummaryData, lastFinishedCycle, saveCycleReview } from "@/lib/cycle-review";
 import { prisma } from "@/lib/db";
@@ -115,7 +116,7 @@ export default async function CyclePage({ params, searchParams }: { params: Prom
               <li>Νηφαλιότητα: {data.recorded.soberDays !== null ? `${data.recorded.soberDays} μέρες` : "—"}{data.recorded.relapses > 0 && ` · ${data.recorded.relapses} ${data.recorded.relapses === 1 ? "αλλαγή" : "αλλαγές"} ημερομηνίας στον κύκλο`}</li>
               {data.recorded.usedDays.length > 0 && <li>Έγραψε ότι έκανε χρήση: {data.recorded.usedDays.map(formatDate).join(", ")}</li>}
               {data.recorded.selfHarmDays.length > 0 && <li>Σκέψεις να κάνει κακό στον εαυτό του: {data.recorded.selfHarmDays.map(formatDate).join(", ")}</li>}
-              {data.recorded.wins.length > 0 && <li>Νίκες: {data.recorded.wins.map((w) => `«${w.text}» (${formatDate(w.date)})`).join(" · ")}</li>}
+              {seesJournalDetail(user) && data.recorded.wins.length > 0 && <li>Νίκες: {data.recorded.wins.map((w) => `«${w.text}» (${formatDate(w.date)})`).join(" · ")}</li>}
             </ul>
             <div className="muted">Πηγή: {data.recorded.source}. Οι ελλείψεις (μέρες χωρίς εγγραφή) δεν ερμηνεύονται.</div>
           </details>

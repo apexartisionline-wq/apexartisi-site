@@ -7,6 +7,8 @@ const ACTION: Record<string, string> = {
   safety_plan_edit: "άλλαξε πλάνο ασφάλειας",
   help_view: "άνοιξε κόκκινο κουμπί",
   journal_view: "άνοιξε ημερολόγιο",
+  journal_stats_view: "είδε αριθμούς ημερολογίου",
+  assessment_status_view: "είδε κατάσταση αρχικής αξιολόγησης",
   notes_view: "άνοιξε σημειώματα",
   session_note_save: "έγραψε σημείωμα ατομικής",
   intake_view: "άνοιξε έναρξη συνεργασίας",

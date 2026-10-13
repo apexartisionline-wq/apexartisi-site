@@ -12,12 +12,13 @@ const dates = (ds: string[]) => ds.map(formatDate).join(", ");
  * «Από την προηγούμενη ατομική ως σήμερα»: το τελευταίο σημείωμα, οι ομάδες και οι απογραφές
  * ανάμεσα στις δύο ατομικές — για τον θεραπευτή που μπαίνει (οι θεραπευτές εναλλάσσονται).
  */
-export async function SinceLast({ memberId, prev, until, untilAt, compact = false }: {
+export async function SinceLast({ memberId, prev, until, untilAt, compact = false, journalDetail = false }: {
   memberId: string;
   prev: { date: string; by: string; text: string; slotId: string; pair: boolean } | null;
   until: string;
   untilAt: Date; // η ώρα της ατομικής (ή τώρα, αν δεν έχει γίνει ακόμα)
   compact?: boolean;
+  journalDetail?: boolean; // μόνο η διαχείριση βλέπει κείμενα του ημερολογίου (νίκες) — απόφαση 13/10
 }) {
   if (!prev) return null;
   const d = await sinceLast(memberId, prev.date, until, untilAt);
@@ -77,11 +78,11 @@ export async function SinceLast({ memberId, prev, until, untilAt, compact = fals
         {goalTotal > 0 && (
           <li><strong>Στόχος εβδομάδας:</strong> {GOAL_CHECK.YES} {j.goal.YES} · {GOAL_CHECK.PARTLY} {j.goal.PARTLY} · {GOAL_CHECK.NO} {j.goal.NO}</li>
         )}
-        {j.wins.length > 0 && (
+        {journalDetail && j.wins.length > 0 && (
           <li><strong>Νίκες:</strong> {j.wins.map((w) => `«${w.text}» (${formatDate(w.date)})`).join(" · ")}</li>
         )}
       </ul>
-      <Link className="small" href={`/t/members/${memberId}/journal`}>Όλες οι απογραφές, μέρα-μέρα ›</Link>
+      <Link className="small" href={`/t/members/${memberId}/journal`}>{journalDetail ? "Όλες οι απογραφές, μέρα-μέρα ›" : "Απογραφές (αριθμοί) ›"}</Link>
     </div>
   );
 }
