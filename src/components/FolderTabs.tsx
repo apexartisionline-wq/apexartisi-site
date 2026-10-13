@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-export type FolderTab = "glance" | "notes" | "journal" | "history" | "safety" | "month";
+export type FolderTab = "glance" | "notes" | "journal" | "history" | "safety" | "month" | "assignments";
 
 const TABS: { key: FolderTab; label: string; path: string }[] = [
   { key: "glance", label: "Με μια ματιά", path: "" },
@@ -8,7 +8,8 @@ const TABS: { key: FolderTab; label: string; path: string }[] = [
   { key: "journal", label: "Απογραφές", path: "/journal" },
   { key: "history", label: "Ιστορικό", path: "/assessment" },
   { key: "safety", label: "Ασφάλεια", path: "/risk" },
-  { key: "month", label: "Μήνας", path: "/cycle" },
+  { key: "month", label: "Μήνες", path: "/cycle" },
+  { key: "assignments", label: "Εργασίες", path: "/assignments" },
 ];
 
 // Καρτέλες του φακέλου (σχόλιο θεραπεύτριας 11/10: «να μη χανόμαστε στην πληροφορία»).

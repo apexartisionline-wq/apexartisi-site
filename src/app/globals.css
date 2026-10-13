@@ -575,3 +575,9 @@ details.fold > summary { cursor: pointer; font-weight: 600; list-style: none; di
 details.fold > summary::-webkit-details-marker { display: none; }
 details.fold > summary::before { content: "›"; display: inline-block; transition: transform .15s; color: var(--muted); }
 details.fold[open] > summary::before { transform: rotate(90deg); }
+/* Στο κινητό η κατάσταση μιας ενέργειας τυλίγεται κάτω από τον τίτλο αντί να βγαίνει έξω από την οθόνη. */
+@media (max-width: 600px) {
+  .linkrow { flex-wrap: wrap; }
+  .linkrow .pill { white-space: normal; margin-left: 56px; }
+  .kv { flex-wrap: wrap; }
+}
