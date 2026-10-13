@@ -40,6 +40,11 @@ export const noteFormSchema = z
     journaling: pick(JOURNALING).optional(), // «Γράφει απογραφές;»
     felt: text(2000),
     suggested: text(1000),
+    // Συνέχεια (13/10): τι συμφωνήθηκε ως επόμενο βήμα, τι έμεινε ανοιχτό, τι χρειάζεται να ξέρει ο επόμενος θεραπευτής.
+    // Παλιά σημειώματα έχουν μόνο «Τι προτείναμε»· δεν παρουσιάζεται ως συμφωνία του μέλους.
+    agreed: text(1000),
+    openIssues: text(1000),
+    handover: text(1500),
     sober: z.boolean(),
     newSoberSince: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     safeOk: z.boolean(),
@@ -81,6 +86,9 @@ export function composeNote(d: NoteForm): string {
   add("Γράφει απογραφές", d.journaling ?? "");
   add("Πώς ήταν να είμαι μαζί του σήμερα", d.felt);
   add("Τι προτείναμε", d.suggested);
+  add("Τι συμφωνήθηκε ως επόμενο βήμα", d.agreed);
+  add("Τι έμεινε ανοιχτό", d.openIssues);
+  add("Για τον επόμενο θεραπευτή", d.handover);
   lines.push(d.sober ? "Νηφαλιότητα από την προηγούμενη φορά: ναι." : `Νηφαλιότητα από την προηγούμενη φορά: όχι· νέα ημερομηνία νηφαλιότητας ${d.newSoberSince}.`);
   lines.push(d.safeOk ? "Ανησυχία για την ασφάλεια: Όχι." : `Ανησυχία για την ασφάλεια: Ναι — ${d.safetyText || "βλ. προβληματισμό"}`);
   add("Προβληματισμός προς τη θεραπευτική ομάδα", d.concern);
@@ -114,4 +122,10 @@ export function soberDays(since: string | null | undefined, today: string): numb
   const d = (x: string) => Date.UTC(+x.slice(0, 4), +x.slice(5, 7) - 1, +x.slice(8, 10));
   const n = Math.round((d(today) - d(since)) / 86_400_000);
   return n >= 0 ? n : null;
+}
+
+/** Τα πεδία συνέχειας ενός σημειώματος (κενά στα παλιά). */
+export type Handover = { suggested: string; agreed: string; openIssues: string; handover: string };
+export function handoverOf(d: Partial<NoteForm> | null | undefined, fallbackNext = ""): Handover {
+  return { suggested: d?.suggested ?? fallbackNext, agreed: d?.agreed ?? "", openIssues: d?.openIssues ?? "", handover: d?.handover ?? "" };
 }

@@ -28,16 +28,19 @@ describe("Therapair: ποτέ στοιχεία του άλλου", () => {
     expect(hideOther("η Λένα τον ρώτησε· όπως λένε, της Λένας", lena)).toBe("Το άλλο μέλος τον ρώτησε· όπως λένε, του άλλου μέλους");
   });
   it("το σημείωμα δεν έχει το όνομα του άλλου", () => {
-    const d = pairSideSchema.parse({ connected: "Λίγο", emergedText: "Ο Νίκος μίλησε για τον πατέρα του και εκείνη συγκινήθηκε", outcome: "Νιώθει λιγότερο μόνη" });
+    const d = pairSideSchema.parse({ sober: true, safeOk: true, connected: "Λίγο", emergedText: "Ο Νίκος μίλησε για τον πατέρα του και εκείνη συγκινήθηκε", outcome: "Νιώθει λιγότερο μόνη" });
     const t = composePairNote(d, other);
     expect(t).not.toContain("Νίκ");
     expect(t).toContain("Συνδέθηκε με το άλλο μέλος: Λίγο");
   });
   it("χρειάζεται τι εμφανίστηκε, εκτός αν δεν ήρθε", () => {
     expect(pairSideSchema.safeParse({}).success).toBe(false);
-    expect(pairSideSchema.safeParse({ came: false }).success).toBe(true);
+    expect(pairSideSchema.safeParse({ came: false, sober: true, safeOk: true }).success).toBe(true);
+    // Χωρίς απάντηση για νηφαλιότητα ή ανησυχία δεν αποθηκεύεται (καμία προεπιλογή, 13/10).
+    expect(pairSideSchema.safeParse({ outcome: "x", safeOk: true }).success).toBe(false);
+    expect(pairSideSchema.safeParse({ outcome: "x", sober: true }).success).toBe(false);
   });
   it("ενημέρωση ομάδας όταν αλλάζει η ασφάλεια", () => {
-    expect(pairFlags(pairSideSchema.parse({ outcome: "x", safeOk: false, safetyText: "ενημέρωσα" })).notify).toBe(true);
+    expect(pairFlags(pairSideSchema.parse({ outcome: "x", sober: true, safeOk: false, safetyText: "ενημέρωσα" })).notify).toBe(true);
   });
 });

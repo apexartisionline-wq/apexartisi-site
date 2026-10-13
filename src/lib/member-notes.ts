@@ -2,6 +2,7 @@ import "server-only";
 import { dec } from "./crypto";
 import { latestProfile } from "./assessment-db";
 import { prisma } from "./db";
+import { type Handover, handoverOf, type NoteForm } from "./note-form";
 import { hideOther, nameVariants } from "./pair-note";
 import { vocative } from "./vocative";
 
@@ -21,6 +22,7 @@ export type MemberNote = {
   riskChange: string | null;
   usedSince: string | null;
   createdAt: Date;
+  handover: Handover; // συνέχεια (13/10): κενά στα παλιά σημειώματα
 };
 
 type Opts = { before?: Date; since?: Date; excludeSlot?: string; take?: number };
@@ -29,6 +31,7 @@ export async function memberNotes(memberId: string, o: Opts = {}): Promise<Membe
   const startsAt = { ...(o.before ? { lt: o.before } : {}), ...(o.since ? { gte: o.since } : {}) };
   const slotWhere = { ...(o.excludeSlot ? { id: { not: o.excludeSlot } } : {}), ...(o.before || o.since ? { startsAt } : {}) };
   const sel = { therapist: { select: { id: true, name: true } }, slot: { select: { id: true, date: true, hour: true, startsAt: true } } } as const;
+  const parsed = (raw: string): Partial<NoteForm> | null => { if (!raw) return null; try { return JSON.parse(dec(raw)) as Partial<NoteForm>; } catch { return null; } };
   const [single, pair] = await Promise.all([
     // Στα Therapair δεν διαβάζουμε το παλιό κοινό σημείωμα θέσης (θα είχε και στοιχεία του άλλου).
     prisma.sessionNote.findMany({
@@ -66,6 +69,7 @@ export async function memberNotes(memberId: string, o: Opts = {}): Promise<Membe
     riskChange: n.riskChange,
     usedSince: n.usedSince,
     createdAt: n.createdAt,
+    handover: (() => { const h = handoverOf(isPair ? null : parsed(n.data), isPair ? safe(n.id, dec(n.nextStep)) : dec(n.nextStep)); return isPair ? h : h; })(),
   }));
   rows.sort((a, b) => b.startsAt.getTime() - a.startsAt.getTime());
   return o.take ? rows.slice(0, o.take) : rows;

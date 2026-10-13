@@ -28,9 +28,9 @@ export const pairSideSchema = z
     positives: text(1000),
     journaling: pick(JOURNALING).optional(),
     suggested: text(1000),
-    sober: z.boolean().default(true),
+    sober: z.boolean(), // χωρίς προεπιλογή (13/10): ο θεραπευτής το διαλέγει
     newSoberSince: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-    safeOk: z.boolean().default(true),
+    safeOk: z.boolean(), // χωρίς προεπιλογή (13/10)
     safetyText: text(2000), // «Ανησυχία: Ναι» → τι ανησυχεί και ποιος ενημερώθηκε
     absentText: text(1000), // «Δεν ήρθε» → τι έγινε / τι κάνουμε
     concern: text(3000),

@@ -6,6 +6,7 @@ import { JOURNALING, PRESENTED } from "@/lib/note-form";
 import { ACCEPTED_HELP, CONNECTED, findOther, nameVariants, type PairSide, pairSideSchema, STANCE } from "@/lib/pair-note";
 import { vocative } from "@/lib/vocative";
 import { useNoteForm } from "./useNoteForm";
+import { SaveBar } from "@/components/SaveBar";
 
 type Member = { id: string; name: string };
 type Props = {
@@ -17,13 +18,15 @@ type Props = {
   themeDetails?: ThemeDetail[];
   cameDefault: Record<string, boolean>; // πάτησε «Σύνδεση»;
   version: string; // πότε άλλαξε τελευταία φορά (για να μη σβήσει κάποιος αλλαγή άλλης συσκευής)
+  savedAt?: string;
 };
 
-const fresh = (came: boolean): Partial<PairSide> => ({ came: came ? true : undefined, sober: true, safeOk: true, notify: false });
+// Νηφαλιότητα και ανησυχία χωρίς προεπιλογή (13/10): τα διαλέγει ο θεραπευτής για κάθε μέλος.
+const fresh = (came: boolean): Partial<PairSide> => ({ came: came ? true : undefined, notify: false });
 
 // Σημειωματάριο Therapair: κάθε ερώτηση με τα δύο ονόματα δίπλα-δίπλα (στο κινητό το ένα κάτω από το άλλο).
 // Αποθηκεύεται ως ξεχωριστό σημείωμα στον φάκελο του καθενός.
-export function PairNoteClient({ action, slotId, members, initial, themeForms, themeDetails = [], version, cameDefault }: Props) {
+export function PairNoteClient({ action, slotId, members, initial, themeForms, themeDetails = [], version, cameDefault, savedAt }: Props) {
   const [m1, m2] = members;
   const [d, setD] = useState<Record<string, Partial<PairSide>>>({
     // «Ήρθε»: «Ναι» μόνο αν πάτησε «Σύνδεση» ή αν υπάρχει ήδη σημείωμα· αλλιώς το διαλέγει ο θεραπευτής.
@@ -94,6 +97,10 @@ export function PairNoteClient({ action, slotId, members, initial, themeForms, t
     let msg = "";
     const undecided = members.find((m) => d[m.id].came === undefined);
     if (undecided) msg = `${first(undecided)}: διάλεξε «Ήρθε» ή «Δεν ήρθε».`;
+    const noSober = msg ? undefined : members.find((m) => d[m.id].came !== false && d[m.id].sober === undefined);
+    if (noSober) msg = `${first(noSober)}: απάντησε αν έμεινε νηφάλιο από την προηγούμενη φορά.`;
+    const noSafe = msg ? undefined : members.find((m) => d[m.id].safeOk === undefined);
+    if (noSafe) msg = `${first(noSafe)}: απάντησε αν υπάρχει ανησυχία για την ασφάλεια.`;
     for (const m of msg ? [] : members) {
       const r = pairSideSchema.safeParse(outOf(d[m.id]));
       if (!r.success) {
@@ -118,7 +125,15 @@ export function PairNoteClient({ action, slotId, members, initial, themeForms, t
     }
     setProblem(msg);
     if (msg) e.preventDefault();
+    else setSubmitting(true);
   };
+  const [submitting, setSubmitting] = useState(false);
+  useEffect(() => {
+    if (!touched || submitting) return;
+    const h = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ""; };
+    window.addEventListener("beforeunload", h);
+    return () => window.removeEventListener("beforeunload", h);
+  }, [touched, submitting]);
 
   const first = (m: Member) => m.name.split(" ")[0];
   // Μία ερώτηση, δύο στήλες: μία για κάθε μέλος.
@@ -158,9 +173,9 @@ export function PairNoteClient({ action, slotId, members, initial, themeForms, t
   const text = (m: Member, k: "presentedText" | "emergedText" | "outcome" | "positives" | "suggested" | "concern" | "safetyText" | "absentText", label: string, ph = "", rows = 2) => (
     <textarea aria-label={`${label} — ${first(m)}`} placeholder={ph} rows={rows} style={{ minHeight: rows * 24 + 20, marginTop: 8 }} value={(d[m.id][k] as string | undefined) ?? ""} onChange={(e) => set(m.id, k, e.target.value as never)} />
   );
-  const pick2 = (m: Member, label: string, opts: [string, boolean][], k: "came" | "safeOk") => (
+  const pick2 = (m: Member, label: string, opts: [string, boolean][], k: "came" | "safeOk" | "sober") => (
     <div className="row spread" style={{ flexWrap: "wrap", gap: 6, marginTop: 6 }}>
-      <span>{label}</span>
+      <span>{label}{d[m.id][k] === undefined && <span className="muted small"> · δεν απαντήθηκε</span>}</span>
       <span className="chips" role="group" aria-label={`${label} — ${first(m)}`}>
         {opts.map(([l, v]) => <button key={l} type="button" className="chip" aria-pressed={d[m.id][k] === v} onClick={() => set(m.id, k, v as never)}>{l}</button>)}
       </span>
@@ -224,7 +239,7 @@ export function PairNoteClient({ action, slotId, members, initial, themeForms, t
         <legend>Νηφαλιότητα και ασφάλεια</legend>
         {both((m) => (
           <>
-            {d[m.id].came !== false && sw(m, "sober", "Νηφαλιότητα από την προηγούμενη φορά")}
+            {d[m.id].came !== false && pick2(m, "Νηφαλιότητα από την προηγούμενη φορά;", [["Ναι", true], ["Όχι", false]], "sober")}
             {d[m.id].came !== false && d[m.id].sober === false && (
               <label style={{ marginTop: 6 }}>Νέα ημερομηνία νηφαλιότητας
                 <input type="date" value={d[m.id].newSoberSince ?? ""} onChange={(e) => set(m.id, "newSoberSince", e.target.value as never)} />
@@ -250,11 +265,9 @@ export function PairNoteClient({ action, slotId, members, initial, themeForms, t
           </>
         ))}
       </fieldset>
-      <fieldset>
-        {problem && <div className="error" role="alert" style={{ marginBottom: 10 }}>Δεν αποθηκεύτηκε ακόμα: {problem} Ό,τι έγραψες είναι εδώ.</div>}
-        <button className="primary" type="submit" style={{ width: "100%", padding: 14 }}>Αποθήκευση (δύο σημειώματα)</button>
-        <p className="muted small" style={{ margin: "8px 0 0" }}>Αποθηκεύεται με όνομα και ώρα· κάθε αλλαγή κρατά την προηγούμενη μορφή.</p>
-      </fieldset>
+      {problem && <div className="error" role="alert" style={{ marginTop: 10 }}>Δεν αποθηκεύτηκε: {problem} Ό,τι έγραψες είναι εδώ.</div>}
+      <SaveBar dirty={touched} problem={problem} savedAt={savedAt} label="Αποθήκευση (δύο σημειώματα)" />
+      <p className="muted small" style={{ margin: "6px 0 0" }}>Αποθηκεύεται με όνομα και ώρα· κάθε αλλαγή κρατά την προηγούμενη μορφή.</p>
     </form>
   );
 }
