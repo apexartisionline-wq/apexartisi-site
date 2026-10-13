@@ -5,7 +5,8 @@ import { prisma } from "@/lib/db";
 import { keepHistory } from "@/lib/history";
 import { groupStarted, groupsOn } from "@/lib/program";
 import { getSettings } from "@/lib/settings";
-import { addDays, daysBetween, formatDate, formatHour, localParts } from "@/lib/time";
+import { countPresence, PRESENCE_LABEL, sessionPresence, type Presence } from "@/lib/presence";
+import { addDays, daysBetween, formatDate, formatTime, localParts } from "@/lib/time";
 import styles from "./Consistency.module.css";
 
 // Η Εύα μπορεί να διορθώσει μια παρουσία (π.χ. μπήκε στην ομάδα χωρίς το κουμπί του app).
@@ -42,14 +43,6 @@ const ago = (d: string, today: string) => {
   return n <= 0 ? "σήμερα" : n === 1 ? "χθες" : `πριν από ${n} μέρες`;
 };
 
-type SessionState = "came" | "absent_note" | "no_note" | "future";
-const SESSION_STATE: Record<SessionState, { word: string; source: string; tone: string }> = {
-  came: { word: "ήρθε", source: "μετρά «ήρθε» (κουμπί ή σημείωμα)", tone: "ok" },
-  absent_note: { word: "δεν ήρθε", source: "σημείωμα χωρίς «Ήρθε»", tone: "yellow" },
-  no_note: { word: "δεν ήρθε", source: "δεν πάτησε «Μπες» και δεν έχει γραφτεί σημείωμα ακόμα", tone: "yellow" },
-  future: { word: "μελλοντική", source: "δεν έχει γίνει ακόμα · δεν μετράει", tone: "grey" },
-};
-
 /*
  * «Συνέπεια»: σύντομη λίστα ανά μέλος, με τις λεπτομέρειες σε άνοιγμα.
  * Οι μετρήσεις είναι ΑΚΡΙΒΩΣ οι ίδιες με πριν και με memberConsistency (src/lib/handover.ts) / cycleInfo (src/lib/member.ts):
@@ -66,7 +59,7 @@ const SESSION_STATE: Record<SessionState, { word: string; source: string; tone: 
  *     οι παλιές μέρες υπολογίζονται με το νέο. Παρουσίες σε μέρα που σήμερα δεν έχει ομάδα δεν μετράνε.
  *  3. Στα ημερολόγια ο παρονομαστής περιλαμβάνει και τη σημερινή μέρα, ενώ η σημερινή εγγραφή γράφεται μόνο μετά την ώρα
  *     του ημερολογίου (journalDate)· μέχρι τότε όλοι φαίνονται με μία μέρα «λιγότερη».
- *  4. Ατομική που πέρασε χωρίς «Μπες» και χωρίς σημείωμα μετράει ήδη «δεν ήρθε», πριν γραφτεί το σημείωμα.
+ *  4. Ατομική που πέρασε χωρίς «Μπες» και χωρίς σημείωμα ΔΕΝ μετράει ως «ήρθε» (κρατιέται στον παρονομαστή) — εμφανίζεται πια ως «χωρίς καταγραφή», όχι ως απουσία.
  *  5. Μικροδιαφορά: cycleInfo μετρά «έγινε» με startsAt <= τώρα, εδώ και στο memberConsistency με startsAt < τώρα.
  */
 export async function Consistency({
@@ -143,11 +136,13 @@ export async function Consistency({
       .sort((a, b) => a.slot.startsAt.getTime() - b.slot.startsAt.getTime())
       .map((b) => {
         const hasNote = Boolean(b.slot.note) || b.slot.pairNotes.some((n) => n.memberId === m.id);
-        const state: SessionState = b.slot.startsAt >= now ? "future" : b.joinedAt ? "came" : hasNote ? "absent_note" : "no_note";
-        return { id: b.id, date: b.slot.date, hour: b.slot.hour, pair: b.slot.kind === "PAIR", state };
+        const state: Presence = sessionPresence({ startsAt: b.slot.startsAt, endsAt: new Date(b.slot.startsAt.getTime() + (b.slot.kind === "PAIR" ? s.pairMinutes : s.sessionMinutes) * 60_000), now, joinedAt: b.joinedAt, hasNote });
+        return { id: b.id, date: b.slot.date, startsAt: b.slot.startsAt, pair: b.slot.kind === "PAIR", state, joinedAt: b.joinedAt };
       });
     const past = sessions.filter((x) => x.state !== "future");
-    const sessionsDone = past.filter((x) => x.state === "came").length;
+    const counts = countPresence(sessions.map((x) => x.state));
+    // «Ήρθε» = επιβεβαιωμένη παρουσία + πάτησε «Μπες» (ίδιος κανόνας με πριν).
+    const sessionsDone = counts.counted;
     const journalDays = Math.max(0, daysBetween(start, today) + 1);
     const journalDates = m.journal.filter((j) => j.date >= start).map((j) => j.date).sort();
 
@@ -171,7 +166,8 @@ export async function Consistency({
       sessionsDone,
       sessionsTotal: past.length,
       sessionsMissed: past.length - sessionsDone,
-      noNote: past.filter((x) => x.state === "no_note").length,
+      counts,
+      noNote: counts.noRecord,
       future: sessions.length - past.length,
       journal: journalDates.length,
       journalDates,
@@ -213,7 +209,7 @@ export async function Consistency({
         </div>
         <nav className="head-actions" aria-label="Περίοδος">
           {[2, 4, 8].map((w) => (
-            <Link key={w} href={href({ weeks: w })} className={`btn${w === weeks ? " primary" : ""}`} aria-current={w === weeks ? "page" : undefined}>
+            <Link key={w} href={href({ weeks: w })} className={`btn${w === weeks ? " primary" : " outline"}`} aria-current={w === weeks ? "page" : undefined}>
               {w} εβδομάδες
             </Link>
           ))}
@@ -231,13 +227,14 @@ export async function Consistency({
         <details className="fold">
           <summary>Τι σημαίνει κάθε ένδειξη</summary>
           <ul className={styles.legend}>
-            <li><b>ήρθε</b> — παρουσία. Ομάδα: «Μπες στην ομάδα» ή διόρθωση της διαχείρισης. Ατομική: μετρά «ήρθε» (κουμπί ή σημείωμα «Ήρθε»).</li>
-            <li><b>δεν ήρθε</b> — απουσία: ομάδα που έγινε χωρίς παρουσία του μέλους, ή ατομική που πέρασε χωρίς «ήρθε».</li>
-            <li><b>καμία καταγραφή εκείνη τη μέρα</b> — μέρα ομάδας όπου δεν καταγράφηκε κανένα μέλος. Μετράει όπως πάντα (έγινε, δεν ήρθε), αλλά ίσως δεν κρατήθηκε παρουσία.</li>
-            <li><b>χωρίς σημείωμα ακόμα</b> — ατομική που πέρασε χωρίς «Μπες» και χωρίς σημείωμα. Μετράει «δεν ήρθε» μέχρι να γραφτεί σημείωμα «Ήρθε».</li>
+            <li><b>ήρθε</b> (επιβεβαιωμένη παρουσία) — ατομική με σημείωμα «Ήρθε».</li>
+            <li><b>πάτησε «Μπες»</b> — καταγράφηκε το πάτημα του κουμπιού, χωρίς ακόμα σημείωμα. Δεν είναι επιβεβαίωση συμμετοχής από το Zoom· μετράει στο «ήρθε» όπως πάντα.</li>
+            <li><b>δεν ήρθε</b> (επιβεβαιωμένη απουσία) — μόνο όταν υπάρχει σημείωμα «Δεν ήρθε».</li>
+            <li><b>χωρίς καταγραφή</b> — πέρασε η ώρα, ούτε «Μπες» ούτε σημείωμα. Δεν είναι επιβεβαιωμένη απουσία· στον αριθμό «ήρθε» δεν μετράει.</li>
+            <li><b>Ομάδες</b> — «καταγράφηκε παρουσία» (πάτησε «Μπες στην ομάδα» ή το σημείωσε η διαχείριση) ή «χωρίς καταγραφή παρουσίας». Δεν υπάρχει επιβεβαιωμένη απουσία ομάδας. Αν δεν καταγράφηκε κανένα μέλος εκείνη τη μέρα, ίσως δεν κρατήθηκε παρουσία.</li>
             <li><b>δεν είχε ατομική</b> — καμία ατομική στο διάστημα· δεν είναι απουσία.</li>
-            <li><b>μελλοντική</b> — δεν έχει γίνει ακόμα (επόμενες 7 μέρες)· δεν μετράει.</li>
-            <li><b>Χαμηλότερη συμμετοχή</b> — ομάδες κάτω από {LOW_GROUPS}% ή τουλάχιστον μία ατομική χωρίς «ήρθε». Είναι φίλτρο, όχι αξιολόγηση.</li>
+            <li><b>μελλοντική</b> — δεν έχει φτάσει η ώρα (επόμενες 7 μέρες)· δεν μετράει.</li>
+            <li><b>Χαμηλότερη συμμετοχή</b> — ομάδες κάτω από {LOW_GROUPS}% ή τουλάχιστον μία ατομική χωρίς «ήρθε» (δεν σημαίνει απουσία). Είναι φίλτρο, όχι αξιολόγηση.</li>
           </ul>
         </details>
       </section>
@@ -264,6 +261,8 @@ export async function Consistency({
             {all.length === 0 ? "Δεν υπάρχουν ενεργά μέλη." : <>Κανένα μέλος με χαμηλότερη συμμετοχή σε αυτό το διάστημα. <Link href={href({ low: false })}>Δείξε όλα τα μέλη</Link></>}
           </p>
         ) : (
+          <>
+          <div className={styles.head} aria-hidden="true"><span>Μέλος</span><span>Ομάδες</span><span>Ατομικές</span><span>Ημερολόγια</span><span>Τελευταία δραστηριότητα</span></div>
           <ul className={styles.list}>
             {rows.map((r) => (
               <li key={r.m.id}>
@@ -271,22 +270,22 @@ export async function Consistency({
                   <summary>
                     <span className={styles.sum}>
                       <span className={styles.name}>
-                        {r.m.name}
+                        <Link href={folder(r.m.id)} className={styles.namelink}>{r.m.name}</Link>
                         {r.notStarted && <span className="pill grey">ξεκινά {formatDate(r.m.programStartDate!)}</span>}
                       </span>
                       <span className={styles.metric}>
                         <span className={styles.mlabel}>Ομάδες</span>
                         {r.groupDays.length === 0 ? <span className="muted">καμία ακόμα</span> : (
-                          <span><b>{r.groups}/{r.groupDays.length}</b> <span className={styles.unit}>ήρθε / έγιναν</span></span>
+                          <span><b>{r.groups}/{r.groupDays.length}</b> <span className={styles.unit}>ήρθε / ημέρες ομάδας</span></span>
                         )}
                         {r.groupPct !== null && r.groupPct < LOW_GROUPS && <span className="pill yellow">κάτω από {LOW_GROUPS}%</span>}
                       </span>
                       <span className={styles.metric}>
                         <span className={styles.mlabel}>Ατομικές</span>
                         {r.sessionsTotal === 0 ? <span className="muted">δεν είχε ατομική</span> : (
-                          <span><b>{r.sessionsDone}/{r.sessionsTotal}</b> <span className={styles.unit}>ήρθε / έγιναν</span></span>
+                          <span><b>{r.sessionsDone}/{r.sessionsTotal}</b> <span className={styles.unit}>ήρθε / πέρασε η ώρα τους</span></span>
                         )}
-                        {r.noNote > 0 && <span className={styles.unit}>{r.noNote} χωρίς σημείωμα ακόμα</span>}
+                        {r.noNote > 0 && <span className={styles.unit}>{r.noNote} χωρίς καταγραφή</span>}
                       </span>
                       <span className={styles.metric}>
                         <span className={styles.mlabel}>Ημερολόγια</span>
@@ -313,7 +312,7 @@ export async function Consistency({
                     {r.groupDays.length === 0 ? <p className="empty">Δεν υπήρξε μέρα ομάδας στο διάστημα.</p> : (
                       <ul className={styles.days}>
                         {r.groupDays.map((d) => {
-                          const word = d.present ? "ήρθε" : d.noneRecorded ? "δεν ήρθε · καμία καταγραφή εκείνη τη μέρα" : "δεν ήρθε";
+                          const word = d.present ? "καταγράφηκε παρουσία" : d.noneRecorded ? "χωρίς καταγραφή · κανένα μέλος δεν καταγράφηκε εκείνη τη μέρα" : "χωρίς καταγραφή παρουσίας";
                           const tone = d.present ? styles.ok : d.noneRecorded ? styles.grey : styles.no;
                           return (
                             <li key={d.date}>
@@ -334,18 +333,18 @@ export async function Consistency({
                         })}
                       </ul>
                     )}
-                    {r.unrecorded > 0 && <p className="hint" style={{ margin: "4px 0 0" }}>{r.unrecorded} {r.unrecorded === 1 ? "μέρα" : "μέρες"} χωρίς καμία καταγραφή από κανένα μέλος (μετράνε ως «δεν ήρθε»).</p>}
+                    {r.unrecorded > 0 && <p className="hint" style={{ margin: "4px 0 0" }}>{r.unrecorded} {r.unrecorded === 1 ? "μέρα" : "μέρες"} χωρίς καμία καταγραφή από κανένα μέλος· δεν είναι επιβεβαιωμένη απουσία, αλλά στον αριθμό «ήρθε» δεν μετράνε.</p>}
 
                     <h3>Ατομικές και Therapair</h3>
                     {r.sessions.length === 0 ? <p className="empty">Δεν είχε ατομική σε αυτό το διάστημα ούτε τις επόμενες 7 μέρες.</p> : (
                       <ul className={styles.sessions}>
                         {r.sessions.map((x) => {
-                          const st = SESSION_STATE[x.state];
+                          const st = PRESENCE_LABEL[x.state];
                           return (
                             <li key={x.id}>
-                              <span>{formatDate(x.date)}, {formatHour(x.hour)} · {x.pair ? "Therapair" : "ατομική"}</span>
-                              <span className={`pill ${st.tone}`}>{x.state === "came" ? "✓ " : ""}{st.word}</span>
-                              <span className={styles.unit}>{st.source}</span>
+                              <span>{formatDate(x.date)}, {formatTime(x.startsAt)} · {x.pair ? "Therapair" : "ατομική"}</span>
+                              <span className={`pill ${st.tone === "accent" ? "" : st.tone}`}>{x.state === "present_note" ? "✓ " : ""}{st.word}</span>
+                              <span className={styles.unit}>{st.source}{x.joinedAt && x.state === "join_clicked" ? ` · ${formatTime(x.joinedAt)}` : ""}</span>
                             </li>
                           );
                         })}
@@ -370,6 +369,7 @@ export async function Consistency({
               </li>
             ))}
           </ul>
+          </>
         )}
       </section>
     </>

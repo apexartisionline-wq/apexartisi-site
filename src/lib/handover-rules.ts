@@ -25,7 +25,7 @@ export type SafetyInput = {
   safetyPlanAt: Date | null;
   helpRequests: { createdAt: Date }[];
   notes: { at: Date; riskChange: string | null; usedSince: string | null; slotId: string }[];
-  missed: { at: Date; slotId: string }[]; // ατομικές που πέρασαν χωρίς να μπει το μέλος
+  missed: { at: Date; slotId: string; noted?: boolean }[]; // ατομικές που πέρασαν χωρίς καταγεγραμμένη σύνδεση· noted = ο θεραπευτής έγραψε «Δεν ήρθε»
   lastContact: Date | null;
   openDropout: boolean;
   dropoutDays: number;
@@ -70,7 +70,7 @@ export function safetyFlags(x: SafetyInput): Flag[] {
     const afterRisk = flags.some((f) => f.level === "red");
     flags.push({
       level: afterRisk ? "red" : "yellow",
-      text: afterRisk ? "Δεν ήρθε στην ατομική, μετά από σήμα ασφάλειας" : "Δεν ήρθε στην ατομική",
+      text: `${missed.noted ? "Δεν ήρθε στην ατομική (σημείωμα)" : "Χωρίς καταγραφή παρουσίας στην ατομική"}${afterRisk ? ", μετά από σήμα ασφάλειας" : ""}`,
       at: missed.at,
       href: `/t/s/${missed.slotId}`,
     });

@@ -14,8 +14,8 @@ export function SaveBar({ dirty, problem, savedAt, label = "Αποθήκευση
   return (
     <div className="savebar">
       <span className={`save-status ${state}`} aria-live="polite"><i />{text}</span>
-      <span className="row" style={{ gap: 8 }}>
-        {onConcern && <button type="button" className="btn" onClick={onConcern}><Icon name="alert" size={16} /> Ανησυχία για την ασφάλεια</button>}
+      <span className="row savebar-actions" style={{ gap: 8 }}>
+        {onConcern && <button type="button" className="btn" onClick={onConcern}><Icon name="alert" size={16} /> Ανησυχία<span className="hide-sm"> για την ασφάλεια</span></button>}
         <button className="primary" type="submit" disabled={pending}><Icon name="save" size={16} /> {pending ? "Αποθήκευση…" : label}</button>
       </span>
     </div>

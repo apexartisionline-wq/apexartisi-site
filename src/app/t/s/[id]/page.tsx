@@ -14,6 +14,10 @@ import { NoteFormClient } from "@/components/NoteFormClient";
 import { PairNoteClient } from "@/components/PairNoteClient";
 import { NoteTags } from "@/components/NoteTags";
 import { SafetyZone } from "@/components/SafetyZone";
+import { type StaffOption } from "@/components/ActionRow";
+import { NoteSummary } from "@/components/NoteSummary";
+import { EmptyState, ErrorNote, PageHead, Panel, Pill } from "@/components/ui";
+import { describeCounts, PRESENCE_LABEL, sessionPresence } from "@/lib/presence";
 import { ThemeWeek } from "@/components/ThemeWeek";
 import { latestAssessment, latestProfile } from "@/lib/assessment-db";
 import { logAccess } from "@/lib/audit";
@@ -30,7 +34,7 @@ import { currentRisk } from "@/lib/risk-db";
 import { alertWorthy, composeNote, type NoteForm, noteFlags, noteFormSchema } from "@/lib/note-form";
 import { sessionGlance } from "@/lib/session-glance";
 import { getSettings } from "@/lib/settings";
-import { formatDate, formatHour, formatWhen, localParts } from "@/lib/time";
+import { formatDate, formatHour, formatSpan, formatTime, formatWhen, localParts } from "@/lib/time";
 
 async function loadSlot(id: string) {
   return prisma.slot.findUnique({
@@ -216,6 +220,7 @@ export default async function SessionPage({
   if (!x) notFound();
   for (const b of x.bookings) await logAccess(user.id, b.memberId, "session_view");
   const pair = x.kind === "PAIR";
+  const s = await getSettings();
   if (!pair && x.bookings.length === 1) return <IndividualSession x={x} user={user} sp={sp} />;
   if (pair && x.bookings.length === 2) return <PairSession x={x} user={user} sp={sp} />;
 
@@ -241,7 +246,7 @@ export default async function SessionPage({
   return (
     <main>
       <p className="muted">
-        {formatDate(x.date)} στις {formatHour(x.hour)} · δωμάτιο {x.position}
+        {formatDate(x.date)} {formatSpan(x.startsAt, x.kind === "PAIR" ? s.pairMinutes : s.sessionMinutes)} · δωμάτιο {x.position}
         {x.therapist && ` · ${x.therapist.name}`}
       </p>
       <h1>
@@ -370,55 +375,58 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
   const h = g.prev?.handover;
   const hasHandover = Boolean(h && (h.agreed || h.openIssues || h.handover));
 
+  const endsAt = new Date(x.startsAt.getTime() + s.sessionMinutes * 60_000);
+  const presence = sessionPresence({ startsAt: x.startsAt, endsAt, now, joinedAt: b.joinedAt, hasNote: Boolean(x.note) });
+  const pl = PRESENCE_LABEL[presence];
+  const viewer = { id: user.id, role: user.role, therapistKind: (user as { therapistKind?: string | null }).therapistKind ?? null };
+  const staff: StaffOption[] = user.role === "ADMIN"
+    ? (await prisma.user.findMany({ where: { role: { in: ["THERAPIST", "ADMIN"] }, active: true }, select: { id: true, name: true, therapistKind: true, role: true }, orderBy: { name: "asc" } })).map((u) => ({ id: u.id, name: u.name, clinician: u.role === "ADMIN" || u.therapistKind === "CLINICAL" || u.therapistKind === "BOTH" }))
+    : [];
+
   return (
     <main className="wide">
-      <p className="crumbs"><Link href="/t">Σήμερα</Link> <span>/</span> <span>Ατομική</span></p>
-      <div className="page-head">
-        <div>
-          <h1><Link href={`/t/members/${b.member.id}`} style={{ color: "inherit", textDecoration: "none" }}>{b.member.name}</Link></h1>
-          <p className="page-sub">Ατομική · {formatDate(x.date)} {formatHour(x.hour)}–{hm(new Date(x.startsAt.getTime() + s.sessionMinutes * 60_000))}{number && ` · ${number}`}{x.therapist && ` · ${x.therapist.name}`}</p>
-        </div>
-        <div className="head-actions">
-          <Link className="btn" href={`/t/members/${b.member.id}`}><Icon name="folder" size={18} /> Κλινικός φάκελος</Link>
-          {!assessed && <Link className="btn" href={`/t/members/${b.member.id}/assessment`}>Αρχική αξιολόγηση ›</Link>}
-          {x.date === today && room && canWrite(x, user) && (
-            joined
-              ? <a className="btn primary" href={room} target="_blank" rel="noopener noreferrer"><Icon name="video" size={18} /> Άνοιγμα Zoom</a>
-              : <JoinButton kind="SLOT" refId={x.id} roomUrl={room} next={`/t/s/${x.id}`} label="Μπες στην ατομική" />
-          )}
-        </div>
-      </div>
-      {x.date === today && (
-        <p className="hint" style={{ margin: "-6px 0 12px" }}>
-          {joined ? `Πάτησες «Μπες» στις ${hm(joined.at)}.` : "Δεν έχεις πατήσει «Μπες» ακόμα."}
-          {" "}{b.joinedAt ? `Το μέλος πάτησε «Μπες» ${hm(b.joinedAt)}.` : "Το μέλος δεν έχει πατήσει «Μπες» ακόμα."}
-          {" "}Είναι η ώρα του πατήματος, όχι επιβεβαίωση συμμετοχής από το Zoom.
-        </p>
-      )}
+      <PageHead
+        crumbs={[{ href: "/t", label: "Σήμερα" }, { label: "Ατομική" }]}
+        title={<Link href={`/t/members/${b.member.id}`} style={{ color: "inherit", textDecoration: "none" }}>{b.member.name}</Link>}
+        sub={<>Ατομική · {formatDate(x.date)} {formatSpan(x.startsAt, s.sessionMinutes)}{number && ` · ${number}`}{x.therapist && ` · ${x.therapist.name}`}</>}
+      >
+        <Link className="btn outline" href={`/t/members/${b.member.id}`}><Icon name="folder" size={18} /> Κλινικός φάκελος</Link>
+        {!assessed && <Link className="btn outline" href={`/t/members/${b.member.id}/assessment`}>Αρχική αξιολόγηση ›</Link>}
+        {x.date === today && room && canWrite(x, user) && (
+          joined
+            ? <a className="btn primary" href={room} target="_blank" rel="noopener noreferrer"><Icon name="video" size={18} /> Άνοιγμα Zoom</a>
+            : <JoinButton kind="SLOT" refId={x.id} roomUrl={room} next={`/t/s/${x.id}`} label="Μπες στην ατομική" icon="video" />
+        )}
+        <span className="conn" title="Είναι η ώρα του πατήματος του κουμπιού «Μπες», όχι επιβεβαίωση συμμετοχής από το Zoom.">
+          <i className={joined ? "on" : ""} />
+          {joined ? `Συνδέθηκες στις ${hm(joined.at)}` : x.date === today ? "Δεν έχεις πατήσει «Μπες»" : "Καμία σύνδεση"}
+          {b.joinedAt && presence !== "present_note" && <> · το μέλος πάτησε «Μπες» {hm(b.joinedAt)}</>}
+        </span>
+      </PageHead>
+      <p className="hint" style={{ margin: "-10px 0 16px" }}>
+        <Pill tone={pl.tone === "accent" ? "" : pl.tone}>{pl.word}</Pill> <span title={pl.source}>{pl.source}</span>
+      </p>
 
       <div className="cols cols-38">
         <div className="stackv side">
-          <div data-tour="safety"><SafetyZone memberId={b.memberId} /></div>
+          <div data-tour="safety"><SafetyZone memberId={b.memberId} viewer={viewer} staff={staff} back={`/t/s/${x.id}`} /></div>
 
-          <section className="panel" data-tour="glance">
-            <div className="panel-head"><h2>Με μια ματιά</h2>{x.date < today && <span className="hint">όπως είναι σήμερα, όχι τότε</span>}</div>
+          <Panel title="Με μια ματιά" tour="glance">
+            {x.date < today && <p className="hint" style={{ margin: "-6px 0 8px" }}>όπως είναι σήμερα, όχι τότε</p>}
             <div className="stats">
               <div className="stat"><b>{g.soberDays ?? "—"}</b><span>μέρες νηφαλιότητας{g.soberSince ? ` · από ${formatDate(g.soberSince)}` : ""}</span></div>
               <div className="stat"><b>{g.journal.written}/7</b><span>απογραφές · 7 ημέρες</span></div>
               <div className="stat"><b>{g.cycle ? `${g.cycle.groups}/${s.groupsPerCycle}` : "—"}</b><span>ομάδες · αυτός ο μήνας</span></div>
-              <div className="stat"><b>{g.cycle ? `${g.cycle.attended}/${g.cycle.done}` : "—"}</b><span>ήρθε σε ατομικές · από όσες έγιναν στον μήνα</span></div>
+              <div className="stat"><b>{g.cycle ? `${g.cycle.attended}/${g.cycle.done}` : "—"}</b><span>ατομικές · ήρθε / πέρασε η ώρα τους</span></div>
             </div>
-            {g.journal.written > 0 && (
-              <p className="hint" style={{ margin: "8px 0 0" }}>Τελευταίες 7 μέρες (από όσα έγραψε): λαχτάρα {n(g.journal.craving)}/10 · ύπνος {n(g.journal.sleep)} ώρες · διάθεση {n(g.journal.mood)}/10. <Link href={`/t/members/${b.member.id}/journal`}>Αναλυτικά ›</Link></p>
-            )}
-            <p className="hint" style={{ margin: "8px 0 0" }}>
+            {g.cycle && <p className="hint" style={{ margin: "10px 0 0" }}>{g.cycle.periodLabel} · {g.cycle.booked} από {g.cycle.length} ατομικές προγραμματισμένες{describeCounts(g.cycle.presence) && ` · ${describeCounts(g.cycle.presence)}`}</p>}
+            <p className="hint" style={{ margin: "6px 0 0" }}>
               Ανάγκες ασφάλειας: <strong>{intake.trigger ? intake.label : risk ? RISK_LEVELS[risk] : "δεν έχει χρειαστεί"}</strong>{!intake.trigger && risk && ` · ${RISK_INFO[risk].action}`}
               {g.help14 > 0 && <> · κόκκινο κουμπί {g.help14} {g.help14 === 1 ? "φορά" : "φορές"} σε 14 ημέρες</>}
             </p>
-          </section>
+          </Panel>
 
-          <section className="panel" data-tour="open">
-            <h2>Ανοιχτό από την προηγούμενη φορά</h2>
+          <Panel title="Ανοιχτό από την προηγούμενη φορά" id="open" tour="open">
             {g.prev ? (
               <>
                 {hasHandover ? (
@@ -431,25 +439,26 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
                 ) : (
                   <div>{g.prev.next ? <><span className="muted small">Τι προτείναμε</span><div>{g.prev.next}</div></> : <span className="muted">Δεν άφησε κάτι για την επόμενη ατομική.</span>}</div>
                 )}
-                <div className="hint" style={{ marginTop: 8 }}>{g.prev.by} · {formatDate(g.prev.date)}{g.prev.pair && " · Therapair"}</div>
-                <details className="fold" style={{ marginTop: 8 }}>
-                  <summary>Το τελευταίο σημείωμα</summary>
-                  <NoteText text={g.prev.text} style={{ marginTop: 8 }} />
-                  <p className="small" style={{ margin: "6px 0 0" }}><Link href={`/t/s/${g.prev.slotId}`}>Άνοιγμα της ατομικής ›</Link> · <Link href={`/t/members/${b.member.id}/notes`}>Όλα τα σημειώματα ›</Link></p>
-                </details>
+                <NoteSummary author={`${g.prev.by}${g.prev.pair ? " · Therapair" : ""}`} at={g.prev.date} text={g.prev.text} href={`/t/s/${g.prev.slotId}`} label="Δες το σημείωμα" />
               </>
-            ) : <div className="empty">Πρώτη ατομική: δεν υπάρχει προηγούμενο σημείωμα.</div>}
-          </section>
+            ) : <EmptyState>Πρώτη ατομική: δεν υπάρχει προηγούμενο σημείωμα.</EmptyState>}
+          </Panel>
 
           {g.prev && (
-            <section className="panel" data-tour="since">
-              <h2>Από την προηγούμενη ατομική ως σήμερα</h2>
-              <SinceLast memberId={b.memberId} prev={g.prev} until={x.date < today ? x.date : today} untilAt={x.startsAt < now ? x.startsAt : now} compact />
-            </section>
+            <Panel title="Από την προηγούμενη ατομική" tour="since">
+              <div className="kv"><span>Λαχτάρα</span><strong>{g.journal.written > 0 ? `${n(g.journal.craving)} / 10` : "—"}</strong></div>
+              <div className="kv"><span>Ύπνος</span><strong>{g.journal.written > 0 ? `${n(g.journal.sleep)} ώρες` : "—"}</strong></div>
+              <div className="kv"><span>Απογραφές</span><strong>{g.journal.written} από 7 ημέρες</strong></div>
+              <details className="fold" style={{ marginTop: 8 }}>
+                <summary>Αναλυτική εικόνα (ομάδες, απογραφές, κόκκινο κουμπί)</summary>
+                <div style={{ marginTop: 8 }}>
+                  <SinceLast memberId={b.memberId} prev={g.prev} until={x.date < today ? x.date : today} untilAt={x.startsAt < now ? x.startsAt : now} compact />
+                </div>
+              </details>
+            </Panel>
           )}
 
-          <section className="panel" data-tour="goal">
-            <h2>Στόχος και εργασία</h2>
+          <Panel title="Στόχος και εργασία" tour="goal">
             <GoalWeekCard memberId={b.memberId} date={today} />
             {g.assignment ? (
               <Link className="linkrow" href={`/t/members/${b.member.id}/assignments`}>
@@ -458,11 +467,11 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
                 <span className="arrow"><Icon name="chevron" /></span>
               </Link>
             ) : <p className="hint" style={{ margin: "8px 0 0" }}>Δεν έχει σταλεί εργασία.</p>}
-          </section>
+          </Panel>
 
-          <section className="panel">
+          <Panel>
             <ThemeWeek forms={g.theme.forms} dailyText={g.theme.dailyText} compact />
-          </section>
+          </Panel>
 
           {ax?.data.summary && (
             <details className="panel fold">
@@ -475,12 +484,15 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
 
         <section className="panel">
           <div className="panel-head">
-            <h2 data-tour="notebook">Σημειωματάριο</h2>
+            <div>
+              <h2 data-tour="notebook" style={{ margin: 0 }}>Σημειωματάριο</h2>
+              <div className="hint">Καταγραφή ατομικής</div>
+            </div>
             {writable && x.note && !showForm && initial && <Link className="btn primary" data-tour="edit-note" href={`/t/s/${x.id}?edit=1`}>Άλλαξε το σημείωμα</Link>}
           </div>
           {sp.saved && <div className="notice">Αποθηκεύτηκε ✓ {x.note && <span className="muted small">· {x.note.therapist.name}, {formatWhen(x.note.updatedAt)}</span>}</div>}
           {sp.saved && <ClearDraft k={`note-draft:${x.id}`} />}
-          {sp.error && <div className="error">Δεν αποθηκεύτηκε: {sp.error} Το κείμενό σου κρατήθηκε ως πρόχειρο σε αυτή την καρτέλα.</div>}
+          {sp.error && <ErrorNote>Δεν αποθηκεύτηκε: {sp.error} Το κείμενό σου κρατήθηκε ως πρόχειρο σε αυτή την καρτέλα.</ErrorNote>}
           {showForm ? (
             <NoteFormClient
               action={saveIndividual}
@@ -493,7 +505,7 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
               context={{ goal: goal.goal?.text ?? null, assignment: g.assignment?.title ?? null }}
             />
           ) : x.note ? (
-            <div className="card">
+            <div>
               <NoteText text={dec(x.note.content)} />
               <div className="row spread small" style={{ marginTop: 10 }}>
                 <span className="muted">{x.note.therapist.name} · {formatWhen(x.note.updatedAt)}</span>
@@ -501,10 +513,10 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
               </div>
             </div>
           ) : (
-            <p className="muted">{canWrite(x, user) ? "Το σημειωματάριο ανοίγει 15 λεπτά πριν από την ώρα της ατομικής." : "Δεν έχει γραφτεί σημείωμα ακόμα."}</p>
+            <EmptyState>{canWrite(x, user) ? `Το σημειωματάριο ανοίγει 15 λεπτά πριν από την ώρα της ατομικής (${formatTime(new Date(x.startsAt.getTime() - 15 * 60_000))}).` : "Δεν έχει γραφτεί σημείωμα ακόμα."}</EmptyState>
           )}
           {versions.length > 0 && (
-            <details className="card small">
+            <details className="fold small" style={{ marginTop: 14 }}>
               <summary>Ιστορικό αλλαγών ({versions.length}) — μόνο για ανάγνωση</summary>
               {versions.map((v) => (
                 <div key={v.id} style={{ marginTop: 12 }}>
@@ -543,20 +555,25 @@ async function PairSession({ x, user, sp }: { x: Slot; user: { id: string; role:
   const showForm = writable && (x.pairNotes.length === 0 || sp.edit === "1");
   const first = (n: string) => n.split(" ")[0];
 
+  const viewer = { id: user.id, role: user.role, therapistKind: (user as { therapistKind?: string | null }).therapistKind ?? null };
   return (
-    <main>
-      <p className="small"><Link className="back" href="/t">‹ Σήμερα</Link></p>
-      <h1 style={{ marginBottom: 4 }}><span className="badge">Therapair</span> {members.map((m, i) => <span key={m.id}>{i > 0 && " & "}<Link href={`/t/members/${m.id}`}>{m.name}</Link></span>)}</h1>
-      <p className="muted" style={{ margin: 0 }}>{formatDate(x.date)} {formatHour(x.hour)}{x.therapist && ` · ${x.therapist.name}`}</p>
-      {writable && !showForm && <p style={{ margin: "10px 0 0" }}><Link className="btn primary big" data-tour="edit-note" href={`/t/s/${x.id}?edit=1`}>Άλλαξε το σημείωμα</Link></p>}
-      {showForm && <p style={{ margin: "10px 0 0" }}><a className="btn primary" href="#notebook">Πήγαινε στο σημειωματάριο ↓</a></p>}
-
-      {x.date === today && room && (
-        <div className="card row spread" style={{ background: "var(--soft)" }}>
-          <span>{joined ? `Πάτησες «Μπες» στις ${formatHour(localParts(joined.at).hour, localParts(joined.at).minute)} (η ώρα του πατήματος, όχι επιβεβαίωση από το Zoom)` : "Δεν έχεις πατήσει «Μπες» ακόμα"}</span>
-          {joined ? <a className="btn" href={room} target="_blank" rel="noopener noreferrer">Άνοιγμα Zoom</a> : canWrite(x, user) && <JoinButton kind="SLOT" refId={x.id} roomUrl={room} next={`/t/s/${x.id}`} label="Μπες στο Therapair" />}
-        </div>
-      )}
+    <main className="wide">
+      <PageHead
+        crumbs={[{ href: "/t", label: "Σήμερα" }, { label: "Therapair" }]}
+        title={<><Pill>Therapair</Pill> {members.map((m, i) => <span key={m.id}>{i > 0 && " & "}<Link href={`/t/members/${m.id}`} style={{ color: "inherit", textDecoration: "none" }}>{m.name}</Link></span>)}</>}
+        sub={<>{formatDate(x.date)} {formatSpan(x.startsAt, s.pairMinutes)}{x.therapist && ` · ${x.therapist.name}`}</>}
+      >
+        {writable && !showForm && <Link className="btn primary" data-tour="edit-note" href={`/t/s/${x.id}?edit=1`}>Άλλαξε το σημείωμα</Link>}
+        {showForm && <a className="btn outline" href="#notebook">Πήγαινε στο σημειωματάριο ↓</a>}
+        {x.date === today && room && (joined
+          ? <a className="btn primary" href={room} target="_blank" rel="noopener noreferrer"><Icon name="video" size={18} /> Άνοιγμα Zoom</a>
+          : canWrite(x, user) && <JoinButton kind="SLOT" refId={x.id} roomUrl={room} next={`/t/s/${x.id}`} label="Μπες στο Therapair" icon="video" />)}
+        {x.date === today && room && (
+          <span className="conn" title="Είναι η ώρα του πατήματος του κουμπιού «Μπες», όχι επιβεβαίωση συμμετοχής από το Zoom.">
+            <i className={joined ? "on" : ""} />{joined ? `Συνδέθηκες στις ${formatHour(localParts(joined.at).hour, localParts(joined.at).minute)}` : "Δεν έχεις πατήσει «Μπες»"}
+          </span>
+        )}
+      </PageHead>
 
       <ThemeWeek forms={theme.forms} dailyText={theme.dailyText} compact />
 
@@ -564,8 +581,8 @@ async function PairSession({ x, user, sp }: { x: Slot; user: { id: string; role:
         {perMember.map(({ m, prev }) => (
           <section key={m.id} className="pair-col">
             <h2 style={{ marginTop: 0 }}>{m.name}</h2>
-            <SafetyZone memberId={m.id} />
-            <div className="card small">
+            <SafetyZone memberId={m.id} viewer={viewer} back={`/t/s/${x.id}`} />
+            <div className="panel small">
               <strong>Ανοιχτό από την προηγούμενη φορά</strong>
               <div style={{ marginTop: 4 }}>{prev ? (prev.next || <span className="muted">Δεν άφησε κάτι για την επόμενη ατομική.</span>) : <span className="muted">Πρώτη ατομική: δεν υπάρχει προηγούμενο σημείωμα.</span>}</div>
               {prev && <div className="muted" style={{ marginTop: 4 }}>{prev.therapist} · {formatDate(prev.date)} · <Link href={`/t/members/${m.id}/notes`}>όλα τα σημειώματα</Link></div>}
@@ -581,12 +598,12 @@ async function PairSession({ x, user, sp }: { x: Slot; user: { id: string; role:
         ))}
       </div>
 
-      <h2 data-tour="notebook">Σημειωματάριο Therapair</h2>
+      <h2 data-tour="notebook" style={{ marginTop: 24 }}>Σημειωματάριο Therapair</h2>
       {sp.saved && <div className="notice">Αποθηκεύτηκε ✓ — ένα σημείωμα στον φάκελο του καθενός.</div>}
       {sp.saved && <ClearDraft k={`pair-draft:${x.id}`} />}
-      {sp.error && <div className="error">Δεν αποθηκεύτηκε: {sp.error}</div>}
+      {sp.error && <ErrorNote>Δεν αποθηκεύτηκε: {sp.error}</ErrorNote>}
       {showForm && sp.error && x.pairNotes.length > 0 && (
-        <details className="card small" open>
+        <details className="panel small" open>
           <summary>Η τελευταία αποθηκευμένη μορφή</summary>
           {members.map((m) => {
             const n = x.pairNotes.find((p) => p.memberId === m.id);
@@ -602,7 +619,7 @@ async function PairSession({ x, user, sp }: { x: Slot; user: { id: string; role:
             {members.map((m) => {
               const n = x.pairNotes.find((p) => p.memberId === m.id);
               return (
-                <div key={m.id} className="card pair-col">
+                <div key={m.id} className="panel pair-col">
                   <div className="pair-name">Στον φάκελο: {first(m.name)}</div>
                   {n ? <NoteText text={dec(n.content)} /> : <span className="muted">Δεν γράφτηκε.</span>}
                   {n && <div className="muted small" style={{ marginTop: 8 }}>{n.therapist.name} · {formatWhen(n.updatedAt)}</div>}

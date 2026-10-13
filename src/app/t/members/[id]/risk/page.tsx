@@ -74,7 +74,7 @@ export default async function RiskPage({ params, searchParams }: { params: Promi
         </div>
       </div>
 
-      <details className="fold" style={{ marginBottom: 12 }}>
+      <details className="fold" id="protocol" style={{ marginBottom: 12 }}>
         <summary>Τι κάνουμε σε κάθε επίπεδο (πρωτόκολλο της ομάδας)</summary>
         {(Object.keys(LEVELS) as Level[]).map((l) => (
           <div key={l} style={{ marginTop: 8 }}>

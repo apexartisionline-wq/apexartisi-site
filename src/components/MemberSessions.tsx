@@ -5,7 +5,7 @@ import { dec } from "@/lib/crypto";
 import { hideOther, nameVariants } from "@/lib/pair-note";
 import { vocative } from "@/lib/vocative";
 import { prisma } from "@/lib/db";
-import { formatDate, formatHour } from "@/lib/time";
+import { formatDate, formatTime } from "@/lib/time";
 
 // Ιστορικό ατομικών και Therapair ενός μέλους με τα σημειώματα όλων των θεραπευτών.
 export async function MemberSessions({ memberId, limit = 30 }: { memberId: string; limit?: number }) {
@@ -39,7 +39,7 @@ export async function MemberSessions({ memberId, limit = 30 }: { memberId: strin
           <div className="card" key={b.id}>
             <div className="row spread small">
               <span>
-                <Link href={`/t/s/${b.slot.id}`}><strong>{formatDate(b.slot.date)} {formatHour(b.slot.hour)}</strong></Link>
+                <Link href={`/t/s/${b.slot.id}`}><strong>{formatDate(b.slot.date)} {formatTime(b.slot.startsAt)}</strong></Link>
                 {" · "}{b.slot.therapist?.name ?? "χωρίς θεραπευτή"}
                 {b.slot.kind === "PAIR" && <> · <span className="badge">Therapair</span></>}
               </span>

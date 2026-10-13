@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { memberSafety } from "@/lib/handover";
-import { formatDate, formatHour } from "@/lib/time";
+import { formatDate, formatTime } from "@/lib/time";
 
 // Όλα τα ενεργά μέλη (όλοι οι θεραπευτές δουλεύουν με όλους). Λίστα τύπου iOS:
 // πρώτα όσοι έχουν σήμα ασφάλειας, με μια τελεία και το πιο σημαντικό σήμα από κάτω.
@@ -41,7 +41,7 @@ export default async function MembersOverview() {
                 <div className="title">{m.name}</div>
                 {top && <div className="sub">{top.text}{m.flags.length > 1 && ` · +${m.flags.length - 1}`}</div>}
                 <div className="sub">
-                  {next ? `Επόμενη: ${formatDate(next.slot.date)} ${formatHour(next.slot.hour)} · ${next.slot.therapist?.name ?? "—"}` : "Χωρίς επόμενη ατομική"}
+                  {next ? `Επόμενη: ${formatDate(next.slot.date)} ${formatTime(next.slot.startsAt)} · ${next.slot.therapist?.name ?? "—"}` : "Χωρίς επόμενη ατομική"}
                 </div>
               </span>
             </Link>

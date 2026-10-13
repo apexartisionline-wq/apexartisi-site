@@ -41,7 +41,7 @@ export async function sessionGlance(memberId: string, beforeSlot: { id: string; 
   return {
     soberSince: member.soberSince,
     soberDays: soberDays(member.soberSince, today),
-    cycle: cycle ? { done: cycle.done, attended: cycle.attended, length: cycle.length, groups: cycle.groups } : null,
+    cycle: cycle ? { done: cycle.done, attended: cycle.attended, length: cycle.length, groups: cycle.groups, booked: cycle.booked, presence: cycle.presence, periodLabel: cycle.periodLabel } : null,
     groups: { done: consistency.groups, total: consistency.groupDays.length },
     sessions: { done: consistency.sessionsDone, total: consistency.sessionsTotal },
     help14,

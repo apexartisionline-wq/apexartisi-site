@@ -1,3 +1,4 @@
+import { describeCounts, PRESENCE_LABEL } from "@/lib/presence";
 import Link from "next/link";
 import { FolderTabs } from "@/components/FolderTabs";
 import { notFound, redirect } from "next/navigation";
@@ -50,9 +51,10 @@ export default async function CyclePage({ params, searchParams }: { params: Prom
         <div className="card muted">Δεν έχει τελειώσει ακόμα κύκλος (8 ατομικές).</div>
       ) : (
         <>
-          <p className="muted" style={{ marginTop: 0 }}>{formatDate(pic.from)} – {formatDate(pic.to)}</p>
+          <p className="muted" style={{ marginTop: 0 }}>{pic.periodLabel}</p>
           <div className="card stack">
-            {row("Ατομικές", `${pic.sessions.done} από ${pic.sessions.total}${pic.sessions.came < pic.sessions.done ? ` · ήρθε σε ${pic.sessions.came}` : ""}`, pic.sessions.came < pic.sessions.done)}
+            {row("Ατομικές (πέρασε η ώρα τους)", `${pic.sessions.done} από ${pic.sessions.total}`)}
+            {row("Ήρθε", `${pic.sessions.came}${describeCounts(pic.presence) ? ` · ${describeCounts(pic.presence)}` : ""}`, pic.presence.noRecord > 0 || pic.presence.confirmedAbsent > 0)}
             {row("Ομάδες", `${pic.groups.came} από ${pic.groups.total}`, pic.groups.came < pic.groups.total / 2)}
             {row("Απογραφές", `${pic.journal.written} από ${pic.journal.days} μέρες`)}
             {row("Κόκκινο κουμπί", String(pic.help), pic.help > 0)}
@@ -119,7 +121,7 @@ export default async function CyclePage({ params, searchParams }: { params: Prom
           <details className="card small fold">
             <summary>3. Ποια ήταν η συμμετοχή <span className="muted">· με διακριτές πηγές</span></summary>
             <ul style={{ margin: "8px 0", paddingLeft: 18 }}>
-              {data.participation.sessions.map((x, i) => <li key={i}>{formatDate(x.date)} · {x.kind}{x.therapist && ` · ${x.therapist}`} · <strong>{x.came ? "ήρθε" : "χωρίς καταγραφή παρουσίας"}</strong> <span className="muted">({x.source})</span>{x.hasNote ? " · σημείωμα ✓" : " · χωρίς σημείωμα"}</li>)}
+              {data.participation.sessions.map((x, i) => <li key={i}>{formatDate(x.date)} · {x.kind}{x.therapist && ` · ${x.therapist}`} · <strong>{PRESENCE_LABEL[x.state].word}</strong> <span className="muted">({x.source})</span>{x.hasNote ? " · σημείωμα ✓" : " · χωρίς σημείωμα"}</li>)}
               <li>Ομάδες: {data.participation.groups.came} από {data.participation.groups.total} <span className="muted">({data.participation.groups.source})</span></li>
               <li>Ημερολόγιο: {data.participation.journal.written} από {data.participation.journal.days} μέρες <span className="muted">({data.participation.journal.source})</span></li>
               <li>Κόκκινο κουμπί: {data.participation.help.count} <span className="muted">({data.participation.help.source})</span></li>

@@ -14,7 +14,11 @@
 .week > summary { min-height: 44px; }
 .week > summary :global(.grow) { flex: 1; min-width: 0; }
 /* Μελλοντικό υλικό: διακεκομμένο περίγραμμα, για να μη μπερδεύεται με ό,τι έχει ήδη σταλεί. */
-.upcoming { border-style: dashed; border-width: 2px; box-shadow: none; }
+.upcoming { border-style: dashed; border-width: 2px; box-shadow: none; background: transparent; }
+/* Θέμα τρέχουσας εβδομάδας: κυριαρχεί (εικόνα «Υλικό»). */
+.theme { background: var(--teal-quiet); border-color: var(--teal-line); }
+.themeName { font-size: 1.9rem; letter-spacing: -0.02em; margin: 2px 0 0; }
+.theme :global(.linkrow) { border-top-color: var(--teal-line); }
 @media (max-width: 600px) {
   .search { width: 100%; }
   .search input { flex: 1; width: auto; min-width: 0; }

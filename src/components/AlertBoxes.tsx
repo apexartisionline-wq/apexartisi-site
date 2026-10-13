@@ -3,7 +3,7 @@ import type { AlertBox } from "@/lib/assessment-db";
 import { formatTime, formatWhen, localParts } from "@/lib/time";
 
 // Πού πάει κάθε γραμμή: κατευθείαν εκεί που χρειάζεται (σημείωμα, αξιολόγηση, ανάγκες ασφάλειας).
-function hrefOf(memberId: string, a: AlertBox["items"][number]): string {
+export function alertHref(memberId: string, a: AlertBox["items"][number]): string {
   if (a.source === "NOTE") return `/t/s/${a.kind.split(":")[1] ?? ""}`;
   if (a.source === "ASSESSMENT") return `/t/members/${memberId}/assessment`;
   if (a.source === "RISK") return `/t/members/${memberId}/risk`;
@@ -22,7 +22,7 @@ export function AlertBoxes({ boxes }: { boxes: AlertBox[] }) {
           <ul className="lines small">
             {items.map((a) => (
               <li key={a.id}>
-                <Link href={hrefOf(id, a)}><strong>{a.text}</strong></Link> · {a.sourceLabel}, {a.by}, {localParts(a.createdAt).date === today ? formatTime(a.createdAt) : formatWhen(a.createdAt)}
+                <Link href={alertHref(id, a)}><strong>{a.text}</strong></Link> · {a.sourceLabel}, {a.by}, {localParts(a.createdAt).date === today ? formatTime(a.createdAt) : formatWhen(a.createdAt)}
               </li>
             ))}
           </ul>

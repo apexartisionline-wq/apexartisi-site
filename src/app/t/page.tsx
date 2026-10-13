@@ -5,28 +5,25 @@ import { DayPicker } from "@/components/DayPicker";
 import { StaffMessagesLine } from "@/components/StaffMessagesLine";
 import { JoinButton } from "@/components/JoinButton";
 import { Icon } from "@/components/Icon";
-import { enc } from "@/lib/crypto";
+import { ActionRow, type StaffOption } from "@/components/ActionRow";
+import { alertHref } from "@/components/AlertBoxes";
+import { AttentionCard, type Issue } from "@/components/AttentionCard";
+import { NoteSummary } from "@/components/NoteSummary";
+import { EmptyState, PageHead, Panel, Pill, type Tone } from "@/components/ui";
 import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { AlertBoxes } from "@/components/AlertBoxes";
 import { alertBoxes } from "@/lib/assessment-db";
+import { buildActions, type ActionView } from "@/lib/actions-core";
+import { fetchCare, fetchItemRows, fetchOpenHelp } from "@/lib/actions";
 import { dueCycleReviews } from "@/lib/cycle-review";
 import { groupDays } from "@/lib/groups";
 import { memberSafety } from "@/lib/handover";
+import { memberNotes } from "@/lib/member-notes";
+import { sessionPresence } from "@/lib/presence";
 import { getSettings } from "@/lib/settings";
 import { ensureDemoToday, isDemoSite, startDemoSession } from "@/lib/demo-session";
-import { addDays, athensToUtc, formatDate, formatHour, formatTime, localParts, toMinutes } from "@/lib/time";
-
-async function careDone(formData: FormData) {
-  "use server";
-  const user = await requireRole("THERAPIST", "ADMIN");
-  await prisma.careTask.update({
-    where: { id: String(formData.get("id")) },
-    data: { doneAt: new Date(), doneById: user.id, note: enc(String(formData.get("note") ?? "").slice(0, 500)) },
-  });
-  redirect("/t");
-}
+import { addDays, athensToUtc, formatDate, formatTime, localParts, toMinutes } from "@/lib/time";
 
 // Μόνο στη δοκιμαστική εγκατάσταση: φτιάχνει μια ατομική «τώρα» με ψεύτικο μέλος, για να δοκιμάσει κανείς τη σύνδεση.
 async function demoStart() {
@@ -36,7 +33,6 @@ async function demoStart() {
   redirect("/t");
 }
 
-const CARE = { caring_24h: "Μήνυμα φροντίδας (24 ώρες μετά από κρίση)", caring_7d: "Μήνυμα φροντίδας (7 μέρες μετά από κρίση)", dropout: "Χωρίς επαφή εδώ και μέρες: τηλεφωνεί η διαχείριση", risk_24h: "Αυξημένες ανάγκες ασφάλειας: επαφή μέσα σε 24 ώρες", risk_next_day: "Υψηλές ανάγκες ασφάλειας: επαφή σήμερα" } as Record<string, string>;
 const KIND_LABEL: Record<string, string> = { CLINICAL: "ψυχολόγος", BIOMATIC: "βιωματικός θεραπευτής", BOTH: "ψυχολόγος και βιωματικός" };
 
 type Item = {
@@ -46,15 +42,18 @@ type Item = {
   kind: "Ατομική" | "Therapair" | "Ομάδα";
   icon: "user" | "group";
   title: string;
+  sub?: string;
   href: string;
   memberHref?: string; // φάκελος (μόνο στην ατομική)
+  memberId?: string;
   hasNote: boolean;
   memberJoinedAt: Date | null; // πάτησε «Μπες» το μέλος (μόνο ατομική)
   join: { kind: "SLOT" | "GROUP"; ref: string; room: string; label: string };
+  opensForMembersAt: Date;
 };
 
-// «Σήμερα»: το κεντρικό σημείο της μέρας του θεραπευτή (ανασχεδιασμός 13/10).
-// Αριστερά το πρόγραμμα (με την επόμενη συνεδρία αναδεδειγμένη), δεξιά «Χρειάζεται προσοχή» και «Εκκρεμότητες».
+// «Σήμερα»: το κεντρικό σημείο της μέρας του θεραπευτή (ανασχεδιασμός 13/10, 2ο πέρασμα — εγκεκριμένη εικόνα «Σήμερα»).
+// Αριστερά (~60%) το πρόγραμμα με την επόμενη συνεδρία ως πρώτο σημείο αναφοράς, δεξιά (~40%) «Χρειάζεται προσοχή» και «Εκκρεμότητες».
 export default async function TherapistDay({ searchParams }: { searchParams: Promise<{ date?: string }> }) {
   const user = await requireRole("THERAPIST", "ADMIN");
   const sp = await searchParams;
@@ -63,11 +62,9 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
   const date = sp.date && /^\d{4}-\d{2}-\d{2}$/.test(sp.date) ? sp.date : today;
   const s = await getSettings();
   if (date === today) await ensureDemoToday();
-  const dayAgo = new Date(now.getTime() - 24 * 3600_000);
 
-  const [boxes, care, slots, week, groups, members, helps] = await Promise.all([
+  const [boxes, slots, week, groups, members, staffRows] = await Promise.all([
     alertBoxes(user.role),
-    prisma.careTask.findMany({ where: { doneAt: null, dueAt: { lte: now }, kind: { notIn: ["dropout", "risk_contact"] } }, orderBy: { dueAt: "asc" } }),
     prisma.slot.findMany({
       where: { date, therapistId: user.id, bookings: { some: {} } },
       include: { bookings: { include: { member: { select: { id: true, name: true } } } }, note: { select: { id: true } }, pairNotes: { select: { id: true } } },
@@ -80,15 +77,17 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
     }),
     groupDays(date, addDays(date, 7), s),
     prisma.user.findMany({ where: { role: "MEMBER", active: true }, select: { id: true, name: true } }),
-    // Κόκκινο κουμπί των τελευταίων 24 ωρών που δεν έχει κλείσει: ποιος το ανέλαβε, αν μίλησαν.
-    prisma.helpRequest.findMany({ where: { resolvedAt: null, isDrill: false, createdAt: { gte: dayAgo } }, include: { member: { select: { id: true, name: true } } }, orderBy: { createdAt: "desc" } }),
+    user.role === "ADMIN" ? prisma.user.findMany({ where: { role: { in: ["THERAPIST", "ADMIN"] }, active: true }, select: { id: true, name: true, therapistKind: true, role: true }, orderBy: { name: "asc" } }) : Promise.resolve([]),
   ]);
+  const staff: StaffOption[] = staffRows.map((u) => ({ id: u.id, name: u.name, clinician: u.role === "ADMIN" || u.therapistKind === "CLINICAL" || u.therapistKind === "BOTH" }));
+  const viewer = { id: user.id, role: user.role, therapistKind: user.therapistKind };
   const myGroups = groups.filter((g) => g.coordinatorId === user.id);
   const names = (x: { bookings: { member: { name: string } }[] }) => x.bookings.map((b) => b.member.name).join(" & ");
   // Μικρό όνομα και αρχικό, για να χωράει στο κινητό (π.χ. «Γιώργος Δ. & Ελένη Δ.»).
   const short = (x: { bookings: { member: { name: string } }[] }) =>
     x.bookings.map((b) => b.member.name.split(" ").map((w, i) => (i === 0 ? w : `${w[0]}.`)).join(" ")).join(" & ");
   const isToday = date === today;
+  const joinBefore = (d: Date, min: number) => new Date(d.getTime() - min * 60_000);
 
   const items: Item[] = [
     ...myGroups.filter((g) => g.date === date).map((g) => {
@@ -98,6 +97,7 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
         kind: "Ομάδα" as const, icon: "group" as const, title: "Εσύ συντονίζεις",
         href: `/t/group/${g.date}/${g.time.replace(":", "")}`, hasNote: g.hasNote, memberJoinedAt: null,
         join: { kind: "GROUP" as const, ref: `${g.date} ${g.time}`, room: s.groupRoomUrl, label: "Μπες στην ομάδα" },
+        opensForMembersAt: joinBefore(startsAt, s.groupJoinBeforeMinutes),
       };
     }),
     ...slots.map((x) => {
@@ -105,205 +105,234 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
       return {
         key: x.id, startsAt: x.startsAt, endsAt: new Date(x.startsAt.getTime() + (pair ? s.pairMinutes : s.sessionMinutes) * 60_000),
         kind: (pair ? "Therapair" : "Ατομική") as "Ατομική" | "Therapair", icon: (pair ? "group" : "user") as "user" | "group", title: short(x),
-        href: `/t/s/${x.id}`, memberHref: !pair && x.bookings[0] ? `/t/members/${x.bookings[0].member.id}` : undefined,
+        href: `/t/s/${x.id}`, memberHref: !pair && x.bookings[0] ? `/t/members/${x.bookings[0].member.id}` : undefined, memberId: !pair ? x.bookings[0]?.member.id : undefined,
         hasNote: pair ? x.pairNotes.length > 0 : Boolean(x.note), memberJoinedAt: !pair ? (x.bookings[0]?.joinedAt ?? null) : null,
         join: { kind: "SLOT" as const, ref: x.id, room: s.rooms[x.position - 1] ?? "", label: pair ? "Μπες στο Therapair" : "Μπες στην ατομική" },
+        opensForMembersAt: joinBefore(x.startsAt, s.sessionJoinBeforeMinutes),
       };
     }),
   ].sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
   // Η επόμενη συνεδρία: η πρώτη που δεν έχει τελειώσει ακόμα (μόνο για σήμερα).
   const nextKey = isToday ? items.find((it) => it.endsAt > now)?.key : undefined;
 
-  // Κατάσταση κάθε ραντεβού, με λέξεις (όχι μόνο χρώμα).
-  const statusOf = (it: Item): { text: string; tone: "ok" | "yellow" | "grey" | "accent" } => {
-    if (!isToday) {
-      if (it.startsAt > now) return { text: "Η σύνδεση είναι διαθέσιμη την ημέρα της συνεδρίας", tone: "grey" };
-      return it.hasNote ? { text: "Σημείωμα ✓", tone: "ok" } : { text: "Χωρίς σημείωμα ακόμα", tone: "yellow" };
-    }
+  // Κατάσταση κάθε ραντεβού, με λέξεις (όχι μόνο χρώμα). Μια συνεδρία δεν θεωρείται «έγινε» μόνο επειδή πέρασε η ώρα της.
+  const statusOf = (it: Item): { text: string; tone: Tone } => {
     const mins = Math.round((it.startsAt.getTime() - now.getTime()) / 60_000);
-    if (now < it.startsAt) return mins <= 60 ? { text: `Σε ${mins} λεπτά`, tone: "accent" } : { text: `Στις ${formatTime(it.startsAt)}`, tone: "grey" };
-    if (now <= it.endsAt) return { text: "Σε εξέλιξη τώρα", tone: "accent" };
-    return it.hasNote ? { text: "Έγινε · σημείωμα ✓", tone: "ok" } : { text: "Έγινε · χωρίς σημείωμα ακόμα", tone: "yellow" };
+    if (it.kind !== "Ατομική") {
+      if (now < it.startsAt) return isToday && mins <= 60 ? { text: `Σε ${mins} λεπτά`, tone: "solid" } : { text: it.startsAt > now && !isToday ? "Προγραμματισμένη" : `Στις ${formatTime(it.startsAt)}`, tone: "grey" };
+      if (now <= it.endsAt) return { text: "Σε εξέλιξη τώρα", tone: "solid" };
+      return it.hasNote ? { text: "Σημείωμα ✓", tone: "ok" } : { text: "Η προγραμματισμένη ώρα πέρασε — εκκρεμεί καταγραφή", tone: "yellow" };
+    }
+    const p = sessionPresence({ startsAt: it.startsAt, endsAt: it.endsAt, now, joinedAt: it.memberJoinedAt, hasNote: it.hasNote });
+    switch (p) {
+      case "future": return isToday && mins <= 60 ? { text: `Σε ${mins} λεπτά`, tone: "solid" } : { text: isToday ? `Στις ${formatTime(it.startsAt)}` : "Προγραμματισμένη", tone: "grey" };
+      case "in_progress": return { text: "Σε εξέλιξη τώρα", tone: "solid" };
+      case "present_note": return { text: "Σημείωμα ✓ · ήρθε", tone: "ok" };
+      case "absent_note": return { text: "Σημείωμα: δεν ήρθε", tone: "yellow" };
+      case "join_clicked": return { text: "Εκκρεμεί σημείωμα", tone: "yellow" };
+      default: return { text: "Η προγραμματισμένη ώρα πέρασε — εκκρεμεί καταγραφή", tone: "yellow" };
+    }
   };
 
-  // Χρειάζεται προσοχή: κόκκινα σήματα ανά μέλος (ό,τι φαίνεται ήδη στο κουτί των 24 ωρών δεν ξαναβγαίνει).
+  // ── Χρειάζεται προσοχή / ενέργειες ──────────────────────────────────────────────────────────────
   const inBox = new Set(boxes.flatMap((b) => b.items.flatMap((a) =>
     a.source === "ASSESSMENT" ? [`${b.id}:assessment_${a.kind}`] : a.source === "JOURNAL" ? [`${b.id}:journal_${a.kind.split(":")[1]}`] : [],
   )));
-  const red = (await Promise.all(members.map(async (m) => ({ m, f: (await memberSafety(m.id)).filter((x) => (x.level === "red" || x.key === "risk_review") && !inBox.has(`${m.id}:${x.key}`)) }))))
-    .filter((x) => x.f.length > 0)
-    .slice(0, 8);
+  const memberIds = members.map((m) => m.id);
   const memberName = new Map(members.map((m) => [m.id, m.name]));
-  const reviews = await dueCycleReviews(members.map((m) => m.id));
-  // Εκκρεμότητες: σημειώματα που δεν γράφτηκαν για συνεδρίες της μέρας που πέρασαν.
+  const [flagsAll, reviews, itemRows, careRows, helpRows] = await Promise.all([
+    Promise.all(memberIds.map(async (id) => [id, await memberSafety(id)] as const)),
+    dueCycleReviews(memberIds),
+    fetchItemRows(memberIds, now),
+    fetchCare(memberIds, { includeAdminKinds: user.role === "ADMIN" }),
+    fetchOpenHelp(memberIds),
+  ]);
+  const flags = new Map(flagsAll);
+  const cycleSince = new Map<string, Date>();
+  if (reviews.length > 0) {
+    const bs = await prisma.booking.findMany({ where: { cycleId: { in: reviews.map((r) => r.cycleId) } }, select: { cycleId: true, slot: { select: { startsAt: true } } } });
+    for (const b of bs) if (b.cycleId && (cycleSince.get(b.cycleId)?.getTime() ?? 0) < b.slot.startsAt.getTime()) cycleSince.set(b.cycleId, b.slot.startsAt);
+  }
+  const actionsBy = new Map<string, ActionView[]>();
+  for (const id of memberIds) {
+    const f = flags.get(id) ?? [];
+    const rr = f.find((x) => x.key === "risk_review");
+    const rev = reviews.find((r) => r.memberId === id);
+    const list = buildActions({
+      memberId: id, memberName: memberName.get(id) ?? "Μέλος",
+      riskTrigger: rr?.at ? { at: rr.at, text: (rr as { trigText?: string }).trigText ?? "νέα αφορμή" } : null,
+      redSignals: f.filter((x) => x.level === "red").map((x) => ({ text: x.text, at: x.at })),
+      initialAssessmentMissing: null,
+      cycleReviewDue: rev ? { cycleId: rev.cycleId, since: cycleSince.get(rev.cycleId) ?? null } : null,
+      care: careRows.filter((c) => c.memberId === id && c.dueAt <= now),
+      help: helpRows.filter((h) => h.memberId === id),
+      items: itemRows.filter((r) => r.memberId === id),
+    }).filter((a) => a.state !== "done");
+    actionsBy.set(id, list);
+  }
+  // Κάρτες προσοχής: ανά μέλος· σοβαρά πρώτα.
+  type Attn = { id: string; issues: Issue[]; actions: ActionView[]; latest: number; red: boolean };
+  const attention: Attn[] = [];
+  for (const id of memberIds) {
+    const box = boxes.find((b) => b.id === id);
+    const f = (flags.get(id) ?? []).filter((x) => (x.level === "red" || x.key === "risk_review") && !inBox.has(`${id}:${x.key}`));
+    const issues: Issue[] = [
+      ...(box ? box.items.map((a) => ({ text: a.text, at: a.createdAt, href: alertHref(id, a), by: `${a.sourceLabel}, ${a.by}`, red: !a.mild })) : []),
+      ...f.filter((x) => x.key !== "risk_review").map((x) => ({ text: x.text, at: x.at, href: x.href, red: true })),
+    ];
+    const acts = (actionsBy.get(id) ?? []).filter((a) => a.kind !== "cycle_review" && a.kind !== "care");
+    // Η αφορμή «θέλει αξιολόγηση» φαίνεται ως ενέργεια (με ανάληψη), όχι ως δεύτερη γραμμή σήματος.
+    if (issues.length === 0 && acts.length === 0) continue;
+    issues.sort((a, b) => Number(b.red) - Number(a.red) || (b.at?.getTime() ?? 0) - (a.at?.getTime() ?? 0));
+    attention.push({ id, issues, actions: acts, latest: Math.max(0, ...issues.map((i) => i.at?.getTime() ?? 0)), red: issues.some((i) => i.red) });
+  }
+  attention.sort((a, b) => Number(b.red) - Number(a.red) || b.latest - a.latest);
+
+  // Εκκρεμότητες: σημειώματα που δεν γράφτηκαν, ανασκοπήσεις κύκλου, μηνύματα φροντίδας (με ανάληψη).
   const notesDue = items.filter((it) => it.endsAt <= now && !it.hasNote);
-  const attentionCount = boxes.length + helps.length + red.length;
-  const todoCount = notesDue.length + reviews.length + care.length;
+  const todoActions = memberIds.flatMap((id) => (actionsBy.get(id) ?? []).filter((a) => a.kind === "cycle_review" || a.kind === "care"));
+  const todoCount = notesDue.length + todoActions.length;
   const roleLabel = user.role === "ADMIN" ? "διαχείριση" : (KIND_LABEL[user.therapistKind ?? ""] ?? "θεραπευτής");
   // Αν το όνομα έχει ήδη τον ρόλο σε παρένθεση (ψεύτικα στοιχεία), δεν τον ξαναγράφουμε.
   const who = /\(/.test(user.name) ? user.name : `${user.name}, ${roleLabel}`;
+
+  // «Συνέχεια από την ομάδα»: πριν από την επόμενη ατομική, το τελευταίο σημείωμα (συντάκτης, ημερομηνία, προεπισκόπηση).
+  const next = items.find((it) => it.key === nextKey);
+  const nextNote = next?.memberId ? (await memberNotes(next.memberId, { before: next.startsAt, take: 1 }))[0] ?? null : null;
+  const nextIsSession = Boolean(next?.memberId);
 
   return (
     <main className="wide">
       <Announcements />
       <StaffMessagesLine userId={user.id} />
-      <div className="page-head">
-        <div>
-          <h1>{isToday ? "Σήμερα" : formatDate(date)}</h1>
-          <p className="page-sub">{isToday && `${formatDate(date)} · `}{who}</p>
-        </div>
-        <div className="head-actions">
-          <DayPicker date={date} today={today} prev={addDays(date, -1)} next={addDays(date, 1)} prevWeek={addDays(date, -7)} nextWeek={addDays(date, 7)} base="/t" />
-        </div>
-      </div>
-      <details className="small" style={{ margin: "-6px 0 12px" }} data-tour="legend">
-        <summary className="muted">Τι σημαίνουν τα χρώματα και οι λέξεις</summary>
-        <p className="muted" style={{ margin: "6px 0 0" }}>
-          <strong>Κόκκινο</strong> = χρειάζεται ενέργεια σήμερα· <strong>κίτρινο</strong> = να το δεις στην επόμενη επαφή. Το κουτί «24 ώρες» είναι ειδοποίηση: όταν φύγει, δεν σημαίνει ότι λύθηκε το θέμα — τα σήματα μένουν στο «Ασφάλεια» του φακέλου όσο ισχύουν.
-          «Το μέλος πάτησε «Μπες»» = πάτησε το κουμπί της εφαρμογής· δεν είναι επιβεβαίωση από το Zoom.
-        </p>
-      </details>
+      <PageHead title={isToday ? "Σήμερα" : formatDate(date)} sub={<>{isToday && `${formatDate(date)} · `}{who}</>}>
+        <DayPicker date={date} today={today} prev={addDays(date, -1)} next={addDays(date, 1)} prevWeek={addDays(date, -7)} nextWeek={addDays(date, 7)} base="/t" />
+      </PageHead>
 
       <div className="cols cols-60">
         <div className="stackv">
-          <section className="panel t-prog" data-tour="program">
-            <div className="panel-head">
-              <h2>Το πρόγραμμά μου</h2>
-              <Link className="small" href="/t/consistency">Συνέπεια μελών ›</Link>
-            </div>
+          <Panel title="Το πρόγραμμά μου" link={{ href: "#week", label: "Επόμενες ημέρες" }} tour="program">
             <div className="sched">
               {items.map((it) => {
                 const st = statusOf(it);
-                const next = it.key === nextKey;
+                const isNext = it.key === nextKey;
+                const ended = it.endsAt <= now;
                 return (
-                  <div key={it.key} className={`sched-item${next ? " next" : ""}`}>
-                    <span className="iconbox"><Icon name={it.icon} /></span>
+                  <div key={it.key} className={`sched-item${isNext ? " next" : ""}${ended ? " past" : ""}`}>
+                    <span className="iconbox"><Icon name={it.icon} size={isNext ? 28 : 22} /></span>
                     <div>
-                      {next && <span className="pill" style={{ marginBottom: 4 }}><Icon name="clock" size={14} /> {st.text}</span>}
-                      <div className="sched-time">{formatTime(it.startsAt)} – {formatTime(it.endsAt)}</div>
+                      {isNext && <div style={{ marginBottom: 6 }}><Pill tone="solid" icon="clock">{st.text}</Pill></div>}
+                      <div className="sched-time">
+                        {!isNext && <Icon name="clock" size={18} />}
+                        {formatTime(it.startsAt)} – {formatTime(it.endsAt)}
+                      </div>
                       <div className="sched-kind">{it.kind} · <Link href={it.href}>{it.title}</Link></div>
                       <div className="sched-status">
-                        {!next && <span className={`pill ${st.tone === "accent" ? "" : st.tone}`}>{st.text}</span>}
-                        {it.memberJoinedAt && <> · Το μέλος πάτησε «Μπες» {formatTime(it.memberJoinedAt)}</>}
+                        {!isNext && <Pill tone={st.tone === "solid" ? "" : st.tone}>{st.text}</Pill>}
+                        {it.memberJoinedAt && <span>Το μέλος πάτησε «Μπες» {formatTime(it.memberJoinedAt)}</span>}
+                        {isToday && !ended && it.opensForMembersAt > now && <span>Η είσοδος των μελών ανοίγει στις {formatTime(it.opensForMembersAt)}</span>}
                       </div>
                     </div>
                     <div className="sched-actions">
-                      {isToday ? (
-                        <JoinButton kind={it.join.kind} refId={it.join.ref} roomUrl={it.join.room} next={it.href} label={it.join.label} />
+                      {isNext && isToday ? (
+                        <>
+                          <JoinButton kind={it.join.kind} refId={it.join.ref} roomUrl={it.join.room} next={it.href} label={it.join.label} className="primary lg" icon="video" />
+                          <div className="row" style={{ gap: 8, flexWrap: "nowrap" }}>
+                            <Link href={it.href} className="btn outline sm" style={{ flex: 1 }}>{it.kind === "Ομάδα" ? "Σημείωμα ομάδας" : "Προετοιμασία"}</Link>
+                            {it.memberHref && <Link href={it.memberHref} className="btn outline sm" style={{ flex: 1 }}><Icon name="folder" size={16} /> Φάκελος</Link>}
+                          </div>
+                        </>
+                      ) : ended ? (
+                        <Link href={it.href} className="btn outline sm">{it.hasNote ? "Άνοιγμα" : it.kind === "Ομάδα" ? "Σημείωμα ομάδας" : "Γράψε σημείωμα"}</Link>
                       ) : (
-                        <Link href={it.href} className="btn">{it.startsAt > now ? "Προετοιμασία" : "Άνοιγμα"}</Link>
+                        <>
+                          <Link href={it.href} className="btn outline">{it.kind === "Ομάδα" ? "Σημείωμα ομάδας" : "Προετοιμασία"}</Link>
+                          {isToday && <JoinButton kind={it.join.kind} refId={it.join.ref} roomUrl={it.join.room} next={it.href} label={it.join.label} className="outline sm" />}
+                        </>
                       )}
-                      {isToday && <Link href={it.href} className="btn">{it.kind === "Ομάδα" ? "Σημείωμα ομάδας" : "Προετοιμασία"}</Link>}
-                      {it.memberHref && <Link href={it.memberHref} className="btn">Φάκελος</Link>}
                     </div>
                   </div>
                 );
               })}
-              {items.length === 0 && <div className="empty">Δεν έχεις ομάδα ή ατομική {isToday ? "σήμερα" : "αυτή τη μέρα"}.</div>}
+              {items.length === 0 && <EmptyState>Δεν έχεις ομάδα ή ατομική {isToday ? "σήμερα" : "αυτή τη μέρα"}.</EmptyState>}
             </div>
-            {isToday && items.length > 0 && <p className="hint" style={{ margin: "10px 0 0" }}>Το κουμπί ανοίγει το Zoom σε νέα καρτέλα, καταγράφει την ώρα που το πάτησες και φέρνει εδώ τη σελίδα της συνεδρίας.</p>}
+            <details className="fold small" style={{ marginTop: 14 }} data-tour="legend">
+              <summary className="muted">Πώς δουλεύουν τα κουμπιά και οι ενδείξεις</summary>
+              <p className="muted" style={{ margin: "6px 0 0" }}>
+                «Μπες» ανοίγει το Zoom σε νέα καρτέλα, καταγράφει την ώρα που το πάτησες και φέρνει εδώ τη σελίδα της συνεδρίας. «Το μέλος πάτησε «Μπες»» είναι η ώρα του πατήματος· δεν είναι επιβεβαίωση συμμετοχής από το Zoom.
+                Μια συνεδρία που πέρασε η ώρα της μένει «εκκρεμεί καταγραφή» μέχρι να υπάρξει «Μπες» ή σημείωμα· δεν θεωρείται απουσία. Το σημειωματάριο ανοίγει 15 λεπτά πριν.
+              </p>
+            </details>
             {isToday && isDemoSite() && (
-              <form action={demoStart} className="card" style={{ marginTop: 12, marginBottom: 0 }}>
-                <strong>Δοκιμαστική ατομική</strong>
-                <p className="small muted" style={{ margin: "4px 0 8px" }}>
-                  Για να δεις πώς συνδέεσαι και τι βλέπεις μέσα στην ατομική: φτιάχνει μια ατομική τώρα με ψεύτικο μέλος. Θα εμφανιστεί πάνω στο πρόγραμμά σου.
-                </p>
-                <button type="submit">Ξεκίνα δοκιμαστική ατομική τώρα</button>
+              <form action={demoStart} className="row" style={{ marginTop: 12, gap: 10 }}>
+                <span className="hint">Δοκιμαστικό περιβάλλον</span>
+                <button type="submit" className="sm" title="Φτιάχνει μια ατομική τώρα με ψεύτικο μέλος, για να δεις πώς συνδέεσαι και τι βλέπεις μέσα στην ατομική">Ξεκίνα δοκιμαστική ατομική τώρα</button>
               </form>
             )}
-          </section>
+          </Panel>
 
-          <section className="panel t-week" data-tour="week">
-            <h2>Τις επόμενες 7 μέρες</h2>
+          {isToday && nextIsSession && next && (
+            <Panel title="Συνέχεια από την ομάδα">
+              <p className="hint" style={{ margin: "0 0 10px" }}>Πριν από την επόμενη ατομική ({next.title}): δες το τελευταίο σημείωμα και τις ανοιχτές συμφωνίες.</p>
+              {nextNote ? (
+                <NoteSummary author={nextNote.therapist} at={nextNote.startsAt} text={nextNote.text} href={`${next.href}#open`} />
+              ) : (
+                <EmptyState>Δεν υπάρχει προηγούμενο σημείωμα για αυτό το μέλος.</EmptyState>
+              )}
+              <p style={{ margin: "12px 0 0" }}><Link className="btn outline" href={next.href}>Προετοιμασία της ατομικής</Link></p>
+            </Panel>
+          )}
+
+          <Panel title="Τις επόμενες 7 μέρες" id="week" tour="week">
             {[
               ...myGroups.filter((g) => g.date > date).map((g) => ({ key: `${g.date}${g.time}`, sort: `${g.date} ${g.time}`, date: g.date, when: `${formatDate(g.date)} ${g.time}`, sub: "Ομάδα · εσύ συντονίζεις", icon: "group" as const })),
-              ...week.map((x) => ({ key: x.id, href: `/t/s/${x.id}`, sort: `${x.date} ${formatHour(x.hour)}`, date: x.date, when: `${formatDate(x.date)} ${formatHour(x.hour)}`, sub: `${x.kind === "PAIR" ? "Therapair" : "Ατομική"} · ${names(x)}`, icon: (x.kind === "PAIR" ? "group" : "user") as "group" | "user" })),
+              ...week.map((x) => ({ key: x.id, href: `/t/s/${x.id}`, sort: `${x.date} ${formatTime(x.startsAt)}`, date: x.date, when: `${formatDate(x.date)} ${formatTime(x.startsAt)}`, sub: `${x.kind === "PAIR" ? "Therapair" : "Ατομική"} · ${names(x)}`, icon: (x.kind === "PAIR" ? "group" : "user") as "group" | "user" })),
             ]
               .sort((a, b) => a.sort.localeCompare(b.sort))
               .map((r) => (
                 <Link key={r.key} className="linkrow" href={"href" in r && r.href ? r.href : `/t?date=${r.date}`}>
-                  <span className="iconbox"><Icon name={r.icon} /></span>
-                  <span className="grow"><div>{r.when}</div><div className="hint">{r.sub}</div></span>
+                  <span className="iconbox"><Icon name={r.icon} size={20} /></span>
+                  <span className="grow"><div style={{ fontWeight: 600 }}>{r.when}</div><div className="hint">{r.sub}</div></span>
                   <span className="arrow"><Icon name="chevron" /></span>
                 </Link>
               ))}
-            {week.length === 0 && myGroups.filter((g) => g.date > date).length === 0 && <div className="empty">Τίποτα προγραμματισμένο τις επόμενες 7 μέρες.</div>}
-          </section>
+            {week.length === 0 && myGroups.filter((g) => g.date > date).length === 0 && <EmptyState>Τίποτα προγραμματισμένο τις επόμενες 7 μέρες.</EmptyState>}
+          </Panel>
         </div>
 
         <div className="stackv">
-          <section className="panel t-see" data-tour="see">
+          <Panel tour="see">
             <div className="panel-head">
               <h2>Χρειάζεται προσοχή</h2>
-              <span className="hint">{attentionCount === 0 ? "τίποτα ανοιχτό" : `${attentionCount} ${attentionCount === 1 ? "θέμα" : "θέματα"}`}</span>
+              <span className="hint">{attention.length === 0 ? "τίποτα ανοιχτό" : `${attention.length} ${attention.length === 1 ? "μέλος" : "μέλη"}`}</span>
             </div>
-            {isToday ? (
-              <div data-tour="alerts">
-                <AlertBoxes boxes={boxes} />
-                {boxes.length > 0 && <p className="hint" style={{ margin: "0 0 10px" }}>Ειδοποίηση 24 ωρών: όταν φύγει από εδώ, το θέμα δεν έχει λυθεί μόνο του· μένει στο «Ασφάλεια» του φακέλου.</p>}
-              </div>
-            ) : boxes.length > 0 && <p className="hint">Τα σοβαρά σημεία των τελευταίων 24 ωρών φαίνονται στο <Link href="/t">«Σήμερα»</Link>.</p>}
-            {helps.map((h) => (
-              <div key={h.id} className="attn">
-                <span className="iconbox red"><Icon name="alert" size={18} /></span>
-                <div className="attn-body">
-                  <div className="attn-title">Κόκκινο κουμπί · <Link href={`/t/members/${h.member.id}`}>{h.member.name}</Link></div>
-                  <div className="attn-meta">{formatTime(h.createdAt)} · {h.talkedAt ? `Μίλησαν ${formatTime(h.talkedAt)} (${h.claimedByName ?? "—"})` : h.claimedByName ? `Το ανέλαβε: ${h.claimedByName} (${h.claimedAt ? formatTime(h.claimedAt) : ""})` : "Δεν το έχει αναλάβει κανείς ακόμα"}</div>
-                </div>
-                <div className="attn-actions"><Link className="btn" href={`/t/help/${h.id}`}>{h.claimedByName ? "Άνοιγμα" : "Δες και ανάλαβε"}</Link></div>
-              </div>
-            ))}
-            {red.map(({ m, f }) => (
-              <div key={m.id} className={`attn${f[0].level === "red" ? "" : " yellow"}`}>
-                <span className={`iconbox ${f[0].level === "red" ? "red" : "yellow"}`}><Icon name={f[0].key === "risk_review" ? "shield" : "alert"} size={18} /></span>
-                <div className="attn-body">
-                  <div className="attn-title"><Link href={`/t/members/${m.id}`}>{m.name}</Link></div>
-                  <ul className="lines small">
-                    {f.slice(0, 3).map((x, i) => <li key={i}>{x.href ? <Link href={x.href}>{x.text}</Link> : x.text}{x.at && <span className="muted"> · {formatDate(localParts(x.at).date)}</span>}</li>)}
-                    {f.length > 3 && <li className="muted">+{f.length - 3} ακόμα στο «Ασφάλεια» του φακέλου</li>}
-                  </ul>
-                  <div className="attn-meta">Ανοιχτό σήμα · {f[0].key === "risk_review" ? "επόμενη ενέργεια: αξιολόγηση από ψυχολόγο" : "επόμενη ενέργεια: να το δει όποιος έχει την επόμενη επαφή"}</div>
-                </div>
-              </div>
-            ))}
-            {attentionCount === 0 && <div className="empty">Κανένα ανοιχτό θέμα αυτή τη στιγμή.</div>}
-          </section>
+            <div data-tour="alerts">
+              {attention.map((a) => (
+                <AttentionCard key={a.id} memberId={a.id} memberName={memberName.get(a.id) ?? "Μέλος"} issues={a.issues} actions={a.actions} viewer={viewer} staff={staff} back={isToday ? "/t" : `/t?date=${date}`} />
+              ))}
+            </div>
+            {attention.length === 0 && <EmptyState>Κανένα ανοιχτό θέμα αυτή τη στιγμή.</EmptyState>}
+            <details className="fold small" style={{ marginTop: 12 }}>
+              <summary className="muted">Τι σημαίνουν οι ενδείξεις</summary>
+              <p className="muted" style={{ margin: "6px 0 0" }}>
+                <strong>Σοβαρό σήμα</strong>: χρειάζεται ενέργεια. <strong>Να το δεις</strong>: για την επόμενη επαφή. Η ειδοποίηση των 24 ωρών είναι ειδοποίηση: όταν φύγει από εδώ, το θέμα δεν έχει λυθεί μόνο του — η ενέργεια μένει ανοιχτή μέχρι να ολοκληρωθεί, και τα σήματα μένουν στο «Ασφάλεια» του φακέλου όσο ισχύουν.
+                «Το είδα», «Το ανέλαβα» και «Ολοκληρώθηκε» είναι διαφορετικά: η ανάγνωση δεν ολοκληρώνει την ενέργεια.
+              </p>
+            </details>
+          </Panel>
 
-          <section className="panel">
-            <div className="panel-head">
-              <h2>Εκκρεμότητες</h2>
-              <span className="hint">{todoCount === 0 ? "καμία" : todoCount}</span>
-            </div>
+          <Panel title="Εκκρεμότητες">
+            <div className="hint" style={{ marginTop: -6, marginBottom: 8 }}>{todoCount === 0 ? "καμία" : `${todoCount}`}</div>
             {notesDue.map((it) => (
               <Link key={`n${it.key}`} className="todo" href={it.href}>
                 <span className="iconbox"><Icon name="doc" /></span>
-                <span className="todo-body"><div className="todo-title">Σημείωμα: {it.kind} · {it.title}</div><div className="todo-sub">{formatTime(it.startsAt)} · δεν έχει γραφτεί ακόμα</div></span>
+                <span className="todo-body"><div className="todo-title">Σημείωμα: {it.kind} · {it.title}</div><div className="todo-sub">{formatTime(it.startsAt)} · η προγραμματισμένη ώρα πέρασε — εκκρεμεί καταγραφή · θεραπευτής: {user.name.replace(/ \(.*/, "")}</div></span>
                 <span className="arrow"><Icon name="chevron" /></span>
               </Link>
             ))}
-            {reviews.map((r) => (
-              <Link key={`cr${r.memberId}`} className="todo" href={`/t/members/${r.memberId}/cycle`}>
-                <span className="iconbox"><Icon name="refresh" /></span>
-                <span className="todo-body"><div className="todo-title">Ανασκόπηση κύκλου · {memberName.get(r.memberId) ?? "Μέλος"}</div><div className="todo-sub">Ολοκλήρωσε τις ατομικές του κύκλου · 2 γραμμές από όποιον είχε την τελευταία ατομική</div></span>
-                <span className="arrow"><Icon name="chevron" /></span>
-              </Link>
-            ))}
-            {care.map((c) => (
-              <div key={c.id} className="todo">
-                <span className="iconbox"><Icon name="chat" /></span>
-                <form action={careDone} className="todo-body">
-                  <input type="hidden" name="id" value={c.id} />
-                  <div className="todo-title"><Link href={`/t/members/${c.memberId}`}>{memberName.get(c.memberId) ?? "Μέλος"}</Link></div>
-                  <div className="todo-sub">{CARE[c.kind] ?? c.kind} · από {formatDate(localParts(c.dueAt).date)} · ανοιχτό, όποιος το κάνει το σημειώνει</div>
-                  <div className="row" style={{ marginTop: 6, flexWrap: "nowrap" }}>
-                    <input name="note" placeholder="σύντομα: τι έγινε" aria-label="Τι έγινε" />
-                    <button type="submit">Έγινε</button>
-                  </div>
-                </form>
-              </div>
-            ))}
-            {todoCount === 0 && <div className="empty">Καμία εκκρεμότητα.</div>}
-          </section>
+            {todoActions.map((a) => <ActionRow key={a.key} a={a} viewer={viewer} staff={staff} back={isToday ? "/t" : `/t?date=${date}`} showMember />)}
+            {todoCount === 0 && <EmptyState>Καμία εκκρεμότητα.</EmptyState>}
+          </Panel>
         </div>
       </div>
       <TourFor id="today" userId={user.id} />

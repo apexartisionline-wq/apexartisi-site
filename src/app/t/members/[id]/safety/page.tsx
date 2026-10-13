@@ -58,7 +58,7 @@ export default async function MemberSafetyPlan({ params, searchParams }: { param
       <div className="page-head">
         <div>
           <h1>Το πλάνο όταν δυσκολεύεται</h1>
-          <p className="page-sub">{member.name} · με τα λόγια του μέλους, γραμμένο μαζί στην ατομική. Το βλέπει πρώτο όταν πατά το κόκκινο κουμπί.</p>
+          <p className="page-sub">{member.name} · γραμμένο μαζί στην ατομική, με τα λόγια του μέλους</p>
         </div>
         {raw && (
           <form action={discussed} className="head-actions">
@@ -98,7 +98,7 @@ export default async function MemberSafetyPlan({ params, searchParams }: { param
 
           <div className="panel">
             <h2>{raw ? "Γράψτε ή αλλάξτε το μαζί" : "Γράψτε το μαζί"}</h2>
-            <p className="hint" style={{ marginTop: -4, marginBottom: 10 }}>Προσωπικές, συγκεκριμένες απαντήσεις, με τα λόγια του μέλους. Κάθε αποθήκευση κρατά όνομα και ώρα· η παλιά μορφή μένει στο ιστορικό.</p>
+            <p className="hint" style={{ marginTop: -4, marginBottom: 10 }}>Προσωπικές, συγκεκριμένες απαντήσεις. Κάθε αποθήκευση κρατά όνομα και ώρα· η παλιά μορφή μένει στο ιστορικό.</p>
             <SafetyPlanForm plan={plan} action={save} hidden={{ memberId: id }} staff={!admin} />
           </div>
         </div>

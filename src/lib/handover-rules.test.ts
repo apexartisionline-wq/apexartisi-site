@@ -55,7 +55,7 @@ describe("safetyFlags", () => {
   it("χαμένη ατομική: κίτρινο, κόκκινο αν υπάρχει σήμα ασφάλειας", () => {
     expect(safetyFlags({ ...base, missed: [{ at: ago(30), slotId: "old" }] })).toEqual([]);
     expect(safetyFlags({ ...base, missed: [{ at: ago(2), slotId: "m" }] })).toEqual([
-      expect.objectContaining({ level: "yellow", text: "Δεν ήρθε στην ατομική", href: "/t/s/m" }),
+      expect.objectContaining({ level: "yellow", text: "Χωρίς καταγραφή παρουσίας στην ατομική", href: "/t/s/m" }),
     ]);
     const f = safetyFlags({ ...base, helpRequests: [{ createdAt: ago(5) }], missed: [{ at: ago(2), slotId: "m" }] });
     expect(f.map((x) => x.level)).toEqual(["red", "red"]);
@@ -126,5 +126,12 @@ describe("matchNote", () => {
     expect(matchNote(p, { q: "Πατέρες" })).toBe(true);
     expect(matchNote(p, { q: "ντροπη πατερα" })).toBe(true);
     expect(matchNote(p, { q: "μητέρα" })).toBe(false);
+  });
+});
+
+describe("προέλευση της ένδειξης «δεν ήρθε»", () => {
+  it("με σημείωμα «Δεν ήρθε» το λέει· χωρίς σημείωμα λέει ότι λείπει καταγραφή", () => {
+    const f = safetyFlags({ ...base, missed: [{ at: new Date(Date.now() - 2 * 86_400_000), slotId: "m", noted: true }] });
+    expect(f[0].text).toBe("Δεν ήρθε στην ατομική (σημείωμα)");
   });
 });

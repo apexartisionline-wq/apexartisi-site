@@ -2,7 +2,9 @@ import Link from "next/link";
 import { TourFor } from "@/components/TourFor";
 import { FolderTabs } from "@/components/FolderTabs";
 import { Icon } from "@/components/Icon";
-import { NoteText } from "@/components/NoteText";
+import { ActionRow, type StaffOption } from "@/components/ActionRow";
+import { NoteSummary } from "@/components/NoteSummary";
+import { EmptyState, PageHead, Panel, Pill } from "@/components/ui";
 import { notFound } from "next/navigation";
 import { logAccess } from "@/lib/audit";
 import { currentStep, lastStepWork } from "@/lib/steps";
@@ -14,7 +16,9 @@ import { soberDays } from "@/lib/note-form";
 import { dec } from "@/lib/crypto";
 import { prisma } from "@/lib/db";
 import { recentGoals } from "@/lib/goals";
-import { caseHistory, memberConsistency } from "@/lib/handover";
+import { caseHistory, memberConsistency, memberSafety } from "@/lib/handover";
+import { loadMemberActions, recentlyDone } from "@/lib/actions";
+import { describeCounts } from "@/lib/presence";
 import { CASE_FIELDS } from "@/lib/handover-rules";
 import { memberIntake } from "@/lib/intake";
 import { RISK_INFO } from "@/lib/intake-rules";
@@ -24,11 +28,7 @@ import { cycleInfo, cyclePeriod } from "@/lib/member";
 import { memberNotes } from "@/lib/member-notes";
 import { getSettings } from "@/lib/settings";
 import { programDay } from "@/lib/program";
-import { addDays, formatDate, formatHour, formatWhen, localParts, mondayOf } from "@/lib/time";
-
-const CARE_LABEL: Record<string, string> = { caring_24h: "Μήνυμα φροντίδας (24 ώρες μετά από κρίση)", caring_7d: "Μήνυμα φροντίδας (7 μέρες μετά από κρίση)", dropout: "Επικοινωνία: χωρίς επαφή εδώ και μέρες", risk_contact: "Επικοινωνία μετά από ανάγκες ασφάλειας" };
-// Ποιος εκτελεί κάθε ενέργεια, κατά τους κανόνες του προγράμματος (όχι «θεραπευτής αναφοράς»).
-const CARE_WHO: Record<string, string> = { caring_24h: "όποιος θεραπευτής το κάνει, το σημειώνει", caring_7d: "όποιος θεραπευτής το κάνει, το σημειώνει", dropout: "η διαχείριση (τηλέφωνο)", risk_contact: "η διαχείριση (τηλέφωνο)" };
+import { addDays, formatDate, formatTime, formatWhen, localParts, mondayOf } from "@/lib/time";
 
 // Καρτέλα μέλους «Με μια ματιά» (13/10): επισκόπηση που διαβάζεται σε ένα λεπτό — όλοι δουλεύουν με όλα τα μέλη.
 // Τηλέφωνα, διευθύνσεις και συγκαταθέσεις δεν φαίνονται εδώ (μόνο η διαχείριση).
@@ -84,75 +84,69 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
   const period = cycle ? cyclePeriod(cycle.cycle) : null;
   const day = programDay(member.programStartDate, today);
 
-  // Επόμενες ενέργειες: τι χρειάζεται, ποιος το κάνει (κατά τους κανόνες), από πότε, κατάσταση.
-  const actions: { icon: string; title: string; who: string; since?: Date; status: string; href: string; tone: "red" | "yellow" | "grey" }[] = [];
-  if (helpOpen) actions.push({ icon: "alert", title: "Κόκκινο κουμπί: να μιλήσει κάποιος μαζί του", who: helpOpen.claimedByName ? `το ανέλαβε: ${helpOpen.claimedByName}` : "δεν το έχει αναλάβει κανείς", since: helpOpen.createdAt, status: helpOpen.claimedAt ? "σε εξέλιξη" : "ανοιχτό", href: `/t/help/${helpOpen.id}`, tone: "red" });
-  if (risk.trigger) actions.push({ icon: "shield", title: "Αξιολόγηση αναγκών ασφάλειας", who: "ψυχολόγος, στην επόμενη ατομική", since: risk.trigger.at, status: `εκκρεμεί · μετά από ${risk.trigger.text}`, href: `/t/members/${id}/risk`, tone: "red" });
-  for (const c of careOpen) actions.push({ icon: c.kind.startsWith("caring") ? "chat" : "phone", title: CARE_LABEL[c.kind] ?? c.kind, who: CARE_WHO[c.kind] ?? "η ομάδα", since: c.dueAt, status: c.dueAt <= now ? "ανοιχτό" : `από ${formatDate(localParts(c.dueAt).date)}`, href: `/t/members/${id}`, tone: "yellow" });
-  if (!assessment) actions.push({ icon: "doc", title: "Αρχική αξιολόγηση", who: "ψυχολόγος, στην 1η ατομική (~40′)", status: ax ? `σε εξέλιξη · ${ax.author}` : "δεν έχει γίνει", href: `/t/members/${id}/assessment`, tone: "yellow" });
-  if (finished && !reviewDone) actions.push({ icon: "refresh", title: "Ανασκόπηση κύκλου (2 γραμμές)", who: "όποιος είχε την τελευταία ατομική", status: "εκκρεμεί", href: `/t/members/${id}/cycle`, tone: "yellow" });
-  if (openIncidents > 0) actions.push({ icon: "list", title: `${openIncidents} ${openIncidents === 1 ? "ανοιχτό συμβάν" : "ανοιχτά συμβάντα"}`, who: "τα κλείνει η διαχείριση", status: "ανοιχτό", href: `/t/members/${id}/incident`, tone: "grey" });
+  // Επόμενες ενέργειες: τι χρειάζεται, ποιος την αναλαμβάνει, πότε δημιουργήθηκε, κατάσταση, ποιος/πότε την ολοκλήρωσε.
+  const flags = await memberSafety(id);
+  const [openActions, doneRecently, staffRows] = await Promise.all([
+    loadMemberActions(id, member.name, flags, { now, includeAdminCare: user.role === "ADMIN" }).then((l) => l.filter((a) => a.state !== "done")),
+    recentlyDone(id, now),
+    user.role === "ADMIN" ? prisma.user.findMany({ where: { role: { in: ["THERAPIST", "ADMIN"] }, active: true }, select: { id: true, name: true, therapistKind: true, role: true }, orderBy: { name: "asc" } }) : Promise.resolve([]),
+  ]);
+  const viewer = { id: user.id, role: user.role, therapistKind: user.therapistKind };
+  const staff: StaffOption[] = staffRows.map((u) => ({ id: u.id, name: u.name, clinician: u.role === "ADMIN" || u.therapistKind === "CLINICAL" || u.therapistKind === "BOTH" }));
 
   return (
     <main className="wide">
-      <p className="crumbs"><Link href="/t/members">Μέλη</Link> <span>/</span> <span>Καρτέλα μέλους</span></p>
-      <div className="page-head">
-        <div>
-          <h1>{member.name}</h1>
-          <p className="page-sub">
-            {day ? `${day}η μέρα στο πρόγραμμα` : "Η έναρξη δεν έχει ημερομηνία ακόμα"} · {cycle ? `Μήνας ${months}` : "χωρίς κύκλο ακόμα"}
-            {step && <> · Βήμα {step.step} <span className="small">(το είπε το μέλος, {formatDate(localParts(step.createdAt).date)})</span></>}
-          </p>
-        </div>
-        <div className="head-actions">
-          {nextBooking ? (
-            <div className="card" style={{ margin: 0, padding: "8px 12px", display: "flex", gap: 12, alignItems: "center" }}>
-              <span className="iconbox"><Icon name="calendar" /></span>
-              <span><strong>Επόμενη {nextBooking.slot.kind === "PAIR" ? "Therapair" : "ατομική"}</strong><div className="hint">{formatDate(nextBooking.slot.date)}, {formatHour(nextBooking.slot.hour)}{nextBooking.slot.therapist && ` · ${nextBooking.slot.therapist.name}`}</div></span>
-              <Link className="btn primary" href={`/t/s/${nextBooking.slot.id}`}>Προβολή</Link>
-            </div>
-          ) : <span className="pill grey">Δεν έχει προγραμματιστεί επόμενη ατομική</span>}
-        </div>
-      </div>
+      <PageHead
+        crumbs={[{ href: "/t/members", label: "Μέλη" }, { label: "Καρτέλα μέλους" }]}
+        title={member.name}
+        sub={<>
+          {day ? `${day}η μέρα στο πρόγραμμα` : "Η έναρξη δεν έχει ημερομηνία ακόμα"} · {cycle ? `Μήνας ${months}` : "χωρίς κύκλο ακόμα"}
+          {step && <> · Βήμα {step.step} <span className="small">(το είπε το μέλος, {formatDate(localParts(step.createdAt).date)})</span></>}
+        </>}
+      >
+        {nextBooking ? (
+          <div className="panel nextcard">
+            <span className="iconbox"><Icon name="calendar" /></span>
+            <span className="grow"><strong>Επόμενη {nextBooking.slot.kind === "PAIR" ? "Therapair" : "ατομική"}</strong><div className="hint">{formatDate(nextBooking.slot.date)}, {formatTime(nextBooking.slot.startsAt)}{nextBooking.slot.therapist && ` · ${nextBooking.slot.therapist.name}`}</div></span>
+            <Link className="btn primary" href={`/t/s/${nextBooking.slot.id}`}>Προβολή</Link>
+          </div>
+        ) : <Pill tone="grey">Δεν έχει προγραμματιστεί επόμενη ατομική</Pill>}
+      </PageHead>
       <FolderTabs memberId={id} active="glance" />
-      <div data-tour="safety"><SafetyZone memberId={id} /></div>
+      <div data-tour="safety" style={{ marginBottom: "var(--gap)" }}><SafetyZone memberId={id} variant="banner" flags={flags} /></div>
       {sp.case && <div className="notice">Η σύνοψη αποθηκεύτηκε ✓</div>}
 
       <div className="cols cols-60">
         <div className="stackv">
-          <section className="panel" data-tour="clinical">
-            <h2>Θεραπευτική συνέχεια</h2>
+          <Panel title="Θεραπευτική συνέχεια" icon="doc" tour="clinical">
             <div className="linkrow" style={{ alignItems: "flex-start" }}>
-              <span className="iconbox"><Icon name="doc" /></span>
               <span className="grow">
-                <div className="row spread"><strong>Σύνοψη περίπτωσης</strong><Link className="small" href={`/t/members/${id}/case`}>{summary ? "Ενημέρωση / ιστορικό ›" : "Γράψε τη σύνοψη ›"}</Link></div>
+                <div className="row spread"><strong>Σύνοψη περίπτωσης</strong><Link className="small" href={`/t/members/${id}/case`}>{summary ? "Ενημέρωση / ιστορικό ›" : "Προσθήκη σύνοψης ›"}</Link></div>
                 {summary ? (
                   <>
-                    {CASE_FIELDS.filter((f) => summary.data[f.key]).map((f) => (
+                    {CASE_FIELDS.filter((f) => summary.data[f.key]).slice(0, 1).map((f) => (
                       <div key={f.key} style={{ marginTop: 6 }}><div className="muted small">{f.label}</div><div className="body-text">{summary.data[f.key]}</div></div>
                     ))}
+                    {CASE_FIELDS.filter((f) => summary.data[f.key]).length > 1 && (
+                      <details className="fold small" style={{ marginTop: 6 }}>
+                        <summary>Όλη η σύνοψη ({CASE_FIELDS.filter((f) => summary.data[f.key]).length} ενότητες)</summary>
+                        {CASE_FIELDS.filter((f) => summary.data[f.key]).slice(1).map((f) => (
+                          <div key={f.key} style={{ marginTop: 6 }}><div className="muted small">{f.label}</div><div className="body-text">{summary.data[f.key]}</div></div>
+                        ))}
+                      </details>
+                    )}
                     <div className="hint" style={{ marginTop: 6 }}>{summary.author} · {formatWhen(summary.at)}</div>
                   </>
                 ) : <div className="hint">Δεν έχει γραφτεί ακόμα. Τη γράφει θεραπευτής, όχι αυτόματα.</div>}
               </span>
             </div>
             <div className="linkrow" style={{ alignItems: "flex-start" }} data-tour="notes">
-              <span className="iconbox"><Icon name="doc" /></span>
               <span className="grow">
-                <div className="row spread"><strong>Τελευταίο γραπτό σημείωμα</strong>{last && <Link className="small" href={`/t/s/${last.slotId}`}>Άνοιγμα ›</Link>}</div>
-                {last ? (
-                  <>
-                    <div className="hint">{formatDate(last.date)} {formatHour(last.hour)} · {last.therapist}{last.pair && " · Therapair"} · παραμένει εδώ ακόμη κι αν μεσολάβησαν απουσίες</div>
-                    <details className="fold" style={{ marginTop: 4 }}>
-                      <summary>Το κείμενο</summary>
-                      <NoteText text={last.text} style={{ marginTop: 6 }} />
-                    </details>
-                  </>
-                ) : <div className="hint">Δεν υπάρχει σημείωμα ακόμα.</div>}
+                <strong>Τελευταίο διαθέσιμο σημείωμα</strong>
+                {last ? <NoteSummary author={`${last.therapist}${last.pair ? " · Therapair" : ""}`} at={last.date} text={last.text} href={`/t/s/${last.slotId}`} label="Άνοιγμα σημειώματος" /> : <div className="hint">Δεν υπάρχει σημείωμα ακόμα.</div>}
               </span>
             </div>
             <div className="linkrow" style={{ alignItems: "flex-start" }}>
-              <span className="iconbox"><Icon name="target" /></span>
               <span className="grow">
                 <strong>Ανοιχτά θέματα και συμφωνημένα επόμενα βήματα</strong>
                 {h && (h.agreed || h.openIssues || h.handover || h.suggested) ? (
@@ -175,61 +169,69 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
               </span>
             </div>
             <p className="hint" style={{ margin: "8px 0 0" }}><Link href={`/t/members/${id}/notes`}>Όλα τα σημειώματα ({noteCount}), με φίλτρα ›</Link></p>
-          </section>
+          </Panel>
 
-          <section className="panel">
-            <h2>Επόμενες ενέργειες</h2>
-            {actions.length === 0 && <div className="empty">Καμία εκκρεμής ενέργεια.</div>}
-            {actions.map((a, i) => (
-              <Link key={i} className="linkrow" href={a.href}>
-                <span className={`iconbox ${a.tone === "grey" ? "" : a.tone}`}><Icon name={a.icon} /></span>
-                <span className="grow">
-                  <div>{a.title}</div>
-                  <div className="hint">Ποιος: {a.who}{a.since && ` · από ${formatDate(localParts(a.since).date)}`}</div>
-                </span>
-                <span className={`pill ${a.tone}`}>{a.status}</span>
+          <Panel title="Επόμενες ενέργειες" icon="check">
+            {openActions.length === 0 && openIncidents === 0 && <EmptyState>Καμία εκκρεμής ενέργεια.</EmptyState>}
+            {openActions.map((a) => <ActionRow key={a.key} a={a} viewer={viewer} staff={staff} back={`/t/members/${id}`} />)}
+            {openIncidents > 0 && (
+              <Link className="linkrow" href={`/t/members/${id}/incident`}>
+                <span className="iconbox"><Icon name="list" /></span>
+                <span className="grow"><div>{openIncidents} {openIncidents === 1 ? "ανοιχτό συμβάν" : "ανοιχτά συμβάντα"}</div><div className="hint">τα κλείνει η διαχείριση</div></span>
+                <Pill tone="grey">ανοιχτό</Pill>
               </Link>
-            ))}
-          </section>
+            )}
+            {doneRecently.length > 0 && (
+              <details className="fold small" style={{ marginTop: 10 }}>
+                <summary className="muted">Ολοκληρώθηκαν πρόσφατα ({doneRecently.length})</summary>
+                {doneRecently.map((d, i) => <div key={i} className="kv"><span>{d.title}</span><span>{d.by ?? "—"} · {formatDate(localParts(d.at).date)} {formatTime(d.at)}</span></div>)}
+              </details>
+            )}
+          </Panel>
 
-          <section className="panel" data-tour="consistency">
-            <div className="panel-head"><h2>Τρέχων κύκλος{cycle && ` · Μήνας ${months}`}</h2><Link className="small" href={`/t/members/${id}/cycle`}>Ανασκόπηση κύκλου ›</Link></div>
-            {!cycle ? <div className="empty">Δεν έχει ξεκινήσει κύκλος.</div> : cycle.done === 0 ? (
-              <div className="empty">Νέος κύκλος: δεν έχει γίνει ατομική ακόμα{period && ` · από ${formatDate(period.from)}`}.</div>
+          <Panel icon="refresh" title={cycle ? `Τρέχων κύκλος · Μήνας ${months}` : "Τρέχων κύκλος"} link={{ href: `/t/members/${id}/cycle`, label: "Ανασκόπηση κύκλου" }} tour="consistency">
+            {!cycle ? <EmptyState>Δεν έχει ξεκινήσει κύκλος.</EmptyState> : cycle.done === 0 ? (
+              <EmptyState>Δεν έχει πραγματοποιηθεί ατομική ακόμη · {cycle.periodLabel}.</EmptyState>
             ) : (
               <>
-                <div className="kv"><span>Ατομικές που έγιναν</span><strong>{cycle.done} από {cycle.length}</strong></div>
-                <div className="kv"><span>Ήρθε σε</span><strong>{cycle.attended} από {cycle.done} <span className="muted small">(πάτησε «Μπες» ή σημείωμα «Ήρθε»)</span></strong></div>
+                <p className="hint" style={{ margin: "0 0 8px" }}>{cycle.periodLabel}</p>
+                <div className="kv"><span>Ατομικές που προβλέπει ο κύκλος</span><strong>{cycle.length}</strong></div>
+                <div className="kv"><span>Έχουν προγραμματιστεί</span><strong>{cycle.booked}</strong></div>
+                <div className="kv"><span>Πέρασε η προγραμματισμένη ώρα</span><strong>{cycle.presence.timePassed}</strong></div>
+                <div className="kv"><span>Ήρθε</span><strong>{cycle.attended} <span className="muted small">(σημείωμα «Ήρθε» {cycle.presence.confirmedPresent} · πάτησε «Μπες» {cycle.presence.joinClicked})</span></strong></div>
+                {cycle.presence.confirmedAbsent > 0 && <div className="kv"><span>Σημείωμα «Δεν ήρθε»</span><strong>{cycle.presence.confirmedAbsent}</strong></div>}
+                {cycle.presence.noRecord > 0 && <div className="kv"><span>Χωρίς καταγραφή (άγνωστη κατάσταση)</span><strong>{cycle.presence.noRecord}</strong></div>}
                 <div className="kv"><span>Ομάδες στον κύκλο</span><strong>{cycle.groups} από {s.groupsPerCycle}</strong></div>
-                {period && <div className="hint" style={{ marginTop: 6 }}>Περίοδος κύκλου: {formatDate(period.from)} – {formatDate(period.to)}</div>}
+                <p className="hint" style={{ margin: "6px 0 0" }}>Ο κανόνας «ήρθε»: πάτημα «Μπες» ή σημείωμα «Ήρθε». Όσα δεν έχουν καταγραφή δεν μετράνε ως «ήρθε», αλλά δεν είναι επιβεβαιωμένη απουσία.</p>
               </>
             )}
-          </section>
+          </Panel>
         </div>
 
         <div className="stackv">
-          <section className="panel">
-            <div className="panel-head"><h2>Πρόσφατη πορεία</h2><span className="hint">τελευταίες {consistency.weeks} εβδομάδες</span></div>
-            <div className="stats">
-              <div className="stat"><b>{consistency.groups}/{consistency.groupDays.length}</b><span>ομάδες · ήρθε / έγιναν</span></div>
-              <div className="stat"><b>{consistency.sessionsDone}/{consistency.sessionsTotal}</b><span>ατομικές · ήρθε / έγιναν</span></div>
+          <Panel title="Πρόσφατη πορεία" icon="list">
+            <p className="hint" style={{ margin: "-6px 0 10px" }}>Τελευταίες {consistency.weeks} εβδομάδες · από {formatDate(consistency.from)}</p>
+            <div className="stats tiles">
+              <div className="stat"><b>{consistency.groups}/{consistency.groupDays.length}</b><span>ομάδες · ήρθε / ημέρες ομάδας</span></div>
+              <div className="stat"><b>{consistency.sessionsDone}/{consistency.sessionsTotal}</b><span>ατομικές · ήρθε / πέρασε η ώρα τους</span></div>
             </div>
+            {describeCounts(consistency.sessions) && <p className="hint" style={{ margin: "8px 0 0" }}>Ατομικές: {describeCounts(consistency.sessions)}</p>}
             <div className="row" style={{ gap: 4, marginTop: 8 }} aria-label="Παρουσίες στις ομάδες, μέρα με μέρα">
-              {consistency.groupDays.map((d) => <span key={d.date} title={`${formatDate(d.date)}: ${d.present ? "ήρθε" : "δεν ήρθε"}`} className={`dot${d.present ? " ok" : ""}`} />)}
+              {consistency.groupDays.map((d) => <span key={d.date} title={`${formatDate(d.date)}: ${d.present ? "καταγράφηκε παρουσία" : "χωρίς καταγραφή παρουσίας"}`} className={`dot${d.present ? " ok" : ""}`} />)}
             </div>
             <div className="kv" style={{ marginTop: 8 }}><span>Απογραφές</span><strong>{journal7} από 7 <span className="muted small">τελευταίες 7 ημέρες</span></strong></div>
             <p className="hint" style={{ margin: "6px 0 0" }}><Link href={`/t/members/${id}/journal`}>Όλες οι απογραφές, μέρα-μέρα ›</Link> · <Link href="/t/consistency">Συνέπεια όλων ›</Link></p>
-          </section>
+          </Panel>
 
-          <section className="panel" data-tour="sober" style={{ background: "var(--soft)" }}>
-            <div className="row" style={{ gap: 12 }}>
-              <span className="iconbox"><Icon name="leaf" /></span>
+          <section className="panel sober" data-tour="sober">
+            <div className="row" style={{ gap: 14, flexWrap: "nowrap" }}>
+              <span className="iconbox lg"><Icon name="leaf" size={28} /></span>
               <span>
-                <strong style={{ fontSize: "1.15rem" }}>{member.soberSince ? `${sober ?? 0} μέρες νηφαλιότητας` : "Νηφαλιότητα: δεν έχει καταγραφεί ημερομηνία"}</strong>
+                <strong style={{ fontSize: "1.25rem" }}>{member.soberSince ? `${sober ?? 0} μέρες νηφαλιότητας` : "Νηφαλιότητα: δεν έχει καταγραφεί ημερομηνία"}</strong>
                 {member.soberSince && <div className="hint">Από {gr(member.soberSince)} · όπως καταγράφηκε στον φάκελο</div>}
               </span>
             </div>
-            <div className="hint" style={{ marginTop: 8 }}>
+            <div className="hint" style={{ marginTop: 10 }}>
               Ανάγκες ασφάλειας: <strong>{risk.label}</strong>{risk.level && risk.at && !risk.trigger && ` · ${RISK_INFO[risk.level].action} · ${formatDate(localParts(risk.at).date)}, ${risk.author}`}
               {" · "}<Link href={`/t/members/${id}/risk`}>Ανάγκες ›</Link> · <Link href={`/t/members/${id}/safety`}>Πλάνο {plan ? `(${formatDate(localParts(plan.updatedAt).date)})` : "(δεν έχει γραφτεί)"} ›</Link>
             </div>
@@ -242,28 +244,27 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
             )}
           </section>
 
-          <section className="panel" data-tour="goals">
-            <h2>Στόχος και εργασία</h2>
+          <Panel title="Στόχος και εργασία" icon="target" tour="goals">
             {lastGoal ? (
               <>
                 <div className="hint">{lastGoal.week === mondayOf(today) ? "Στόχος αυτής της εβδομάδας" : "Τελευταίος καταγεγραμμένος στόχος"} · εβδομάδα {formatDate(lastGoal.week)}</div>
-                <div style={{ fontWeight: 600 }}>«{lastGoal.goal!.text}»</div>
+                <div style={{ fontWeight: 700, fontSize: "1.05rem", margin: "2px 0" }}>«{lastGoal.goal!.text}»</div>
                 <div className="hint">Ναι {lastGoal.days.filter((d) => d.check === "YES").length} · Λίγο {lastGoal.days.filter((d) => d.check === "PARTLY").length} · Όχι {lastGoal.days.filter((d) => d.check === "NO").length}</div>
               </>
-            ) : <div className="empty">Δεν έχει βάλει ακόμα στόχο εβδομάδας.</div>}
-            <Link className="linkrow" href={`/t/members/${id}/assignments`} data-tour="step" style={{ marginTop: 8 }}>
+            ) : <EmptyState>Δεν έχει βάλει ακόμα στόχο εβδομάδας.</EmptyState>}
+            <Link className="linkrow" href={`/t/members/${id}/assignments`} data-tour="step" style={{ marginTop: 10 }}>
               <span className="iconbox"><Icon name="doc" /></span>
               <span className="grow">
-                {stepWork ? <><div>Βήμα {stepWork.step} · {stepWork.title}</div><div className="hint">{stepWork.status}</div></> : <div className="hint">Δεν έχει σταλεί βήμα από τη διαχείριση.</div>}
+                {stepWork ? <><div>Βήμα {stepWork.step} · {stepWork.title}</div></> : <div className="hint">Δεν έχει σταλεί βήμα από τη διαχείριση.</div>}
               </span>
+              {stepWork && <Pill tone="grey">{stepWork.status}</Pill>}
               <span className="arrow"><Icon name="chevron" /></span>
             </Link>
-          </section>
+          </Panel>
 
-          <section className="panel" data-tour="months">
-            <h2>Μήνες</h2>
+          <Panel title="Μήνες" tour="months">
             <MonthLinks memberId={id} />
-          </section>
+          </Panel>
         </div>
       </div>
       <TourFor id="member" userId={user.id} />

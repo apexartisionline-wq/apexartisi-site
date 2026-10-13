@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { ThemeDetails, type ThemeDetail } from "@/components/ThemeDetails";
+import { FormTabs } from "@/components/FormTabs";
 import { SaveBar } from "@/components/SaveBar";
 import { useNoteForm } from "./useNoteForm";
 import { DEFENSES, JOURNALING, MOOD, type NoteForm, noteFormSchema, PRESENTED, PROCESS, SELF_HELP, THEMES } from "@/lib/note-form";
@@ -38,14 +39,17 @@ export function NoteFormClient({ action, hidden, initial, themeForms, themeDetai
   const editing = Boolean(initial);
   const [tab, setTab] = useState<Tab>(0);
   const [touched, setTouched] = useState(false);
+  const [problem, setProblem] = useState("");
   const set = <K extends keyof NoteForm>(k: K, v: NoteForm[K]) => {
     setTouched(true);
+    setProblem("");
     setD((x) => ({ ...x, [k]: v }));
   };
   const toggle = (k: "presented" | "brought" | "defenses", v: string) =>
     setD((x) => {
       const cur = (x[k] as string[] | undefined) ?? [];
       setTouched(true);
+      setProblem("");
       return { ...x, [k]: cur.includes(v) ? cur.filter((y) => y !== v) : [...cur, v] };
     });
   const notify = Boolean(d.notify);
@@ -56,7 +60,6 @@ export function NoteFormClient({ action, hidden, initial, themeForms, themeDetai
 
   // Ο έλεγχος γίνεται εδώ πριν φύγει: αν λείπει κάτι, το σημείωμα μένει όπως είναι και ανοίγει η σωστή καρτέλα.
   const formRef = useNoteForm();
-  const [problem, setProblem] = useState("");
   const [warnedEmpty, setWarnedEmpty] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const check = (e: React.FormEvent<HTMLFormElement>) => {
@@ -134,8 +137,8 @@ export function NoteFormClient({ action, hidden, initial, themeForms, themeDetai
   );
   // Δύο κουμπιά με λέξεις (χωρίς διακόπτη, χωρίς προεπιλογή): «Ήρθε», νηφαλιότητα, ανησυχία.
   const pick2 = (label: string, opts: [string, boolean][], value: boolean | undefined, onPick: (v: boolean) => void) => (
-    <div className="row spread" style={{ flexWrap: "wrap", gap: 8 }}>
-      <span>{label}{value === undefined && <span className="muted small"> · δεν απαντήθηκε</span>}</span>
+    <div>
+      <div className="q-label">{label}{value === undefined && <span className="muted small"> · δεν απαντήθηκε</span>}</div>
       <span className="chips" role="group" aria-label={label}>
         {opts.map(([l, v]) => <button key={l} type="button" className="chip" aria-pressed={value === v} onClick={() => onPick(v)}>{l}</button>)}
       </span>
@@ -159,13 +162,7 @@ export function NoteFormClient({ action, hidden, initial, themeForms, themeDetai
       <input type="hidden" name="payload" value={JSON.stringify(payload)} />
       {restored && <div className="notice">Βρέθηκε πρόχειρο που δεν είχε αποθηκευτεί — συνέχισε από εκεί.</div>}
 
-      <div className="tabs" role="tablist" aria-label="Ενότητες σημειώματος">
-        {NOTE_TABS.map((t, i) => (
-          <button key={t} type="button" role="tab" aria-selected={tab === i} aria-controls={`note-tab-${i}`} onClick={() => setTab(i as Tab)}>
-            {t}{done[i] && <span className="tab-done" aria-label="συμπληρωμένη">✓</span>}
-          </button>
-        ))}
-      </div>
+      <FormTabs tabs={NOTE_TABS} icons={["doc", "target", "list", "group"]} active={tab} done={done} onChange={(i) => setTab(i as Tab)} label="Ενότητες σημειώματος" idPrefix="note-tab" />
 
       {tab === 0 && (
         <div id="note-tab-0" role="tabpanel">

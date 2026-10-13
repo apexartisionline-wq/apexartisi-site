@@ -92,6 +92,14 @@ export function formatTime(d: Date): string {
   return formatHour(p.hour, p.minute);
 }
 
+/**
+ * Προγραμματισμένη ώρα συνεδρίας «ΩΩ:ΛΛ–ΩΩ:ΛΛ» (ώρα Ελλάδας), πάντα από την ΠΡΑΓΜΑΤΙΚΗ έναρξη (startsAt) και τη διάρκεια.
+ * Όλες οι οθόνες θεραπευτή χρησιμοποιούν αυτό, όχι το πεδίο `hour` της θέσης (13/10: η ίδια ατομική έδειχνε 00:15 και 00:00).
+ */
+export function formatSpan(startsAt: Date, minutes: number): string {
+  return `${formatTime(startsAt)}–${formatTime(new Date(startsAt.getTime() + minutes * 60_000))}`;
+}
+
 export function isAfterLocal(p: LocalParts, hhmm: string): boolean {
   return p.hour * 60 + p.minute >= toMinutes(hhmm);
 }

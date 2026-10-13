@@ -10,6 +10,7 @@ import { hideOther, nameVariants } from "@/lib/pair-note";
 import { vocative } from "@/lib/vocative";
 import { cyclePicture, cycleReviews } from "@/lib/cycle-review";
 import { prisma } from "@/lib/db";
+import { describeCounts } from "@/lib/presence";
 import { formatDate, formatWhen, localParts } from "@/lib/time";
 
 // Μηνιαίος φάκελος (ένας «μήνας» = ένας κύκλος): ό,τι χρειάζεται αν κάποιος ρωτήσει
@@ -27,7 +28,7 @@ export default async function MonthFolder({ params }: { params: Promise<{ id: st
   const cycles = await prisma.cycle.findMany({ where: { memberId: id }, orderBy: { startedAt: "asc" }, select: { id: true } });
   const n = cycles.findIndex((c) => c.id === cycle.id) + 1;
   const [pic, reviews, msg] = await Promise.all([
-    cyclePicture(id, { ...cycle, bookings: cycle.bookings.map((b) => ({ ...b, slot: { startsAt: b.slot.startsAt, date: b.slot.date } })) }),
+    cyclePicture(id, { ...cycle, bookings: cycle.bookings.map((b) => ({ ...b, slot: { startsAt: b.slot.startsAt, date: b.slot.date, kind: b.slot.kind, note: b.slot.kind === "PAIR" ? (b.slot.pairNotes[0] ? { id: b.slot.pairNotes[0].id } : null) : b.slot.note } })) }),
     cycleReviews(id),
     prisma.monthlyMessage.findUnique({ where: { cycleId } }),
   ]);
@@ -38,12 +39,12 @@ export default async function MonthFolder({ params }: { params: Promise<{ id: st
       <p className="no-print" style={{ margin: "8px 0 0" }}><Link className="back" href={`/t/members/${id}`}>‹ {member.name}</Link></p>
       <div className="no-print"><FolderTabs memberId={id} active="month" /></div>
       <h1 style={{ marginBottom: 4 }}>{member.name} · Μήνας {n}</h1>
-      <p className="muted" style={{ marginTop: 0 }}>{formatDate(pic.from)} – {formatDate(pic.to)}</p>
+      <p className="muted" style={{ marginTop: 0 }}>{pic.periodLabel}</p>
       <p className="no-print"><PrintButton /></p>
 
       <h2>Εικόνα του μήνα</h2>
       <div className="card stack small">
-        <div>Ατομικές: <strong>{pic.sessions.done} από {pic.sessions.total}</strong>{pic.sessions.came < pic.sessions.done && <span className="muted"> (ήρθε σε {pic.sessions.came})</span>} · Ομάδες: <strong>{pic.groups.came} από {pic.groups.total}</strong></div>
+        <div>Ατομικές: πέρασε η ώρα <strong>{pic.sessions.done} από {pic.sessions.total}</strong> · ήρθε <strong>{pic.sessions.came}</strong>{describeCounts(pic.presence) && <span className="muted"> ({describeCounts(pic.presence)})</span>} · Ομάδες: <strong>{pic.groups.came} από {pic.groups.total}</strong></div>
         <div>Απογραφές: <strong>{pic.journal.written} από {pic.journal.days} μέρες</strong> · Κόκκινο κουμπί: <strong>{pic.help}</strong></div>
         <div>Νηφαλιότητα: <strong>{pic.soberDays ?? "—"} μέρες</strong>{pic.relapses ? ` · ${pic.relapses} ${pic.relapses === 1 ? "αλλαγή" : "αλλαγές"} ημερομηνίας` : ""}</div>
       </div>
@@ -65,7 +66,7 @@ export default async function MonthFolder({ params }: { params: Promise<{ id: st
       <h2>Ατομικές και σημειώματα</h2>
       {cycle.bookings.map((b, i) => { const note = b.slot.kind === "PAIR" ? b.slot.pairNotes[0] : b.slot.note; return (
         <div key={b.id} className="card small">
-          <strong>{i + 1}. {formatDate(b.slot.date)}</strong> · {b.slot.kind === "PAIR" ? "Therapair" : "Ατομική"} · {note?.therapist.name ?? b.slot.therapist?.name ?? ""}{b.slot.startsAt > new Date() ? " · προγραμματισμένη" : !b.joinedAt && " · δεν ήρθε"}
+          <strong>{i + 1}. {formatDate(b.slot.date)}</strong> · {b.slot.kind === "PAIR" ? "Therapair" : "Ατομική"} · {note?.therapist.name ?? b.slot.therapist?.name ?? ""}{b.slot.startsAt > new Date() ? " · προγραμματισμένη" : b.joinedAt ? (note ? " · ήρθε (σημείωμα)" : " · πάτησε «Μπες»") : note ? " · σημείωμα «Δεν ήρθε»" : " · χωρίς καταγραφή παρουσίας"}
           {note ? <NoteText style={{ marginTop: 6 }} text={b.slot.kind === "PAIR" ? hideOther(dec(note.content), b.slot.bookings.flatMap((o) => nameVariants(o.member.name, vocative))) : dec(note.content)} /> : <div className="muted">Χωρίς σημείωμα.</div>}
         </div>
       ); })}

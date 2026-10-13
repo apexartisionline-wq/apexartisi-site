@@ -9,6 +9,7 @@ import { memberIntake } from "./intake";
 import { memberNotes } from "./member-notes";
 import { groupStarted, groupsOn } from "./program";
 import { getSettings } from "./settings";
+import { countPresence, sessionPresence } from "./presence";
 import { addDays, formatDate, localParts } from "./time";
 
 /** Σήματα ασφάλειας ενός μέλους (βλ. handover-rules.ts). Δεν διαβάζει το ημερολόγιο. */
@@ -26,7 +27,7 @@ export async function memberSafety(memberId: string, now = new Date()) {
     getSettings(),
     prisma.booking.findMany({
       where: { memberId, joinedAt: null, slot: { startsAt: { gte: since14, lt: new Date(now.getTime() - 3600_000) } } },
-      select: { slotId: true, slot: { select: { startsAt: true } } },
+      select: { slotId: true, slot: { select: { startsAt: true, note: { select: { id: true } } } } },
     }),
   ]);
   const risk = intake.checks.find((c) => c.key === "risk");
@@ -38,7 +39,7 @@ export async function memberSafety(memberId: string, now = new Date()) {
     safetyPlanAt: plan?.updatedAt ?? null,
     helpRequests: help,
     notes: notes.map((n) => ({ at: n.startsAt, riskChange: n.riskChange, usedSince: n.usedSince, slotId: n.slotId })),
-    missed: missed.map((b) => ({ at: b.slot.startsAt, slotId: b.slotId })),
+    missed: missed.map((b) => ({ at: b.slot.startsAt, slotId: b.slotId, noted: Boolean(b.slot.note) })),
     lastContact: contacts.length ? new Date(Math.max(...contacts.map((d) => d.getTime()))) : null,
     openDropout: openDropout > 0,
     dropoutDays: s.dropoutDays,
@@ -60,7 +61,7 @@ export async function memberSafety(memberId: string, now = new Date()) {
     href: `/t/members/${memberId}`,
   }));
   const trig = await riskTrigger(memberId);
-  const review = trig ? [{ level: "yellow" as const, key: "risk_review", text: `Θέλει αξιολόγηση αναγκών ασφάλειας (μετά από ${trig.text})`, at: trig.at, href: `/t/members/${memberId}/risk` }] : [];
+  const review = trig ? [{ level: "yellow" as const, key: "risk_review", trigText: trig.text, text: `Θέλει αξιολόγηση αναγκών ασφάλειας (μετά από ${trig.text})`, at: trig.at, href: `/t/members/${memberId}/risk` }] : [];
   // Τα κόκκινα πρώτα (η εγκυμοσύνη είναι κίτρινη).
   const all = [...fromAssessment, ...fromJournal, ...review, ...flags];
   return [...all.filter((f) => f.level === "red"), ...all.filter((f) => f.level !== "red")];
@@ -100,14 +101,22 @@ export async function memberConsistency(memberId: string, weeks = 4, now = new D
   }
   const [att, bookings] = await Promise.all([
     prisma.attendance.findMany({ where: { memberId, date: { gte: from } }, select: { date: true } }),
-    prisma.booking.findMany({ where: { memberId, slot: { date: { gte: from }, startsAt: { lt: now } } }, select: { joinedAt: true } }),
+    prisma.booking.findMany({ where: { memberId, slot: { date: { gte: from }, startsAt: { lt: now } } }, select: { joinedAt: true, slot: { select: { startsAt: true, kind: true, note: { select: { id: true } } } } } }),
   ]);
   const present = new Set(att.map((a) => a.date));
   return {
     weeks,
     groupDays: days.map((date) => ({ date, present: present.has(date) })),
     groups: days.filter((d) => present.has(d)).length,
+    // «Ήρθε» (sessionsDone) = ίδιος κανόνας με πριν· sessionsTotal = όσων πέρασε η ώρα τους (όχι «έγιναν»).
     sessionsDone: bookings.filter((b) => b.joinedAt).length,
     sessionsTotal: bookings.length,
+    // Διακριτές έννοιες: επιβεβαιωμένη παρουσία / πάτησε «Μπες» / σημείωμα «Δεν ήρθε» / χωρίς καταγραφή.
+    sessions: countPresence(bookings.map((b) => sessionPresence({
+      startsAt: b.slot.startsAt,
+      endsAt: new Date(b.slot.startsAt.getTime() + (b.slot.kind === "PAIR" ? s.pairMinutes : s.sessionMinutes) * 60_000),
+      now, joinedAt: b.joinedAt, hasNote: Boolean(b.slot.note),
+    }))),
+    from,
   };
 }

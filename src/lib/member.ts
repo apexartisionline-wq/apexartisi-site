@@ -1,7 +1,8 @@
 import "server-only";
 import { prisma } from "./db";
-import type { Settings } from "./settings";
-import { addDays, isAfterLocal, localParts } from "./time";
+import { countPresence, sessionPresence } from "./presence";
+import { getSettings, type Settings } from "./settings";
+import { addDays, formatDate, isAfterLocal, localParts } from "./time";
 
 /**
  * Η περίοδος ενός κύκλου («μήνας»), ίδια παντού (αρχική μέλους, φάκελος, μήνας, ανασκόπηση):
@@ -17,6 +18,18 @@ export function cyclePeriod(cycle: { startedAt: Date; closedAt: Date | null; boo
 }
 
 /**
+ * Η περίοδος ως κείμενο. Ο ανοιχτός κύκλος (έχει ακόμα συνεδρίες που δεν έχουν γίνει, ή δεν έχει κλείσει) δεν εμφανίζεται
+ * ως ολοκληρωμένη περίοδο «13/10–13/10»: λέει «Από 13/10 — σε εξέλιξη».
+ */
+export function cyclePeriodLabel(cycle: { startedAt: Date; closedAt: Date | null; bookings: { slot: { date: string; startsAt: Date } }[] }, now = new Date()): string {
+  const { from, to } = cyclePeriod(cycle);
+  const lastStart = cycle.bookings.at(-1)?.slot.startsAt;
+  const inProgress = !cycle.closedAt || (lastStart ? lastStart > now : true);
+  if (inProgress) return `Από ${formatDate(from)} — σε εξέλιξη`;
+  return from === to ? formatDate(from) : `${formatDate(from)} – ${formatDate(to)}`;
+}
+
+/**
  * Ο τρέχων κύκλος του μέλους (ο πιο πρόσφατος, ανοιχτός ή μόλις κλεισμένος) και
  * ο αριθμός κάθε συνεδρίας μέσα σε αυτόν.
  */
@@ -24,7 +37,7 @@ export async function cycleInfo(memberId: string) {
   const cycle = await prisma.cycle.findFirst({
     where: { memberId },
     orderBy: { startedAt: "desc" },
-    include: { bookings: { include: { slot: true }, orderBy: { slot: { startsAt: "asc" } } } },
+    include: { bookings: { include: { slot: { include: { note: { select: { id: true } } } } }, orderBy: { slot: { startsAt: "asc" } } } },
   });
   if (!cycle) return null;
   const now = new Date();
@@ -36,7 +49,15 @@ export async function cycleInfo(memberId: string) {
   // Ομάδες του κύκλου: παρουσίες μέσα στην περίοδό του (όπως και στον φάκελο του μήνα).
   const { from, to } = cyclePeriod(cycle);
   const groups = await prisma.attendance.count({ where: { memberId, date: { gte: from, lte: to } } });
-  return { cycle, length: cycle.length, done, attended, booked: cycle.bookings.length, numbers, groups };
+  // Διακριτές έννοιες (13/10): προγραμματισμένες · πέρασε η ώρα τους · επιβεβαιωμένη παρουσία · πάτησε «Μπες» · χωρίς καταγραφή.
+  // Ο αριθμός «ήρθε» (attended) είναι ο ίδιος κανόνας με πριν· εδώ φαίνεται και η ανάλυσή του.
+  const s = await getSettings();
+  const presence = countPresence(cycle.bookings.map((b) => sessionPresence({
+    startsAt: b.slot.startsAt,
+    endsAt: new Date(b.slot.startsAt.getTime() + (b.slot.kind === "PAIR" ? s.pairMinutes : s.sessionMinutes) * 60_000),
+    now, joinedAt: b.joinedAt, hasNote: Boolean(b.slot.note),
+  })));
+  return { cycle, length: cycle.length, done, attended, booked: cycle.bookings.length, numbers, groups, presence, periodLabel: cyclePeriodLabel(cycle, now) };
 }
 
 type Tx = Omit<typeof prisma, "$connect" | "$disconnect" | "$on" | "$transaction" | "$extends">;

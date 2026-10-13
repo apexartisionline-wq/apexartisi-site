@@ -31,6 +31,19 @@
   --radius: 12px;         /* radius-md: κάρτες, κουμπιά */
   --radius-sm: 6px;       /* πεδία, badges */
   --radius-lg: 20px;
+  /* Σύστημα εμφάνισης θεραπευτή (13/10, 2ο πέρασμα): φόντο γκρι-μπλε, λευκές κάρτες, λεπτά περιγράμματα. */
+  --canvas: #f2f6f9;      /* φόντο εφαρμογής θεραπευτή */
+  --card: #ffffff;
+  --card-line: #e2eaef;
+  --card-radius: 14px;
+  --card-pad: 22px;
+  --gap: 20px;
+  --fs-help: 0.875rem;    /* 14px */
+  --fs-h2: 1.25rem;       /* 20px */
+  --fs-h1: 2rem;          /* 32px */
+  --btn-h: 46px;
+  --teal-quiet: #eaf6f7;
+  --teal-line: #bfe0e3;
   --note-box: #ffffff;    /* κουτί ερώτησης στο σημειωματάριο */
   --note-text: #0c1620;
   --note-muted: #3f5864;
@@ -39,6 +52,11 @@
 }
 @media (prefers-color-scheme: dark) {
   :root {
+    --canvas: #0c1620;
+    --card: #132231;
+    --card-line: #22323f;
+    --teal-quiet: #173444;
+    --teal-line: #2a5566;
     --bg: #0c1620;
     --surface: #132231;
     --field: #0c1620;
@@ -286,23 +304,32 @@ body:has(main.help) .redbar { display: none; }
 /* Σημειωματάριο: ομάδες επιλογών τύπου iOS. */
 /* Σημειωματάριο (απόφαση 11/10, σχόλιο θεραπεύτριας): κάθε ερώτηση σε δικό της ανοιχτό κουτί που ξεχωρίζει
    από το φόντο, γράμματα πιο έντονα (στο σκούρο θέμα καθαρά λευκά). Η δομή μένει ίδια. */
-.note-form { background: var(--surface); border: 0; border-radius: var(--radius); padding: 10px; color: var(--note-text); }
-.note-form fieldset { border: 1px solid var(--line); background: var(--note-box); border-radius: var(--radius); margin: 0 0 10px; padding: 14px 16px; min-width: 0; box-shadow: var(--shadow); }
+.note-form { background: transparent; border: 0; padding: 0; color: var(--note-text); }
+/* Κάθε ερώτηση: ανοιχτό, λεπτό κουτί (απόφαση 11/10), πυκνό — χωρίς σκιά και χωρίς μεγάλα κενά (εικόνα «Ατομική»). */
+.note-form fieldset { border: 1px solid var(--card-line); background: var(--note-box); border-radius: var(--radius); margin: 0 0 12px; padding: 12px 16px 14px; min-width: 0; }
 .note-form > fieldset:last-of-type { margin-bottom: 0; }
-.note-form legend { font-weight: 700; font-size: 1.05rem; color: var(--note-text); padding: 0; margin-bottom: 10px; float: left; width: 100%; }
+.note-form legend, .note-form .q-label { font-weight: 700; font-size: 1rem; color: var(--note-text); padding: 0; margin-bottom: 8px; }
+.note-form legend { float: left; width: 100%; }
 .note-form label { color: var(--note-muted); font-size: .95rem; }
 .note-form .muted { color: var(--note-muted); }
-.note-form .chip, .note-form .yn button { background: var(--note-chip); font-size: 1rem; }
+.note-form .chips { gap: 8px; }
+.note-form .chip, .note-form .yn button { background: var(--note-box); border: 1px solid #b9c9d2; font-size: 1rem; font-weight: 600; min-height: 44px; padding: 8px 16px; border-radius: 10px; }
+.note-form .chip:hover { border-color: var(--accent); }
+.note-form .chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+.note-form .chip[aria-pressed="true"]::before { content: "✓"; margin-right: 6px; }
 .note-form input, .note-form textarea, .note-form select { font-size: 1rem; }
-.note-form .pair-sec { border: 1px solid var(--line); background: var(--note-box); border-radius: var(--radius); margin: 0 0 10px; padding: 10px 16px; box-shadow: var(--shadow); }
+.note-form textarea { min-height: 0; }
+.note-form .pair-sec { border: 1px solid var(--card-line); background: var(--note-box); border-radius: var(--radius); margin: 0 0 12px; padding: 10px 16px; }
 .note-form .pair-sec > summary { font-size: 1.05rem; color: var(--note-text); }
 .note-form .pair-name { font-size: 1rem; }
 .note-form legend + * { clear: both; }
 /* Καρτέλες του φακέλου του μέλους (11/10). */
-.folder-tabs { display: flex; gap: 6px; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; margin: 10px 0 14px; padding-bottom: 2px; }
-.folder-tabs::-webkit-scrollbar { display: none; }
-.folder-tabs a { flex: none; min-height: 40px; display: inline-flex; align-items: center; padding: 6px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font-weight: 600; font-size: .95rem; text-decoration: none; white-space: nowrap; }
-.folder-tabs a[aria-current='page'] { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+/* Καρτέλες φακέλου μέλους: κείμενο με υπογράμμιση, η ενεργή γεμάτη πετρόλ (εικόνα «Καρτέλα μέλους»). */
+.folder-tabs { display: flex; gap: 4px; flex-wrap: wrap; border-bottom: 1px solid var(--card-line); margin: 0 0 18px; }
+.folder-tabs a { min-height: 44px; display: inline-flex; align-items: center; padding: 8px 16px; border-radius: 10px 10px 0 0; color: var(--text); font-weight: 600; text-decoration: none; margin-bottom: -1px; }
+.folder-tabs a:hover { background: var(--teal-quiet); }
+.folder-tabs a[aria-current='page'] { background: var(--accent); color: var(--accent-text); }
+@media (max-width: 760px) { .folder-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; } .folder-tabs::-webkit-scrollbar { display: none; } .folder-tabs a { flex: none; white-space: nowrap; } }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .chip { border: 1px solid var(--line); background: var(--field); color: var(--text); border-radius: 999px; padding: 8px 14px; min-height: 44px; font: inherit; font-size: .95rem; font-weight: 500; cursor: pointer; }
 .chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
@@ -467,86 +494,123 @@ nav.top > form { order: 100; }
 @media (prefers-reduced-motion: reduce) { .tour-bubble, .tour-spot, .tour-dim { animation: none; } }
 
 /* ───────────────────────────────────────────────────────────────────────────
-   Ανασχεδιασμός της καθημερινής εμπειρίας του θεραπευτή (13/10): ήρεμο, λευκό,
-   πετρόλ για τις ενέργειες, λίγα εικονίδια, μία κύρια ενέργεια ανά σειρά.
+   Ανασχεδιασμός θεραπευτή (13/10, 2ο πέρασμα): πιστή αντιστοίχιση με τις τρεις εγκεκριμένες εικόνες.
+   Φόντο γκρι-μπλε, λευκές κάρτες χωρίς κάρτες μέσα σε κάρτες, ένα πετρόλ για τις ενέργειες.
    ─────────────────────────────────────────────────────────────────────────── */
-.page-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px 16px; flex-wrap: wrap; margin: 8px 0 14px; }
-.page-head h1 { margin: 0; font-size: 1.75rem; }
-.page-sub { color: var(--muted); margin: 2px 0 0; }
-.page-head .head-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.cols { display: grid; gap: 16px; align-items: start; }
-@media (min-width: 980px) {
+.staff { background: var(--canvas); min-height: calc(100vh - 70px); }
+.staff main.wide { max-width: 1536px; padding: 22px 32px calc(96px + env(safe-area-inset-bottom)); }
+nav.top.has-menu { max-width: 1536px; padding-inline: 32px; }
+@media (max-width: 760px) { .staff main.wide { padding: 16px 16px calc(96px + env(safe-area-inset-bottom)); } nav.top.has-menu { padding-inline: 16px; } }
+.page-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px 20px; flex-wrap: wrap; margin: 6px 0 20px; }
+.page-head h1 { margin: 0; font-size: var(--fs-h1); line-height: 1.15; letter-spacing: -0.02em; }
+.page-sub { color: var(--muted); margin: 6px 0 0; font-size: 1.05rem; }
+.page-head .head-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.cols { display: grid; gap: var(--gap); align-items: start; }
+@media (min-width: 1000px) {
   .cols-60 { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); }
   .cols-38 { grid-template-columns: minmax(0, 38fr) minmax(0, 62fr); }
 }
 .cols > * { min-width: 0; }
-.stackv { display: flex; flex-direction: column; gap: 16px; }
-/* Πάνελ: λευκό πάνω στο «χαρτί», ήπια σκιά. */
-.panel { background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: 16px; box-shadow: var(--shadow); }
-.panel > h2:first-child, .panel-head h2 { margin: 0 0 10px; font-size: 1.15rem; }
-.panel-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px 12px; flex-wrap: wrap; margin-bottom: 10px; }
+.stackv { display: flex; flex-direction: column; gap: var(--gap); }
+/* Κάρτα: λευκή, λεπτό περίγραμμα, ήπια σκιά. Δεν μπαίνει κάρτα μέσα σε κάρτα· τα εσωτερικά είναι σειρές με διαχωριστικό. */
+.panel { background: var(--card); border: 1px solid var(--card-line); border-radius: var(--card-radius); padding: var(--card-pad); box-shadow: 0 1px 2px rgba(12, 22, 32, 0.04); }
+.panel > h2:first-child, .panel-head h2 { margin: 0 0 12px; font-size: var(--fs-h2); line-height: 1.25; }
+.panel-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px 12px; flex-wrap: wrap; margin-bottom: 14px; }
 .panel-head h2 { margin: 0; }
-.panel .empty { color: var(--muted); padding: 8px 0; }
-@media (prefers-color-scheme: dark) { .panel { background: var(--surface); } }
-.iconbox { width: 44px; height: 44px; border-radius: 50%; background: var(--surface); color: var(--accent); display: inline-flex; align-items: center; justify-content: center; flex: none; }
-@media (prefers-color-scheme: dark) { .iconbox { background: var(--soft); } }
+.panel-head .panel-link { font-size: var(--fs-help); font-weight: 600; text-decoration: none; color: var(--accent-strong); }
+.panel-head .panel-link:hover { text-decoration: underline; }
+.panel .empty, .empty { color: var(--muted); padding: 6px 0; font-size: var(--fs-help); }
+.iconbox { width: 44px; height: 44px; border-radius: 50%; background: var(--teal-quiet); color: var(--accent); display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.iconbox.lg { width: 64px; height: 64px; }
 .iconbox.red { background: var(--red-quiet); color: var(--red-ink); }
 .iconbox.yellow { background: var(--yellow-quiet); color: var(--yellow-ink); }
 .iconbox.ok { background: #e6f4ec; color: var(--ok); }
-/* Πρόγραμμα της ημέρας. */
-.sched { display: flex; flex-direction: column; gap: 10px; }
-.sched-item { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px 14px; align-items: center; border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; background: var(--bg); }
-@media (prefers-color-scheme: dark) { .sched-item { background: var(--surface); } }
-.sched-item.next { background: var(--soft); border-color: var(--accent); }
-.sched-time { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.01em; line-height: 1.2; }
-.sched-item.next .sched-time { font-size: 1.5rem; }
-.sched-kind { font-weight: 600; }
+/* Κουμπιά: κύριο = πετρόλ γεμάτο, δευτερεύον = περίγραμμα πετρόλ. Ύψος 44–48px. */
+.btn.outline, button.outline { background: var(--card); border-color: var(--accent); color: var(--accent-strong); }
+.btn.outline:hover, button.outline:hover { background: var(--teal-quiet); }
+.btn.sm, button.sm { min-height: 40px; padding: 6px 14px; font-size: .9rem; }
+.btn.primary, button.primary { min-height: var(--btn-h); }
+.btn.lg, button.lg { min-height: 48px; padding: 10px 22px; }
+@media (prefers-color-scheme: dark) { .btn.outline, button.outline { color: var(--accent); } }
+/* Πρόγραμμα της ημέρας. Η επόμενη συνεδρία είναι το πρώτο σημείο αναφοράς· οι υπόλοιπες χαμηλότερης έμφασης. */
+.sched { display: flex; flex-direction: column; gap: 12px; }
+.sched-item { display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; gap: 8px 18px; align-items: center; border: 1px solid var(--card-line); border-radius: var(--radius); padding: 14px 18px; background: var(--card); }
+.sched-item.past { background: transparent; border-style: dashed; padding-block: 10px; }
+.sched-item.past .sched-time { font-size: 1.05rem; color: var(--muted); }
+.sched-item.next { grid-template-columns: 72px minmax(0, 1fr) 270px; background: var(--teal-quiet); border-color: var(--teal-line); padding: 20px 22px; }
+.sched-item.next .iconbox { width: 64px; height: 64px; background: #d7eef0; }
+.sched-time { font-size: 1.3rem; font-weight: 700; letter-spacing: -0.01em; line-height: 1.2; display: flex; gap: 8px; align-items: center; }
+.sched-item.next .sched-time { font-size: 2.1rem; letter-spacing: -0.02em; }
+.sched-kind { font-weight: 700; font-size: 1.05rem; margin-top: 2px; }
+.sched-item.next .sched-kind { font-size: 1.25rem; }
 .sched-kind a { color: inherit; text-decoration: none; }
 .sched-kind a:hover { text-decoration: underline; }
-.sched-status { color: var(--muted); font-size: .9rem; margin-top: 2px; }
-.sched-actions { display: flex; flex-direction: column; gap: 6px; align-items: stretch; min-width: 170px; }
+.sched-status { color: var(--muted); font-size: var(--fs-help); margin-top: 4px; display: flex; gap: 6px 10px; align-items: center; flex-wrap: wrap; }
+.sched-actions { display: flex; flex-direction: column; gap: 8px; align-items: stretch; }
 .sched-actions .btn, .sched-actions button { width: 100%; }
-@media (max-width: 600px) {
-  .sched-item { grid-template-columns: 44px minmax(0, 1fr); }
-  .sched-actions { grid-column: 1 / -1; flex-direction: row; flex-wrap: wrap; min-width: 0; }
-  .sched-actions .btn, .sched-actions button { width: auto; flex: 1 1 140px; }
+.sched-item:not(.next) .sched-actions { min-width: 170px; }
+@media (max-width: 760px) {
+  .sched-item, .sched-item.next { grid-template-columns: 48px minmax(0, 1fr); padding: 14px; }
+  .sched-item.next .iconbox { width: 48px; height: 48px; }
+  .sched-item.next .sched-time { font-size: 1.75rem; }
+  .sched-actions { grid-column: 1 / -1; min-width: 0; }
+  .sched-actions .btn, .sched-actions button { width: 100%; }
 }
-.pill { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 3px 10px; font-size: .8rem; font-weight: 600; background: var(--soft); color: var(--accent-strong); white-space: nowrap; }
+.pill { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 3px 10px; font-size: .8rem; font-weight: 600; background: var(--soft); color: var(--accent-strong); white-space: nowrap; line-height: 1.4; }
 @media (prefers-color-scheme: dark) { .pill { color: var(--accent); } }
+.pill.solid { background: var(--accent); color: var(--accent-text); }
 .pill.red { background: var(--red-quiet); color: var(--red-ink); }
 .pill.yellow { background: var(--yellow-quiet); color: var(--yellow-ink); }
 .pill.ok { background: #e6f4ec; color: var(--ok); }
-.pill.grey { background: var(--surface); color: var(--muted); }
+.pill.grey { background: #eef2f5; color: var(--muted); }
 @media (prefers-color-scheme: dark) { .pill.ok { background: #16321f; } .pill.grey { background: var(--soft); } }
-/* Θέματα που χρειάζονται προσοχή: κάθε ένα λέει μέλος, λόγο, πότε, κατάσταση, επόμενη ενέργεια. */
-.attn { border: 1px solid var(--red); background: var(--red-quiet); border-radius: var(--radius); padding: 12px 14px; display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 4px 10px; align-items: start; margin-bottom: 10px; }
-.attn.yellow { border-color: var(--yellow); background: var(--yellow-quiet); }
-.attn .iconbox { width: 36px; height: 36px; }
-.attn-title { font-weight: 700; color: var(--red-ink); }
-.attn.yellow .attn-title { color: var(--yellow-ink); }
-.attn-body { grid-column: 2; }
-.attn-meta { font-size: .85rem; color: var(--muted); }
-.attn-actions { grid-column: 2; display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; align-items: center; }
-.attn ul.lines { margin: 4px 0 0; padding-left: 18px; }
-.attn ul.lines li { margin-bottom: 2px; }
+/* «Χρειάζεται προσοχή»: λευκή κάρτα, διακριτικός τόνος (εικονίδιο + λέξη), όχι μεγάλη κόκκινη επιφάνεια. */
+.attn { border: 1px solid var(--card-line); border-left: 4px solid var(--red); border-radius: var(--radius); padding: 14px 16px; display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 6px 12px; align-items: start; background: var(--card); }
+.attn + .attn { margin-top: 12px; }
+.attn.yellow { border-left-color: var(--yellow); }
+.attn .iconbox { width: 40px; height: 40px; }
+.attn-head { display: flex; gap: 8px 10px; align-items: center; flex-wrap: wrap; justify-content: space-between; }
+.attn-title { font-weight: 700; font-size: 1.05rem; }
+.attn-title a { color: inherit; text-decoration: none; }
+.attn-title a:hover { text-decoration: underline; }
+.attn-body { grid-column: 2; min-width: 0; }
+.attn-main { margin: 4px 0 0; font-weight: 600; }
+.attn-main a, .attn ul.lines a { color: inherit; text-decoration: underline; text-decoration-color: var(--card-line); text-underline-offset: 3px; }
+.attn-main a:hover, .attn ul.lines a:hover { text-decoration-color: currentColor; }
+.attn-meta { font-size: var(--fs-help); color: var(--muted); }
+.attn ul.lines { margin: 6px 0 0; padding-left: 18px; font-size: .9rem; }
+.attn ul.lines li { margin-bottom: 3px; }
+.attn details { margin-top: 8px; font-size: var(--fs-help); }
+.attn details summary { cursor: pointer; color: var(--accent-strong); font-weight: 600; }
+.attn-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; align-items: center; }
+/* Γραμμή επόμενης ενέργειας: τι, ποιος, από πότε, κατάσταση, κουμπιά. */
+.act { border-top: 1px dashed var(--card-line); margin-top: 10px; padding-top: 10px; }
+.act:first-child { border-top: 0; margin-top: 0; padding-top: 0; }
+.act-title { font-weight: 600; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.act-meta { font-size: var(--fs-help); color: var(--muted); margin-top: 2px; }
+.act-forms { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 8px; }
+.act-forms form { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin: 0; }
+.act-forms input, .act-forms select { min-height: 40px; padding: 6px 10px; width: auto; max-width: 100%; }
+.act-forms input[name="note"] { min-width: 180px; flex: 1 1 180px; }
 /* Εκκρεμότητες: μία γραμμή η καθεμία. */
-.todo { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); color: inherit; text-decoration: none; }
-.todo:first-child { border-top: 0; padding-top: 0; }
+.todo { display: flex; align-items: center; gap: 14px; padding: 14px 0; border-top: 1px solid var(--card-line); color: inherit; text-decoration: none; }
+.todo:first-of-type { border-top: 0; padding-top: 2px; }
 .todo-body { flex: 1; min-width: 0; }
-.todo-title { font-weight: 600; }
-.todo-sub { font-size: .875rem; color: var(--muted); }
-.todo form { display: flex; gap: 6px; flex-wrap: wrap; }
-/* Καρτέλες (σημειωματάριο). */
-.tabs { display: flex; gap: 4px; border-bottom: 2px solid var(--line); overflow-x: auto; scrollbar-width: none; margin-bottom: 12px; }
-.tabs::-webkit-scrollbar { display: none; }
-.tabs button { flex: none; border: 0; border-radius: var(--radius) var(--radius) 0 0; background: transparent; min-height: 44px; padding: 8px 14px; font-weight: 600; color: var(--muted); display: inline-flex; gap: 6px; align-items: center; }
-.tabs button:hover { background: var(--soft); border-color: transparent; }
+.todo-title { font-weight: 700; }
+.todo-sub { font-size: var(--fs-help); color: var(--muted); }
+.todo .arrow { color: var(--muted); }
+/* Καρτέλες φόρμας: τέσσερις ίσες, πάντα ολόκληρες οι ετικέτες. */
+.tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; border: 1px solid var(--card-line); border-radius: var(--radius); background: var(--canvas); overflow: hidden; margin-bottom: 18px; }
+.tabs button { border: 0; border-radius: 0; background: transparent; min-height: 48px; padding: 8px 6px; font-weight: 600; font-size: .92rem; color: var(--text); display: inline-flex; gap: 6px; align-items: center; justify-content: center; text-align: center; line-height: 1.25; white-space: nowrap; }
+.tabs button + button { border-left: 1px solid var(--card-line); }
+.tabs button:hover { background: var(--teal-quiet); }
 .tabs button[aria-selected="true"] { background: var(--accent); color: var(--accent-text); }
 .tabs button .tab-done { font-size: .8rem; }
-.tab-nav { display: flex; justify-content: space-between; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
-/* Σταθερή μπάρα αποθήκευσης με σαφή κατάσταση. */
-.savebar { position: sticky; bottom: 0; z-index: 5; background: var(--bg); border-top: 1px solid var(--line); margin-top: 12px; padding: 10px 0 calc(10px + env(safe-area-inset-bottom)); display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
-@media (prefers-color-scheme: dark) { .savebar { background: var(--surface); } }
+@media (max-width: 760px) { .tabs button { white-space: normal; } .tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); } .tabs button:nth-child(3) { border-left: 0; } .tabs button:nth-child(n+3) { border-top: 1px solid var(--card-line); } }
+.tab-nav { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+/* Σταθερή περιοχή αποθήκευσης: μένει κάτω από τα πεδία, δεν τα καλύπτει. */
+.savebar { position: sticky; bottom: 0; z-index: 5; background: var(--card); border-top: 1px solid var(--card-line); box-shadow: 0 -6px 14px rgba(12, 22, 32, 0.05); margin: 18px calc(-1 * var(--card-pad)) calc(-1 * var(--card-pad)); padding: 12px var(--card-pad); border-radius: 0 0 var(--card-radius) var(--card-radius); display: flex; justify-content: space-between; align-items: center; gap: 10px 14px; flex-wrap: wrap; }
+.savebar .grow { flex: 1; }
 .save-status { display: inline-flex; align-items: center; gap: 8px; font-size: .9rem; color: var(--muted); }
 .save-status i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; background: var(--line); flex: none; }
 .save-status.dirty i { background: var(--yellow); }
@@ -554,30 +618,68 @@ nav.top > form { order: 100; }
 .save-status.saved i { background: var(--ok); }
 .save-status.error i { background: var(--red); }
 /* Αριθμοί «με μια ματιά»: κάθε αριθμός λέει την περίοδό του. */
-.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(105px, 1fr)); gap: 8px; }
-.stat { text-align: center; border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 6px; background: var(--surface); }
-.stat b { display: block; font-size: 1.45rem; line-height: 1.2; color: var(--accent-strong); }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 0; }
+.stat { text-align: center; padding: 4px 8px; border-left: 1px solid var(--card-line); }
+.stat:first-child { border-left: 0; }
+.stat b { display: block; font-size: 1.6rem; line-height: 1.2; color: var(--accent-strong); font-weight: 700; }
 @media (prefers-color-scheme: dark) { .stat b { color: var(--accent); } }
 .stat span { font-size: .78rem; color: var(--muted); display: block; line-height: 1.3; }
-.kv { display: flex; justify-content: space-between; gap: 10px; padding: 6px 0; border-top: 1px solid var(--line); }
+.stats.tiles { gap: 12px; }
+.stats.tiles .stat { border: 0; background: var(--teal-quiet); border-radius: var(--radius); padding: 12px 8px; }
+.kv { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-top: 1px solid var(--card-line); }
 .kv:first-child { border-top: 0; }
 .kv span:first-child { color: var(--muted); }
 /* Σειρά-σύνδεσμος με εικονίδιο και βέλος. */
-.linkrow { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); color: inherit; text-decoration: none; }
-.linkrow:first-child { border-top: 0; }
+.linkrow { display: flex; align-items: center; gap: 14px; padding: 12px 0; border-top: 1px solid var(--card-line); color: inherit; text-decoration: none; }
+.linkrow:first-of-type { border-top: 0; }
 .linkrow .grow { flex: 1; min-width: 0; }
 .linkrow .arrow { color: var(--muted); }
-.hint { font-size: .85rem; color: var(--muted); }
-.crumbs { font-size: .9rem; color: var(--muted); margin: 8px 0 0; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.hint { font-size: var(--fs-help); color: var(--muted); }
+.crumbs { font-size: var(--fs-help); color: var(--muted); margin: 0 0 6px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 .crumbs a { color: var(--muted); text-decoration: none; }
 .crumbs a:hover { color: var(--accent); }
 details.fold > summary { cursor: pointer; font-weight: 600; list-style: none; display: flex; align-items: center; gap: 6px; min-height: 36px; }
 details.fold > summary::-webkit-details-marker { display: none; }
 details.fold > summary::before { content: "›"; display: inline-block; transition: transform .15s; color: var(--muted); }
 details.fold[open] > summary::before { transform: rotate(90deg); }
-/* Στο κινητό η κατάσταση μιας ενέργειας τυλίγεται κάτω από τον τίτλο αντί να βγαίνει έξω από την οθόνη. */
-@media (max-width: 600px) {
+/* Μήνυμα σφάλματος και κενή κατάσταση: ίδιες παντού. */
+.errnote { display: flex; gap: 10px; align-items: flex-start; border: 1px solid var(--red); background: var(--red-quiet); color: var(--red-ink); border-radius: var(--radius); padding: 10px 14px; margin: 0 0 14px; font-weight: 600; }
+/* Σύνοψη προηγούμενου σημειώματος: συντάκτης, ημερομηνία, μικρή προεπισκόπηση, άνοιγμα. */
+.notesum { border-top: 1px solid var(--card-line); padding-top: 12px; margin-top: 12px; }
+.notesum:first-child { border-top: 0; padding-top: 0; margin-top: 0; }
+.notesum-head { display: flex; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap; align-items: baseline; }
+.notesum-meta { font-size: var(--fs-help); color: var(--muted); }
+.notesum-prev { margin: 6px 0 0; color: var(--text); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+@media (max-width: 760px) {
   .linkrow { flex-wrap: wrap; }
-  .linkrow .pill { white-space: normal; margin-left: 56px; }
+  .linkrow .pill { white-space: normal; margin-left: 58px; }
   .kv { flex-wrap: wrap; }
+  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 14px; }
+  .stat:nth-child(odd) { border-left: 0; }
 }
+/* Κατάσταση σύνδεσης στην επικεφαλίδα της ατομικής (εικόνα «Ατομική»): τελεία + λέξεις. */
+.conn { display: inline-flex; align-items: center; gap: 8px; font-size: var(--fs-help); color: var(--text); }
+.conn i { width: 10px; height: 10px; border-radius: 50%; background: #b9c9d2; display: inline-block; }
+.conn i.on { background: var(--ok); }
+/* Κάρτα «Επόμενη ατομική» στην κεφαλίδα του φακέλου και κάρτα νηφαλιότητας (εικόνα «Καρτέλα μέλους»). */
+.panel.nextcard { display: flex; align-items: center; gap: 14px; padding: 12px 16px; min-width: 330px; }
+.panel.nextcard .grow { flex: 1; min-width: 0; }
+.panel.sober { background: var(--teal-quiet); border-color: var(--teal-line); }
+@media (max-width: 760px) { .panel.nextcard { min-width: 0; width: 100%; } }
+.pair-grid { gap: var(--gap); }
+.pair-col .panel { margin-top: 12px; }
+@media (max-width: 760px) {
+  .hide-sm { display: none; }
+  .savebar { padding: 8px var(--card-pad); gap: 6px 10px; }
+  .savebar-actions { width: 100%; flex-wrap: nowrap; }
+  .savebar-actions > * { flex: 1; min-width: 0; padding-inline: 10px; }
+}
+/* Πυκνή γραμμή ενέργειας μέσα σε κάρτες προσοχής: κείμενο αριστερά, κουμπιά δεξιά. */
+.act.compact { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; align-items: center; }
+.act.compact .act-title { grid-column: 1; font-size: .95rem; }
+.act.compact .act-meta { grid-column: 1; }
+.act.compact .act-forms { grid-column: 2; grid-row: 1 / span 2; margin: 0; justify-content: flex-end; }
+@media (max-width: 760px) { .act.compact { grid-template-columns: minmax(0, 1fr); } .act.compact .act-forms { grid-column: 1; grid-row: auto; margin-top: 8px; justify-content: flex-start; } }
+.attn-main { font-size: .95rem; }
+.panel-head h2.with-icon { display: flex; align-items: center; gap: 12px; }
+.panel-head h2.with-icon .iconbox { width: 38px; height: 38px; }

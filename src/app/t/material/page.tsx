@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Icon } from "@/components/Icon";
+import { PageHead, Panel, Pill } from "@/components/ui";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { normalizeSearch } from "@/lib/guide";
@@ -77,7 +78,18 @@ export default async function TherapistMaterial({ searchParams }: { searchParams
   const range = (from: string) => `${formatDate(from)} – ${formatDate(addDays(from, 6))}`;
   const kindLabel = (c: Item) => (c.kind === "DAILY_TEXT" ? "Κείμενο της ημέρας" : "Φόρμα της θεματικής");
 
-  const Row = ({ c }: { c: Item }) => {
+  // Όνομα θεματικής από τους τίτλους των φορμών («Πίστη: τι εμπιστεύομαι» → «Πίστη»)· όσα έχουν ήδη το όνομα δεν το επαναλαμβάνουν.
+  const themeOf = (forms: Item[]): string | null => {
+    const heads = forms.map((f) => (f.title.includes(":") ? f.title.split(":")[0].trim() : "")).filter(Boolean);
+    if (heads.length === 0) return null;
+    const count = new Map<string, number>();
+    for (const h of heads) count.set(h, (count.get(h) ?? 0) + 1);
+    return [...count.entries()].sort((x, y) => y[1] - x[1])[0][0];
+  };
+  const bare = (c: Item, theme: string | null) => (theme && c.title.startsWith(`${theme}:`) ? c.title.slice(theme.length + 1).trim() : c.title);
+  const weekTheme = themeOf(weekForms);
+
+  const Row = ({ c, theme = null, withKind = false }: { c: Item; theme?: string | null; withKind?: boolean }) => {
     const published = out(c);
     const no = label(c);
     const desc = excerpt(c.body);
@@ -85,36 +97,36 @@ export default async function TherapistMaterial({ searchParams }: { searchParams
       <div className={`linkrow ${styles.item}`}>
         <span className={`iconbox ${styles.icon}`}><Icon name={c.kind === "FORM" ? "list" : "doc"} /></span>
         <span className="grow">
-          <strong>{no ? `${no} · ` : ""}{c.title}</strong>
+          <strong>{no ? `${no} · ` : ""}{bare(c, theme)}</strong>
           <div className="hint">
-            {formatDate(c.date)} · {kindLabel(c)}
+            {formatDate(c.date)}{withKind && ` · ${kindLabel(c)}`}
             {published ? "" : ` · βγαίνει στις ${timeOf(c)}`}
           </div>
           {desc && <div className={styles.desc}>{desc}</div>}
-          {!desc && c.url && <div className={styles.desc}>Φόρμα με σύνδεσμο· τη συμπληρώνει το μέλος από τα «Κείμενα».</div>}
-          {!published && <div className={styles.status}><span className="pill grey">δεν έχει βγει ακόμα στα μέλη</span></div>}
         </span>
-        <Link className="btn" href={`/t/material/c/${c.id}`} aria-label={`Άνοιγμα: ${c.title}`}>Άνοιγμα</Link>
+        {!published && <span className="pill grey">δεν έχει βγει ακόμα</span>}
+        <Link className="btn outline sm" href={`/t/material/c/${c.id}`} aria-label={`Άνοιγμα: ${c.title}`}>Άνοιγμα</Link>
       </div>
     );
   };
 
   const empty = (text: string) => <p className="empty">{needle ? `Τίποτα με «${q}» εδώ.` : text}</p>;
+  // Κείμενα της ημέρας της εβδομάδας που έχουν ήδη βγει (εκτός από το σημερινό, που φαίνεται πάνω).
+  const weekTexts = thisWeek.filter((c) => c.kind === "DAILY_TEXT" && c.id !== todayText?.id);
 
   return (
     <main className="wide">
-      <p className="crumbs"><Link href="/t">Σήμερα</Link> <span>/</span> <span>Υλικό</span></p>
-      <div className="page-head">
-        <div>
-          <h1>Υλικό</h1>
-          <p className="page-sub">Ό,τι στέλνει η διαχείριση στα μέλη, για να ξέρεις τι δουλεύουν. Το βλέπεις όπως το βλέπουν εκείνα· η αποστολή γίνεται από τη διαχείριση. Οι εργασίες και τα βήματα κάθε μέλους είναι στον φάκελό του.</p>
-        </div>
-        <form className={`head-actions ${styles.search}`} role="search" method="get" action="/t/material">
+      <PageHead
+        crumbs={[{ href: "/t", label: "Σήμερα" }, { label: "Υλικό" }]}
+        title="Υλικό"
+        sub="Ό,τι στέλνει η διαχείριση στα μέλη, για να ξέρεις τι δουλεύουν. Το βλέπεις όπως το βλέπουν εκείνα· η αποστολή γίνεται από τη διαχείριση."
+      >
+        <form className={`${styles.search}`} role="search" method="get" action="/t/material">
           <label htmlFor="material-q" className={styles.srOnly}>Αναζήτηση στους τίτλους</label>
           <input id="material-q" type="search" name="q" defaultValue={q} placeholder="Αναζήτηση τίτλου" autoComplete="off" />
-          <button type="submit" className="btn"><Icon name="search" size={18} /> Αναζήτηση</button>
+          <button type="submit" className="btn outline"><Icon name="search" size={18} /> Αναζήτηση</button>
         </form>
-      </div>
+      </PageHead>
 
       {needle && (
         <p className={styles.filterNote}>
@@ -126,66 +138,70 @@ export default async function TherapistMaterial({ searchParams }: { searchParams
       <div className="cols cols-60">
         <div className="stackv">
           {!needle && (
-            <section className="panel">
+            <section className={`panel ${styles.theme}`}>
               <div className="panel-head">
-                <h2>Θέμα τρέχουσας εβδομάδας</h2>
-                <span className="hint">{range(monday)}</span>
+                <div>
+                  <div className="hint">Θέμα τρέχουσας εβδομάδας · {range(monday)}</div>
+                  <h2 className={styles.themeName}>{weekTheme ?? (weekForms.length > 0 ? "Φόρμες της εβδομάδας" : "Δεν έχει οριστεί θεματική")}</h2>
+                </div>
+                {weekForms.length > 0 && <Pill>{weekForms.length} {weekForms.length === 1 ? "φόρμα" : "φόρμες"}</Pill>}
               </div>
               {weekForms.length === 0 ? (
                 <p className="empty">Δεν έχει ανέβει ακόμα φόρμα της θεματικής για αυτή την εβδομάδα. Όταν την ανεβάσει η διαχείριση, θα φανεί εδώ ως «Φόρμα 1».</p>
               ) : (
-                weekForms.map((c) => <Row key={c.id} c={c} />)
+                <>
+                  <p className="hint" style={{ margin: "0 0 6px" }}>Οι φόρμες με τη σειρά που χρησιμοποιούνται· κάθε μέλος τις συμπληρώνει από τα «Κείμενα».</p>
+                  {weekForms.map((c) => <Row key={c.id} c={c} theme={weekTheme} />)}
+                </>
               )}
               <h3 className={styles.sub}>Κείμενο της ημέρας · {formatDate(today)}</h3>
               {todayText ? <Row c={todayText} /> : <p className="empty">Δεν υπάρχει κείμενο της ημέρας για σήμερα.</p>}
+              {weekTexts.length > 0 && (
+                <details className="fold" style={{ marginTop: 10 }}>
+                  <summary>Κείμενα της ημέρας που βγήκαν αυτή την εβδομάδα ({weekTexts.length})</summary>
+                  {weekTexts.map((c) => <Row key={c.id} c={c} />)}
+                </details>
+              )}
             </section>
           )}
 
-          <section className="panel">
-            <div className="panel-head">
-              <h2>Φόρμες και κείμενα με τη σειρά που χρησιμοποιούνται</h2>
-              <span className="hint">αυτή την εβδομάδα, όσα έχουν βγει</span>
-            </div>
-            {thisWeek.length === 0
-              ? empty("Δεν έχει βγει ακόμα κάτι στα μέλη αυτή την εβδομάδα. Ό,τι είναι έτοιμο φαίνεται στο «Ετοιμασμένο για τις επόμενες μέρες».")
-              : thisWeek.map((c) => <Row key={c.id} c={c} />)}
-          </section>
+          {needle && thisWeek.length > 0 && (
+            <Panel title="Αυτή την εβδομάδα">
+              {thisWeek.map((c) => <Row key={c.id} c={c} withKind />)}
+            </Panel>
+          )}
 
-          <section className="panel">
-            <div className="panel-head">
-              <h2>Προηγούμενες εβδομάδες</h2>
-              <span className="hint">τελευταίες {PAST_WEEKS} εβδομάδες</span>
-            </div>
-            {pastCount === 0 ? empty("Δεν υπάρχει υλικό από τις προηγούμενες εβδομάδες.") : pastWeeks.filter((w) => w.items.length > 0).map((w, i) => (
-              <details key={w.from} className={`fold ${styles.week}`} open={i === 0 || Boolean(needle)}>
-                <summary>
-                  <span className="grow">Εβδομάδα {range(w.from)}</span>
-                  <span className="pill grey">{w.items.length} {w.items.length === 1 ? "στοιχείο" : "στοιχεία"}</span>
-                </summary>
-                {w.forms[0] && !needle && <p className="hint" style={{ margin: "0 0 4px" }}>Θεματική: {w.forms.map((f) => f.title).join(" · ")}</p>}
-                {w.items.map((c) => <Row key={c.id} c={c} />)}
-              </details>
-            ))}
-          </section>
+          <Panel title="Προηγούμενες εβδομάδες" id="past">
+            <p className="hint" style={{ margin: "-6px 0 8px" }}>τελευταίες {PAST_WEEKS} εβδομάδες</p>
+            {pastCount === 0 ? empty("Δεν υπάρχει υλικό από τις προηγούμενες εβδομάδες.") : pastWeeks.filter((w) => w.items.length > 0).map((w) => {
+              const th = themeOf(w.forms);
+              return (
+                <details key={w.from} className={`fold ${styles.week}`} open={Boolean(needle)}>
+                  <summary>
+                    <span className="grow">Εβδομάδα {range(w.from)}{th && <span className="muted"> · {th}</span>}</span>
+                    <Pill tone="grey">{w.items.length} {w.items.length === 1 ? "στοιχείο" : "στοιχεία"}</Pill>
+                  </summary>
+                  {w.items.map((c) => <Row key={c.id} c={c} theme={th} withKind />)}
+                </details>
+              );
+            })}
+          </Panel>
         </div>
 
         <div className="stackv">
           <section className={`panel ${styles.upcoming}`}>
             <div className="panel-head">
               <h2>Ετοιμασμένο για τις επόμενες μέρες</h2>
-              <span className="pill grey">δεν έχει βγει ακόμα στα μέλη</span>
+              <Pill tone="grey">δεν έχει βγει ακόμα στα μέλη</Pill>
             </div>
             <p className="hint" style={{ margin: "0 0 6px" }}>Για να ετοιμαστείς. Τα μέλη δεν το βλέπουν ακόμα — βγαίνει μόνο του τη μέρα και την ώρα που γράφει.</p>
             {upcoming.length === 0
               ? empty("Δεν υπάρχει υλικό έτοιμο για τις επόμενες μέρες.")
-              : upcoming.map((c) => <Row key={c.id} c={c} />)}
+              : upcoming.map((c) => <Row key={c.id} c={c} withKind />)}
           </section>
 
-          <section className="panel">
-            <div className="panel-head">
-              <h2>Βιβλιοθήκη</h2>
-              <span className="hint">κοινό υλικό για όλα τα μέλη</span>
-            </div>
+          <Panel title="Βιβλιοθήκη">
+            <p className="hint" style={{ margin: "-6px 0 8px" }}>κοινό υλικό για όλα τα μέλη</p>
             {library.length === 0 ? empty("Η βιβλιοθήκη δεν έχει υλικό ακόμα.") : library.map((i) => (
               <div key={i.id} className={`linkrow ${styles.item}`}>
                 <span className={`iconbox ${styles.icon}`}><Icon name={i.kind === "PDF" ? "doc" : "video"} /></span>
@@ -194,10 +210,10 @@ export default async function TherapistMaterial({ searchParams }: { searchParams
                   <div className="hint">{KIND[i.kind]}</div>
                   {i.description && <div className={styles.desc}>{excerpt(i.description)}</div>}
                 </span>
-                <Link className="btn" href={`/t/material/l/${i.id}`} aria-label={`Άνοιγμα: ${i.title}`}>Άνοιγμα</Link>
+                <Link className="btn outline sm" href={`/t/material/l/${i.id}`} aria-label={`Άνοιγμα: ${i.title}`}>Άνοιγμα</Link>
               </div>
             ))}
-          </section>
+          </Panel>
         </div>
       </div>
     </main>

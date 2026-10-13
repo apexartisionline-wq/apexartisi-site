@@ -4,7 +4,8 @@ import { prisma } from "./db";
 import { goalWeek } from "./goals";
 import { memberNotes } from "./member-notes";
 import { soberDays } from "./note-form";
-import { cyclePeriod } from "./member";
+import { PRESENCE_LABEL, countPresence, sessionPresence } from "./presence";
+import { cyclePeriod, cyclePeriodLabel } from "./member";
 import { getSettings } from "./settings";
 import { addDays, localParts, mondayOf } from "./time";
 
@@ -15,13 +16,14 @@ export async function lastFinishedCycle(memberId: string, now = new Date()) {
     where: { memberId },
     orderBy: { startedAt: "desc" },
     take: 3,
-    include: { bookings: { include: { slot: { select: { startsAt: true, date: true } } }, orderBy: { slot: { startsAt: "asc" } } } },
+    include: { bookings: { include: { slot: { select: { startsAt: true, date: true, kind: true, note: { select: { id: true } } } } }, orderBy: { slot: { startsAt: "asc" } } } },
   });
   return cycles.find((c) => c.bookings.length >= c.length && c.bookings.every((b) => b.slot.startsAt <= now)) ?? null;
 }
 
 /** Η εικόνα του κύκλου, μόνη της: ατομικές, ομάδες, ημερολόγιο, στόχοι εβδομάδας, κόκκινο κουμπί, νηφαλιότητα. */
-export async function cyclePicture(memberId: string, cycle: NonNullable<Awaited<ReturnType<typeof lastFinishedCycle>>>) {
+type PicCycle = { length: number; startedAt: Date; closedAt: Date | null; bookings: { joinedAt: Date | null; slot: { startsAt: Date; date: string; kind?: "INDIVIDUAL" | "PAIR"; note?: { id: string } | null } }[] };
+export async function cyclePicture(memberId: string, cycle: PicCycle) {
   // Ο «μήνας» ξεκινά από την 1η ατομική του κύκλου (ή από τη δημιουργία του, αν δεν έχει ακόμα).
   const { from, to } = cyclePeriod(cycle);
   const [member, groups, journal, help, relapses, s] = await Promise.all([
@@ -41,8 +43,15 @@ export async function cyclePicture(memberId: string, cycle: NonNullable<Awaited<
   return {
     from,
     to,
-    // done: όσες ατομικές του κύκλου πέρασαν (προπληρωμένες, μετράνε κανονικά)· came: όσες ήρθε πραγματικά (συνέπεια).
+    // done: όσες ατομικές του κύκλου πέρασε η προγραμματισμένη ώρα τους (ΟΧΙ «έγιναν»)· came: «ήρθε» κατά τον υπάρχοντα κανόνα
+    // (επιβεβαιωμένη παρουσία ή πάτημα «Μπες»)· total: όσες προβλέπει ο κύκλος. Η ανάλυση στο presence.
     sessions: { done: Math.min(cycle.length, cycle.bookings.filter((b) => b.slot.startsAt <= new Date()).length), came: cycle.bookings.filter((b) => b.joinedAt).length, total: cycle.length },
+    presence: countPresence(cycle.bookings.map((b) => sessionPresence({
+      startsAt: b.slot.startsAt,
+      endsAt: new Date(b.slot.startsAt.getTime() + (b.slot.kind === "PAIR" ? s.pairMinutes : s.sessionMinutes) * 60_000),
+      now: new Date(), joinedAt: b.joinedAt, hasNote: Boolean(b.slot.note),
+    }))),
+    periodLabel: cyclePeriodLabel({ startedAt: cycle.startedAt, closedAt: cycle.closedAt, bookings: cycle.bookings }),
     groups: { came: groups, total: s.groupsPerCycle },
     journal: { written: journal, days },
     help,
@@ -83,6 +92,7 @@ export async function cycleSummaryData(memberId: string, cycle: NonNullable<Awai
   const { from, to } = cyclePeriod(cycle);
   const fromAt = new Date(`${from}T00:00:00Z`);
   const toAt = new Date(`${addDays(to, 1)}T00:00:00Z`);
+  const s = await getSettings();
   const [pic, notes, journal, assignments, review] = await Promise.all([
     cyclePicture(memberId, cycle),
     memberNotes(memberId, { since: fromAt, before: toAt }),
@@ -93,6 +103,11 @@ export async function cycleSummaryData(memberId: string, cycle: NonNullable<Awai
   const slotTherapists = new Map((await prisma.slot.findMany({ where: { id: { in: cycle.bookings.map((b) => b.slotId) } }, select: { id: true, kind: true, therapist: { select: { name: true } } } })).map((x) => [x.id, x]));
   const avg = (xs: number[]) => (xs.length ? Math.round((xs.reduce((a, b) => a + b, 0) / xs.length) * 10) / 10 : null);
   const reviewer = review ? await prisma.user.findUnique({ where: { id: review.authorId }, select: { name: true } }) : null;
+  const statesBy = new Map(cycle.bookings.map((b) => [b.id, sessionPresence({
+    startsAt: b.slot.startsAt,
+    endsAt: new Date(b.slot.startsAt.getTime() + (slotTherapists.get(b.slotId)?.kind === "PAIR" ? s.pairMinutes : s.sessionMinutes) * 60_000),
+    now: new Date(), joinedAt: b.joinedAt, hasNote: notes.some((n) => n.slotId === b.slotId),
+  })]));
   return {
     period: { from, to, days: pic.journal.days },
     // Ποια ήταν η συμμετοχή — με διακριτές πηγές.
@@ -102,7 +117,9 @@ export async function cycleSummaryData(memberId: string, cycle: NonNullable<Awai
         kind: slotTherapists.get(b.slotId)?.kind === "PAIR" ? "Therapair" : "Ατομική",
         therapist: slotTherapists.get(b.slotId)?.therapist?.name ?? "",
         came: Boolean(b.joinedAt),
-        source: b.joinedAt ? "μετρά «ήρθε» (κουμπί «Μπες» ή σημείωμα «Ήρθε»)" : "καμία καταγραφή παρουσίας",
+        // Διακριτές έννοιες: επιβεβαιωμένη παρουσία · πάτησε «Μπες» · σημείωμα «Δεν ήρθε» · χωρίς καταγραφή (όχι «απουσία»).
+        state: statesBy.get(b.id) ?? "no_record",
+        source: PRESENCE_LABEL[statesBy.get(b.id) ?? "no_record"].source,
         hasNote: notes.some((n) => n.slotId === b.slotId),
       })),
       groups: { came: pic.groups.came, total: pic.groups.total, source: "κουμπί «Μπες στην ομάδα» ή διόρθωση από τη διαχείριση" },

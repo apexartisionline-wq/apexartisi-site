@@ -284,6 +284,10 @@ model CareTask {
   doneById  String?
   note      String    @default("")
   createdAt DateTime  @default(now())
+  // Ανάληψη της συγκεκριμένης ενέργειας (13/10)· η θεραπευτική ευθύνη παραμένει συλλογική.
+  claimedById   String?
+  claimedByName String?
+  claimedAt     DateTime?
 
   @@index([doneAt, dueAt])
 }
@@ -722,4 +726,28 @@ model StaffMessage {
 
   @@index([toId, readAt])
   @@index([fromId, toId, createdAt])
+}
+
+// Ανάληψη επόμενων ενεργειών (13/10): ποιος αναλαμβάνει τι, πότε, με ποια προθεσμία (μόνο αν ορίστηκε) και πότε ολοκληρώθηκε.
+// Η εγγραφή φτιάχνεται όταν κάποιος αναλάβει ή ολοκληρώσει. Αν η ενέργεια προκύπτει από κανόνα (π.χ. αξιολόγηση αναγκών ασφάλειας),
+// η ολοκλήρωσή της φαίνεται από την ίδια τη δουλειά που έγινε (νέα αξιολόγηση, γραμμένη ανασκόπηση)· εδώ μένει η ανάληψη.
+// Η ανάγνωση μιας ειδοποίησης ΔΕΝ ολοκληρώνει την ενέργεια και η λήξη των 24 ωρών δεν την κλείνει. Δεν κρατιέται κλινικό περιεχόμενο.
+model ActionItem {
+  id            String    @id @default(cuid())
+  memberId      String
+  kind          String // "safety_assessment" | "initial_assessment" | "cycle_review" | "signal_followup"
+  ref           String // σταθερό κλειδί της αφορμής, π.χ. «risk:2026-10-11T09:00:00.000Z»
+  createdAt     DateTime  @default(now())
+  dueAt         DateTime? // μόνο αν το όρισε άνθρωπος
+  claimedById   String?
+  claimedByName String?
+  claimedAt     DateTime?
+  assignedById  String? // αν την ανέθεσε η διαχείριση
+  doneAt        DateTime?
+  doneById      String?
+  doneByName    String?
+  doneNote      String    @default("") // κρυπτογραφημένο, σύντομο
+
+  @@unique([memberId, ref])
+  @@index([doneAt, createdAt])
 }
