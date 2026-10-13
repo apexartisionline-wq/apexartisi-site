@@ -2,6 +2,7 @@ import "server-only";
 import { dec, enc } from "./crypto";
 import { prisma } from "./db";
 import { goalWeek } from "./goals";
+import { memberNotes } from "./member-notes";
 import { soberDays } from "./note-form";
 import { cyclePeriod } from "./member";
 import { getSettings } from "./settings";
@@ -69,4 +70,69 @@ export async function dueCycleReviews(memberIds: string[]) {
     if (c && !(await prisma.cycleReview.findFirst({ where: { cycleId: c.id }, select: { id: true } }))) out.push({ memberId: id, cycleId: c.id });
   }
   return out;
+}
+
+/**
+ * Δομή σύνοψης κύκλου (13/10): ΜΟΝΟ δεδομένα που υπολογίζονται με σαφείς κανόνες, με διακριτές πηγές,
+ * οργανωμένα στις τέσσερις ενότητες μιας μελλοντικής σύνοψης. Δεν καλεί καμία εξωτερική υπηρεσία·
+ * δεν παράγει κείμενο· δεν ερμηνεύει. Αν προστεθεί AI αργότερα, θα διαβάζει αυτή τη δομή (μόνο του μέλους,
+ * μόνο της περιόδου), θα παραπέμπει στις πηγές, θα εμφανίζεται ως προσχέδιο προς έλεγχο και θα θέλει έγκριση.
+ */
+export type CycleSummaryData = Awaited<ReturnType<typeof cycleSummaryData>>;
+export async function cycleSummaryData(memberId: string, cycle: NonNullable<Awaited<ReturnType<typeof lastFinishedCycle>>>) {
+  const { from, to } = cyclePeriod(cycle);
+  const fromAt = new Date(`${from}T00:00:00Z`);
+  const toAt = new Date(`${addDays(to, 1)}T00:00:00Z`);
+  const [pic, notes, journal, assignments, review] = await Promise.all([
+    cyclePicture(memberId, cycle),
+    memberNotes(memberId, { since: fromAt, before: toAt }),
+    prisma.journalEntry.findMany({ where: { memberId, date: { gte: from, lte: to } }, select: { date: true, mood: true, craving: true, sleepHours: true, used: true, selfHarm: true, win: true }, orderBy: { date: "asc" } }),
+    prisma.assignment.findMany({ where: { memberId, createdAt: { gte: fromAt, lt: toAt } }, select: { id: true, title: true, step: true, answeredAt: true, createdAt: true }, orderBy: { createdAt: "asc" } }),
+    prisma.cycleReview.findFirst({ where: { cycleId: cycle.id }, orderBy: { createdAt: "desc" } }),
+  ]);
+  const slotTherapists = new Map((await prisma.slot.findMany({ where: { id: { in: cycle.bookings.map((b) => b.slotId) } }, select: { id: true, kind: true, therapist: { select: { name: true } } } })).map((x) => [x.id, x]));
+  const avg = (xs: number[]) => (xs.length ? Math.round((xs.reduce((a, b) => a + b, 0) / xs.length) * 10) / 10 : null);
+  const reviewer = review ? await prisma.user.findUnique({ where: { id: review.authorId }, select: { name: true } }) : null;
+  return {
+    period: { from, to, days: pic.journal.days },
+    // Ποια ήταν η συμμετοχή — με διακριτές πηγές.
+    participation: {
+      sessions: cycle.bookings.map((b) => ({
+        date: b.slot.date,
+        kind: slotTherapists.get(b.slotId)?.kind === "PAIR" ? "Therapair" : "Ατομική",
+        therapist: slotTherapists.get(b.slotId)?.therapist?.name ?? "",
+        came: Boolean(b.joinedAt),
+        source: b.joinedAt ? "μετρά «ήρθε» (κουμπί «Μπες» ή σημείωμα «Ήρθε»)" : "καμία καταγραφή παρουσίας",
+        hasNote: notes.some((n) => n.slotId === b.slotId),
+      })),
+      groups: { came: pic.groups.came, total: pic.groups.total, source: "κουμπί «Μπες στην ομάδα» ή διόρθωση από τη διαχείριση" },
+      journal: { written: journal.length, days: pic.journal.days, source: "εγγραφές ημερολογίου ανάκαμψης του μέλους" },
+      help: { count: pic.help, source: "πατήματα του κόκκινου κουμπιού" },
+    },
+    // Τι καταγράφηκε ως πρόοδος ή δυσκολία — μόνο μετρήσεις και καταγραφές, χωρίς ερμηνεία.
+    recorded: {
+      mood: avg(journal.map((j) => j.mood)), craving: avg(journal.map((j) => j.craving)), sleep: avg(journal.map((j) => j.sleepHours)),
+      usedDays: journal.filter((j) => j.used).map((j) => j.date),
+      selfHarmDays: journal.filter((j) => j.selfHarm === "YES" || j.selfHarm === "UNSURE").map((j) => j.date),
+      wins: journal.map((j) => ({ date: j.date, text: dec(j.win) })).filter((w) => w.text),
+      soberDays: pic.soberDays, relapses: pic.relapses,
+      source: "ημερολόγιο ανάκαμψης και ημερομηνία νηφαλιότητας του φακέλου",
+    },
+    // Τι δουλέψαμε — τα σημειώματα των θεραπευτών (πηγή: κάθε σημείωμα με ημερομηνία και συντάκτη).
+    worked: {
+      notes: notes.map((n) => ({ slotId: n.slotId, date: n.date, therapist: n.therapist, pair: n.pair, riskChange: n.riskChange, usedSince: n.usedSince, handover: n.handover })),
+      goals: pic.weeks,
+      assignments: assignments.map((a) => ({ id: a.id, title: a.title, step: a.step, answered: Boolean(a.answeredAt) })),
+      source: "σημειώματα ατομικών/Therapair, στόχοι εβδομάδας, εργασίες",
+    },
+    // Τι χρειάζεται συνέχεια — τα πεδία συνέχειας του τελευταίου σημειώματος, όπως γράφτηκαν.
+    next: {
+      from: notes[0] ? { date: notes[0].date, therapist: notes[0].therapist, handover: notes[0].handover } : null,
+      source: "το τελευταίο σημείωμα του κύκλου (καρτέλα «Συνέχεια»)",
+    },
+    // Ανθρώπινη ανασκόπηση (2 γραμμές) — αν υπάρχει.
+    review: review ? { goals: dec(review.goals), memberSays: dec(review.memberSays), at: review.createdAt, author: reviewer?.name ?? "" } : null,
+    // Προσχέδιο σύνοψης: δεν υπάρχει. Θα γραφεί από άνθρωπο ή (μελλοντικά) θα προταθεί ως προσχέδιο προς έγκριση.
+    draft: null as null,
+  };
 }

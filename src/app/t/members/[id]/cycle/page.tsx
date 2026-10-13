@@ -4,7 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
 import { logAccess } from "@/lib/audit";
 import { requireRole } from "@/lib/auth";
-import { cyclePicture, cycleReviews, lastFinishedCycle, saveCycleReview } from "@/lib/cycle-review";
+import { cyclePicture, cycleReviews, cycleSummaryData, lastFinishedCycle, saveCycleReview } from "@/lib/cycle-review";
 import { prisma } from "@/lib/db";
 import { formatDate, formatWhen } from "@/lib/time";
 
@@ -33,6 +33,7 @@ export default async function CyclePage({ params, searchParams }: { params: Prom
   await logAccess(user.id, id, "cycle_review_view");
   const [cycle, reviews] = await Promise.all([lastFinishedCycle(id), cycleReviews(id)]);
   const pic = cycle ? await cyclePicture(id, cycle) : null;
+  const data = cycle ? await cycleSummaryData(id, cycle) : null;
   const done = cycle ? reviews.find((r) => r.cycleId === cycle.id) : undefined;
   const row = (label: string, value: string, warn = false) => (
     <div className="row spread" style={{ flexWrap: "nowrap" }}><span className="muted">{label}</span><strong style={warn ? { color: "var(--red)" } : undefined}>{value}</strong></div>
@@ -85,6 +86,58 @@ export default async function CyclePage({ params, searchParams }: { params: Prom
               <button className="primary" type="submit">Αποθήκευση</button>
             </form>
           )}
+        </>
+      )}
+      {data && (
+        <>
+          <h2>Δομή σύνοψης κύκλου <span className="muted small" style={{ fontWeight: 400 }}>· προετοιμασία, χωρίς AI</span></h2>
+          <p className="muted small" style={{ marginTop: 0 }}>
+            Μόνο ό,τι υπολογίζεται με σαφείς κανόνες, με την πηγή του δίπλα. Δεν υπάρχει προσχέδιο σύνοψης: τη γράφει άνθρωπος (οι «Δύο γραμμές» πιο πάνω).
+            Αν προστεθεί κάποτε βοήθεια από AI, θα χρησιμοποιεί μόνο αυτά τα δεδομένα αυτού του μέλους και αυτής της περιόδου, θα παραπέμπει στις πηγές, θα είναι προσχέδιο προς έλεγχο με ανθρώπινη έγκριση, και δεν θα στέλνει τίποτα στο μέλος.
+          </p>
+          <details className="card small fold">
+            <summary>1. Τι δουλέψαμε <span className="muted">· {data.worked.notes.length} σημειώματα, {data.worked.goals.length} στόχοι, {data.worked.assignments.length} εργασίες</span></summary>
+            <ul style={{ margin: "8px 0", paddingLeft: 18 }}>
+              {data.worked.notes.map((n) => <li key={n.slotId}><Link href={`/t/s/${n.slotId}`}>{formatDate(n.date)}</Link> · {n.therapist}{n.pair && " · Therapair"}{n.handover.suggested && <> · προτάθηκε: {n.handover.suggested}</>}</li>)}
+              {data.worked.goals.map((w) => <li key={w.week}>Στόχος εβδομάδας {formatDate(w.week)}: «{w.text}» (Ναι {w.yes} · Λίγο {w.partly} · Όχι {w.no})</li>)}
+              {data.worked.assignments.map((a) => <li key={a.id}>Εργασία{a.step ? ` (Βήμα ${a.step})` : ""}: {a.title} · {a.answered ? "απάντησε" : "δεν απάντησε"}</li>)}
+              {data.worked.notes.length + data.worked.goals.length + data.worked.assignments.length === 0 && <li className="muted">Καμία καταγραφή στην περίοδο.</li>}
+            </ul>
+            <div className="muted">Πηγή: {data.worked.source}.</div>
+          </details>
+          <details className="card small fold">
+            <summary>2. Τι καταγράφηκε ως πρόοδος ή δυσκολία <span className="muted">· από το ημερολόγιο, χωρίς ερμηνεία</span></summary>
+            <ul style={{ margin: "8px 0", paddingLeft: 18 }}>
+              <li>Μέσοι όροι ({data.participation.journal.written} εγγραφές): διάθεση {data.recorded.mood ?? "—"}/10 · λαχτάρα {data.recorded.craving ?? "—"}/10 · ύπνος {data.recorded.sleep ?? "—"} ώρες</li>
+              <li>Νηφαλιότητα: {data.recorded.soberDays !== null ? `${data.recorded.soberDays} μέρες` : "—"}{data.recorded.relapses > 0 && ` · ${data.recorded.relapses} ${data.recorded.relapses === 1 ? "αλλαγή" : "αλλαγές"} ημερομηνίας στον κύκλο`}</li>
+              {data.recorded.usedDays.length > 0 && <li>Έγραψε ότι έκανε χρήση: {data.recorded.usedDays.map(formatDate).join(", ")}</li>}
+              {data.recorded.selfHarmDays.length > 0 && <li>Σκέψεις να κάνει κακό στον εαυτό του: {data.recorded.selfHarmDays.map(formatDate).join(", ")}</li>}
+              {data.recorded.wins.length > 0 && <li>Νίκες: {data.recorded.wins.map((w) => `«${w.text}» (${formatDate(w.date)})`).join(" · ")}</li>}
+            </ul>
+            <div className="muted">Πηγή: {data.recorded.source}. Οι ελλείψεις (μέρες χωρίς εγγραφή) δεν ερμηνεύονται.</div>
+          </details>
+          <details className="card small fold">
+            <summary>3. Ποια ήταν η συμμετοχή <span className="muted">· με διακριτές πηγές</span></summary>
+            <ul style={{ margin: "8px 0", paddingLeft: 18 }}>
+              {data.participation.sessions.map((x, i) => <li key={i}>{formatDate(x.date)} · {x.kind}{x.therapist && ` · ${x.therapist}`} · <strong>{x.came ? "ήρθε" : "χωρίς καταγραφή παρουσίας"}</strong> <span className="muted">({x.source})</span>{x.hasNote ? " · σημείωμα ✓" : " · χωρίς σημείωμα"}</li>)}
+              <li>Ομάδες: {data.participation.groups.came} από {data.participation.groups.total} <span className="muted">({data.participation.groups.source})</span></li>
+              <li>Ημερολόγιο: {data.participation.journal.written} από {data.participation.journal.days} μέρες <span className="muted">({data.participation.journal.source})</span></li>
+              <li>Κόκκινο κουμπί: {data.participation.help.count} <span className="muted">({data.participation.help.source})</span></li>
+            </ul>
+          </details>
+          <details className="card small fold">
+            <summary>4. Τι χρειάζεται συνέχεια στον επόμενο κύκλο <span className="muted">· όπως γράφτηκε στο τελευταίο σημείωμα</span></summary>
+            {data.next.from ? (
+              <ul style={{ margin: "8px 0", paddingLeft: 18 }}>
+                {data.next.from.handover.agreed && <li>Συμφωνήθηκε ως επόμενο βήμα: {data.next.from.handover.agreed}</li>}
+                {data.next.from.handover.openIssues && <li>Έμεινε ανοιχτό: {data.next.from.handover.openIssues}</li>}
+                {data.next.from.handover.handover && <li>Για τον επόμενο θεραπευτή: {data.next.from.handover.handover}</li>}
+                {data.next.from.handover.suggested && <li>Τι προτείναμε: {data.next.from.handover.suggested}</li>}
+                <li className="muted">{formatDate(data.next.from.date)} · {data.next.from.therapist}</li>
+              </ul>
+            ) : <p className="muted">Δεν υπάρχει σημείωμα στον κύκλο.</p>}
+            <div className="muted">Πηγή: {data.next.source}.</div>
+          </details>
         </>
       )}
       {reviews.filter((r) => r.cycleId !== cycle?.id).length > 0 && (
