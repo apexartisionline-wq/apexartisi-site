@@ -60,6 +60,7 @@ export default async function MemberHome() {
       <h1>Γεια σου, {vocative(user.name.split(" ")[0])}</h1>
 
       <Announcements />
+      {/* Φράση αργίας: εγκεκριμένη από την υπεύθυνη (13/10) — να μην αλλάξει χωρίς ερώτηση. */}
       {holidays.map((h) => (
         <div key={h.date} className="notice">
           {h.date === today.date ? "Σήμερα" : formatDate(h.date)}: αργία — δεν γίνονται ατομικές.{h.groupTime && ` Στη θέση τους, ομάδα στις ${h.groupTime}.`}
