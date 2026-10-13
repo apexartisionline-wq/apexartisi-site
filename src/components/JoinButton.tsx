@@ -2,11 +2,11 @@
 
 // «Σύνδεση»: καταγράφει την είσοδο, ανοίγει το Zoom σε νέα καρτέλα/εφαρμογή
 // και φέρνει τη σελίδα της συνεδρίας μέσα στο app.
-export function JoinButton({ kind, refId, roomUrl, next }: { kind: "SLOT" | "GROUP"; refId: string; roomUrl: string; next: string }) {
+export function JoinButton({ kind, refId, roomUrl, next, label = "Σύνδεση", className = "primary" }: { kind: "SLOT" | "GROUP"; refId: string; roomUrl: string; next: string; label?: string; className?: string }) {
   return (
     <button
       type="button"
-      className="primary"
+      className={className}
       onClick={() => {
         const data = JSON.stringify({ kind, ref: refId });
         if (!navigator.sendBeacon?.("/api/join", new Blob([data], { type: "application/json" }))) {
@@ -16,7 +16,7 @@ export function JoinButton({ kind, refId, roomUrl, next }: { kind: "SLOT" | "GRO
         window.location.href = next;
       }}
     >
-      Σύνδεση
+      {label}
     </button>
   );
 }
