@@ -48,6 +48,8 @@ type Item = {
   memberId?: string;
   hasNote: boolean;
   memberJoinedAt: Date | null; // πάτησε «Μπες» το μέλος (μόνο ατομική)
+  memberConfirmed: boolean | null; // επιβεβαίωση θεραπευτή «Ήρθε/Δεν ήρθε» (μόνο ατομική)
+  cancelled?: boolean; // ομάδα που ακυρώθηκε
   join: { kind: "SLOT" | "GROUP"; ref: string; room: string; label: string };
   opensForMembersAt: Date;
 };
@@ -79,7 +81,7 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
     prisma.user.findMany({ where: { role: "MEMBER", active: true }, select: { id: true, name: true } }),
     user.role === "ADMIN" ? prisma.user.findMany({ where: { role: { in: ["THERAPIST", "ADMIN"] }, active: true }, select: { id: true, name: true, therapistKind: true, role: true }, orderBy: { name: "asc" } }) : Promise.resolve([]),
   ]);
-  const staff: StaffOption[] = staffRows.map((u) => ({ id: u.id, name: u.name, clinician: u.role === "ADMIN" || u.therapistKind === "CLINICAL" || u.therapistKind === "BOTH" }));
+  const staff: StaffOption[] = staffRows.map((u) => ({ id: u.id, name: u.name, clinician: u.role === "ADMIN" || u.therapistKind === "CLINICAL" || u.therapistKind === "BOTH", admin: u.role === "ADMIN" }));
   const viewer = { id: user.id, role: user.role, therapistKind: user.therapistKind };
   const myGroups = groups.filter((g) => g.coordinatorId === user.id);
   const names = (x: { bookings: { member: { name: string } }[] }) => x.bookings.map((b) => b.member.name).join(" & ");
@@ -95,7 +97,7 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
       return {
         key: `g${g.time}`, startsAt, endsAt: new Date(startsAt.getTime() + s.groupDurationMinutes * 60_000),
         kind: "Ομάδα" as const, icon: "group" as const, title: "Εσύ συντονίζεις",
-        href: `/t/group/${g.date}/${g.time.replace(":", "")}`, hasNote: g.hasNote, memberJoinedAt: null,
+        href: `/t/group/${g.date}/${g.time.replace(":", "")}`, hasNote: g.hasNote, memberJoinedAt: null, memberConfirmed: null, cancelled: g.cancelled,
         join: { kind: "GROUP" as const, ref: `${g.date} ${g.time}`, room: s.groupRoomUrl, label: "Μπες στην ομάδα" },
         opensForMembersAt: joinBefore(startsAt, s.groupJoinBeforeMinutes),
       };
@@ -106,7 +108,7 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
         key: x.id, startsAt: x.startsAt, endsAt: new Date(x.startsAt.getTime() + (pair ? s.pairMinutes : s.sessionMinutes) * 60_000),
         kind: (pair ? "Therapair" : "Ατομική") as "Ατομική" | "Therapair", icon: (pair ? "group" : "user") as "user" | "group", title: short(x),
         href: `/t/s/${x.id}`, memberHref: !pair && x.bookings[0] ? `/t/members/${x.bookings[0].member.id}` : undefined, memberId: !pair ? x.bookings[0]?.member.id : undefined,
-        hasNote: pair ? x.pairNotes.length > 0 : Boolean(x.note), memberJoinedAt: !pair ? (x.bookings[0]?.joinedAt ?? null) : null,
+        hasNote: pair ? x.pairNotes.length > 0 : Boolean(x.note), memberJoinedAt: !pair ? (x.bookings[0]?.joinedAt ?? null) : null, memberConfirmed: !pair ? (x.bookings[0]?.confirmedCame ?? null) : null,
         join: { kind: "SLOT" as const, ref: x.id, room: s.rooms[x.position - 1] ?? "", label: pair ? "Μπες στο Therapair" : "Μπες στην ατομική" },
         opensForMembersAt: joinBefore(x.startsAt, s.sessionJoinBeforeMinutes),
       };
@@ -118,18 +120,22 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
   // Κατάσταση κάθε ραντεβού, με λέξεις (όχι μόνο χρώμα). Μια συνεδρία δεν θεωρείται «έγινε» μόνο επειδή πέρασε η ώρα της.
   const statusOf = (it: Item): { text: string; tone: Tone } => {
     const mins = Math.round((it.startsAt.getTime() - now.getTime()) / 60_000);
+    if (it.cancelled) return { text: "Ακυρώθηκε", tone: "grey" };
     if (it.kind !== "Ατομική") {
       if (now < it.startsAt) return isToday && mins <= 60 ? { text: `Σε ${mins} λεπτά`, tone: "solid" } : { text: it.startsAt > now && !isToday ? "Προγραμματισμένη" : `Στις ${formatTime(it.startsAt)}`, tone: "grey" };
       if (now <= it.endsAt) return { text: "Σε εξέλιξη τώρα", tone: "solid" };
       return it.hasNote ? { text: "Σημείωμα ✓", tone: "ok" } : { text: "Η προγραμματισμένη ώρα πέρασε — εκκρεμεί καταγραφή", tone: "yellow" };
     }
-    const p = sessionPresence({ startsAt: it.startsAt, endsAt: it.endsAt, now, joinedAt: it.memberJoinedAt, hasNote: it.hasNote });
+    const p = sessionPresence({ startsAt: it.startsAt, endsAt: it.endsAt, now, joinedAt: it.memberJoinedAt, confirmedCame: it.memberConfirmed });
     switch (p) {
       case "future": return isToday && mins <= 60 ? { text: `Σε ${mins} λεπτά`, tone: "solid" } : { text: isToday ? `Στις ${formatTime(it.startsAt)}` : "Προγραμματισμένη", tone: "grey" };
       case "in_progress": return { text: "Σε εξέλιξη τώρα", tone: "solid" };
-      case "present_note": return { text: "Σημείωμα ✓ · ήρθε", tone: "ok" };
-      case "absent_note": return { text: "Σημείωμα: δεν ήρθε", tone: "yellow" };
-      case "join_clicked": return { text: "Εκκρεμεί σημείωμα", tone: "yellow" };
+      case "present_confirmed": return { text: "Σημείωμα ✓ · παρουσία", tone: "ok" };
+      case "absent_confirmed": return { text: "Σημείωμα: δεν ήρθε", tone: "yellow" };
+      case "present_join":
+        if (now < it.startsAt) return { text: `Σε ${mins} λεπτά · το μέλος μπήκε`, tone: "solid" };
+        if (now <= it.endsAt) return { text: "Σε εξέλιξη τώρα · παρουσία από σύνδεση", tone: "solid" };
+        return it.hasNote ? { text: "Σημείωμα ✓ · παρουσία", tone: "ok" } : { text: "Παρουσία από σύνδεση · εκκρεμεί σημείωμα", tone: "yellow" };
       default: return { text: "Η προγραμματισμένη ώρα πέρασε — εκκρεμεί καταγραφή", tone: "yellow" };
     }
   };
@@ -144,7 +150,8 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
     Promise.all(memberIds.map(async (id) => [id, await memberSafety(id)] as const)),
     dueCycleReviews(memberIds),
     fetchItemRows(memberIds, now),
-    fetchCare(memberIds, { includeAdminKinds: user.role === "ADMIN" }),
+    // Και τα τηλεφωνήματα της διαχείρισης: οι θεραπευτές βλέπουν την κατάσταση (χωρίς τηλέφωνο), δεν τα αναλαμβάνουν.
+    fetchCare(memberIds, { includeAdminKinds: true }),
     fetchOpenHelp(memberIds),
   ]);
   const flags = new Map(flagsAll);
@@ -161,7 +168,6 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
     const list = buildActions({
       memberId: id, memberName: memberName.get(id) ?? "Μέλος",
       riskTrigger: rr?.at ? { at: rr.at, text: (rr as { trigText?: string }).trigText ?? "νέα αφορμή" } : null,
-      redSignals: f.filter((x) => x.level === "red").map((x) => ({ text: x.text, at: x.at })),
       initialAssessmentMissing: null,
       cycleReviewDue: rev ? { cycleId: rev.cycleId, since: cycleSince.get(rev.cycleId) ?? null } : null,
       care: careRows.filter((c) => c.memberId === id && c.dueAt <= now),
@@ -175,10 +181,10 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
   const attention: Attn[] = [];
   for (const id of memberIds) {
     const box = boxes.find((b) => b.id === id);
-    const f = (flags.get(id) ?? []).filter((x) => (x.level === "red" || x.key === "risk_review") && !inBox.has(`${id}:${x.key}`));
+    const f = (flags.get(id) ?? []).filter((x) => (x.level === "red" || x.key === "risk_review" || x.key === "no_contact") && !inBox.has(`${id}:${x.key}`));
     const issues: Issue[] = [
       ...(box ? box.items.map((a) => ({ text: a.text, at: a.createdAt, href: alertHref(id, a), by: `${a.sourceLabel}, ${a.by}`, red: !a.mild })) : []),
-      ...f.filter((x) => x.key !== "risk_review").map((x) => ({ text: x.text, at: x.at, href: x.href, red: true })),
+      ...f.filter((x) => x.key !== "risk_review").map((x) => ({ text: x.text, at: x.at, href: x.href, red: x.level === "red" })),
     ];
     const acts = (actionsBy.get(id) ?? []).filter((a) => a.kind !== "cycle_review" && a.kind !== "care");
     // Η αφορμή «θέλει αξιολόγηση» φαίνεται ως ενέργεια (με ανάληψη), όχι ως δεύτερη γραμμή σήματος.

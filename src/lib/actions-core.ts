@@ -7,6 +7,9 @@
  *  - Η λήξη των 24 ωρών μιας ειδοποίησης δεν κλείνει το θέμα· η ενέργεια μένει ανοιχτή.
  *  - Η διαχείριση συντονίζει· η θεραπευτική ευθύνη παραμένει συλλογική. Η ανάθεση αφορά μια συγκεκριμένη ενέργεια.
  *  - Καμία αυτόματη κλινική προθεσμία ή κλιμάκωση: προθεσμία φαίνεται μόνο αν ήδη υπάρχει (π.χ. μήνυμα φροντίδας) ή την όρισε άνθρωπος.
+ *  - Διευκρινίσεις 13/10: ανάληψη έχουν ΜΟΝΟ οι συγκεκριμένες ενέργειες. Τα σήματα ασφάλειας (π.χ. «Χωρίς επαφή», κόκκινα σήματα)
+ *    μένουν κοινή πληροφορία χωρίς ιδιοκτήτη — γι' αυτό δεν υπάρχει πια ενέργεια «Παρακολούθηση ανοιχτών σημάτων».
+ *    Η ολοκλήρωση μιας ενέργειας (π.χ. του τηλεφωνήματος) δεν κλείνει το σήμα.
  *
  * Αυτό το αρχείο είναι καθαρή λογική (χωρίς βάση), ώστε να δοκιμάζεται.
  */
@@ -17,7 +20,8 @@ export type ActionKind =
   | "safety_assessment" // αξιολόγηση αναγκών ασφάλειας
   | "initial_assessment" // αρχική αξιολόγηση
   | "cycle_review" // ανασκόπηση κύκλου
-  | "signal_followup"; // παρακολούθηση ανοιχτών σημάτων
+  | "admin_contact" // τηλεφωνική επικοινωνία από τη διαχείριση (χωρίς επαφή / ανάγκες ασφάλειας)
+  | "signal_followup"; // παλιό (ως 13/10): μόνο για ιστορικό, δεν δημιουργείται πια
 
 export type ActionState = "unclaimed" | "claimed" | "done";
 
@@ -48,6 +52,7 @@ export type ActionView = {
   // Για τις φόρμες (ανάληψη/ολοκλήρωση):
   ref: string; // κλειδί αφορμής (item) ή id (care/help)
   needsClinician: boolean; // ανάληψη μόνο από ψυχολόγο (ή διαχείριση, κατά το υπάρχον canWriteRisk)
+  adminOnly: boolean; // ανάληψη / ολοκλήρωση μόνο από τη διαχείριση (οι θεραπευτές βλέπουν την κατάσταση)
   manualDone: boolean; // ολοκληρώνεται με κουμπί (αλλιώς προκύπτει από τη δουλειά που γίνεται)
 };
 
@@ -88,18 +93,26 @@ export type HelpRowIn = {
 export const CARE_LABEL: Record<string, string> = {
   caring_24h: "Μήνυμα φροντίδας (24 ώρες μετά από κρίση)",
   caring_7d: "Μήνυμα φροντίδας (7 μέρες μετά από κρίση)",
-  dropout: "Επικοινωνία με το μέλος (χωρίς επαφή εδώ και μέρες)",
-  risk_24h: "Επαφή με το μέλος (αυξημένες ανάγκες ασφάλειας)",
-  risk_next_day: "Επαφή με το μέλος (υψηλές ανάγκες ασφάλειας)",
-  risk_contact: "Επαφή με το μέλος (ανάγκες ασφάλειας)",
+  dropout: "Τηλεφωνική επικοινωνία από τη διαχείριση",
+  risk_24h: "Τηλεφωνική επικοινωνία από τη διαχείριση",
+  risk_next_day: "Τηλεφωνική επικοινωνία από τη διαχείριση",
+  risk_contact: "Τηλεφωνική επικοινωνία από τη διαχείριση",
+};
+/** Τα τηλεφωνήματα της διαχείρισης: τα αναλαμβάνει και τα ολοκληρώνει μόνο η διαχείριση (τα τηλέφωνα τα βλέπει μόνο αυτή). */
+export const ADMIN_CARE = new Set(["dropout", "risk_24h", "risk_next_day", "risk_contact"]);
+const CARE_WHY: Record<string, string> = {
+  dropout: "αφορμή: χωρίς επαφή",
+  risk_24h: "αφορμή: αυξημένες ανάγκες ασφάλειας",
+  risk_next_day: "αφορμή: υψηλές ανάγκες ασφάλειας",
+  risk_contact: "αφορμή: ανάγκες ασφάλειας",
 };
 export const CARE_WHO: Record<string, string> = {
   caring_24h: "η ομάδα",
   caring_7d: "η ομάδα",
-  dropout: "η διαχείριση (τηλέφωνο)",
-  risk_24h: "η διαχείριση (τηλέφωνο)",
-  risk_next_day: "η διαχείριση (τηλέφωνο)",
-  risk_contact: "η διαχείριση (τηλέφωνο)",
+  dropout: "η διαχείριση",
+  risk_24h: "η διαχείριση",
+  risk_next_day: "η διαχείριση",
+  risk_contact: "η διαχείριση",
 };
 
 function fromItem(base: Omit<ActionView, "state" | "claimedBy" | "claimedAt" | "doneBy" | "doneAt" | "doneNote" | "createdAt" | "dueAt">, createdAt: Date | null, row: ItemRow | undefined): ActionView {
@@ -121,7 +134,6 @@ export type ActionInput = {
   memberId: string;
   memberName: string;
   riskTrigger: { at: Date; text: string } | null; // αφορμή για αξιολόγηση αναγκών ασφάλειας (δεν έχει γίνει ακόμα)
-  redSignals: { text: string; at?: Date | null }[]; // ανοιχτά κόκκινα σήματα (εκτός από την αξιολόγηση αναγκών)
   initialAssessmentMissing: { detail: string; since?: Date | null } | null;
   cycleReviewDue: { cycleId: string; lastTherapist?: string | null; since?: Date | null } | null;
   care: CareRow[]; // ανοιχτά
@@ -143,7 +155,7 @@ export function buildActions(i: ActionInput): ActionView[] {
       createdAt: h.createdAt, dueAt: null,
       state: h.talkedAt ? "done" : h.claimedAt ? "claimed" : "unclaimed",
       claimedBy: h.claimedByName, claimedAt: h.claimedAt, doneBy: h.talkedAt ? h.claimedByName : null, doneAt: h.talkedAt, doneNote: "",
-      href: `/t/help/${h.id}`, ref: h.id, needsClinician: false, manualDone: false,
+      href: `/t/help/${h.id}`, ref: h.id, needsClinician: false, adminOnly: false, manualDone: false,
     });
   }
   if (i.riskTrigger) {
@@ -151,14 +163,14 @@ export function buildActions(i: ActionInput): ActionView[] {
     out.push(fromItem({
       ...common, key: `safety_assessment:${ref}`, kind: "safety_assessment", source: "item",
       title: "Αξιολόγηση αναγκών ασφάλειας", detail: `μετά από ${i.riskTrigger.text}`,
-      ownerRule: "ψυχολόγος", href: `/t/members/${i.memberId}/risk`, ref, needsClinician: true, manualDone: false,
+      ownerRule: "ψυχολόγος", href: `/t/members/${i.memberId}/risk`, ref, needsClinician: true, adminOnly: false, manualDone: false,
     }, i.riskTrigger.at, row("safety_assessment", ref)));
   }
   if (i.initialAssessmentMissing) {
     out.push(fromItem({
       ...common, key: "initial_assessment:initial", kind: "initial_assessment", source: "item",
       title: "Αρχική αξιολόγηση", detail: i.initialAssessmentMissing.detail,
-      ownerRule: "ψυχολόγος, στην 1η ατομική (~40′)", href: `/t/members/${i.memberId}/assessment`, ref: "initial", needsClinician: true, manualDone: false,
+      ownerRule: "ψυχολόγος, στην 1η ατομική (~40′)", href: `/t/members/${i.memberId}/assessment`, ref: "initial", needsClinician: true, adminOnly: false, manualDone: false,
     }, i.initialAssessmentMissing.since ?? null, row("initial_assessment", "initial")));
   }
   if (i.cycleReviewDue) {
@@ -167,29 +179,19 @@ export function buildActions(i: ActionInput): ActionView[] {
       ...common, key: `cycle_review:${ref}`, kind: "cycle_review", source: "item",
       title: "Ανασκόπηση κύκλου (2 γραμμές)", detail: "ολοκληρώθηκαν οι ατομικές του κύκλου",
       ownerRule: i.cycleReviewDue.lastTherapist ? `όποιος είχε την τελευταία ατομική (${i.cycleReviewDue.lastTherapist})` : "όποιος είχε την τελευταία ατομική",
-      href: `/t/members/${i.memberId}/cycle`, ref, needsClinician: false, manualDone: false,
+      href: `/t/members/${i.memberId}/cycle`, ref, needsClinician: false, adminOnly: false, manualDone: false,
     }, i.cycleReviewDue.since ?? null, row("cycle_review", ref)));
   }
-  if (i.redSignals.length > 0) {
-    const times = i.redSignals.map((s) => s.at?.getTime() ?? 0);
-    const latest = new Date(Math.max(...times, 0));
-    const ref = `signal:${latest.toISOString()}`;
-    out.push(fromItem({
-      ...common, key: `signal_followup:${ref}`, kind: "signal_followup", source: "item",
-      title: "Παρακολούθηση ανοιχτών σημάτων ασφάλειας",
-      detail: i.redSignals.slice(0, 2).map((s) => s.text).join(" · ") + (i.redSignals.length > 2 ? ` · +${i.redSignals.length - 2}` : ""),
-      ownerRule: "όποιος έχει την επόμενη επαφή",
-      href: `/t/members/${i.memberId}`, ref, needsClinician: false, manualDone: true,
-    }, latest.getTime() > 0 ? latest : null, row("signal_followup", ref)));
-  }
   for (const c of i.care) {
+    const admin = ADMIN_CARE.has(c.kind);
     out.push({
-      ...common, key: `care:${c.id}`, kind: "care", source: "care",
+      ...common, key: `care:${c.id}`, kind: admin ? "admin_contact" : "care", source: "care",
       title: CARE_LABEL[c.kind] ?? c.kind, ownerRule: CARE_WHO[c.kind] ?? "η ομάδα",
+      detail: admin ? `${CARE_WHY[c.kind]} · η ολοκλήρωση δεν κλείνει το σήμα` : undefined,
       createdAt: c.createdAt, dueAt: c.dueAt,
       state: c.doneAt ? "done" : c.claimedAt ? "claimed" : "unclaimed",
       claimedBy: c.claimedByName, claimedAt: c.claimedAt, doneBy: c.doneByName, doneAt: c.doneAt, doneNote: c.note,
-      href: `/t/members/${i.memberId}`, ref: c.id, needsClinician: false, manualDone: true,
+      href: `/t/members/${i.memberId}`, ref: c.id, needsClinician: false, adminOnly: admin, manualDone: true,
     });
   }
   // Ανοιχτές πρώτα· μέσα στην ίδια κατάσταση, οι παλαιότερες πρώτα.

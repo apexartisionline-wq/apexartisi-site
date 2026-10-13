@@ -158,7 +158,11 @@ model Booking {
   member          User            @relation("MemberBookings", fields: [memberId], references: [id], onDelete: Cascade)
   cycleId         String?
   cycle           Cycle?          @relation(fields: [cycleId], references: [id])
-  joinedAt        DateTime?
+  joinedAt        DateTime? // πάτημα «Μπες» από το μέλος· δεν αλλάζει από σημείωμα (13/10)
+  // Επιβεβαίωση θεραπευτή από το σημείωμα («Ήρθε» = true, «Δεν ήρθε» = false)· υπερισχύει του πατήματος (απόφαση 13/10).
+  confirmedCame   Boolean?
+  confirmedAt     DateTime?
+  confirmedById   String?
   durationMinutes Int? // από τις αναφορές του Zoom
   // Εναλλαγή βιωματικού/κλινικού: ποιον τύπο «μέτρησε» η συνεδρία και αν τηρήθηκε το μοτίβο.
   kind            TherapistKind?
@@ -342,6 +346,12 @@ model GroupSession {
   atmosphere    String         @default("")
   noteById      String?
   noteAt        DateTime?
+  // Πραγματικό πρόγραμμα (13/10): κάθε ομάδα αποθηκεύεται ως γεγονός με ημερομηνία/ώρα, ώστε αλλαγή στις Ρυθμίσεις να μην αλλάζει
+  // το παρελθόν. fromProgramme = γράφτηκε από το εβδομαδιαίο πρόγραμμα· ακύρωση με ποιος/πότε/γιατί (ποτέ σβήσιμο).
+  fromProgramme Boolean        @default(false)
+  cancelledAt   DateTime?
+  cancelledById String?
+  cancelReason  String         @default("")
   mentions      GroupMention[]
 
   @@unique([date, time])

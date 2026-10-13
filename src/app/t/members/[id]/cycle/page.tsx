@@ -1,4 +1,5 @@
-import { describeCounts, PRESENCE_LABEL } from "@/lib/presence";
+import { describeCounts, describeSources, PRESENCE_LABEL } from "@/lib/presence";
+import { describeGroups } from "@/lib/group-presence";
 import Link from "next/link";
 import { FolderTabs } from "@/components/FolderTabs";
 import { notFound, redirect } from "next/navigation";
@@ -53,9 +54,9 @@ export default async function CyclePage({ params, searchParams }: { params: Prom
         <>
           <p className="muted" style={{ marginTop: 0 }}>{pic.periodLabel}</p>
           <div className="card stack">
-            {row("Ατομικές (πέρασε η ώρα τους)", `${pic.sessions.done} από ${pic.sessions.total}`)}
-            {row("Ήρθε", `${pic.sessions.came}${describeCounts(pic.presence) ? ` · ${describeCounts(pic.presence)}` : ""}`, pic.presence.noRecord > 0 || pic.presence.confirmedAbsent > 0)}
-            {row("Ομάδες", `${pic.groups.came} από ${pic.groups.total}`, pic.groups.came < pic.groups.total / 2)}
+            {row("Ατομικές", `${describeCounts(pic.presence) || "—"} · ο κύκλος προβλέπει ${pic.sessions.total}`, pic.presence.noRecord > 0 || pic.presence.confirmedAbsent > 0)}
+            {pic.presence.counted > 0 && row("Πηγή παρουσίας", describeSources(pic.presence))}
+            {row("Ομάδες", `${describeGroups({ counted: pic.groups.came, passed: pic.groups.passed, noRecord: pic.groups.noRecord })} · ο κύκλος προβλέπει ${pic.groups.total}`, pic.groups.noRecord > 0)}
             {row("Απογραφές", `${pic.journal.written} από ${pic.journal.days} μέρες`)}
             {row("Κόκκινο κουμπί", String(pic.help), pic.help > 0)}
             {row("Νηφαλιότητα", pic.soberDays !== null ? `${pic.soberDays} μέρες${pic.relapses ? ` · ${pic.relapses} ${pic.relapses === 1 ? "αλλαγή" : "αλλαγές"} ημερομηνίας στον κύκλο` : ""}` : "—", pic.relapses > 0)}
@@ -122,7 +123,7 @@ export default async function CyclePage({ params, searchParams }: { params: Prom
             <summary>3. Ποια ήταν η συμμετοχή <span className="muted">· με διακριτές πηγές</span></summary>
             <ul style={{ margin: "8px 0", paddingLeft: 18 }}>
               {data.participation.sessions.map((x, i) => <li key={i}>{formatDate(x.date)} · {x.kind}{x.therapist && ` · ${x.therapist}`} · <strong>{PRESENCE_LABEL[x.state].word}</strong> <span className="muted">({x.source})</span>{x.hasNote ? " · σημείωμα ✓" : " · χωρίς σημείωμα"}</li>)}
-              <li>Ομάδες: {data.participation.groups.came} από {data.participation.groups.total} <span className="muted">({data.participation.groups.source})</span></li>
+              <li>Ομάδες: {describeGroups({ counted: data.participation.groups.came, passed: data.participation.groups.passed, noRecord: data.participation.groups.noRecord })} · ο κύκλος προβλέπει {data.participation.groups.total} <span className="muted">({data.participation.groups.source})</span></li>
               <li>Ημερολόγιο: {data.participation.journal.written} από {data.participation.journal.days} μέρες <span className="muted">({data.participation.journal.source})</span></li>
               <li>Κόκκινο κουμπί: {data.participation.help.count} <span className="muted">({data.participation.help.source})</span></li>
             </ul>

@@ -4,7 +4,7 @@ import { FolderTabs } from "@/components/FolderTabs";
 import { Icon } from "@/components/Icon";
 import { ActionRow, type StaffOption } from "@/components/ActionRow";
 import { NoteSummary } from "@/components/NoteSummary";
-import { EmptyState, PageHead, Panel, Pill } from "@/components/ui";
+import { EmptyState, PageHead, Panel, Pill, PresenceStat } from "@/components/ui";
 import { notFound } from "next/navigation";
 import { logAccess } from "@/lib/audit";
 import { currentStep, lastStepWork } from "@/lib/steps";
@@ -18,7 +18,8 @@ import { prisma } from "@/lib/db";
 import { recentGoals } from "@/lib/goals";
 import { caseHistory, memberConsistency, memberSafety } from "@/lib/handover";
 import { loadMemberActions, recentlyDone } from "@/lib/actions";
-import { describeCounts } from "@/lib/presence";
+import { describeCounts, describeSources, PRESENCE_HINT } from "@/lib/presence";
+import { describeGroups } from "@/lib/group-presence";
 import { CASE_FIELDS } from "@/lib/handover-rules";
 import { memberIntake } from "@/lib/intake";
 import { RISK_INFO } from "@/lib/intake-rules";
@@ -87,7 +88,7 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
   // Επόμενες ενέργειες: τι χρειάζεται, ποιος την αναλαμβάνει, πότε δημιουργήθηκε, κατάσταση, ποιος/πότε την ολοκλήρωσε.
   const flags = await memberSafety(id);
   const [openActions, doneRecently, staffRows] = await Promise.all([
-    loadMemberActions(id, member.name, flags, { now, includeAdminCare: user.role === "ADMIN" }).then((l) => l.filter((a) => a.state !== "done")),
+    loadMemberActions(id, member.name, flags, { now }).then((l) => l.filter((a) => a.state !== "done")),
     recentlyDone(id, now),
     user.role === "ADMIN" ? prisma.user.findMany({ where: { role: { in: ["THERAPIST", "ADMIN"] }, active: true }, select: { id: true, name: true, therapistKind: true, role: true }, orderBy: { name: "asc" } }) : Promise.resolve([]),
   ]);
@@ -190,19 +191,17 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
           </Panel>
 
           <Panel icon="refresh" title={cycle ? `Τρέχων κύκλος · Μήνας ${months}` : "Τρέχων κύκλος"} link={{ href: `/t/members/${id}/cycle`, label: "Ανασκόπηση κύκλου" }} tour="consistency">
-            {!cycle ? <EmptyState>Δεν έχει ξεκινήσει κύκλος.</EmptyState> : cycle.done === 0 ? (
-              <EmptyState>Δεν έχει πραγματοποιηθεί ατομική ακόμη · {cycle.periodLabel}.</EmptyState>
+            {!cycle ? <EmptyState>Δεν έχει ξεκινήσει κύκλος.</EmptyState> : cycle.done === 0 && cycle.groupsPassed === 0 ? (
+              <EmptyState>Καμία προγραμματισμένη ατομική ή ομάδα δεν έχει περάσει ακόμη · {cycle.periodLabel}.</EmptyState>
             ) : (
               <>
                 <p className="hint" style={{ margin: "0 0 8px" }}>{cycle.periodLabel}</p>
                 <div className="kv"><span>Ατομικές που προβλέπει ο κύκλος</span><strong>{cycle.length}</strong></div>
                 <div className="kv"><span>Έχουν προγραμματιστεί</span><strong>{cycle.booked}</strong></div>
-                <div className="kv"><span>Πέρασε η προγραμματισμένη ώρα</span><strong>{cycle.presence.timePassed}</strong></div>
-                <div className="kv"><span>Ήρθε</span><strong>{cycle.attended} <span className="muted small">(σημείωμα «Ήρθε» {cycle.presence.confirmedPresent} · πάτησε «Μπες» {cycle.presence.joinClicked})</span></strong></div>
-                {cycle.presence.confirmedAbsent > 0 && <div className="kv"><span>Σημείωμα «Δεν ήρθε»</span><strong>{cycle.presence.confirmedAbsent}</strong></div>}
-                {cycle.presence.noRecord > 0 && <div className="kv"><span>Χωρίς καταγραφή (άγνωστη κατάσταση)</span><strong>{cycle.presence.noRecord}</strong></div>}
-                <div className="kv"><span>Ομάδες στον κύκλο</span><strong>{cycle.groups} από {s.groupsPerCycle}</strong></div>
-                <p className="hint" style={{ margin: "6px 0 0" }}>Ο κανόνας «ήρθε»: πάτημα «Μπες» ή σημείωμα «Ήρθε». Όσα δεν έχουν καταγραφή δεν μετράνε ως «ήρθε», αλλά δεν είναι επιβεβαιωμένη απουσία.</p>
+                <div className="kv"><span>Ατομικές</span><strong>{describeCounts(cycle.presence)}</strong></div>
+                {cycle.attended > 0 && <div className="kv"><span>Πηγή παρουσίας</span><strong className="small">{describeSources(cycle.presence)}</strong></div>}
+                <div className="kv"><span>Ομάδες</span><strong>{describeGroups({ counted: cycle.groups, passed: cycle.groupsPassed, noRecord: cycle.groupsNoRecord })} <span className="muted small">· ο κύκλος προβλέπει {s.groupsPerCycle}</span></strong></div>
+                <p className="hint" style={{ margin: "6px 0 0" }}>Παρουσία: πάτημα «Μπες» του μέλους («Από σύνδεση») ή επιβεβαίωση θεραπευτή· η επιβεβαίωση «Ήρθε / Δεν ήρθε» υπερισχύει. «Χωρίς καταγραφή» δεν σημαίνει απουσία.</p>
               </>
             )}
           </Panel>
@@ -212,10 +211,11 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
           <Panel title="Πρόσφατη πορεία" icon="list">
             <p className="hint" style={{ margin: "-6px 0 10px" }}>Τελευταίες {consistency.weeks} εβδομάδες · από {formatDate(consistency.from)}</p>
             <div className="stats tiles">
-              <div className="stat"><b>{consistency.groups}/{consistency.groupDays.length}</b><span>ομάδες · ήρθε / ημέρες ομάδας</span></div>
-              <div className="stat"><b>{consistency.sessionsDone}/{consistency.sessionsTotal}</b><span>ατομικές · ήρθε / πέρασε η ώρα τους</span></div>
+              <PresenceStat what="ομάδες" counted={consistency.groups} passed={consistency.groupsPassed} noRecord={consistency.groupsNoRecord} />
+              <PresenceStat what="ατομικές" counted={consistency.sessionsDone} passed={consistency.sessionsTotal} noRecord={consistency.sessions.noRecord} />
             </div>
-            {describeCounts(consistency.sessions) && <p className="hint" style={{ margin: "8px 0 0" }}>Ατομικές: {describeCounts(consistency.sessions)}</p>}
+            <p className="hint" style={{ margin: "8px 0 0" }}>{PRESENCE_HINT}</p>
+            {describeSources(consistency.sessions) && <p className="hint" style={{ margin: "4px 0 0" }}>Πηγή παρουσίας ατομικών: {describeSources(consistency.sessions)}{consistency.sessions.confirmedAbsent > 0 && ` · ${consistency.sessions.confirmedAbsent} «Δεν ήρθε» (επιβεβαίωση)`}</p>}
             <div className="row" style={{ gap: 4, marginTop: 8 }} aria-label="Παρουσίες στις ομάδες, μέρα με μέρα">
               {consistency.groupDays.map((d) => <span key={d.date} title={`${formatDate(d.date)}: ${d.present ? "καταγράφηκε παρουσία" : "χωρίς καταγραφή παρουσίας"}`} className={`dot${d.present ? " ok" : ""}`} />)}
             </div>

@@ -126,7 +126,7 @@ export async function moveBooking(bookingId: string, date: string, hour: number,
       if (taken >= capacity) throw new Error("FULL");
       await tx.booking.update({
         where: { id: bookingId },
-        data: { slotId: pick.slot.id, kind: pick.kind, alternationOk: pick.ok, joinedAt: null },
+        data: { slotId: pick.slot.id, kind: pick.kind, alternationOk: pick.ok, joinedAt: null, confirmedCame: null, confirmedAt: null, confirmedById: null },
       });
     });
   } catch (e) {

@@ -4,7 +4,9 @@ import { prisma } from "./db";
 import { goalWeek } from "./goals";
 import { memberNotes } from "./member-notes";
 import { soberDays } from "./note-form";
-import { PRESENCE_LABEL, countPresence, sessionPresence } from "./presence";
+import { bookingCame, PRESENCE_LABEL, countPresence, sessionPresence } from "./presence";
+import { groupOccurrences } from "./groups";
+import { memberGroups } from "./group-presence";
 import { cyclePeriod, cyclePeriodLabel } from "./member";
 import { getSettings } from "./settings";
 import { addDays, localParts, mondayOf } from "./time";
@@ -22,18 +24,28 @@ export async function lastFinishedCycle(memberId: string, now = new Date()) {
 }
 
 /** Η εικόνα του κύκλου, μόνη της: ατομικές, ομάδες, ημερολόγιο, στόχοι εβδομάδας, κόκκινο κουμπί, νηφαλιότητα. */
-type PicCycle = { length: number; startedAt: Date; closedAt: Date | null; bookings: { joinedAt: Date | null; slot: { startsAt: Date; date: string; kind?: "INDIVIDUAL" | "PAIR"; note?: { id: string } | null } }[] };
+type PicCycle = { length: number; startedAt: Date; closedAt: Date | null; bookings: { joinedAt: Date | null; confirmedCame: boolean | null; slot: { startsAt: Date; date: string; kind?: "INDIVIDUAL" | "PAIR" } }[] };
 export async function cyclePicture(memberId: string, cycle: PicCycle) {
   // Ο «μήνας» ξεκινά από την 1η ατομική του κύκλου (ή από τη δημιουργία του, αν δεν έχει ακόμα).
   const { from, to } = cyclePeriod(cycle);
-  const [member, groups, journal, help, relapses, s] = await Promise.all([
-    prisma.user.findUniqueOrThrow({ where: { id: memberId }, select: { soberSince: true } }),
-    prisma.attendance.count({ where: { memberId, date: { gte: from, lte: to } } }),
+  const [member, att, journal, help, relapses, s] = await Promise.all([
+    prisma.user.findUniqueOrThrow({ where: { id: memberId }, select: { soberSince: true, programStartDate: true } }),
+    prisma.attendance.findMany({ where: { memberId, date: { gte: from, lte: to } }, select: { date: true, joinedAt: true } }),
     prisma.journalEntry.count({ where: { memberId, date: { gte: from, lte: to } } }),
     prisma.helpRequest.count({ where: { memberId, isDrill: false, createdAt: { gte: new Date(`${from}T00:00:00Z`), lte: new Date(`${addDays(to, 1)}T00:00:00Z`) } } }),
     prisma.sobrietyChange.count({ where: { memberId, at: { gte: new Date(`${from}T00:00:00Z`) } } }),
     getSettings(),
   ]);
+  // Ομάδες: από το πραγματικό πρόγραμμα της περιόδου (όχι κάθε «συνήθης» μέρα), μετά την ένταξη, όσες έληξαν και δεν ακυρώθηκαν.
+  const todayD = localParts(new Date()).date;
+  const occ = from <= todayD ? await groupOccurrences(from, to < todayD ? to : todayD, s) : [];
+  const grp = memberGroups(occ, att, { now: new Date(), joinDate: member.programStartDate });
+  const now = new Date();
+  const presence = countPresence(cycle.bookings.map((b) => sessionPresence({
+    startsAt: b.slot.startsAt,
+    endsAt: new Date(b.slot.startsAt.getTime() + (b.slot.kind === "PAIR" ? s.pairMinutes : s.sessionMinutes) * 60_000),
+    now, joinedAt: b.joinedAt, confirmedCame: b.confirmedCame,
+  })));
   const days = Math.max(1, Math.round((Date.parse(`${to}T12:00:00Z`) - Date.parse(`${from}T12:00:00Z`)) / 86_400_000) + 1);
   const weeks = [];
   for (let w = mondayOf(from); w <= to; w = addDays(w, 7)) {
@@ -45,14 +57,12 @@ export async function cyclePicture(memberId: string, cycle: PicCycle) {
     to,
     // done: όσες ατομικές του κύκλου πέρασε η προγραμματισμένη ώρα τους (ΟΧΙ «έγιναν»)· came: «ήρθε» κατά τον υπάρχοντα κανόνα
     // (επιβεβαιωμένη παρουσία ή πάτημα «Μπες»)· total: όσες προβλέπει ο κύκλος. Η ανάλυση στο presence.
-    sessions: { done: Math.min(cycle.length, cycle.bookings.filter((b) => b.slot.startsAt <= new Date()).length), came: cycle.bookings.filter((b) => b.joinedAt).length, total: cycle.length },
-    presence: countPresence(cycle.bookings.map((b) => sessionPresence({
-      startsAt: b.slot.startsAt,
-      endsAt: new Date(b.slot.startsAt.getTime() + (b.slot.kind === "PAIR" ? s.pairMinutes : s.sessionMinutes) * 60_000),
-      now: new Date(), joinedAt: b.joinedAt, hasNote: Boolean(b.slot.note),
-    }))),
+    // done: προγραμματισμένες που πέρασαν (ΟΧΙ «έγιναν»)· came: παρουσίες (επιβεβαίωση ή «Από σύνδεση»)· total: όσες προβλέπει ο κύκλος.
+    sessions: { done: Math.min(cycle.length, presence.timePassed), came: presence.counted, total: cycle.length },
+    presence,
     periodLabel: cyclePeriodLabel({ startedAt: cycle.startedAt, closedAt: cycle.closedAt, bookings: cycle.bookings }),
-    groups: { came: groups, total: s.groupsPerCycle },
+    // came: παρουσίες· passed: προγραμματισμένες που πέρασαν· total: όσες προβλέπει ο κύκλος (16).
+    groups: { came: grp.counted, passed: grp.passed, noRecord: grp.noRecord, total: s.groupsPerCycle },
     journal: { written: journal, days },
     help,
     relapses,
@@ -106,7 +116,7 @@ export async function cycleSummaryData(memberId: string, cycle: NonNullable<Awai
   const statesBy = new Map(cycle.bookings.map((b) => [b.id, sessionPresence({
     startsAt: b.slot.startsAt,
     endsAt: new Date(b.slot.startsAt.getTime() + (slotTherapists.get(b.slotId)?.kind === "PAIR" ? s.pairMinutes : s.sessionMinutes) * 60_000),
-    now: new Date(), joinedAt: b.joinedAt, hasNote: notes.some((n) => n.slotId === b.slotId),
+    now: new Date(), joinedAt: b.joinedAt, confirmedCame: b.confirmedCame,
   })]));
   return {
     period: { from, to, days: pic.journal.days },
@@ -116,13 +126,13 @@ export async function cycleSummaryData(memberId: string, cycle: NonNullable<Awai
         date: b.slot.date,
         kind: slotTherapists.get(b.slotId)?.kind === "PAIR" ? "Therapair" : "Ατομική",
         therapist: slotTherapists.get(b.slotId)?.therapist?.name ?? "",
-        came: Boolean(b.joinedAt),
+        came: bookingCame(b),
         // Διακριτές έννοιες: επιβεβαιωμένη παρουσία · πάτησε «Μπες» · σημείωμα «Δεν ήρθε» · χωρίς καταγραφή (όχι «απουσία»).
         state: statesBy.get(b.id) ?? "no_record",
         source: PRESENCE_LABEL[statesBy.get(b.id) ?? "no_record"].source,
         hasNote: notes.some((n) => n.slotId === b.slotId),
       })),
-      groups: { came: pic.groups.came, total: pic.groups.total, source: "κουμπί «Μπες στην ομάδα» ή διόρθωση από τη διαχείριση" },
+      groups: { came: pic.groups.came, passed: pic.groups.passed, noRecord: pic.groups.noRecord, total: pic.groups.total, source: "πραγματικό πρόγραμμα ομάδων· παρουσία = «Μπες στην ομάδα» ή διόρθωση από τη διαχείριση" },
       journal: { written: journal.length, days: pic.journal.days, source: "εγγραφές ημερολογίου ανάκαμψης του μέλους" },
       help: { count: pic.help, source: "πατήματα του κόκκινου κουμπιού" },
     },

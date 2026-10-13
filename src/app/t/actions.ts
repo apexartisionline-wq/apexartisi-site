@@ -7,12 +7,16 @@ import { requireRole } from "@/lib/auth";
 import { enc } from "@/lib/crypto";
 import { prisma } from "@/lib/db";
 import { canWriteRisk } from "@/lib/risk-db";
+import { ADMIN_CARE } from "@/lib/actions-core";
 import { athensToUtc } from "@/lib/time";
 
 // Ανάληψη / ολοκλήρωση συγκεκριμένης ενέργειας (13/10).
 // Η θεραπευτική ευθύνη παραμένει συλλογική: η ανάληψη αφορά μόνο την ενέργεια. Η διαχείριση μπορεί να αναθέσει.
-const KINDS = ["safety_assessment", "initial_assessment", "cycle_review", "signal_followup"] as const;
-const MANUAL_DONE = new Set(["signal_followup"]);
+// Τα σήματα δεν έχουν ανάληψη (διευκρινίσεις 13/10)· η παλιά «signal_followup» δεν αναλαμβάνεται πια.
+const KINDS = ["safety_assessment", "initial_assessment", "cycle_review"] as const;
+const MANUAL_DONE = new Set<string>();
+// Τα τηλεφωνήματα της διαχείρισης (χωρίς επαφή / ανάγκες ασφάλειας): ανάληψη, αποδέσμευση, ολοκλήρωση μόνο από τη διαχείριση.
+const adminCare = (kind: string) => ADMIN_CARE.has(kind);
 
 function back(formData: FormData): string {
   const b = String(formData.get("back") ?? "/t");
@@ -40,7 +44,10 @@ export async function claimAction(formData: FormData): Promise<void> {
     const id = String(formData.get("ref") ?? "");
     const t = await prisma.careTask.findUnique({ where: { id } });
     if (!t || t.doneAt) redirect(back(formData));
-    if (!t.claimedAt) await prisma.careTask.update({ where: { id }, data: { claimedById: full.id, claimedByName: full.name, claimedAt: new Date() } });
+    if (adminCare(t.kind) && (user.role !== "ADMIN" || full.role !== "ADMIN")) throw new Error("Το τηλεφώνημα το αναλαμβάνει η διαχείριση.");
+    // Ρητή ανάθεση από τη διαχείριση αλλάζει και ήδη αναληφθείσα ενέργεια.
+    if (assignedById && t.claimedAt) await prisma.careTask.update({ where: { id }, data: { claimedById: full.id, claimedByName: full.name, claimedAt: new Date() } });
+    else if (!t.claimedAt) await prisma.careTask.update({ where: { id }, data: { claimedById: full.id, claimedByName: full.name, claimedAt: new Date() } });
     await logAccess(user.id, t.memberId, "action_claim:care");
   } else {
     const memberId = String(formData.get("memberId") ?? "");
@@ -72,7 +79,7 @@ export async function releaseAction(formData: FormData): Promise<void> {
   if (source === "care") {
     const id = String(formData.get("ref") ?? "");
     const t = await prisma.careTask.findUnique({ where: { id } });
-    if (t && !t.doneAt && (t.claimedById === user.id || user.role === "ADMIN")) {
+    if (t && !t.doneAt && (adminCare(t.kind) ? user.role === "ADMIN" : t.claimedById === user.id || user.role === "ADMIN")) {
       await prisma.careTask.update({ where: { id }, data: { claimedById: null, claimedByName: null, claimedAt: null } });
       await logAccess(user.id, t.memberId, "action_release:care");
     }
@@ -97,6 +104,7 @@ export async function completeAction(formData: FormData): Promise<void> {
     const id = String(formData.get("ref") ?? "");
     const t = await prisma.careTask.findUnique({ where: { id } });
     if (t && !t.doneAt) {
+      if (adminCare(t.kind) && user.role !== "ADMIN") throw new Error("Το τηλεφώνημα το ολοκληρώνει η διαχείριση.");
       await prisma.careTask.update({ where: { id }, data: { doneAt: new Date(), doneById: user.id, note, ...(t.claimedAt ? {} : { claimedById: user.id, claimedByName: user.name, claimedAt: new Date() }) } });
       await logAccess(user.id, t.memberId, "action_done:care");
     }

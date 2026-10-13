@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Pill } from "./ui";
 
 export type Viewer = { id: string; role: string; therapistKind: string | null };
-export type StaffOption = { id: string; name: string; clinician: boolean };
+export type StaffOption = { id: string; name: string; clinician: boolean; admin?: boolean };
 
 const fmt = (d: Date) => {
   const p = localParts(d);
@@ -29,8 +29,11 @@ export function ActionRow({ a, viewer, staff = [], back, showMember = false, com
       <input type="hidden" name="back" value={back} />
     </>
   );
-  const mayClaim = a.source !== "help" && a.state === "unclaimed" && (!a.needsClinician || canClinician(viewer));
-  const eligible = staff.filter((s) => !a.needsClinician || s.clinician);
+  const admin = viewer.role === "ADMIN";
+  // Τηλεφωνήματα της διαχείρισης: οι θεραπευτές βλέπουν μόνο την κατάσταση (χωρίς τηλέφωνο, χωρίς κουμπιά).
+  const mayAct = !a.adminOnly || admin;
+  const mayClaim = mayAct && a.source !== "help" && a.state === "unclaimed" && (!a.needsClinician || canClinician(viewer));
+  const eligible = staff.filter((s) => (a.adminOnly ? s.admin : !a.needsClinician || s.clinician));
   return (
     <div className={`act${compact ? " compact" : ""}`}>
       <div className="act-title">
@@ -44,6 +47,7 @@ export function ActionRow({ a, viewer, staff = [], back, showMember = false, com
         {stateLine(a, fmt)}
       </div>
       <div className="act-forms">
+        {a.adminOnly && !admin && <span className="hint">Την αναλαμβάνει και την ολοκληρώνει η διαχείριση.</span>}
         {(a.source === "help" || !a.manualDone) && <Link className="btn outline sm" href={a.href}>{a.source === "help" && a.state === "unclaimed" ? "Δες και ανάλαβε" : "Άνοιγμα"}</Link>}
         {mayClaim && (
           <form action={claimAction}>
@@ -51,7 +55,7 @@ export function ActionRow({ a, viewer, staff = [], back, showMember = false, com
             <button type="submit" className="primary sm">Το αναλαμβάνω</button>
           </form>
         )}
-        {viewer.role === "ADMIN" && a.state !== "done" && a.source !== "help" && eligible.length > 0 && (
+        {admin && a.state !== "done" && a.source !== "help" && eligible.length > 0 && (
           <form action={claimAction}>
             {hidden}
             <select name="assigneeId" aria-label="Ανάθεση σε" defaultValue="">
@@ -62,13 +66,13 @@ export function ActionRow({ a, viewer, staff = [], back, showMember = false, com
             <button type="submit" className="sm">Ανάθεση</button>
           </form>
         )}
-        {a.state === "claimed" && a.source !== "help" && (
+        {mayAct && a.state === "claimed" && a.source !== "help" && (
           <form action={releaseAction}>
             {hidden}
             <button type="submit" className="sm" title="Μόνο όποιος την ανέλαβε ή η διαχείριση">Την αφήνω</button>
           </form>
         )}
-        {a.state !== "done" && a.source !== "help" && a.manualDone && (
+        {mayAct && a.state !== "done" && a.source !== "help" && a.manualDone && (
           <form action={completeAction}>
             {hidden}
             <input name="note" placeholder="σύντομα: τι έγινε" aria-label="Τι έγινε" maxLength={500} />

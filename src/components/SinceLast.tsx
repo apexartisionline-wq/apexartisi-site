@@ -3,6 +3,7 @@ import { NoteText } from "@/components/NoteText";
 import { sinceLast } from "@/lib/since-last";
 import { GOAL_CHECK } from "@/lib/goals";
 import { formatDate } from "@/lib/time";
+import { describeGroups } from "@/lib/group-presence";
 
 const num = (v: number | null) => (v === null ? "—" : String(v).replace(".", ","));
 const dates = (ds: string[]) => ds.map(formatDate).join(", ");
@@ -38,9 +39,9 @@ export async function SinceLast({ memberId, prev, until, untilAt, compact = fals
       <ul className="since-list">
         <li>
           <strong>Ομάδες:</strong>{" "}
-          {d.groups.length === 0 ? <span className="muted">δεν έγινε ομάδα στο διάστημα.</span> : (
+          {d.groups.length === 0 ? <span className="muted">καμία προγραμματισμένη ομάδα στο διάστημα.</span> : (
             <>
-              ήρθε σε <strong>{cameN} από {d.groups.length}</strong>
+              <strong>{describeGroups({ counted: cameN, passed: d.groups.length, noRecord: d.groups.length - cameN })}</strong>
               <span className="since-days">
                 {d.groups.map((g) => (
                   <span key={`${g.date}${g.time}`} className={`daychip ${g.came ? "ok" : "no"}`} title={g.came ? "καταγράφηκε παρουσία" : "χωρίς καταγραφή παρουσίας"}>

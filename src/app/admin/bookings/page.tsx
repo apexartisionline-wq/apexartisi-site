@@ -157,7 +157,7 @@ export default async function BookingsPage({ searchParams }: { searchParams: Pro
                     <td>{x.kind === "PAIR" ? "Therapair" : "Ατομική"}</td>
                     <td><Link href={`/admin/people/${b.member.id}`}>{b.member.name}</Link> {!b.alternationOk && "⚠"}</td>
                     <td>{x.therapist ? `${x.therapist.name}${x.therapist.therapistKind ? ` (${TK[x.therapist.therapistKind]})` : ""}` : "—"}</td>
-                    <td>{b.joinedAt ? "✓" : past ? <span className="badge yellow">όχι</span> : ""}</td>
+                    <td>{b.confirmedCame === true ? "✓ σημείωμα" : b.confirmedCame === false ? <span className="badge yellow">δεν ήρθε</span> : b.joinedAt ? "✓ από σύνδεση" : past ? <span className="badge yellow">χωρίς καταγραφή</span> : ""}</td>
                     <td>
                       {past && (
                         <form action={setDuration} className="row" style={{ gap: 4, flexWrap: "nowrap" }}>

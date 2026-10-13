@@ -18,7 +18,8 @@ export async function checkDropouts(now = new Date(), settings?: Settings): Prom
       programStartDate: true,
       attendances: { orderBy: { joinedAt: "desc" }, take: 1, select: { joinedAt: true } },
       journal: { orderBy: { updatedAt: "desc" }, take: 1, select: { updatedAt: true } },
-      bookings: { where: { joinedAt: { not: null } }, orderBy: { joinedAt: "desc" }, take: 1, select: { joinedAt: true } },
+      // Ατομική με παρουσία: επιβεβαίωση «Ήρθε» ή πάτημα «Μπες» χωρίς «Δεν ήρθε» (απόφαση 13/10).
+      bookings: { where: { OR: [{ confirmedCame: true }, { confirmedCame: null, joinedAt: { not: null } }] }, orderBy: { slot: { startsAt: "desc" } }, take: 1, select: { joinedAt: true, slot: { select: { startsAt: true } } } },
     },
   });
   const tasks = await prisma.careTask.findMany({
@@ -31,7 +32,7 @@ export async function checkDropouts(now = new Date(), settings?: Settings): Prom
     const contacts = [
       m.attendances[0]?.joinedAt,
       m.journal[0]?.updatedAt,
-      m.bookings[0]?.joinedAt ?? undefined,
+      m.bookings[0] ? (m.bookings[0].joinedAt ?? m.bookings[0].slot.startsAt) : undefined,
     ].filter((d): d is Date => Boolean(d));
     const lastContact = contacts.length ? new Date(Math.max(...contacts.map((d) => d.getTime()))) : null;
     const mine = tasks.filter((t) => t.memberId === m.id);

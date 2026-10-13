@@ -10,7 +10,8 @@ import { requireRole } from "@/lib/auth";
 import { enc } from "@/lib/crypto";
 import { prisma } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
-import { addDays, formatDate, formatHour, localParts } from "@/lib/time";
+import { addDays, formatDate, formatHour, formatTime, localParts } from "@/lib/time";
+import { claimAction } from "@/app/t/actions";
 
 async function settle(formData: FormData) {
   "use server";
@@ -26,7 +27,10 @@ async function dropoutDone(formData: FormData) {
   const id = String(formData.get("id"));
   const note = String(formData.get("note") ?? "").trim().slice(0, 500);
   if (!note) redirect("/admin?dropout=need");
-  const t = await prisma.careTask.update({ where: { id }, data: { doneAt: new Date(), doneById: admin.id, note: enc(note) } });
+  const old = await prisma.careTask.findUniqueOrThrow({ where: { id } });
+  const now = new Date();
+  // Ολοκλήρωση της ενέργειας (όχι του σήματος): το «Χωρίς επαφή» μένει μέχρι να υπάρξει νέα επαφή.
+  const t = await prisma.careTask.update({ where: { id }, data: { doneAt: now, doneById: admin.id, note: enc(note), ...(old.claimedAt ? {} : { claimedById: admin.id, claimedByName: admin.name, claimedAt: now }) } });
   await logAccess(admin.id, t.memberId, "dropout_call");
   redirect("/admin");
 }
@@ -46,7 +50,8 @@ export default async function AdminToday({ searchParams }: { searchParams: Promi
       orderBy: [{ hour: "asc" }, { position: "asc" }],
     }),
     prisma.booking.findMany({
-      where: { joinedAt: null, slot: { date: { gte: addDays(today, -7) }, startsAt: { lt: new Date(now.getTime() - s.sessionMinutes * 60_000) } } },
+      // Χωρίς παρουσία: «Δεν ήρθε» (επιβεβαίωση) ή χωρίς καταγραφή (ούτε πάτημα ούτε επιβεβαίωση).
+      where: { OR: [{ confirmedCame: false }, { confirmedCame: null, joinedAt: null }], slot: { date: { gte: addDays(today, -7) }, startsAt: { lt: new Date(now.getTime() - s.sessionMinutes * 60_000) } } },
       include: { slot: true, member: { select: { name: true } } },
       orderBy: { slot: { startsAt: "desc" } },
     }),
@@ -66,7 +71,7 @@ export default async function AdminToday({ searchParams }: { searchParams: Promi
   const intakePending = intakes.filter((x) => !x.status.complete);
 
   // Χωρίς επαφή 3 μέρες: ποιον παίρνουμε τηλέφωνο (κινητό από τα στοιχεία του μέλους ή του λογαριασμού).
-  const dropouts = await prisma.careTask.findMany({ where: { kind: { in: ["dropout", "risk_contact"] }, doneAt: null }, orderBy: { dueAt: "asc" } });
+  const dropouts = await prisma.careTask.findMany({ where: { kind: { in: ["dropout", "risk_contact", "risk_24h", "risk_next_day"] }, doneAt: null }, orderBy: { dueAt: "asc" } });
   const dropoutRows = await Promise.all(dropouts.map(async (t) => {
     const [u, p] = await Promise.all([prisma.user.findUnique({ where: { id: t.memberId }, select: { name: true, phone: true } }), latestProfile(t.memberId)]);
     return { t, name: u?.name ?? "Μέλος", phone: p?.data.mobile || u?.phone || "" };
@@ -134,13 +139,17 @@ export default async function AdminToday({ searchParams }: { searchParams: Promi
 
       {dropoutRows.length > 0 && (
         <section className="card" style={{ borderColor: "var(--yellow)" }}>
-          <strong>Τηλεφωνήματα της διαχείρισης</strong>
-          <p className="muted small" style={{ margin: "4px 0 8px" }}>«Χωρίς επαφή»: 3 μέρες δεν μπήκε σε ομάδα, δεν έγραψε απογραφή, δεν μπήκε σε ατομική — ουδέτερο μήνυμα: «Γεια, από το Apex. Σε σκεφτόμαστε, πάρε μας όταν μπορείς.» «Ανάγκες ασφάλειας»: επαφή μέσα σε 24 ώρες (Αυξημένες) ή την επόμενη μέρα (Υψηλές).</p>
+          <strong>Τηλεφωνική επικοινωνία από τη διαχείριση</strong>
+          <p className="muted small" style={{ margin: "4px 0 8px" }}>«Χωρίς επαφή»: 3 μέρες δεν μπήκε σε ομάδα, δεν έγραψε απογραφή, δεν μπήκε σε ατομική — ουδέτερο μήνυμα: «Γεια, από το Apex. Σε σκεφτόμαστε, πάρε μας όταν μπορείς.» «Ανάγκες ασφάλειας»: επαφή μέσα σε 24 ώρες (Αυξημένες) ή την επόμενη μέρα (Υψηλές). Κάθε τηλεφώνημα το αναλαμβάνει ένα πρόσωπο· το «Έγινε» ολοκληρώνει την ενέργεια, <strong>όχι το σήμα</strong> — το «Χωρίς επαφή» μένει ορατό μέχρι να υπάρξει νέα επαφή.</p>
           {sp.dropout === "need" && <div className="error small">Γράψε σύντομα τι έγινε.</div>}
           {dropoutRows.map(({ t, name, phone }) => (
             <form key={t.id} action={dropoutDone} className="row" style={{ gap: 6, flexWrap: "wrap", marginTop: 8 }}>
               <input type="hidden" name="id" value={t.id} />
-              <strong style={{ minWidth: 140 }}>{name} <span className="badge yellow">{t.kind === "risk_contact" ? "ανάγκες ασφάλειας" : "χωρίς επαφή"}</span></strong>
+              <strong style={{ minWidth: 140 }}>{name} <span className="badge yellow">{t.kind === "dropout" ? "αφορμή: χωρίς επαφή" : "αφορμή: ανάγκες ασφάλειας"}</span></strong>
+              <span className="small">{t.claimedAt ? `Έχει αναληφθεί από ${t.claimedByName ?? "—"} · ${formatTime(t.claimedAt)}` : <button type="submit" formAction={claimAction} className="outline">Το αναλαμβάνω</button>}</span>
+              <input type="hidden" name="source" value="care" />
+              <input type="hidden" name="ref" value={t.id} />
+              <input type="hidden" name="back" value="/admin" />
               {phone ? <a className="btn" href={`tel:${phone.replace(/\s/g, "")}`}>Κλήση {phone}</a> : <span className="muted small">χωρίς τηλέφωνο</span>}
               <input name="note" placeholder="τι έγινε (π.χ. μιλήσαμε, είναι καλά)" style={{ flex: 1, minWidth: 160 }} />
               <button type="submit">Έγινε</button>
@@ -160,7 +169,7 @@ export default async function AdminToday({ searchParams }: { searchParams: Promi
                 <td>{x.position}</td>
                 <td>{x.kind === "PAIR" && "Therapair: "}{x.bookings.map((b) => b.member.name).join(" & ")}</td>
                 <td>{x.therapist?.name ?? <span className="badge red">κανείς</span>}</td>
-                <td>{x.bookings.map((b) => (b.joinedAt ? "✓" : "—")).join(" ")}</td>
+                <td>{x.bookings.map((b) => (b.confirmedCame === true ? "✓ σημείωμα" : b.confirmedCame === false ? "δεν ήρθε" : b.joinedAt ? "✓ από σύνδεση" : "—")).join(" · ")}</td>
                 <td>{(x.note || x.pairNotes.length) ? <Link href={`/t/s/${x.id}`}>✓</Link> : "—"}</td>
               </tr>
             ))}
@@ -169,10 +178,10 @@ export default async function AdminToday({ searchParams }: { searchParams: Promi
         </table>
       </div>
 
-      <h2>Δεν μπήκαν (τελευταίες 7 μέρες)</h2>
+      <h2>Χωρίς παρουσία (τελευταίες 7 μέρες)</h2>
       <div className="card">
         {missed.length === 0 ? <span className="muted">Κανείς.</span> : (
-          <ul>{missed.map((b) => <li key={b.id}>{b.member.name} · {formatDate(b.slot.date)} {formatHour(b.slot.hour)}</li>)}</ul>
+          <ul>{missed.map((b) => <li key={b.id}>{b.member.name} · {formatDate(b.slot.date)} {formatHour(b.slot.hour)} · {b.confirmedCame === false ? "«Δεν ήρθε» (επιβεβαίωση θεραπευτή)" : "χωρίς καταγραφή"}</li>)}</ul>
         )}
         <p className="muted small">«Μπήκε» σημαίνει ότι πάτησε το κουμπί του app.</p>
       </div>

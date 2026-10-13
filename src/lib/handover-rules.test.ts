@@ -46,10 +46,12 @@ describe("safetyFlags", () => {
     expect(f).toEqual([expect.objectContaining({ level: "red", href: "/t/s/s1", text: expect.stringContaining("χρήση") })]);
   });
 
-  it("σιωπή μετά από dropoutDays, αλλά όχι διπλό με ανοιχτό τηλεφώνημα", () => {
-    expect(safetyFlags({ ...base, lastContact: ago(5) })[0].text).toBe("Χωρίς επαφή 5 μέρες");
-    const f = safetyFlags({ ...base, lastContact: ago(5), openDropout: true });
-    expect(f.map((x) => x.text)).toEqual(["Χωρίς επαφή 5 μέρες · τηλεφωνεί η διαχείριση"]);
+  it("σήμα «Χωρίς επαφή»: ίδιο με ή χωρίς ανοιχτό τηλεφώνημα, και μένει μετά την ολοκλήρωσή του", () => {
+    expect(safetyFlags({ ...base, lastContact: ago(5) }).map((x) => x.text)).toEqual(["Χωρίς επαφή 5 μέρες"]);
+    expect(safetyFlags({ ...base, lastContact: ago(5), openDropout: true }).map((x) => x.text)).toEqual(["Χωρίς επαφή 5 μέρες"]);
+    // Η ενέργεια ολοκληρώθηκε (openDropout false) αλλά δεν υπήρξε νέα επαφή: το σήμα μένει.
+    expect(safetyFlags({ ...base, lastContact: ago(6), openDropout: false })[0].text).toBe("Χωρίς επαφή 6 μέρες");
+    expect(safetyFlags({ ...base, lastContact: ago(1), openDropout: false })).toEqual([]);
   });
 
   it("χαμένη ατομική: κίτρινο, κόκκινο αν υπάρχει σήμα ασφάλειας", () => {
@@ -132,6 +134,6 @@ describe("matchNote", () => {
 describe("προέλευση της ένδειξης «δεν ήρθε»", () => {
   it("με σημείωμα «Δεν ήρθε» το λέει· χωρίς σημείωμα λέει ότι λείπει καταγραφή", () => {
     const f = safetyFlags({ ...base, missed: [{ at: new Date(Date.now() - 2 * 86_400_000), slotId: "m", noted: true }] });
-    expect(f[0].text).toBe("Δεν ήρθε στην ατομική (σημείωμα)");
+    expect(f[0].text).toBe("Δεν ήρθε στην ατομική (επιβεβαίωση θεραπευτή)");
   });
 });

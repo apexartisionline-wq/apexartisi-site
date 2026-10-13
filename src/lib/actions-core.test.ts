@@ -3,7 +3,7 @@ import { buildActions, STATE_LABEL, stateLine, type ActionInput, type ItemRow } 
 
 const d = (s: string) => new Date(s);
 const base: ActionInput = {
-  memberId: "m1", memberName: "Νίκος Δ.", riskTrigger: null, redSignals: [], initialAssessmentMissing: null, cycleReviewDue: null, care: [], help: [], items: [],
+  memberId: "m1", memberName: "Νίκος Δ.", riskTrigger: null, initialAssessmentMissing: null, cycleReviewDue: null, care: [], help: [], items: [],
 };
 const fmt = (x: Date) => x.toISOString().slice(0, 10);
 
@@ -22,15 +22,15 @@ describe("επόμενες ενέργειες", () => {
     expect(stateLine(a, fmt)).toBe("Έχει αναληφθεί από Δήμητρα Λ. · 2026-10-12");
   });
   it("ολοκληρωμένη ενέργεια δείχνει ποιος και πότε", () => {
-    const row: ItemRow = { memberId: "m1", kind: "signal_followup", ref: "signal:2026-10-11T10:00:00.000Z", createdAt: d("2026-10-11T10:00:00Z"), dueAt: null, claimedByName: "Άννα Κ.", claimedAt: d("2026-10-11T11:00:00Z"), doneAt: d("2026-10-12T09:00:00Z"), doneByName: "Άννα Κ.", doneNote: "" };
-    const [a] = buildActions({ ...base, redSignals: [{ text: "Έγραψε στο ημερολόγιο", at: d("2026-10-11T10:00:00Z") }], items: [row] });
+    const [a] = buildActions({ ...base, care: [{ id: "c1", kind: "dropout", dueAt: d("2026-10-11T09:00:00Z"), createdAt: d("2026-10-11T09:00:00Z"), doneAt: d("2026-10-12T09:00:00Z"), doneByName: "Εύα", claimedByName: "Εύα", claimedAt: d("2026-10-11T10:00:00Z"), note: "μιλήσαμε" }] });
     expect(a.state).toBe("done");
-    expect(stateLine(a, fmt)).toBe("Ολοκληρώθηκε από Άννα Κ. · 2026-10-12");
+    expect(stateLine(a, fmt)).toBe("Ολοκληρώθηκε από Εύα · 2026-10-12");
   });
-  it("νέο σήμα μετά την ολοκλήρωση δημιουργεί νέα ενέργεια (ο παλιός κλειστός κύκλος δεν την κρύβει)", () => {
-    const old: ItemRow = { memberId: "m1", kind: "signal_followup", ref: "signal:2026-10-11T10:00:00.000Z", createdAt: d("2026-10-11T10:00:00Z"), dueAt: null, claimedByName: "Άννα Κ.", claimedAt: d("2026-10-11T11:00:00Z"), doneAt: d("2026-10-12T09:00:00Z"), doneByName: "Άννα Κ.", doneNote: "" };
-    const [a] = buildActions({ ...base, redSignals: [{ text: "Νέο σήμα", at: d("2026-10-13T10:00:00Z") }], items: [old] });
-    expect(a.state).toBe("unclaimed");
+  it("τα σήματα δεν γίνονται ενέργειες με ανάληψη· το τηλεφώνημα της διαχείρισης είναι ενέργεια μόνο της διαχείρισης", () => {
+    expect(buildActions(base)).toEqual([]);
+    const [a] = buildActions({ ...base, care: [{ id: "c2", kind: "dropout", dueAt: d("2026-10-11T09:00:00Z"), createdAt: d("2026-10-11T09:00:00Z"), doneAt: null, doneByName: null, claimedByName: null, claimedAt: null, note: "" }] });
+    expect(a).toMatchObject({ kind: "admin_contact", title: "Τηλεφωνική επικοινωνία από τη διαχείριση", adminOnly: true, state: "unclaimed", ownerRule: "η διαχείριση" });
+    expect(a.detail).toContain("δεν κλείνει το σήμα");
   });
   it("προθεσμία φαίνεται μόνο όταν υπάρχει (μήνυμα φροντίδας) και όχι επινοημένη", () => {
     const out = buildActions({ ...base, riskTrigger: { at: d("2026-10-11T09:00:00Z"), text: "ημερολόγιο" }, care: [{ id: "c1", kind: "caring_24h", dueAt: d("2026-10-12T09:00:00Z"), createdAt: d("2026-10-11T09:00:00Z"), doneAt: null, doneByName: null, claimedByName: null, claimedAt: null, note: "" }] });

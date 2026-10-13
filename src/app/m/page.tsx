@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { withMemberCode } from "@/lib/forms";
 import { ensureDemoToday } from "@/lib/demo-session";
 import { cycleInfo, isPublished, journalDate } from "@/lib/member";
+import { cancelledGroupTimes } from "@/lib/groups";
 import { bookingWindow, canRequestChange, groupsOn, isAfter, joinableGroup, sessionJoinable, slotMinutes } from "@/lib/program";
 import { weekGoal } from "@/lib/goals";
 import { getSettings } from "@/lib/settings";
@@ -47,7 +48,10 @@ export default async function MemberHome() {
   const text = contents.find((c) => c.kind === "DAILY_TEXT" && isPublished(c.date, s.dailyTextTime, now));
   const forms = contents.filter((c) => c.kind === "FORM" && isPublished(c.date, s.formsTime, now));
   const groupsToday = groupsOn(today.date, s);
-  const groupOpen = joinableGroup(now, s);
+  // Ακυρωμένη από τη διαχείριση ομάδα (π.χ. αργία): δεν ανοίγει «Μπες».
+  const cancelledToday = groupsToday.length ? await cancelledGroupTimes(today.date) : new Set<string>();
+  const joinable = joinableGroup(now, s);
+  const groupOpen = joinable && !cancelledToday.has(joinable.time) ? joinable : null;
   const journalOpen = isAfter(now, s.journalTime);
   const pendingFor = new Set(requests.filter((r) => r.status === "PENDING").map((r) => r.bookingId));
   const fresh = cycle && cycle.cycle.closedAt && cycle.booked >= cycle.length && cycle.done >= cycle.length;
@@ -160,7 +164,7 @@ export default async function MemberHome() {
             <div>
               <strong>Ομάδα</strong>
               <div className="muted">
-                Σήμερα στις {groupsToday.map((g) => g.time).join(", ")}
+                Σήμερα στις {groupsToday.map((g) => (cancelledToday.has(g.time) ? `${g.time} (δεν θα γίνει)` : g.time)).join(", ")}
                 {attended && " · μπήκες ✓"}
               </div>
             </div>

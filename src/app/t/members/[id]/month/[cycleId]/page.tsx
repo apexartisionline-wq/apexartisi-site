@@ -10,7 +10,8 @@ import { hideOther, nameVariants } from "@/lib/pair-note";
 import { vocative } from "@/lib/vocative";
 import { cyclePicture, cycleReviews } from "@/lib/cycle-review";
 import { prisma } from "@/lib/db";
-import { describeCounts } from "@/lib/presence";
+import { describeCounts, describeSources } from "@/lib/presence";
+import { describeGroups } from "@/lib/group-presence";
 import { formatDate, formatWhen, localParts } from "@/lib/time";
 
 // Μηνιαίος φάκελος (ένας «μήνας» = ένας κύκλος): ό,τι χρειάζεται αν κάποιος ρωτήσει
@@ -44,7 +45,8 @@ export default async function MonthFolder({ params }: { params: Promise<{ id: st
 
       <h2>Εικόνα του μήνα</h2>
       <div className="card stack small">
-        <div>Ατομικές: πέρασε η ώρα <strong>{pic.sessions.done} από {pic.sessions.total}</strong> · ήρθε <strong>{pic.sessions.came}</strong>{describeCounts(pic.presence) && <span className="muted"> ({describeCounts(pic.presence)})</span>} · Ομάδες: <strong>{pic.groups.came} από {pic.groups.total}</strong></div>
+        <div>Ατομικές: <strong>{describeCounts(pic.presence) || "—"}</strong>{describeSources(pic.presence) && <span className="muted"> (πηγή: {describeSources(pic.presence)})</span>} · ο κύκλος προβλέπει {pic.sessions.total}</div>
+        <div>Ομάδες: <strong>{describeGroups({ counted: pic.groups.came, passed: pic.groups.passed, noRecord: pic.groups.noRecord })}</strong> · ο κύκλος προβλέπει {pic.groups.total}</div>
         <div>Απογραφές: <strong>{pic.journal.written} από {pic.journal.days} μέρες</strong> · Κόκκινο κουμπί: <strong>{pic.help}</strong></div>
         <div>Νηφαλιότητα: <strong>{pic.soberDays ?? "—"} μέρες</strong>{pic.relapses ? ` · ${pic.relapses} ${pic.relapses === 1 ? "αλλαγή" : "αλλαγές"} ημερομηνίας` : ""}</div>
       </div>
@@ -66,7 +68,7 @@ export default async function MonthFolder({ params }: { params: Promise<{ id: st
       <h2>Ατομικές και σημειώματα</h2>
       {cycle.bookings.map((b, i) => { const note = b.slot.kind === "PAIR" ? b.slot.pairNotes[0] : b.slot.note; return (
         <div key={b.id} className="card small">
-          <strong>{i + 1}. {formatDate(b.slot.date)}</strong> · {b.slot.kind === "PAIR" ? "Therapair" : "Ατομική"} · {note?.therapist.name ?? b.slot.therapist?.name ?? ""}{b.slot.startsAt > new Date() ? " · προγραμματισμένη" : b.joinedAt ? (note ? " · ήρθε (σημείωμα)" : " · πάτησε «Μπες»") : note ? " · σημείωμα «Δεν ήρθε»" : " · χωρίς καταγραφή παρουσίας"}
+          <strong>{i + 1}. {formatDate(b.slot.date)}</strong> · {b.slot.kind === "PAIR" ? "Therapair" : "Ατομική"} · {note?.therapist.name ?? b.slot.therapist?.name ?? ""}{b.confirmedCame === true ? " · παρουσία (σημείωμα)" : b.confirmedCame === false ? " · «Δεν ήρθε» (σημείωμα)" : b.joinedAt ? " · παρουσία (από σύνδεση)" : b.slot.startsAt > new Date() ? " · προγραμματισμένη" : " · χωρίς καταγραφή"}
           {note ? <NoteText style={{ marginTop: 6 }} text={b.slot.kind === "PAIR" ? hideOther(dec(note.content), b.slot.bookings.flatMap((o) => nameVariants(o.member.name, vocative))) : dec(note.content)} /> : <div className="muted">Χωρίς σημείωμα.</div>}
         </div>
       ); })}

@@ -16,8 +16,8 @@ import { NoteTags } from "@/components/NoteTags";
 import { SafetyZone } from "@/components/SafetyZone";
 import { type StaffOption } from "@/components/ActionRow";
 import { NoteSummary } from "@/components/NoteSummary";
-import { EmptyState, ErrorNote, PageHead, Panel, Pill } from "@/components/ui";
-import { describeCounts, PRESENCE_LABEL, sessionPresence } from "@/lib/presence";
+import { EmptyState, ErrorNote, PageHead, Panel, Pill, PresenceStat } from "@/components/ui";
+import { describeSources, PRESENCE_HINT, PRESENCE_LABEL, sessionPresence } from "@/lib/presence";
 import { ThemeWeek } from "@/components/ThemeWeek";
 import { latestAssessment, latestProfile } from "@/lib/assessment-db";
 import { logAccess } from "@/lib/audit";
@@ -48,11 +48,16 @@ async function loadSlot(id: string) {
   });
 }
 
-// Όπου γράφτηκε σημείωμα, η συνεδρία έγινε: το μέλος μετράει «ήρθε» παντού (φάκελος, μήνας, συνέπεια),
-// ακόμα κι αν δεν πάτησε το κουμπί «Σύνδεση».
-async function markCame(slotId: string, startsAt: Date) {
-  if (startsAt > new Date()) return;
-  await prisma.booking.updateMany({ where: { slotId, joinedAt: null }, data: { joinedAt: startsAt } });
+// Επιβεβαίωση παρουσίας από το σημείωμα («Ήρθε» / «Δεν ήρθε», απόφαση 13/10): υπερισχύει στον υπολογισμό,
+// αλλά ΔΕΝ αγγίζει το πάτημα «Μπες» του μέλους (`joinedAt`), που μένει ως έχει. Κάθε αλλαγή της
+// επιβεβαίωσης κρατά την προηγούμενη κατάσταση στο ιστορικό (ποτέ σβήσιμο).
+async function confirmPresence(slotId: string, memberId: string, came: boolean, byId: string) {
+  const b = await prisma.booking.findFirst({ where: { slotId, memberId }, select: { id: true, joinedAt: true, confirmedCame: true, confirmedAt: true, confirmedById: true } });
+  if (!b || b.confirmedCame === came) return;
+  await prisma.$transaction([
+    keepHistory("presence_confirmed", { memberId, ref: slotId, before: { joinedAt: b.joinedAt, confirmedCame: b.confirmedCame, confirmedAt: b.confirmedAt, confirmedById: b.confirmedById }, byId }),
+    prisma.booking.update({ where: { id: b.id }, data: { confirmedCame: came, confirmedAt: new Date(), confirmedById: byId } }),
+  ]);
 }
 
 // Όλοι οι θεραπευτές βλέπουν όλες τις συνεδρίες· το σημείωμα το γράφει όποιος
@@ -95,7 +100,8 @@ async function saveNote(formData: FormData) {
   } else {
     await prisma.sessionNote.create({ data: { slotId: id, therapistId: user.id, ...data } });
   }
-  await markCame(id, x.startsAt);
+  // Παλιό ελεύθερο σημείωμα: γράφτηκε, άρα ο θεραπευτής επιβεβαιώνει ότι ήρθε.
+  for (const b of x.bookings) await confirmPresence(id, b.memberId, true, user.id);
   redirect(`/t/s/${id}?saved=1`);
 }
 
@@ -140,9 +146,8 @@ async function saveIndividual(formData: FormData) {
     }
   }
   await prisma.$transaction(ops);
-  // «Δεν ήρθε» στο σημείωμα: δεν μετράει ως παρουσία (το λέει ο θεραπευτής).
-  if (d.came) await markCame(id, x.startsAt);
-  else await prisma.booking.updateMany({ where: { slotId: id }, data: { joinedAt: null } });
+  // «Ήρθε» / «Δεν ήρθε» στο σημείωμα: η επιβεβαίωση του θεραπευτή υπερισχύει του πατήματος «Μπες».
+  await confirmPresence(id, memberId, d.came, user.id);
   // «Ενημέρωση ομάδας θεραπευτών τώρα»: ο προβληματισμός φαίνεται 24 ώρες στο «Σήμερα» όλης της ομάδας.
   // Σε διόρθωση, ξανά μόνο αν γράφτηκε κάτι καινούργιο (alertWorthy).
   const prevNote = x.note?.data ? (JSON.parse(dec(x.note.data)) as Partial<NoteForm>) : null;
@@ -194,12 +199,8 @@ async function savePair(formData: FormData) {
       }
     }
     await prisma.$transaction(ops);
-    // Παρουσία ανά μέλος: «Ήρθε» μετράει, «Δεν ήρθε» όχι.
-    if (d.came) {
-      if (x.startsAt <= new Date()) await prisma.booking.updateMany({ where: { slotId: id, memberId, joinedAt: null }, data: { joinedAt: x.startsAt } });
-    } else {
-      await prisma.booking.updateMany({ where: { slotId: id, memberId }, data: { joinedAt: null } });
-    }
+    // Παρουσία ανά μέλος: η επιβεβαίωση («Ήρθε» / «Δεν ήρθε») υπερισχύει του πατήματος «Μπες».
+    await confirmPresence(id, memberId, d.came, user.id);
     const prevSide = old?.data ? (JSON.parse(dec(old.data)) as Partial<PairSide>) : null;
     if (alertWorthy(old ? (prevSide ?? {}) : null, d)) await raiseNoteAlert(memberId, `PAIR:${id}`, user.id);
     await logAccess(user.id, memberId, "session_note_save");
@@ -376,11 +377,11 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
   const hasHandover = Boolean(h && (h.agreed || h.openIssues || h.handover));
 
   const endsAt = new Date(x.startsAt.getTime() + s.sessionMinutes * 60_000);
-  const presence = sessionPresence({ startsAt: x.startsAt, endsAt, now, joinedAt: b.joinedAt, hasNote: Boolean(x.note) });
+  const presence = sessionPresence({ startsAt: x.startsAt, endsAt, now, joinedAt: b.joinedAt, confirmedCame: b.confirmedCame });
   const pl = PRESENCE_LABEL[presence];
   const viewer = { id: user.id, role: user.role, therapistKind: (user as { therapistKind?: string | null }).therapistKind ?? null };
   const staff: StaffOption[] = user.role === "ADMIN"
-    ? (await prisma.user.findMany({ where: { role: { in: ["THERAPIST", "ADMIN"] }, active: true }, select: { id: true, name: true, therapistKind: true, role: true }, orderBy: { name: "asc" } })).map((u) => ({ id: u.id, name: u.name, clinician: u.role === "ADMIN" || u.therapistKind === "CLINICAL" || u.therapistKind === "BOTH" }))
+    ? (await prisma.user.findMany({ where: { role: { in: ["THERAPIST", "ADMIN"] }, active: true }, select: { id: true, name: true, therapistKind: true, role: true }, orderBy: { name: "asc" } })).map((u) => ({ id: u.id, name: u.name, clinician: u.role === "ADMIN" || u.therapistKind === "CLINICAL" || u.therapistKind === "BOTH", admin: u.role === "ADMIN" }))
     : [];
 
   return (
@@ -400,11 +401,11 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
         <span className="conn" title="Είναι η ώρα του πατήματος του κουμπιού «Μπες», όχι επιβεβαίωση συμμετοχής από το Zoom.">
           <i className={joined ? "on" : ""} />
           {joined ? `Συνδέθηκες στις ${hm(joined.at)}` : x.date === today ? "Δεν έχεις πατήσει «Μπες»" : "Καμία σύνδεση"}
-          {b.joinedAt && presence !== "present_note" && <> · το μέλος πάτησε «Μπες» {hm(b.joinedAt)}</>}
+          {b.joinedAt && <> · το μέλος πάτησε «Μπες» {hm(b.joinedAt)}</>}
         </span>
       </PageHead>
       <p className="hint" style={{ margin: "-10px 0 16px" }}>
-        <Pill tone={pl.tone === "accent" ? "" : pl.tone}>{pl.word}</Pill> <span title={pl.source}>{pl.source}</span>
+        <Pill tone={pl.tone === "accent" ? "" : pl.tone}>{pl.word}</Pill> <span title={pl.source}>{pl.source}</span>{presence === "absent_confirmed" && b.joinedAt && <> · το πάτημα «Μπες» του μέλους ({hm(b.joinedAt)}) διατηρείται στο ιστορικό</>}
       </p>
 
       <div className="cols cols-38">
@@ -416,10 +417,17 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
             <div className="stats">
               <div className="stat"><b>{g.soberDays ?? "—"}</b><span>μέρες νηφαλιότητας{g.soberSince ? ` · από ${formatDate(g.soberSince)}` : ""}</span></div>
               <div className="stat"><b>{g.journal.written}/7</b><span>απογραφές · 7 ημέρες</span></div>
-              <div className="stat"><b>{g.cycle ? `${g.cycle.groups}/${s.groupsPerCycle}` : "—"}</b><span>ομάδες · αυτός ο μήνας</span></div>
-              <div className="stat"><b>{g.cycle ? `${g.cycle.attended}/${g.cycle.done}` : "—"}</b><span>ατομικές · ήρθε / πέρασε η ώρα τους</span></div>
+              {g.cycle ? (
+                <>
+                  <PresenceStat what={`ομάδες του μήνα (από ${s.groupsPerCycle})`} counted={g.cycle.groups} passed={g.cycle.groupsPassed} noRecord={g.cycle.groupsNoRecord} />
+                  <PresenceStat what={`ατομικές του μήνα (από ${g.cycle.length})`} counted={g.cycle.attended} passed={g.cycle.done} noRecord={g.cycle.presence.noRecord} />
+                </>
+              ) : (
+                <div className="stat"><b>—</b><span>δεν έχει ξεκινήσει κύκλος</span></div>
+              )}
             </div>
-            {g.cycle && <p className="hint" style={{ margin: "10px 0 0" }}>{g.cycle.periodLabel} · {g.cycle.booked} από {g.cycle.length} ατομικές προγραμματισμένες{describeCounts(g.cycle.presence) && ` · ${describeCounts(g.cycle.presence)}`}</p>}
+            <p className="hint" style={{ margin: "10px 0 0" }}>{PRESENCE_HINT}</p>
+            {g.cycle && <p className="hint" style={{ margin: "4px 0 0" }}>{g.cycle.periodLabel} · {g.cycle.booked} από {g.cycle.length} ατομικές προγραμματισμένες{describeSources(g.cycle.presence) && ` · πηγή: ${describeSources(g.cycle.presence)}`}{g.cycle.presence.confirmedAbsent > 0 && ` · ${g.cycle.presence.confirmedAbsent} «Δεν ήρθε» (επιβεβαίωση)`}</p>}
             <p className="hint" style={{ margin: "6px 0 0" }}>
               Ανάγκες ασφάλειας: <strong>{intake.trigger ? intake.label : risk ? RISK_LEVELS[risk] : "δεν έχει χρειαστεί"}</strong>{!intake.trigger && risk && ` · ${RISK_INFO[risk].action}`}
               {g.help14 > 0 && <> · κόκκινο κουμπί {g.help14} {g.help14 === 1 ? "φορά" : "φορές"} σε 14 ημέρες</>}

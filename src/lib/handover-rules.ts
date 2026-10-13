@@ -70,15 +70,18 @@ export function safetyFlags(x: SafetyInput): Flag[] {
     const afterRisk = flags.some((f) => f.level === "red");
     flags.push({
       level: afterRisk ? "red" : "yellow",
-      text: `${missed.noted ? "Δεν ήρθε στην ατομική (σημείωμα)" : "Χωρίς καταγραφή παρουσίας στην ατομική"}${afterRisk ? ", μετά από σήμα ασφάλειας" : ""}`,
+      text: `${missed.noted ? "Δεν ήρθε στην ατομική (επιβεβαίωση θεραπευτή)" : "Χωρίς καταγραφή παρουσίας στην ατομική"}${afterRisk ? ", μετά από σήμα ασφάλειας" : ""}`,
       at: missed.at,
       href: `/t/s/${missed.slotId}`,
     });
   }
 
-  if (x.openDropout) flags.push({ level: "yellow", text: x.lastContact ? `Χωρίς επαφή ${daysAgo(x.now, x.lastContact)} μέρες · τηλεφωνεί η διαχείριση` : "Χωρίς επαφή · τηλεφωνεί η διαχείριση" });
-  else if (x.lastContact && !within(x.lastContact, x.dropoutDays)) {
-    flags.push({ level: "yellow", text: `Χωρίς επαφή ${daysAgo(x.now, x.lastContact)} μέρες`, at: x.lastContact });
+  // Σήμα «Χωρίς επαφή» (διευκρινίσεις 13/10): κοινή πληροφορία χωρίς ιδιοκτήτη, μένει όσο δεν υπάρχει νέα επαφή.
+  // Η ενέργεια «Τηλεφωνική επικοινωνία από τη διαχείριση» είναι ξεχωριστή (με ανάληψη)· η ολοκλήρωσή της δεν κλείνει το σήμα.
+  if (x.lastContact && !within(x.lastContact, x.dropoutDays)) {
+    flags.push({ level: "yellow", key: "no_contact", text: `Χωρίς επαφή ${daysAgo(x.now, x.lastContact)} μέρες`, at: x.lastContact });
+  } else if (!x.lastContact && x.openDropout) {
+    flags.push({ level: "yellow", key: "no_contact", text: "Χωρίς επαφή" });
   }
 
   const rank = { red: 0, yellow: 1 };

@@ -7,7 +7,8 @@ import { prisma } from "./db";
 import { CASE_FIELDS, type CaseData, safetyFlags } from "./handover-rules";
 import { memberIntake } from "./intake";
 import { memberNotes } from "./member-notes";
-import { groupStarted, groupsOn } from "./program";
+import { groupOccurrences } from "./groups";
+import { memberGroups } from "./group-presence";
 import { getSettings } from "./settings";
 import { countPresence, sessionPresence } from "./presence";
 import { addDays, formatDate, localParts } from "./time";
@@ -22,12 +23,14 @@ export async function memberSafety(memberId: string, now = new Date()) {
     prisma.helpRequest.findMany({ where: { memberId, isDrill: false, createdAt: { gte: new Date(now.getTime() - 14 * 24 * 3600_000) } }, select: { createdAt: true } }),
     memberNotes(memberId, { since: new Date(now.getTime() - 30 * 24 * 3600_000) }),
     prisma.attendance.findFirst({ where: { memberId }, orderBy: { joinedAt: "desc" }, select: { joinedAt: true } }),
-    prisma.booking.findFirst({ where: { memberId, joinedAt: { not: null } }, orderBy: { joinedAt: "desc" }, select: { joinedAt: true } }),
+    // Τελευταία επαφή από ατομική: παρουσία (επιβεβαίωση «Ήρθε» ή πάτημα «Μπες» χωρίς «Δεν ήρθε»).
+    prisma.booking.findMany({ where: { memberId, OR: [{ confirmedCame: true }, { confirmedCame: null, joinedAt: { not: null } }] }, orderBy: { slot: { startsAt: "desc" } }, take: 1, select: { joinedAt: true, confirmedCame: true, slot: { select: { startsAt: true } } } }).then((r) => r[0] ? { joinedAt: r[0].joinedAt ?? r[0].slot.startsAt } : null),
     prisma.careTask.count({ where: { memberId, kind: "dropout", doneAt: null } }),
     getSettings(),
     prisma.booking.findMany({
-      where: { memberId, joinedAt: null, slot: { startsAt: { gte: since14, lt: new Date(now.getTime() - 3600_000) } } },
-      select: { slotId: true, slot: { select: { startsAt: true, note: { select: { id: true } } } } },
+      // Ατομικές χωρίς παρουσία: επιβεβαιωμένη απουσία, ή χωρίς καταγραφή (ούτε πάτημα ούτε επιβεβαίωση).
+      where: { memberId, OR: [{ confirmedCame: false }, { confirmedCame: null, joinedAt: null }], slot: { startsAt: { gte: since14, lt: new Date(now.getTime() - 3600_000) } } },
+      select: { slotId: true, confirmedCame: true, slot: { select: { startsAt: true } } },
     }),
   ]);
   const risk = intake.checks.find((c) => c.key === "risk");
@@ -39,7 +42,7 @@ export async function memberSafety(memberId: string, now = new Date()) {
     safetyPlanAt: plan?.updatedAt ?? null,
     helpRequests: help,
     notes: notes.map((n) => ({ at: n.startsAt, riskChange: n.riskChange, usedSince: n.usedSince, slotId: n.slotId })),
-    missed: missed.map((b) => ({ at: b.slot.startsAt, slotId: b.slotId, noted: Boolean(b.slot.note) })),
+    missed: missed.map((b) => ({ at: b.slot.startsAt, slotId: b.slotId, noted: b.confirmedCame === false })),
     lastContact: contacts.length ? new Date(Math.max(...contacts.map((d) => d.getTime()))) : null,
     openDropout: openDropout > 0,
     dropoutDays: s.dropoutDays,
@@ -86,37 +89,40 @@ export async function saveCase(memberId: string, formData: FormData, authorId: s
   await prisma.caseSummary.create({ data: { memberId, authorId, content: enc(JSON.stringify(data)) } });
 }
 
-/** Συνέπεια των τελευταίων εβδομάδων: ομάδες (ανά μέρα) και ατομικές. */
+/**
+ * Συνέπεια των τελευταίων εβδομάδων: ομάδες και ατομικές, με τον κοινό κανόνα (απόφαση 13/10):
+ * ομάδες = πραγματικό πρόγραμμα, μετά την ένταξη, όσες έληξαν και δεν ακυρώθηκαν· ατομικές = όσες προγραμματισμένες πέρασαν.
+ * Παρουσία ατομικής: επιβεβαίωση θεραπευτή, αλλιώς πάτημα «Μπες» του μέλους («Από σύνδεση»).
+ */
 export async function memberConsistency(memberId: string, weeks = 4, now = new Date()) {
   const s = await getSettings();
   const member = await prisma.user.findUniqueOrThrow({ where: { id: memberId }, select: { programStartDate: true } });
   const today = localParts(now).date;
   const windowStart = addDays(today, -7 * weeks + 1);
   const from = member.programStartDate && member.programStartDate > windowStart ? member.programStartDate : windowStart;
-  // Μέρες ομάδας στο διάστημα· η σημερινή μετράει μόνο αφού ξεκινήσει η ομάδα.
-  const days: string[] = [];
-  for (let d = from; d <= today; d = addDays(d, 1)) {
-    if (groupsOn(d, s).length === 0 || (d === today && !groupStarted(d, now, s))) continue;
-    days.push(d);
-  }
-  const [att, bookings] = await Promise.all([
-    prisma.attendance.findMany({ where: { memberId, date: { gte: from } }, select: { date: true } }),
-    prisma.booking.findMany({ where: { memberId, slot: { date: { gte: from }, startsAt: { lt: now } } }, select: { joinedAt: true, slot: { select: { startsAt: true, kind: true, note: { select: { id: true } } } } } }),
+  const [occ, att, bookings] = await Promise.all([
+    groupOccurrences(from, today, s, now),
+    prisma.attendance.findMany({ where: { memberId, date: { gte: from } }, select: { date: true, joinedAt: true } }),
+    prisma.booking.findMany({ where: { memberId, slot: { date: { gte: from }, startsAt: { lte: now } } }, select: { joinedAt: true, confirmedCame: true, slot: { select: { startsAt: true, kind: true } } } }),
   ]);
-  const present = new Set(att.map((a) => a.date));
+  const g = memberGroups(occ, att, { now, joinDate: member.programStartDate });
+  const counted = g.rows.filter((r) => r.state === "present" || r.state === "no_record");
+  const sessions = countPresence(bookings.map((b) => sessionPresence({
+    startsAt: b.slot.startsAt,
+    endsAt: new Date(b.slot.startsAt.getTime() + (b.slot.kind === "PAIR" ? s.pairMinutes : s.sessionMinutes) * 60_000),
+    now, joinedAt: b.joinedAt, confirmedCame: b.confirmedCame,
+  })));
   return {
     weeks,
-    groupDays: days.map((date) => ({ date, present: present.has(date) })),
-    groups: days.filter((d) => present.has(d)).length,
-    // «Ήρθε» (sessionsDone) = ίδιος κανόνας με πριν· sessionsTotal = όσων πέρασε η ώρα τους (όχι «έγιναν»).
-    sessionsDone: bookings.filter((b) => b.joinedAt).length,
-    sessionsTotal: bookings.length,
-    // Διακριτές έννοιες: επιβεβαιωμένη παρουσία / πάτησε «Μπες» / σημείωμα «Δεν ήρθε» / χωρίς καταγραφή.
-    sessions: countPresence(bookings.map((b) => sessionPresence({
-      startsAt: b.slot.startsAt,
-      endsAt: new Date(b.slot.startsAt.getTime() + (b.slot.kind === "PAIR" ? s.pairMinutes : s.sessionMinutes) * 60_000),
-      now, joinedAt: b.joinedAt, hasNote: Boolean(b.slot.note),
-    }))),
+    // Μία γραμμή ανά ομάδα του προγράμματος που μετράει (παρουσία ή χωρίς καταγραφή).
+    groupDays: counted.map((r) => ({ date: r.date, time: r.time, present: r.state === "present" })),
+    groups: g.counted,
+    groupsPassed: g.passed,
+    groupsNoRecord: g.noRecord,
+    // Παρουσίες ατομικών / προγραμματισμένες που πέρασαν.
+    sessionsDone: sessions.counted,
+    sessionsTotal: sessions.timePassed,
+    sessions,
     from,
   };
 }

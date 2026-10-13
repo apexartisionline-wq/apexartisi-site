@@ -47,6 +47,8 @@
   --note-box: #ffffff;    /* κουτί ερώτησης στο σημειωματάριο */
   --note-text: #0c1620;
   --note-muted: #3f5864;
+  --note-rule: #e3eaef;   /* διακριτικό διαχωριστικό ανάμεσα στις ομάδες πεδίων */
+  --note-chip-line: #b9c9d2;
   --note-chip: #f3f9fc;
   --font: Manrope, "Helvetica Neue", Arial, system-ui, sans-serif;
 }
@@ -81,6 +83,8 @@
     --note-box: #22364a;
     --note-text: #ffffff;
     --note-muted: #d7e3ea;
+    --note-rule: #2c4257;
+    --note-chip-line: #4d6a82;
     --note-chip: #132231;
   }
 }
@@ -301,25 +305,27 @@ body:has(main.help) .redbar { display: none; }
   background: var(--bg, #fff); padding: 2px 6px; border-radius: 4px;
 }
 
-/* Σημειωματάριο: ομάδες επιλογών τύπου iOS. */
-/* Σημειωματάριο (απόφαση 11/10, σχόλιο θεραπεύτριας): κάθε ερώτηση σε δικό της ανοιχτό κουτί που ξεχωρίζει
-   από το φόντο, γράμματα πιο έντονα (στο σκούρο θέμα καθαρά λευκά). Η δομή μένει ίδια. */
+/* Σημειωματάριο, επίπεδο (διευκρινίσεις υπεύθυνης 13/10, «όπως στην εγκεκριμένη εικόνα»): μέσα στη λευκή κάρτα, χωρίς κουτί
+   γύρω από κάθε ομάδα πεδίων — καθαροί τίτλοι, αποστάσεις και διακριτικά διαχωριστικά. Οι επιλογές και τα πεδία μένουν
+   σαφώς αναγνωρίσιμα (περίγραμμα, ✓ στην επιλεγμένη). Αντικαθιστά τα «λευκά κουτιά ανά ερώτηση» της 11/10· η δομή μένει ίδια. */
+.stat .stat-sub { display: block; font-size: .8rem; font-weight: 700; color: var(--yellow-ink); margin-top: 2px; }
 .note-form { background: transparent; border: 0; padding: 0; color: var(--note-text); }
-/* Κάθε ερώτηση: ανοιχτό, λεπτό κουτί (απόφαση 11/10), πυκνό — χωρίς σκιά και χωρίς μεγάλα κενά (εικόνα «Ατομική»). */
-.note-form fieldset { border: 1px solid var(--card-line); background: var(--note-box); border-radius: var(--radius); margin: 0 0 12px; padding: 12px 16px 14px; min-width: 0; }
-.note-form > fieldset:last-of-type { margin-bottom: 0; }
+.note-form fieldset { border: 0; background: transparent; border-radius: 0; margin: 0; padding: 14px 0 16px; min-width: 0; }
+.note-form fieldset + fieldset, .note-form fieldset + .pair-sec, .note-form .pair-sec + fieldset, .note-form .pair-sec + .pair-sec { border-top: 1px solid var(--note-rule); }
+.note-form [role="tabpanel"] > fieldset:first-child { padding-top: 4px; }
+.note-form fieldset fieldset { padding: 10px 0 0; border-top: 0; }
 .note-form legend, .note-form .q-label { font-weight: 700; font-size: 1rem; color: var(--note-text); padding: 0; margin-bottom: 8px; }
 .note-form legend { float: left; width: 100%; }
 .note-form label { color: var(--note-muted); font-size: .95rem; }
 .note-form .muted { color: var(--note-muted); }
 .note-form .chips { gap: 8px; }
-.note-form .chip, .note-form .yn button { background: var(--note-box); border: 1px solid #b9c9d2; font-size: 1rem; font-weight: 600; min-height: 44px; padding: 8px 16px; border-radius: 10px; }
+.note-form .chip, .note-form .yn button { background: var(--note-box); border: 1px solid var(--note-chip-line); font-size: 1rem; font-weight: 600; min-height: 44px; padding: 8px 16px; border-radius: 10px; }
 .note-form .chip:hover { border-color: var(--accent); }
 .note-form .chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
 .note-form .chip[aria-pressed="true"]::before { content: "✓"; margin-right: 6px; }
 .note-form input, .note-form textarea, .note-form select { font-size: 1rem; }
 .note-form textarea { min-height: 0; }
-.note-form .pair-sec { border: 1px solid var(--card-line); background: var(--note-box); border-radius: var(--radius); margin: 0 0 12px; padding: 10px 16px; }
+.note-form .pair-sec { border: 0; background: transparent; border-radius: 0; margin: 0; padding: 12px 0; }
 .note-form .pair-sec > summary { font-size: 1.05rem; color: var(--note-text); }
 .note-form .pair-name { font-size: 1rem; }
 .note-form legend + * { clear: both; }

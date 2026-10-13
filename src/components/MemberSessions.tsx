@@ -44,7 +44,7 @@ export async function MemberSessions({ memberId, limit = 30 }: { memberId: strin
                 {b.slot.kind === "PAIR" && <> · <span className="badge">Therapair</span></>}
               </span>
               <span>
-                {!past ? <span className="badge">προγραμματισμένη</span> : b.joinedAt ? <span className="badge ok">μπήκε</span> : <span className="badge yellow">δεν μπήκε</span>}
+                {b.confirmedCame === true ? <span className="badge ok">παρουσία · σημείωμα</span> : b.confirmedCame === false ? <span className="badge yellow">δεν ήρθε · σημείωμα</span> : b.joinedAt ? <span className="badge ok">παρουσία · από σύνδεση</span> : !past ? <span className="badge">προγραμματισμένη</span> : <span className="badge yellow">χωρίς καταγραφή</span>}
                 {b.durationMinutes != null && <span className="muted"> · {b.durationMinutes}′</span>}
               </span>
             </div>

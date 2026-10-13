@@ -3,9 +3,10 @@ import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { keepHistory } from "@/lib/history";
-import { groupStarted, groupsOn } from "@/lib/program";
+import { groupOccurrences } from "@/lib/groups";
+import { memberGroups } from "@/lib/group-presence";
 import { getSettings } from "@/lib/settings";
-import { countPresence, PRESENCE_LABEL, sessionPresence, type Presence } from "@/lib/presence";
+import { countPresence, PRESENCE_LABEL, PRESENCE_UNIT, sessionPresence, type Presence } from "@/lib/presence";
 import { addDays, daysBetween, formatDate, formatTime, localParts } from "@/lib/time";
 import styles from "./Consistency.module.css";
 
@@ -45,22 +46,22 @@ const ago = (d: string, today: string) => {
 
 /*
  * «Συνέπεια»: σύντομη λίστα ανά μέλος, με τις λεπτομέρειες σε άνοιγμα.
- * Οι μετρήσεις είναι ΑΚΡΙΒΩΣ οι ίδιες με πριν και με memberConsistency (src/lib/handover.ts) / cycleInfo (src/lib/member.ts):
- *  - Ομάδες: μέρες ομάδας από την έναρξη του μέλους ως σήμερα (η σημερινή μόνο αφού ξεκινήσει η ομάδα)· ήρθε = Attendance
- *    (πάτησε «Μπες στην ομάδα» ή το σημείωσε η διαχείριση).
- *  - Ατομικές (και Therapair): κρατήσεις με startsAt < τώρα· ήρθε = booking.joinedAt (κουμπί ή σημείωμα «Ήρθε»).
+ * Οι μετρήσεις είναι οι ίδιες με memberConsistency (src/lib/handover.ts) / cycleInfo (src/lib/member.ts) / cyclePicture.
+ * Κανόνας (διευκρινίσεις υπεύθυνης 13/10 — βλ. docs/reviews/2026-10-13-diefkriniseis-parousies.md):
+ *  - Ομάδες: παρονομαστής = ομάδες του ΠΡΑΓΜΑΤΙΚΟΥ προγράμματος (GroupSession με ημερομηνία) για το μέλος, που έληξαν,
+ *    από την ένταξή του και δεν ακυρώθηκαν — και χωρίς καταγραφή παρουσίας. Δεν «φτιάχνονται» ομάδες από συνήθεις μέρες.
+ *    Παρουσία = Attendance (πάτησε «Μπες στην ομάδα» ή το σημείωσε η διαχείριση)· παρουσία σε μέρα χωρίς ομάδα δεν μετράει.
+ *  - Ατομικές (και Therapair): παρονομαστής = προγραμματισμένες που πέρασαν (έληξε η ώρα τους) ή έχουν ήδη καταγραφή.
+ *    Παρουσία = επιβεβαίωση θεραπευτή (Booking.confirmedCame), αλλιώς πάτημα «Μπες» του μέλους («Από σύνδεση»).
+ *    Η επιβεβαίωση «Δεν ήρθε» υπερισχύει του πατήματος, που μένει στο ιστορικό.
+ *  - Χωρίς πάτημα ή επιβεβαίωση: «χωρίς καταγραφή» — μένει στον παρονομαστή, ΔΕΝ είναι απουσία.
  *  - Ημερολόγια: εγγραφές (JournalEntry.date) από την έναρξη ως σήμερα, σε σχέση με τις μέρες του διαστήματος.
- * Οι ενδείξεις «καμία καταγραφή εκείνη τη μέρα» και «χωρίς σημείωμα ακόμα» είναι ΜΟΝΟ πληροφορία· δεν αλλάζουν τους αριθμούς.
  *
- * Πιθανές αλλαγές κανόνα που ΔΕΝ έγιναν (θέλουν απόφαση της υπεύθυνης):
- *  1. Μέρα ομάδας όπου δεν καταγράφηκε ΚΑΝΕΝΑ μέλος (π.χ. ομάδα που δεν έγινε ή δεν κρατήθηκε παρουσία) μετράει ως
- *     «έγινε» και ως απουσία για όλους. Ίσως πρέπει να μη μετράει.
- *  2. Οι μέρες ομάδας βγαίνουν από το ΣΗΜΕΡΙΝΟ πρόγραμμα ομάδων (ρυθμίσεις)· αν άλλαξε το πρόγραμμα μέσα στο διάστημα,
- *     οι παλιές μέρες υπολογίζονται με το νέο. Παρουσίες σε μέρα που σήμερα δεν έχει ομάδα δεν μετράνε.
- *  3. Στα ημερολόγια ο παρονομαστής περιλαμβάνει και τη σημερινή μέρα, ενώ η σημερινή εγγραφή γράφεται μόνο μετά την ώρα
+ * Ανοιχτά (θέλουν απόφαση της υπεύθυνης):
+ *  1. Ομάδα όπου δεν καταγράφηκε ΚΑΝΕΝΑ μέλος (π.χ. δεν κρατήθηκε παρουσία) μετράει στον παρονομαστή όλων ως «χωρίς καταγραφή»·
+ *     αν δεν έγινε, η διαχείριση πρέπει να την ακυρώσει («Ομάδες» → «Ακύρωση»).
+ *  2. Στα ημερολόγια ο παρονομαστής περιλαμβάνει και τη σημερινή μέρα, ενώ η σημερινή εγγραφή γράφεται μόνο μετά την ώρα
  *     του ημερολογίου (journalDate)· μέχρι τότε όλοι φαίνονται με μία μέρα «λιγότερη».
- *  4. Ατομική που πέρασε χωρίς «Μπες» και χωρίς σημείωμα ΔΕΝ μετράει ως «ήρθε» (κρατιέται στον παρονομαστή) — εμφανίζεται πια ως «χωρίς καταγραφή», όχι ως απουσία.
- *  5. Μικροδιαφορά: cycleInfo μετρά «έγινε» με startsAt <= τώρα, εδώ και στο memberConsistency με startsAt < τώρα.
  */
 export async function Consistency({
   weeks,
@@ -81,14 +82,10 @@ export async function Consistency({
   const from = addDays(today, -7 * weeks + 1);
   const horizon = addDays(today, 7); // μελλοντικές ατομικές: μόνο για να φαίνονται, δεν μετράνε
 
-  // Μέρες ομάδας στο διάστημα· η σημερινή μετράει μόνο αφού ξεκινήσει η ομάδα.
-  const groupDates: string[] = [];
-  for (let d = from; d <= today; d = addDays(d, 1)) {
-    if (groupsOn(d, s).length === 0) continue;
-    if (d === today && !groupStarted(d, now, s)) continue;
-    groupDates.push(d);
-  }
-  const todayGroupPending = groupsOn(today, s).length > 0 && !groupStarted(today, now, s);
+  // Ομάδες από το πραγματικό πρόγραμμα (γεγονότα με ημερομηνία, με ακυρώσεις)· μετράνε όσες έληξαν (απόφαση 13/10).
+  const occ = await groupOccurrences(from, today, s, now);
+  const groupDates = [...new Set(occ.filter((o) => !o.cancelled && o.endsAt <= now).map((o) => o.date))];
+  const todayGroupPending = occ.some((o) => o.date === today && !o.cancelled && o.endsAt > now);
 
   const activeMember = { member: { role: "MEMBER" as const, active: true } };
   const [members, recorded, lastGroup, lastSession, lastJournal] = await Promise.all([
@@ -99,13 +96,14 @@ export async function Consistency({
         id: true,
         name: true,
         programStartDate: true,
-        attendances: { where: { date: { gte: from } }, select: { date: true } },
+        attendances: { where: { date: { gte: from } }, select: { date: true, joinedAt: true } },
         bookings: {
           where: { slot: { date: { gte: from, lte: horizon } } },
           select: {
             id: true,
             joinedAt: true,
-            slot: { select: { date: true, hour: true, startsAt: true, kind: true, note: { select: { id: true } }, pairNotes: { select: { memberId: true } } } },
+            confirmedCame: true,
+            slot: { select: { date: true, hour: true, startsAt: true, kind: true } },
           },
         },
         journal: { where: { date: { gte: from } }, select: { date: true } },
@@ -115,33 +113,32 @@ export async function Consistency({
     prisma.attendance.findMany({ where: { date: { in: groupDates } }, distinct: ["date"], select: { date: true } }),
     // Τελευταία καταγεγραμμένη δραστηριότητα (από οποιαδήποτε περίοδο, όχι μόνο το διάστημα).
     prisma.attendance.groupBy({ by: ["memberId"], where: activeMember, _max: { date: true } }),
-    prisma.booking.groupBy({ by: ["memberId"], where: { ...activeMember, joinedAt: { not: null } }, _max: { joinedAt: true } }),
+    // Τελευταία ατομική με παρουσία (επιβεβαίωση ή «Από σύνδεση»).
+    prisma.booking.findMany({ where: { ...activeMember, OR: [{ confirmedCame: true }, { confirmedCame: null, joinedAt: { not: null } }] }, select: { memberId: true, slot: { select: { date: true } } } }),
     prisma.journalEntry.groupBy({ by: ["memberId"], where: activeMember, _max: { date: true } }),
   ]);
   const recordedDays = new Set(recorded.map((r) => r.date));
   const lastG = new Map(lastGroup.map((r) => [r.memberId, r._max.date]));
-  const lastS = new Map(lastSession.map((r) => [r.memberId, r._max.joinedAt ? localParts(r._max.joinedAt).date : null]));
+  const lastS = new Map<string, string>();
+  for (const b of lastSession) if ((lastS.get(b.memberId) ?? "") < b.slot.date) lastS.set(b.memberId, b.slot.date);
   const lastJ = new Map(lastJournal.map((r) => [r.memberId, r._max.date]));
 
   const all = members.map((m) => {
     const start = m.programStartDate && m.programStartDate > from ? m.programStartDate : from;
     const notStarted = Boolean(m.programStartDate && m.programStartDate > today);
-    const dates = groupDates.filter((d) => d >= start);
-    const present = new Set(m.attendances.map((a) => a.date));
-    const groupDays = dates.map((date) => ({ date, present: present.has(date), noneRecorded: !present.has(date) && !recordedDays.has(date) }));
-    const groups = groupDays.filter((d) => d.present).length;
+    const g = memberGroups(occ.filter((o) => o.date >= start), m.attendances, { now, joinDate: m.programStartDate });
+    const groupDays = g.rows.filter((r) => r.state === "present" || r.state === "no_record").map((r) => ({ date: r.date, time: r.time, present: r.state === "present", noneRecorded: r.state !== "present" && !recordedDays.has(r.date) }));
+    const groups = g.counted;
     // Ίδιο διάστημα με τον φάκελο (memberConsistency): μόνο μετά την έναρξη του προγράμματος του μέλους.
     const sessions = m.bookings
       .filter((b) => b.slot.date >= start)
       .sort((a, b) => a.slot.startsAt.getTime() - b.slot.startsAt.getTime())
       .map((b) => {
-        const hasNote = Boolean(b.slot.note) || b.slot.pairNotes.some((n) => n.memberId === m.id);
-        const state: Presence = sessionPresence({ startsAt: b.slot.startsAt, endsAt: new Date(b.slot.startsAt.getTime() + (b.slot.kind === "PAIR" ? s.pairMinutes : s.sessionMinutes) * 60_000), now, joinedAt: b.joinedAt, hasNote });
+        const state: Presence = sessionPresence({ startsAt: b.slot.startsAt, endsAt: new Date(b.slot.startsAt.getTime() + (b.slot.kind === "PAIR" ? s.pairMinutes : s.sessionMinutes) * 60_000), now, joinedAt: b.joinedAt, confirmedCame: b.confirmedCame });
         return { id: b.id, date: b.slot.date, startsAt: b.slot.startsAt, pair: b.slot.kind === "PAIR", state, joinedAt: b.joinedAt };
       });
-    const past = sessions.filter((x) => x.state !== "future");
     const counts = countPresence(sessions.map((x) => x.state));
-    // «Ήρθε» = επιβεβαιωμένη παρουσία + πάτησε «Μπες» (ίδιος κανόνας με πριν).
+    // Παρουσία = επιβεβαίωση θεραπευτή, αλλιώς πάτημα «Μπες» του μέλους («Από σύνδεση»)· παρονομαστής = όσες πέρασαν.
     const sessionsDone = counts.counted;
     const journalDays = Math.max(0, daysBetween(start, today) + 1);
     const journalDates = m.journal.filter((j) => j.date >= start).map((j) => j.date).sort();
@@ -153,7 +150,7 @@ export async function Consistency({
     const lastDate = candidates.reduce<string | null>((x, c) => (!x || c.date > x ? c.date : x), null);
     const lastKinds = candidates.filter((c) => c.date === lastDate).map((c) => c.kind);
 
-    const groupPct = pct(groups, dates.length);
+    const groupPct = pct(groups, g.passed);
     return {
       m,
       start,
@@ -164,17 +161,17 @@ export async function Consistency({
       unrecorded: groupDays.filter((d) => d.noneRecorded).length,
       sessions,
       sessionsDone,
-      sessionsTotal: past.length,
-      sessionsMissed: past.length - sessionsDone,
+      sessionsTotal: counts.timePassed,
+      sessionsMissed: counts.timePassed - sessionsDone,
       counts,
       noNote: counts.noRecord,
-      future: sessions.length - past.length,
+      future: counts.upcoming,
       journal: journalDates.length,
       journalDates,
       journalDays,
       lastDate,
       lastKinds,
-      low: (groupPct !== null && groupPct < LOW_GROUPS) || past.length - sessionsDone > 0,
+      low: (groupPct !== null && groupPct < LOW_GROUPS) || counts.timePassed - sessionsDone > 0,
     };
   });
 
@@ -218,23 +215,24 @@ export async function Consistency({
 
       <section className={`panel ${styles.def}`}>
         <p>
-          <strong>Τελευταία καταγεγραμμένη δραστηριότητα</strong> = η πιο πρόσφατη μέρα που το μέλος ήρθε σε ομάδα (πάτησε «Μπες στην ομάδα» ή το σημείωσε η
-          διαχείριση), ήρθε σε ατομική (μετρά «ήρθε»: κουμπί ή σημείωμα «Ήρθε») ή έγραψε ημερολόγιο.
+          <strong>Παρουσίες / προγραμματισμένες που πέρασαν</strong>: μετράνε οι ομάδες και οι ατομικές του πραγματικού προγράμματος που έληξαν, από την ένταξη του μέλους,
+          χωρίς τις ακυρωμένες — και όσες δεν έχουν καταγραφή. <strong>Τελευταία καταγεγραμμένη δραστηριότητα</strong> = η πιο πρόσφατη μέρα με παρουσία σε ομάδα
+          ή ατομική, ή με ημερολόγιο.
         </p>
         <p className="hint">
-          Οι αριθμοί μετράνε μόνο μέρες μετά την έναρξη του προγράμματος του μέλους· οι συνεδρίες που δεν έχουν γίνει ακόμα δεν μετράνε. Πάτα ένα μέλος για τις μέρες.
+          Οι συνεδρίες που δεν έχουν τελειώσει ακόμα δεν μετράνε. Πάτα ένα μέλος για τις μέρες και την πηγή κάθε παρουσίας.
         </p>
         <details className="fold">
           <summary>Τι σημαίνει κάθε ένδειξη</summary>
           <ul className={styles.legend}>
-            <li><b>ήρθε</b> (επιβεβαιωμένη παρουσία) — ατομική με σημείωμα «Ήρθε».</li>
-            <li><b>πάτησε «Μπες»</b> — καταγράφηκε το πάτημα του κουμπιού, χωρίς ακόμα σημείωμα. Δεν είναι επιβεβαίωση συμμετοχής από το Zoom· μετράει στο «ήρθε» όπως πάντα.</li>
-            <li><b>δεν ήρθε</b> (επιβεβαιωμένη απουσία) — μόνο όταν υπάρχει σημείωμα «Δεν ήρθε».</li>
-            <li><b>χωρίς καταγραφή</b> — πέρασε η ώρα, ούτε «Μπες» ούτε σημείωμα. Δεν είναι επιβεβαιωμένη απουσία· στον αριθμό «ήρθε» δεν μετράει.</li>
-            <li><b>Ομάδες</b> — «καταγράφηκε παρουσία» (πάτησε «Μπες στην ομάδα» ή το σημείωσε η διαχείριση) ή «χωρίς καταγραφή παρουσίας». Δεν υπάρχει επιβεβαιωμένη απουσία ομάδας. Αν δεν καταγράφηκε κανένα μέλος εκείνη τη μέρα, ίσως δεν κρατήθηκε παρουσία.</li>
+            <li><b>παρουσία · Από σύνδεση</b> — το μέλος πάτησε «Μπες»· μετράει ως παρουσία πριν γραφτεί το σημείωμα. Το πάτημα του θεραπευτή δεν μετράει για το μέλος. Δεν είναι επιβεβαίωση από το Zoom.</li>
+            <li><b>παρουσία · Επιβεβαίωση θεραπευτή</b> — σημείωμα «Ήρθε».</li>
+            <li><b>δεν ήρθε</b> — σημείωμα «Δεν ήρθε». Υπερισχύει του πατήματος «Μπες», που μένει στο ιστορικό.</li>
+            <li><b>χωρίς καταγραφή</b> — έληξε η ώρα, ούτε πάτημα ούτε επιβεβαίωση. Μένει στον παρονομαστή, αλλά δεν είναι απουσία.</li>
+            <li><b>Ομάδες</b> — «παρουσία» (πάτησε «Μπες στην ομάδα» ή το σημείωσε η διαχείριση) ή «χωρίς καταγραφή». Δεν υπάρχει επιβεβαιωμένη απουσία ομάδας. Ακυρωμένες ομάδες δεν μετράνε. Αν δεν καταγράφηκε κανένα μέλος εκείνη τη μέρα, ίσως δεν κρατήθηκε παρουσία.</li>
             <li><b>δεν είχε ατομική</b> — καμία ατομική στο διάστημα· δεν είναι απουσία.</li>
             <li><b>μελλοντική</b> — δεν έχει φτάσει η ώρα (επόμενες 7 μέρες)· δεν μετράει.</li>
-            <li><b>Χαμηλότερη συμμετοχή</b> — ομάδες κάτω από {LOW_GROUPS}% ή τουλάχιστον μία ατομική χωρίς «ήρθε» (δεν σημαίνει απουσία). Είναι φίλτρο, όχι αξιολόγηση.</li>
+            <li><b>Χαμηλότερη συμμετοχή</b> — ομάδες κάτω από {LOW_GROUPS}% ή τουλάχιστον μία ατομική χωρίς παρουσία (δεν σημαίνει απουσία). Είναι φίλτρο, όχι αξιολόγηση.</li>
           </ul>
         </details>
       </section>
@@ -276,16 +274,18 @@ export async function Consistency({
                       <span className={styles.metric}>
                         <span className={styles.mlabel}>Ομάδες</span>
                         {r.groupDays.length === 0 ? <span className="muted">καμία ακόμα</span> : (
-                          <span><b>{r.groups}/{r.groupDays.length}</b> <span className={styles.unit}>ήρθε / ημέρες ομάδας</span></span>
+                          <span><b>{r.groups}/{r.groupDays.length}</b> <span className={styles.unit}>{PRESENCE_UNIT}</span></span>
                         )}
+                        {r.groupDays.length - r.groups > 0 && <span className={styles.unit}>{r.groupDays.length - r.groups} χωρίς καταγραφή</span>}
                         {r.groupPct !== null && r.groupPct < LOW_GROUPS && <span className="pill yellow">κάτω από {LOW_GROUPS}%</span>}
                       </span>
                       <span className={styles.metric}>
                         <span className={styles.mlabel}>Ατομικές</span>
                         {r.sessionsTotal === 0 ? <span className="muted">δεν είχε ατομική</span> : (
-                          <span><b>{r.sessionsDone}/{r.sessionsTotal}</b> <span className={styles.unit}>ήρθε / πέρασε η ώρα τους</span></span>
+                          <span><b>{r.sessionsDone}/{r.sessionsTotal}</b> <span className={styles.unit}>{PRESENCE_UNIT}</span></span>
                         )}
                         {r.noNote > 0 && <span className={styles.unit}>{r.noNote} χωρίς καταγραφή</span>}
+                        {r.counts.confirmedAbsent > 0 && <span className={styles.unit}>{r.counts.confirmedAbsent} «Δεν ήρθε»</span>}
                       </span>
                       <span className={styles.metric}>
                         <span className={styles.mlabel}>Ημερολόγια</span>
@@ -309,31 +309,31 @@ export async function Consistency({
                     </p>
 
                     <h3>Ομάδες</h3>
-                    {r.groupDays.length === 0 ? <p className="empty">Δεν υπήρξε μέρα ομάδας στο διάστημα.</p> : (
+                    {r.groupDays.length === 0 ? <p className="empty">Καμία προγραμματισμένη ομάδα στο διάστημα.</p> : (
                       <ul className={styles.days}>
                         {r.groupDays.map((d) => {
-                          const word = d.present ? "καταγράφηκε παρουσία" : d.noneRecorded ? "χωρίς καταγραφή · κανένα μέλος δεν καταγράφηκε εκείνη τη μέρα" : "χωρίς καταγραφή παρουσίας";
+                          const word = d.present ? "παρουσία" : d.noneRecorded ? "χωρίς καταγραφή · κανένα μέλος δεν καταγράφηκε σε αυτή την ομάδα" : "χωρίς καταγραφή";
                           const tone = d.present ? styles.ok : d.noneRecorded ? styles.grey : styles.no;
                           return (
-                            <li key={d.date}>
+                            <li key={`${d.date} ${d.time}`}>
                               {canEdit ? (
                                 <form action={toggleAttendance}>
                                   <input type="hidden" name="memberId" value={r.m.id} />
                                   <input type="hidden" name="date" value={d.date} />
                                   <button type="submit" className={`${styles.day} ${tone}`} title={d.present ? "Πάτα για αφαίρεση παρουσίας" : "Πάτα για προσθήκη παρουσίας"}>
-                                    <span>{short(d.date)}</span> <b>{d.present ? "✓ " : ""}{word}</b>
+                                    <span>{short(d.date)} {d.time}</span> <b>{d.present ? "✓ " : ""}{word}</b>
                                     <span className={styles.fix}>{d.present ? "Αφαίρεση" : "Προσθήκη"}</span>
                                   </button>
                                 </form>
                               ) : (
-                                <span className={`${styles.day} ${tone}`}><span>{short(d.date)}</span> <b>{d.present ? "✓ " : ""}{word}</b></span>
+                                <span className={`${styles.day} ${tone}`}><span>{short(d.date)} {d.time}</span> <b>{d.present ? "✓ " : ""}{word}</b></span>
                               )}
                             </li>
                           );
                         })}
                       </ul>
                     )}
-                    {r.unrecorded > 0 && <p className="hint" style={{ margin: "4px 0 0" }}>{r.unrecorded} {r.unrecorded === 1 ? "μέρα" : "μέρες"} χωρίς καμία καταγραφή από κανένα μέλος· δεν είναι επιβεβαιωμένη απουσία, αλλά στον αριθμό «ήρθε» δεν μετράνε.</p>}
+                    {r.unrecorded > 0 && <p className="hint" style={{ margin: "4px 0 0" }}>{r.unrecorded} {r.unrecorded === 1 ? "μέρα" : "μέρες"} χωρίς καμία καταγραφή από κανένα μέλος· μένουν στον παρονομαστή ως «χωρίς καταγραφή»· αν η ομάδα δεν έγινε, η διαχείριση την ακυρώνει από τις «Ομάδες».</p>}
 
                     <h3>Ατομικές και Therapair</h3>
                     {r.sessions.length === 0 ? <p className="empty">Δεν είχε ατομική σε αυτό το διάστημα ούτε τις επόμενες 7 μέρες.</p> : (
@@ -343,8 +343,8 @@ export async function Consistency({
                           return (
                             <li key={x.id}>
                               <span>{formatDate(x.date)}, {formatTime(x.startsAt)} · {x.pair ? "Therapair" : "ατομική"}</span>
-                              <span className={`pill ${st.tone === "accent" ? "" : st.tone}`}>{x.state === "present_note" ? "✓ " : ""}{st.word}</span>
-                              <span className={styles.unit}>{st.source}{x.joinedAt && x.state === "join_clicked" ? ` · ${formatTime(x.joinedAt)}` : ""}</span>
+                              <span className={`pill ${st.tone === "accent" ? "" : st.tone}`}>{x.state === "present_confirmed" || x.state === "present_join" ? "✓ " : ""}{st.word}</span>
+                              <span className={styles.unit}>{st.source}{x.joinedAt && x.state !== "present_join" ? ` · πάτημα «Μπες» του μέλους ${formatTime(x.joinedAt)} (στο ιστορικό)` : ""}</span>
                             </li>
                           );
                         })}

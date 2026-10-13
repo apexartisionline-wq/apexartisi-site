@@ -47,6 +47,21 @@ export function Pill({ tone = "", icon, children, title }: { tone?: Tone; icon?:
   return <span className={`pill${tone ? ` ${tone}` : ""}`} title={title}>{icon && <Icon name={icon} size={14} />}{children}</span>;
 }
 
+/**
+ * Αριθμός παρουσιών με την κοινή μονάδα «παρουσίες / προγραμματισμένες που πέρασαν» (εξηγείται σε μία γραμμή κάτω από τα κουτάκια,
+ * PRESENCE_HINT) και, χωριστά, «Ν χωρίς καταγραφή».
+ * Ίδιος σε «Με μια ματιά», φάκελο, Συνέπεια, κύκλο (απόφαση 13/10).
+ */
+export function PresenceStat({ what, counted, passed, noRecord, note }: { what: string; counted: number; passed: number; noRecord: number; note?: string }) {
+  return (
+    <div className="stat" title={`${counted} παρουσίες / ${passed} προγραμματισμένες που πέρασαν${noRecord ? ` · ${noRecord} χωρίς καταγραφή` : ""}${note ? ` · ${note}` : ""}`}>
+      <b>{passed === 0 ? "—" : `${counted}/${passed}`}</b>
+      <span>{what}</span>
+      {noRecord > 0 && <span className="stat-sub">{noRecord} χωρίς καταγραφή</span>}
+    </div>
+  );
+}
+
 export function EmptyState({ children }: { children: React.ReactNode }) {
   return <div className="empty">{children}</div>;
 }

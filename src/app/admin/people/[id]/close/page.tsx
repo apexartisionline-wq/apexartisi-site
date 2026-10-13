@@ -40,7 +40,8 @@ export default async function ClosePage({ params, searchParams }: { params: Prom
     prisma.attendance.count({ where: { memberId: id } }),
     prisma.journalEntry.count({ where: { memberId: id } }),
   ]);
-  const sessions = await prisma.booking.count({ where: { memberId: id, joinedAt: { not: null } } });
+  // Παρουσίες: επιβεβαίωση «Ήρθε» ή πάτημα «Μπες» χωρίς «Δεν ήρθε» (κοινός κανόνας, 13/10).
+  const sessions = await prisma.booking.count({ where: { memberId: id, OR: [{ confirmedCame: true }, { confirmedCame: null, joinedAt: { not: null } }] } });
   const lastData = last ? (JSON.parse(dec(last.data)) as { keeps: string; referral: string }) : null;
   return (
     <>

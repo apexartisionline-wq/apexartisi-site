@@ -1,7 +1,8 @@
 import "server-only";
 import { dec } from "./crypto";
 import { prisma } from "./db";
-import { groupDays } from "./groups";
+import { groupOccurrences } from "./groups";
+import { memberGroups } from "./group-presence";
 import { GOAL_CHECK, type GoalCheck } from "./goals";
 import { getSettings } from "./settings";
 import { addDays, athensToUtc, toMinutes } from "./time";
@@ -16,9 +17,9 @@ export async function sinceLast(memberId: string, fromDate: string, untilDate: s
   const now = untilAt;
   const first = addDays(fromDate, 1);
   const last = addDays(untilDate, -1);
-  const [groups, attended, journal, help, mentions] = await Promise.all([
-    first <= untilDate ? groupDays(first, untilDate, s) : Promise.resolve([]),
-    prisma.attendance.findMany({ where: { memberId, date: { gte: first, lte: untilDate } }, select: { date: true } }),
+  const [groups, attended, journal, help, mentions, member] = await Promise.all([
+    first <= untilDate ? groupOccurrences(first, untilDate, s) : Promise.resolve([]),
+    prisma.attendance.findMany({ where: { memberId, date: { gte: first, lte: untilDate } }, select: { date: true, joinedAt: true } }),
     prisma.journalEntry.findMany({ where: { memberId, date: { gt: fromDate, lt: untilDate } }, orderBy: { date: "asc" } }),
     prisma.helpRequest.count({ where: { memberId, isDrill: false, createdAt: { gte: athensToUtc(first, 0), lt: athensToUtc(untilDate, 0) } } }),
     // «Προσοχή σε…» από τα σημειώματα ομάδας του διαστήματος.
@@ -27,11 +28,14 @@ export async function sinceLast(memberId: string, fromDate: string, untilDate: s
       include: { groupSession: { select: { date: true, time: true, coordinator: { select: { name: true } } } } },
       orderBy: { groupSession: { date: "asc" } },
     }),
+    prisma.user.findUniqueOrThrow({ where: { id: memberId }, select: { programStartDate: true } }),
   ]);
-  // Μόνο ομάδες που είχαν ήδη γίνει ως την ατομική (όχι μια ομάδα της ίδιας μέρας μετά από αυτήν).
-  const came = new Set(attended.map((a) => a.date));
-  const pastGroups = groups.filter((g) => athensToUtc(g.date, Math.floor(toMinutes(g.time) / 60), toMinutes(g.time) % 60) < now);
-  const groupRows = pastGroups.map((g) => ({ date: g.date, time: g.time, came: came.has(g.date) }));
+  // Ομάδες του πραγματικού προγράμματος (όχι ακυρωμένες, μετά την ένταξη) που είχαν ήδη γίνει ως την ατομική
+  // — ίδιος κανόνας με φάκελο και Συνέπεια (απόφαση 13/10). Χωρίς παρουσία = «χωρίς καταγραφή», όχι απουσία.
+  const g = memberGroups(groups, attended, { now, joinDate: member.programStartDate });
+  const groupRows = g.rows
+    .filter((r) => (r.state === "present" || r.state === "no_record") && r.startsAt < now)
+    .map((r) => ({ date: r.date, time: r.time, came: r.state === "present" }));
 
   const days = first <= last ? Math.round((Date.parse(`${last}T12:00:00Z`) - Date.parse(`${first}T12:00:00Z`)) / 86_400_000) + 1 : 0;
   const avg = (xs: number[]) => (xs.length ? Math.round((xs.reduce((a, b) => a + b, 0) / xs.length) * 10) / 10 : null);

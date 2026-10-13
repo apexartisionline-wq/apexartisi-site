@@ -57,6 +57,8 @@ export async function seedHistory(prisma: PrismaClient): Promise<string> {
       await prisma.booking.create({
         data: {
           slotId: slot.id, memberId: m.id, cycleId: cycle?.id, joinedAt: startsAt, durationMinutes: 45 + i,
+          // Γράφτηκε σημείωμα: επιβεβαίωση θεραπευτή «Ήρθε» (απόφαση 13/10), εκτός από το πάτημα «Μπες».
+          confirmedCame: true, confirmedAt: new Date(startsAt.getTime() + 50 * 60_000), confirmedById: therapist.id,
           kind: therapist.therapistKind === "BIOMATIC" ? "BIOMATIC" : "CLINICAL",
         },
       });
