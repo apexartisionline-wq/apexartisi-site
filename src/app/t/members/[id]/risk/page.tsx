@@ -2,11 +2,13 @@ import Link from "next/link";
 import { FolderTabs } from "@/components/FolderTabs";
 import { TourFor } from "@/components/TourFor";
 import { notFound, redirect } from "next/navigation";
+import { Icon } from "@/components/Icon";
 import { RiskClient } from "@/components/RiskClient";
+import { TwoPlans } from "@/components/TwoPlans";
 import { logAccess } from "@/lib/audit";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { LEVELS, QUESTIONS, riskSchema } from "@/lib/risk";
+import { ACTIONS, LEVELS, type Level, QUESTIONS, riskSchema } from "@/lib/risk";
 import { canWriteRisk, riskHistory, riskTrigger, saveRisk } from "@/lib/risk-db";
 import { formatWhen } from "@/lib/time";
 
@@ -43,17 +45,45 @@ export default async function RiskPage({ params, searchParams }: { params: Promi
     <main>
       <p style={{ margin: "8px 0 0" }}><Link className="back" href={`/t/members/${id}`}>‹ {member.name}</Link></p>
       <FolderTabs memberId={id} active="safety" />
-      <h1 style={{ marginBottom: 4 }}>Ανάγκες ασφάλειας</h1>
-      <p className="muted" style={{ marginTop: 0 }}>
-        {current ? `Τώρα: ${LEVELS[current.level]} · ${current.author}, ${formatWhen(current.at)}` : trigger ? "Δεν έχει γίνει αξιολόγηση ακόμα" : "Δεν έχει χρειαστεί"}
-        {" · "}<Link href={`/t/members/${id}/safety`}>Πλάνο ασφάλειας ›</Link>
-      </p>
+      <div className="page-head">
+        <div>
+          <h1>Ανάγκες ασφάλειας</h1>
+          <p className="page-sub">
+            {member.name} · {current ? `Τώρα: ${LEVELS[current.level]} · ${current.author}, ${formatWhen(current.at)}` : trigger ? "Δεν έχει γίνει αξιολόγηση ακόμα" : "Δεν έχει χρειαστεί"}
+          </p>
+        </div>
+      </div>
+
+      <TwoPlans memberId={id} here="risk" />
+
       {sp.saved && <div className="notice">Αποθηκεύτηκε ✓{current && current.level !== "LOW" && " Φαίνεται σήμερα στο «Σήμερα» όλης της ομάδας."}</div>}
       {sp.error && <div className="error">{sp.error}</div>}
       {trigger && <div className="card small" style={{ borderColor: "var(--yellow)" }} data-tour="trigger">Θέλει αξιολόγηση: μετά από <strong>{trigger.text}</strong> ({formatWhen(trigger.at)}).</div>}
-      {canWrite && (
-        <p data-tour="emergency"><Link className="btn red" href={`/t/members/${id}/emergency`}>Έκτακτη ανάγκη</Link> <span className="muted small">Μόνο σε άμεσο κίνδυνο: δείχνει διεύθυνση και επαφή για το 112.</span></p>
-      )}
+
+      {/* Οι οδηγίες άμεσου κινδύνου (πρωτόκολλο «Υψηλές», ACTIONS.HIGH) φαίνονται πάντα, όχι μόνο αφού διαλέξει επίπεδο. */}
+      <div className="attn" style={{ marginTop: 12 }}>
+        <span className="iconbox red"><Icon name="alert" /></span>
+        <div>
+          <strong>Σε άμεσο κίνδυνο — ισχύει πάντα, ανεξάρτητα από επίπεδο</strong>
+          <ul className="small" style={{ margin: "6px 0 0", paddingLeft: 18 }}>{ACTIONS.HIGH.map((a) => <li key={a}>{a}</li>)}</ul>
+          {canWrite ? (
+            <p data-tour="emergency" style={{ margin: "10px 0 0" }}><Link className="btn red" href={`/t/members/${id}/emergency`}>Έκτακτη ανάγκη</Link> <span className="muted small">Μόνο σε άμεσο κίνδυνο: δείχνει διεύθυνση και επαφή για το 112.</span></p>
+          ) : (
+            <p className="hint" style={{ margin: "8px 0 0" }}>Την «Έκτακτη ανάγκη» (διεύθυνση και επαφή για το 112) την ανοίγει ψυχολόγος.</p>
+          )}
+        </div>
+      </div>
+
+      <details className="fold" style={{ marginBottom: 12 }}>
+        <summary>Τι κάνουμε σε κάθε επίπεδο (πρωτόκολλο της ομάδας)</summary>
+        {(Object.keys(LEVELS) as Level[]).map((l) => (
+          <div key={l} style={{ marginTop: 8 }}>
+            <span className={`pill ${l === "HIGH" ? "red" : l === "MEDIUM" ? "yellow" : "ok"}`}>{LEVELS[l]}</span>
+            <ul className="small" style={{ margin: "4px 0 0", paddingLeft: 18 }}>{ACTIONS[l].map((a) => <li key={a}>{a}</li>)}</ul>
+          </div>
+        ))}
+        <p className="hint" style={{ marginTop: 8 }}>Το επίπεδο το ορίζει ψυχολόγος· η αξιολόγηση γίνεται μόνο όταν υπάρχει λόγος.</p>
+      </details>
 
       {showForm ? (
         <div data-tour="riskform"><RiskClient action={save} memberId={id} initialReason={reasonFromTrigger} /></div>

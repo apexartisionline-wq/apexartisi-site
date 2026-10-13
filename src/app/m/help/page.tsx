@@ -1,5 +1,5 @@
 import { requireRole } from "@/lib/auth";
-import { getPlan } from "@/lib/safety";
+import { getPlan, hasPlanContent } from "@/lib/safety";
 import { getSettings } from "@/lib/settings";
 import { SafetyPlanView } from "@/components/SafetyPlanForm";
 import { HelpFlow } from "./HelpFlow";
@@ -7,7 +7,6 @@ import { HelpFlow } from "./HelpFlow";
 export default async function HelpPage({ searchParams }: { searchParams: Promise<{ ask?: string }> }) {
   const user = await requireRole("MEMBER");
   const [s, plan, sp] = await Promise.all([getSettings(), getPlan(user.id), searchParams]);
-  const hasPlan = plan && Object.entries(plan).some(([k, v]) => (k === "helperList" ? (v as unknown[]).length > 0 : Boolean(v)));
   return (
     <main className="help">
       <HelpFlow
@@ -15,7 +14,8 @@ export default async function HelpPage({ searchParams }: { searchParams: Promise
         hasSelfMessage={Boolean(user.selfMessageType)}
         helplines={s.helplines}
         crisisNotice={s.crisisNotice}
-        plan={hasPlan ? <SafetyPlanView plan={plan} /> : null}
+        // Το μέλος βλέπει τα δικά του τηλέφωνα και μπορεί να καλέσει από εδώ.
+        plan={plan && hasPlanContent(plan) ? <SafetyPlanView plan={plan} canCall /> : null}
       />
     </main>
   );

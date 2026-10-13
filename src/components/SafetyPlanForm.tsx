@@ -1,34 +1,49 @@
-import { HELPERS_MAX, PLAN_FIELDS, type PlanData } from "@/lib/safety";
+import { Icon } from "@/components/Icon";
+import { HELPERS_LABEL, HELPERS_MAX, HELPERS_NEXT_LABEL, PLAN_FIELDS, PLAN_ORDER, planHelpers, type PlanData, type PlanFieldKey } from "@/lib/safety-plan";
+import s from "./SafetyPlanForm.module.css";
 
+// «Το πλάνο μου όταν δυσκολεύομαι» (Α): 7 ερωτήσεις, με τα λόγια του μέλους. Οι διατυπώσεις των ερωτήσεων
+// (safety-plan.ts) χρειάζονται έγκριση της θεραπευτικής ομάδας.
 // staff: ο θεραπευτής γράφει μόνο ονόματα και δεν βλέπει τηλέφωνα· τα τηλέφωνα που υπάρχουν κρατιούνται.
 export function SafetyPlanForm({ plan, action, hidden, staff = false }: { plan: PlanData | null; action: (fd: FormData) => Promise<void>; hidden?: Record<string, string>; staff?: boolean }) {
   const helpers = plan?.helperList ?? [];
+  const ordinal = (i: number) => `${i + 1}ο πρόσωπο`;
   return (
-    <form action={action} className="card">
+    <form action={action} className={`card ${s.form}`}>
       {hidden && Object.entries(hidden).map(([k, v]) => <input key={k} type="hidden" name={k} value={v} />)}
-      {PLAN_FIELDS.slice(0, 3).map((f) => field(f, plan))}
-      <div className="field">
-        <label><strong>Άνθρωποι που μπορώ να καλέσω</strong></label>
-        {Array.from({ length: HELPERS_MAX }, (_, i) => (
-          <div key={i} className="grid2" style={{ marginBottom: 6 }}>
-            <input name={`helperName${i}`} aria-label={`Όνομα ${i + 1}`} placeholder="Όνομα (π.χ. Άννα, αδελφή)" defaultValue={helpers[i]?.name ?? ""} />
-            {staff ? (
-              // Ο θεραπευτής γράφει μόνο ονόματα (απόφαση 5/10)· τα τηλέφωνα τα βάζουν το μέλος ή η διαχείριση.
-              <span className="muted small" style={{ alignSelf: "center" }}>{helpers[i]?.phone ? "τηλέφωνο ✓ (κρυφό)" : helpers[i]?.name ? "χωρίς τηλέφωνο ακόμα" : ""}</span>
-            ) : (
-              <input name={`helperPhone${i}`} aria-label={`Τηλέφωνο ${i + 1}`} type="tel" inputMode="tel" placeholder="Τηλέφωνο" defaultValue={helpers[i]?.phone ?? ""} />
+      {PLAN_ORDER.map((k) =>
+        k === "helperList" ? (
+          <div className={s.fieldq} key="helperList">
+            <label htmlFor="helperName0">{HELPERS_LABEL}</label>
+            <span className="hint">{HELPERS_NEXT_LABEL} Γράψε τους με τη σειρά: πρώτα ποιον καλείς πρώτο, μετά τον επόμενο.</span>
+            {Array.from({ length: HELPERS_MAX }, (_, i) => (
+              <div key={i} className={s.personRow}>
+                <span className={s.num} aria-hidden>{i + 1}</span>
+                <div className={s.two}>
+                  <input id={`helperName${i}`} name={`helperName${i}`} aria-label={`${ordinal(i)}: όνομα`} placeholder={i === 0 ? "Όνομα (π.χ. Άννα, αδελφή)" : "Όνομα — αν δεν απαντήσει το προηγούμενο"} defaultValue={helpers[i]?.name ?? ""} />
+                  {staff ? (
+                    // Ο θεραπευτής γράφει μόνο ονόματα (απόφαση 5/10)· τα τηλέφωνα τα βάζουν το μέλος ή η διαχείριση.
+                    <span className="muted small" style={{ alignSelf: "center" }}>{helpers[i]?.phone ? "τηλέφωνο ✓ (κρυφό)" : helpers[i]?.name ? "χωρίς τηλέφωνο ακόμα" : ""}</span>
+                  ) : (
+                    <input name={`helperPhone${i}`} aria-label={`${ordinal(i)}: τηλέφωνο`} type="tel" inputMode="tel" placeholder="Τηλέφωνο" defaultValue={helpers[i]?.phone ?? ""} />
+                  )}
+                </div>
+              </div>
+            ))}
+            {staff && <div className="muted small">Εδώ γράφεις μόνο ονόματα. Τα τηλέφωνα τα βάζει το ίδιο το μέλος (στο «Το πλάνο μου») ή η διαχείριση, και τα βλέπουν μόνο αυτοί.</div>}
+            {plan?.helpers && (
+              <div className="field" style={{ marginTop: 10 }}>
+                <label className="small muted" htmlFor="helpers" style={{ fontWeight: 500, fontSize: ".875rem" }}>
+                  Παλιότερη καταγραφή σε ελεύθερο κείμενο — να περάσει στα ονόματα πάνω από άνθρωπο (δεν ταξινομείται αυτόματα)
+                </label>
+                <textarea id="helpers" name="helpers" defaultValue={plan.helpers} style={{ minHeight: 50 }} />
+              </div>
             )}
           </div>
-        ))}
-        {staff && <div className="muted small">Εδώ γράφεις μόνο ονόματα. Τα τηλέφωνα τα βάζει το ίδιο το μέλος (στο «Το πλάνο μου») ή η διαχείριση, και τα βλέπουν μόνο αυτοί.</div>}
-        {plan?.helpers && (
-          <div className="field">
-            <label className="small muted">Άνθρωποι, όπως είχαν γραφτεί παλιότερα σε ελεύθερο κείμενο (μπορείς να τους περάσεις στα ονόματα πάνω)</label>
-            <textarea name="helpers" defaultValue={plan.helpers} style={{ minHeight: 50 }} />
-          </div>
-        )}
-      </div>
-      {PLAN_FIELDS.slice(3).map((f) => field(f, plan))}
+        ) : (
+          field(PLAN_FIELDS.find((f) => f.key === k)!, plan)
+        ),
+      )}
       <button className="primary" type="submit">Αποθήκευση</button>
     </form>
   );
@@ -36,32 +51,70 @@ export function SafetyPlanForm({ plan, action, hidden, staff = false }: { plan: 
 
 function field(f: (typeof PLAN_FIELDS)[number], plan: PlanData | null) {
   return (
-    <div className="field" key={f.key}>
-      <label htmlFor={f.key}><strong>{f.label}</strong>{f.hint && <span className="muted"> — {f.hint}</span>}</label>
-      <textarea id={f.key} name={f.key} defaultValue={plan?.[f.key] ?? ""} style={{ minHeight: 70 }} />
+    <div className={s.fieldq} key={f.key}>
+      <label htmlFor={f.key}>{f.label}</label>
+      {f.hint && <span className="hint">{f.hint}</span>}
+      <textarea id={f.key} name={f.key} defaultValue={plan?.[f.key] ?? ""} />
     </div>
   );
 }
 
-export function SafetyPlanView({ plan }: { plan: PlanData }) {
-  const helpers = (plan.helperList ?? []).filter((h) => h.name || h.phone);
+/**
+ * Το πλάνο όπως το βλέπει το μέλος: μικρές κάρτες, τα δικά του λόγια μεγάλα, η ερώτηση ως μικρή ετικέτα.
+ * canCall: κουμπί κλήσης μόνο για όποιον δικαιούται να βλέπει τα τηλέφωνα (το μέλος)· στην προεπισκόπηση
+ * του θεραπευτή το πλάνο έρχεται ήδη με «•••» (planForStaff) και χωρίς κουμπί κλήσης.
+ */
+export function SafetyPlanView({ plan, canCall = false }: { plan: PlanData; canCall?: boolean }) {
+  const helpers = planHelpers(plan);
+  const text = (k: PlanFieldKey) => plan[k]?.trim();
   return (
-    <div className="stack">
-      {PLAN_FIELDS.slice(0, 3).filter((f) => plan[f.key]).map((f) => (
-        <div key={f.key}><strong>{f.label}</strong><div className="body-text">{plan[f.key]}</div></div>
-      ))}
-      {(helpers.length > 0 || plan.helpers) && (
-        <div>
-          <strong>Άνθρωποι που μπορώ να καλέσω</strong>
-          {helpers.map((h, i) => (
-            <div key={i}>{h.name}{h.phone && <> · {h.phone === "•••" ? "•••" : <a href={`tel:${h.phone.replace(/\s/g, "")}`}>{h.phone}</a>}</>}</div>
-          ))}
-          {plan.helpers && <div className="body-text">{plan.helpers}</div>}
-        </div>
-      )}
-      {PLAN_FIELDS.slice(3).filter((f) => plan[f.key]).map((f) => (
-        <div key={f.key}><strong>{f.label}</strong><div className="body-text">{plan[f.key]}</div></div>
-      ))}
+    <div className={s.cards}>
+      {PLAN_ORDER.map((k) => {
+        if (k === "helperList") {
+          if (helpers.length === 0 && !plan.helpers) return null;
+          return (
+            <section className={s.card} key="helperList" aria-label={HELPERS_LABEL}>
+              <span className={s.q}>{HELPERS_LABEL}</span>
+              <ol className={s.people}>
+                {helpers.map((h, i) => {
+                  const hidden = h.phone === "•••";
+                  const tel = canCall && h.phone && !hidden ? h.phone.replace(/\s/g, "") : null;
+                  return (
+                    <li key={i} className={s.person}>
+                      <span className={s.num} aria-hidden>{i + 1}</span>
+                      <span className={s.name}>{h.name || <span className="muted">(χωρίς όνομα)</span>}</span>
+                      {tel ? (
+                        <a className={`btn ${s.call}`} href={`tel:${tel}`} aria-label={`Κάλεσε ${h.name || "το " + (i + 1) + "ο πρόσωπο"}`}>
+                          <Icon name="phone" size={18} /> Κάλεσε
+                        </a>
+                      ) : h.phone ? (
+                        <span className="pill grey">{hidden ? "τηλέφωνο αποθηκευμένο" : h.phone}</span>
+                      ) : (
+                        <span className="pill grey">χωρίς τηλέφωνο</span>
+                      )}
+                      {i > 0 && <span className={s.next}>αν δεν απαντήσει {i === 1 ? "το 1ο" : `το ${i}ο`} πρόσωπο</span>}
+                    </li>
+                  );
+                })}
+              </ol>
+              {plan.helpers && (
+                <p className={`${s.a} ${s.old}`} style={{ marginTop: helpers.length ? 10 : 0 }}>
+                  <span className="hint">Παλιότερη καταγραφή: </span>{plan.helpers}
+                </p>
+              )}
+            </section>
+          );
+        }
+        const v = text(k);
+        if (!v) return null;
+        const f = PLAN_FIELDS.find((x) => x.key === k)!;
+        return (
+          <section className={s.card} key={k} aria-label={f.label}>
+            <span className={s.q}>{f.label}</span>
+            <p className={s.a}>{v}</p>
+          </section>
+        );
+      })}
     </div>
   );
 }

@@ -1,0 +1,20 @@
+/* «Το πλάνο μου όταν δυσκολεύομαι»: κάρτες ανά ερώτηση. Τα λόγια του μέλους μεγάλα, η ερώτηση μικρή ετικέτα. */
+.cards { display: grid; gap: 12px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; min-width: 0; }
+.q { display: block; font-size: .8rem; font-weight: 600; letter-spacing: .01em; color: var(--muted); margin-bottom: 6px; }
+.a { margin: 0; font-size: 1.15rem; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+.people { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.person { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-height: 44px; }
+.num { width: 28px; height: 28px; border-radius: 50%; background: var(--soft); color: var(--accent-strong); font-weight: 700; font-size: .9rem; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.name { font-size: 1.15rem; line-height: 1.4; flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.call { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; }
+.next { font-size: .8rem; color: var(--muted); width: 100%; padding-left: 38px; margin-top: -4px; }
+.old { font-size: 1rem; }
+.form .fieldq { margin-bottom: 16px; }
+.form .fieldq label { display: block; font-weight: 700; font-size: 1.05rem; margin-bottom: 2px; }
+.form .fieldq .hint { display: block; margin-bottom: 6px; }
+.form textarea { min-height: 76px; font-size: 1rem; }
+.personRow { display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 8px 10px; align-items: center; margin-bottom: 8px; }
+.personRow .two { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; }
+.personRow .num { margin-top: 0; }
+@media (prefers-color-scheme: dark) { .num { color: var(--accent); } }

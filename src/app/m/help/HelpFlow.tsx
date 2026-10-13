@@ -87,6 +87,7 @@ export function HelpFlow({
       {plan && (
         <section className="card">
           <h2 style={{ marginTop: 0 }}>Το πλάνο σου</h2>
+          <p className="muted small" style={{ marginTop: -4 }}>Με τα δικά σου λόγια, όπως το γράψατε μαζί. <Link href="/m/safety">Άλλαξέ το ›</Link></p>
           {plan}
         </section>
       )}
@@ -100,7 +101,14 @@ export function HelpFlow({
       )}
 
       {!asked ? (
-        <button className="red big" onClick={askHuman}>Θέλω να μιλήσω με άνθρωπο τώρα</button>
+        <section>
+          {/* Τι κάνει το κουμπί, με ακρίβεια (src/lib/help.ts): ειδοποίηση στην ομάδα, ανάληψη από κάποιον, επανάληψη
+              αν δεν απαντήσει κανείς και εμφάνιση των γραμμών βοήθειας. Χωρίς υποσχέσεις χρόνου. */}
+          <p className="muted small" style={{ margin: "0 0 8px" }}>
+            Το κουμπί ειδοποιεί την ομάδα σου. Κάποιος θα σε πάρει τηλέφωνο. Αν δεν απαντήσει κανείς, η ειδοποίηση ξαναστέλνεται και σου δείχνουμε τις γραμμές βοήθειας.
+          </p>
+          <button className="red big" onClick={askHuman}>Θέλω να μιλήσω με άνθρωπο τώρα</button>
+        </section>
       ) : (
         <div className="card" aria-live="polite">
           {sending && <p>Ειδοποιούμε την ομάδα…</p>}
