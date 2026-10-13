@@ -38,7 +38,10 @@ export async function startDemoSession(therapist: { id: string; therapistKind: "
 }
 
 /** Στη δοκιμή: αν η σημερινή μέρα δεν έχει ραντεβού (δεν έγινε build σήμερα), μπαίνουν τα ψεύτικα της ημέρας. */
+let ensuredFor = ""; // μία φορά ανά μέρα και διεργασία, για να μη βαραίνει κάθε άνοιγμα του «Σήμερα»
 export async function ensureDemoToday(): Promise<void> {
   if (!isDemoSite()) return;
-  await ensureDemoDay(prisma, localParts(new Date()).date).catch(() => undefined);
+  const today = localParts(new Date()).date;
+  if (ensuredFor === today) return;
+  await ensureDemoDay(prisma, today).then(() => { ensuredFor = today; }).catch(() => undefined);
 }

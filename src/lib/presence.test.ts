@@ -39,13 +39,13 @@ describe("παρουσία σε ατομική (απόφαση 13/10)", () => {
 });
 
 describe("ομάδες ανά μέλος: πραγματικό πρόγραμμα", () => {
-  const g = (d: number, h: number, cancelled = false): Occurrence => ({ date: `2026-10-${String(d).padStart(2, "0")}`, time: `${h}:00`, startsAt: t(h, 0, d), endsAt: t(h + 1, 30, d), cancelled });
-  const occ = [g(5, 17), g(6, 17), g(7, 17, true), g(8, 17), g(9, 17), g(13, 17)];
+  const g = (d: number, h: number): Occurrence => ({ date: `2026-10-${String(d).padStart(2, "0")}`, time: `${h}:00`, startsAt: t(h, 0, d), endsAt: t(h + 1, 30, d) });
+  const occ = [g(5, 17), g(6, 17), g(8, 17), g(9, 17), g(13, 17)];
   const now = t(12, 0, 13);
-  it("μπαίνει στον παρονομαστή όταν έληξε, μετά την ένταξη, χωρίς ακύρωση — και χωρίς καταγραφή", () => {
+  it("μπαίνει στον παρονομαστή όταν έληξε και είναι μετά την ένταξη — και χωρίς καταγραφή", () => {
     const r = memberGroups(occ, [{ date: "2026-10-06", joinedAt: t(17, 3, 6) }, { date: "2026-10-09", joinedAt: t(17, 1, 9) }], { now, joinDate: "2026-10-06" });
-    expect(r.rows.map((x) => x.state)).toEqual(["before_join", "present", "cancelled", "no_record", "present", "future"]);
-    expect(r).toMatchObject({ counted: 2, noRecord: 1, passed: 3, upcoming: 1, cancelled: 1 });
+    expect(r.rows.map((x) => x.state)).toEqual(["before_join", "present", "no_record", "present", "future"]);
+    expect(r).toMatchObject({ counted: 2, noRecord: 1, passed: 3, upcoming: 1 });
     expect(describeGroups(r)).toBe("2 παρουσίες / 3 προγραμματισμένες που πέρασαν · 1 χωρίς καταγραφή");
   });
   it("δεν δημιουργεί ομάδα από «συνήθη μέρα»: παρουσία σε μέρα χωρίς ομάδα στο πρόγραμμα δεν μετράει", () => {

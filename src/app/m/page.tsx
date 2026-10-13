@@ -5,12 +5,12 @@ import { prisma } from "@/lib/db";
 import { withMemberCode } from "@/lib/forms";
 import { ensureDemoToday } from "@/lib/demo-session";
 import { cycleInfo, isPublished, journalDate } from "@/lib/member";
-import { cancelledGroupTimes } from "@/lib/groups";
+import { extraGroupTimes, holidaysFrom } from "@/lib/groups";
 import { bookingWindow, canRequestChange, groupsOn, isAfter, joinableGroup, sessionJoinable, slotMinutes } from "@/lib/program";
 import { weekGoal } from "@/lib/goals";
 import { getSettings } from "@/lib/settings";
 import { vocative } from "@/lib/vocative";
-import { formatDate, formatHour, formatTime, isAfterLocal, localParts } from "@/lib/time";
+import { addDays, formatDate, formatHour, formatTime, isAfterLocal, localParts } from "@/lib/time";
 
 export default async function MemberHome() {
   const user = await requireMember();
@@ -47,11 +47,10 @@ export default async function MemberHome() {
     (await prisma.closure.findFirst({ where: { memberId: user.id, sentAt: { not: null }, readAt: null }, select: { id: true } }));
   const text = contents.find((c) => c.kind === "DAILY_TEXT" && isPublished(c.date, s.dailyTextTime, now));
   const forms = contents.filter((c) => c.kind === "FORM" && isPublished(c.date, s.formsTime, now));
-  const groupsToday = groupsOn(today.date, s);
-  // Ακυρωμένη από τη διαχείριση ομάδα (π.χ. αργία): δεν ανοίγει «Μπες».
-  const cancelledToday = groupsToday.length ? await cancelledGroupTimes(today.date) : new Set<string>();
-  const joinable = joinableGroup(now, s);
-  const groupOpen = joinable && !cancelledToday.has(joinable.time) ? joinable : null;
+  // Και έκτακτη ομάδα της ημέρας (π.χ. σε αργία, στη θέση των ατομικών).
+  const [extraToday, holidays] = await Promise.all([extraGroupTimes(today.date, s), holidaysFrom(today.date, addDays(today.date, 7))]);
+  const groupsToday = [...groupsOn(today.date, s).map((g) => ({ time: g.time })), ...extraToday.map((time) => ({ time }))].sort((a, b) => a.time.localeCompare(b.time));
+  const groupOpen = joinableGroup(now, s, extraToday);
   const journalOpen = isAfter(now, s.journalTime);
   const pendingFor = new Set(requests.filter((r) => r.status === "PENDING").map((r) => r.bookingId));
   const fresh = cycle && cycle.cycle.closedAt && cycle.booked >= cycle.length && cycle.done >= cycle.length;
@@ -61,6 +60,11 @@ export default async function MemberHome() {
       <h1>Γεια σου, {vocative(user.name.split(" ")[0])}</h1>
 
       <Announcements />
+      {holidays.map((h) => (
+        <div key={h.date} className="notice">
+          {h.date === today.date ? "Σήμερα" : formatDate(h.date)}: αργία — δεν γίνονται ατομικές.{h.groupTime && ` Στη θέση τους, ομάδα στις ${h.groupTime}.`}
+        </div>
+      ))}
       {unreadMessage && (
         <Link href="/m/message" className="card" style={{ display: "block", textDecoration: "none", color: "inherit", borderColor: "var(--accent)" }}>
           <strong>✉︎ Ένα μήνυμα από την ομάδα σου</strong>
@@ -164,7 +168,7 @@ export default async function MemberHome() {
             <div>
               <strong>Ομάδα</strong>
               <div className="muted">
-                Σήμερα στις {groupsToday.map((g) => (cancelledToday.has(g.time) ? `${g.time} (δεν θα γίνει)` : g.time)).join(", ")}
+                Σήμερα στις {groupsToday.map((g) => g.time).join(", ")}
                 {attended && " · μπήκες ✓"}
               </div>
             </div>

@@ -49,7 +49,6 @@ type Item = {
   hasNote: boolean;
   memberJoinedAt: Date | null; // πάτησε «Μπες» το μέλος (μόνο ατομική)
   memberConfirmed: boolean | null; // επιβεβαίωση θεραπευτή «Ήρθε/Δεν ήρθε» (μόνο ατομική)
-  cancelled?: boolean; // ομάδα που ακυρώθηκε
   join: { kind: "SLOT" | "GROUP"; ref: string; room: string; label: string };
   opensForMembersAt: Date;
 };
@@ -65,7 +64,7 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
   const s = await getSettings();
   if (date === today) await ensureDemoToday();
 
-  const [boxes, slots, week, groups, members, staffRows] = await Promise.all([
+  const [boxes, slots, week, groups, members, staffRows, holiday] = await Promise.all([
     alertBoxes(user.role),
     prisma.slot.findMany({
       where: { date, therapistId: user.id, bookings: { some: {} } },
@@ -80,6 +79,7 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
     groupDays(date, addDays(date, 7), s),
     prisma.user.findMany({ where: { role: "MEMBER", active: true }, select: { id: true, name: true } }),
     user.role === "ADMIN" ? prisma.user.findMany({ where: { role: { in: ["THERAPIST", "ADMIN"] }, active: true }, select: { id: true, name: true, therapistKind: true, role: true }, orderBy: { name: "asc" } }) : Promise.resolve([]),
+    prisma.holiday.findUnique({ where: { date } }),
   ]);
   const staff: StaffOption[] = staffRows.map((u) => ({ id: u.id, name: u.name, clinician: u.role === "ADMIN" || u.therapistKind === "CLINICAL" || u.therapistKind === "BOTH", admin: u.role === "ADMIN" }));
   const viewer = { id: user.id, role: user.role, therapistKind: user.therapistKind };
@@ -97,7 +97,7 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
       return {
         key: `g${g.time}`, startsAt, endsAt: new Date(startsAt.getTime() + s.groupDurationMinutes * 60_000),
         kind: "Ομάδα" as const, icon: "group" as const, title: "Εσύ συντονίζεις",
-        href: `/t/group/${g.date}/${g.time.replace(":", "")}`, hasNote: g.hasNote, memberJoinedAt: null, memberConfirmed: null, cancelled: g.cancelled,
+        href: `/t/group/${g.date}/${g.time.replace(":", "")}`, hasNote: g.hasNote, memberJoinedAt: null, memberConfirmed: null,
         join: { kind: "GROUP" as const, ref: `${g.date} ${g.time}`, room: s.groupRoomUrl, label: "Μπες στην ομάδα" },
         opensForMembersAt: joinBefore(startsAt, s.groupJoinBeforeMinutes),
       };
@@ -120,7 +120,6 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
   // Κατάσταση κάθε ραντεβού, με λέξεις (όχι μόνο χρώμα). Μια συνεδρία δεν θεωρείται «έγινε» μόνο επειδή πέρασε η ώρα της.
   const statusOf = (it: Item): { text: string; tone: Tone } => {
     const mins = Math.round((it.startsAt.getTime() - now.getTime()) / 60_000);
-    if (it.cancelled) return { text: "Ακυρώθηκε", tone: "grey" };
     if (it.kind !== "Ατομική") {
       if (now < it.startsAt) return isToday && mins <= 60 ? { text: `Σε ${mins} λεπτά`, tone: "solid" } : { text: it.startsAt > now && !isToday ? "Προγραμματισμένη" : `Στις ${formatTime(it.startsAt)}`, tone: "grey" };
       if (now <= it.endsAt) return { text: "Σε εξέλιξη τώρα", tone: "solid" };
@@ -215,6 +214,7 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
         <DayPicker date={date} today={today} prev={addDays(date, -1)} next={addDays(date, 1)} prevWeek={addDays(date, -7)} nextWeek={addDays(date, 7)} base="/t" />
       </PageHead>
 
+      {holiday && <div className="notice">Αργία ({holiday.reason}): δεν γίνονται ατομικές{holiday.groupTime ? ` · ομάδα στη θέση τους στις ${holiday.groupTime}` : ""}.</div>}
       <div className="cols cols-60">
         <div className="stackv">
           <Panel title="Το πρόγραμμά μου" link={{ href: "#week", label: "Επόμενες ημέρες" }} tour="program">

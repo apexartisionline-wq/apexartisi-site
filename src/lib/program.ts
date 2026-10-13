@@ -93,10 +93,12 @@ export function rotationCoordinator(g: GroupEntry, date: string, s: Settings): s
 }
 
 /** Η ομάδα της ημέρας που είναι «ανοιχτή» τώρα για είσοδο, αν υπάρχει. */
-export function joinableGroup(now: Date, s: Settings): GroupEntry | null {
+export function joinableGroup(now: Date, s: Settings, extraTimes: string[] = []): { time: string } | null {
   const p = localParts(now);
   const t = now.getTime();
-  for (const g of groupsOn(p.date, s)) {
+  // Και έκτακτες ομάδες της ημέρας (π.χ. ομάδα στη θέση των ατομικών σε αργία).
+  const all = [...groupsOn(p.date, s).map((g) => ({ time: g.time })), ...extraTimes.filter((x) => !groupsOn(p.date, s).some((g) => g.time === x)).map((time) => ({ time }))];
+  for (const g of all) {
     const [h, m] = g.time.split(":").map(Number);
     const start = athensToUtc(p.date, h, m).getTime();
     if (t >= start - s.groupJoinBeforeMinutes * 60_000 && t <= start + s.groupDurationMinutes * 60_000) return g;
@@ -104,7 +106,7 @@ export function joinableGroup(now: Date, s: Settings): GroupEntry | null {
   return null;
 }
 
-export const groupJoinable = (now: Date, s: Settings) => joinableGroup(now, s) !== null;
+export const groupJoinable = (now: Date, s: Settings, extraTimes: string[] = []) => joinableGroup(now, s, extraTimes) !== null;
 
 /** Έχει ξεκινήσει η (πρώτη) ομάδα της ημέρας; */
 export function groupStarted(date: string, now: Date, s: Settings): boolean {

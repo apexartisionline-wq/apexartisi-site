@@ -27,6 +27,8 @@ async function neighbourKind(memberId: string, at: Date, exceptBookingId?: strin
 /** Ελεύθερες θέσεις μιας ώρας· στο Therapair πρώτα όσες έχουν ήδη ένα μέλος. */
 async function freeSlots(date: string, hour: number, kind: SlotKind, memberId: string, from: Date) {
   const capacity = slotCapacity(kind);
+  // Αργία: εκείνη τη μέρα δεν κλείνονται ατομικές (υπεύθυνη 13/10).
+  if (await prisma.holiday.findUnique({ where: { date }, select: { date: true } })) return [];
   const slots = await prisma.slot.findMany({
     where: { date, hour, kind, therapistId: { not: null }, startsAt: { gt: from } },
     include: { therapist: { select: { therapistKind: true } }, bookings: { select: { memberId: true } } },
@@ -138,11 +140,12 @@ export async function moveBooking(bookingId: string, date: string, hour: number,
 
 /** Οι ώρες μιας εβδομάδας με ελεύθερη θέση, χωριστά για ατομικές και Therapair. */
 export async function openHours(from: string, to: string, after: Date) {
-  const slots = await prisma.slot.findMany({
+  const holidays = new Set((await prisma.holiday.findMany({ where: { date: { gte: from, lte: to } }, select: { date: true } })).map((h) => h.date));
+  const slots = (await prisma.slot.findMany({
     where: { date: { gte: from, lte: to }, startsAt: { gt: after }, therapistId: { not: null } },
     include: { _count: { select: { bookings: true } } },
     orderBy: [{ date: "asc" }, { hour: "asc" }],
-  });
+  })).filter((x) => !holidays.has(x.date));
   const out = new Map<string, { date: string; hour: number; kind: SlotKind; half: boolean }>();
   for (const x of slots) {
     if (x._count.bookings >= slotCapacity(x.kind)) continue;

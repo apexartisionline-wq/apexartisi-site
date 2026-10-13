@@ -67,6 +67,9 @@ describe("program", () => {
     expect(groupJoinable(at("2026-09-30", 18), S)).toBe(false);
     expect(groupJoinable(at("2026-10-03", 17, 50), S)).toBe(true); // Σάββατο 18:00
     expect(groupJoinable(at("2026-10-01", 21), S)).toBe(false); // Πέμπτη
+    // Έκτακτη ομάδα (αργία, στη θέση των ατομικών): ανοίγει όπως οι κανονικές.
+    expect(groupJoinable(at("2026-10-01", 11, 55), S, ["12:00"])).toBe(true);
+    expect(groupJoinable(at("2026-10-01", 14), S, ["12:00"])).toBe(false);
   });
 
   it("rotates the Friday coordinator every week", () => {

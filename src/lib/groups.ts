@@ -12,8 +12,6 @@ export type GroupDay = {
   overridden: boolean;
   sessionId: string | null;
   hasNote: boolean;
-  cancelled: boolean;
-  cancelReason: string;
 };
 
 /**
@@ -41,9 +39,9 @@ export async function syncGroupProgramme(s: Settings, now = new Date()): Promise
 
 /**
  * Οι ομάδες ενός διαστήματος από το πραγματικό πρόγραμμα: μέχρι σήμερα όσες είναι γραμμένες ως γεγονότα,
- * μετά από σήμερα το εβδομαδιαίο πρόγραμμα μαζί με τις εξαιρέσεις (ακυρώσεις) που έχουν ήδη οριστεί.
+ * μετά από σήμερα το εβδομαδιαίο πρόγραμμα (και ό,τι έχει ήδη γραφτεί). Οι ομάδες δεν ακυρώνονται ποτέ (υπεύθυνη 13/10).
  */
-export async function groupOccurrences(from: string, to: string, s: Settings, now = new Date()): Promise<(Occurrence & { sessionId: string | null; coordinatorId: string | null; noteAt: Date | null; cancelReason: string })[]> {
+export async function groupOccurrences(from: string, to: string, s: Settings, now = new Date()): Promise<(Occurrence & { sessionId: string | null; coordinatorId: string | null; noteAt: Date | null })[]> {
   await syncGroupProgramme(s, now);
   const today = localParts(now).date;
   const rows = await prisma.groupSession.findMany({ where: { date: { gte: from, lte: to } } });
@@ -52,14 +50,14 @@ export async function groupOccurrences(from: string, to: string, s: Settings, no
     const [h, m] = time.split(":").map(Number);
     const startsAt = athensToUtc(date, h, m);
     const r = byKey.get(`${date} ${time}`);
-    return { date, time, startsAt, endsAt: new Date(startsAt.getTime() + s.groupDurationMinutes * 60_000), cancelled: Boolean(r?.cancelledAt), sessionId: r?.id ?? null, coordinatorId: r?.coordinatorId ?? null, noteAt: r?.noteAt ?? null, cancelReason: r?.cancelReason ?? "" };
+    return { date, time, startsAt, endsAt: new Date(startsAt.getTime() + s.groupDurationMinutes * 60_000), sessionId: r?.id ?? null, coordinatorId: r?.coordinatorId ?? null, noteAt: r?.noteAt ?? null };
   };
   const out = [];
   for (const r of rows) if (r.date <= today) out.push(make(r.date, r.time));
   for (let d = today > from ? addDays(today, 1) : from; d <= to; d = addDays(d, 1)) {
     if (d <= today) continue;
     const times = new Set(groupsOn(d, s).map((g) => g.time));
-    for (const r of rows) if (r.date === d) times.add(r.time); // έκτακτη ή ακυρωμένη ομάδα που έχει ήδη γραφτεί
+    for (const r of rows) if (r.date === d) times.add(r.time); // ομάδα που έχει ήδη γραφτεί (π.χ. αλλαγή συντονιστή)
     for (const t of times) out.push(make(d, t));
   }
   return out.sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
@@ -80,17 +78,21 @@ export async function groupDays(from: string, to: string, s: Settings): Promise<
       overridden: Boolean(o.coordinatorId && o.coordinatorId !== rotated),
       sessionId: o.sessionId,
       hasNote: Boolean(o.noteAt),
-      cancelled: o.cancelled,
-      cancelReason: o.cancelReason,
     };
   });
 }
 
 /** Η εγγραφή μιας ομάδας (δημιουργείται όταν χρειαστεί: αλλαγή συντονιστή ή σημείωμα). */
-/** Ακυρωμένες ομάδες μιας μέρας (ώρα → ναι). Το μέλος βλέπει μόνο ότι δεν θα γίνει, όχι τον λόγο. */
-export async function cancelledGroupTimes(date: string): Promise<Set<string>> {
-  const rows = await prisma.groupSession.findMany({ where: { date, cancelledAt: { not: null } }, select: { time: true } });
-  return new Set(rows.map((r) => r.time));
+/** Οι ώρες ομάδων μιας μέρας που ΔΕΝ είναι στο εβδομαδιαίο πρόγραμμα (έκτακτες, π.χ. σε αργία). */
+export async function extraGroupTimes(date: string, s: Settings): Promise<string[]> {
+  const regular = new Set(groupsOn(date, s).map((g) => g.time));
+  const rows = await prisma.groupSession.findMany({ where: { date }, select: { time: true } });
+  return rows.map((r) => r.time).filter((t) => !regular.has(t)).sort();
+}
+
+/** Αργίες από μια μέρα και μετά (για το «Σήμερα» μέλους/θεραπευτή και τις κρατήσεις). */
+export async function holidaysFrom(from: string, to: string) {
+  return prisma.holiday.findMany({ where: { date: { gte: from, lte: to } }, orderBy: { date: "asc" } });
 }
 
 export async function ensureGroupSession(date: string, time: string) {

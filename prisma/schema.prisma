@@ -347,7 +347,8 @@ model GroupSession {
   noteById      String?
   noteAt        DateTime?
   // Πραγματικό πρόγραμμα (13/10): κάθε ομάδα αποθηκεύεται ως γεγονός με ημερομηνία/ώρα, ώστε αλλαγή στις Ρυθμίσεις να μην αλλάζει
-  // το παρελθόν. fromProgramme = γράφτηκε από το εβδομαδιαίο πρόγραμμα· ακύρωση με ποιος/πότε/γιατί (ποτέ σβήσιμο).
+  // το παρελθόν. fromProgramme = γράφτηκε από το εβδομαδιαίο πρόγραμμα.
+  // cancelled*: ΔΕΝ χρησιμοποιούνται — οι ομάδες δεν ακυρώνονται ποτέ (υπεύθυνη 13/10). Μένουν κενές στη βάση (καμία αφαίρεση στήλης).
   fromProgramme Boolean        @default(false)
   cancelledAt   DateTime?
   cancelledById String?
@@ -760,4 +761,15 @@ model ActionItem {
 
   @@unique([memberId, ref])
   @@index([doneAt, createdAt])
+}
+
+// Αργία (υπεύθυνη 13/10): εκείνη τη μέρα οι ατομικές ακυρώνονται (κάθε ακύρωση κρατιέται στο ιστορικό)
+// και δεν ανοίγουν κρατήσεις· προαιρετικά γίνεται ομάδα στη θέση τους (GroupSession της ημέρας).
+// Οι ομάδες δεν ακυρώνονται ποτέ. Η άρση της αργίας γράφεται στο ιστορικό· τίποτα δεν σβήνεται σιωπηρά.
+model Holiday {
+  date        String   @id // YYYY-MM-DD, ώρα Ελλάδας
+  reason      String
+  groupTime   String   @default("") // HH:MM της ομάδας στη θέση των ατομικών (κενό: καμία έκτακτη)
+  createdById String
+  createdAt   DateTime @default(now())
 }

@@ -45,9 +45,9 @@ export function ActionRow({ a, viewer, staff = [], back, showMember = false, com
         {a.createdAt && <>από {fmt(a.createdAt)} · </>}
         {a.dueAt && <>προθεσμία {formatDate(localParts(a.dueAt).date)} · </>}
         {stateLine(a, fmt)}
+        {a.adminOnly && !admin && <> · την αναλαμβάνει και την ολοκληρώνει η διαχείριση</>}
       </div>
-      <div className="act-forms">
-        {a.adminOnly && !admin && <span className="hint">Την αναλαμβάνει και την ολοκληρώνει η διαχείριση.</span>}
+      {!(a.adminOnly && !admin) && <div className="act-forms">
         {(a.source === "help" || !a.manualDone) && <Link className="btn outline sm" href={a.href}>{a.source === "help" && a.state === "unclaimed" ? "Δες και ανάλαβε" : "Άνοιγμα"}</Link>}
         {mayClaim && (
           <form action={claimAction}>
@@ -79,7 +79,7 @@ export function ActionRow({ a, viewer, staff = [], back, showMember = false, com
             <button type="submit" className="sm">Ολοκληρώθηκε</button>
           </form>
         )}
-      </div>
+      </div>}
     </div>
   );
 }

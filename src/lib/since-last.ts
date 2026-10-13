@@ -30,7 +30,7 @@ export async function sinceLast(memberId: string, fromDate: string, untilDate: s
     }),
     prisma.user.findUniqueOrThrow({ where: { id: memberId }, select: { programStartDate: true } }),
   ]);
-  // Ομάδες του πραγματικού προγράμματος (όχι ακυρωμένες, μετά την ένταξη) που είχαν ήδη γίνει ως την ατομική
+  // Ομάδες του πραγματικού προγράμματος (μετά την ένταξη) που είχαν ήδη γίνει ως την ατομική
   // — ίδιος κανόνας με φάκελο και Συνέπεια (απόφαση 13/10). Χωρίς παρουσία = «χωρίς καταγραφή», όχι απουσία.
   const g = memberGroups(groups, attended, { now, joinDate: member.programStartDate });
   const groupRows = g.rows
