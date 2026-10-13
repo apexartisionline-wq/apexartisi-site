@@ -12,6 +12,7 @@ import { prisma } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
 import { addDays, formatDate, formatHour, formatTime, localParts } from "@/lib/time";
 import { claimAction } from "@/app/t/actions";
+import { runRetentionDaily } from "@/lib/retention-db";
 
 async function settle(formData: FormData) {
   "use server";
@@ -38,6 +39,8 @@ async function dropoutDone(formData: FormData) {
 export default async function AdminToday({ searchParams }: { searchParams: Promise<{ dropout?: string }> }) {
   const sp = await searchParams;
   const me = await requireRole("ADMIN");
+  // Εφεδρεία της αυτόματης εκκαθάρισης (αν δεν έτρεξε σήμερα από το χρονοπρογραμματισμένο): μία φορά την ημέρα.
+  await runRetentionDaily().catch((e) => console.error("[retention]", e));
   const s = await getSettings();
   const now = new Date();
   const today = localParts(now).date;

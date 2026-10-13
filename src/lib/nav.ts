@@ -21,6 +21,7 @@ export function navLinks(role: Role, opts: { hasPlan?: boolean; hasMessages?: bo
       { href: "/admin/oncall", label: "Εφημερίες" },
       { href: "/admin/settings", label: "Ρυθμίσεις" },
       { href: "/admin/audit", label: "Πρόσβαση" },
+      { href: "/admin/retention", label: "Τήρηση δεδομένων" },
       { href: "/t", label: "Τα ραντεβού μου" },
       { href: "/t/messages", label: "Μηνύματα ομάδας" },
       { href: "/account", label: "Λογαριασμός" },

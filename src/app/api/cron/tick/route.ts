@@ -4,6 +4,7 @@ import { checkDropouts } from "@/lib/dropout";
 import { escalatePending, remindCareTasks } from "@/lib/help";
 import { sendQueuedPushes } from "@/lib/notify";
 import { runSchedule } from "@/lib/schedule";
+import { runRetentionDaily } from "@/lib/retention-db";
 
 function authorized(req: Request): boolean {
   const secret = process.env.CRON_SECRET;
@@ -22,5 +23,7 @@ export async function POST(req: Request) {
     await checkDropouts().catch((e) => console.error("[dropout]", e));
     await remindCareTasks();
   }
+  // Χρόνοι τήρησης (έγγραφο 13): αυτόματη εκκαθάριση μία φορά την ημέρα, νωρίς το πρωί (ώρα Ελλάδας ~04:00–05:00).
+  if (new Date().getUTCHours() === 1 && new Date().getUTCMinutes() === 17) await runRetentionDaily().catch((e) => console.error("[retention]", e));
   return NextResponse.json({ resent });
 }

@@ -773,3 +773,31 @@ model Holiday {
   createdById String
   createdAt   DateTime @default(now())
 }
+
+// Αναστολή διαγραφής (Πολιτική διατήρησης, άρθρο 3.2): όταν εκκρεμεί δικαστική διαφορά, καταγγελία ή έλεγχος αρχής,
+// η αυτόματη διαγραφή του μέλους αναστέλλεται με έγγραφη σημείωση. Η άρση καταγράφεται (δεν σβήνεται η εγγραφή).
+model RetentionHold {
+  id         String    @id @default(cuid())
+  memberId   String
+  reason     String // κρυπτογραφημένο
+  byId       String
+  createdAt  DateTime  @default(now())
+  liftedAt   DateTime?
+  liftedById String?
+
+  @@index([memberId, liftedAt])
+}
+
+// Πρωτόκολλο εκκαθάρισης (άρθρο 3.3): κατηγορία, πλήθος, ημερομηνία, εκτελέσας. Χωρίς προσωπικά δεδομένα.
+model PurgeLog {
+  id       String   @id @default(cuid())
+  runId    String
+  category String // clinical | risk | registry | unheld | logs
+  item     String // τι διαγράφηκε (π.χ. «σημειώματα ατομικής»)
+  count    Int
+  byId     String? // null = αυτόματη εκκαθάριση
+  at       DateTime @default(now())
+
+  @@index([at])
+  @@index([runId])
+}

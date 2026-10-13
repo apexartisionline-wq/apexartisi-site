@@ -107,6 +107,10 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
     <main>
       <h1>Ημερολόγιο ανάκαμψης</h1>
       <p className="muted">{formatDate(date)}</p>
+      {/* Υποχρεωτική κεφαλίδα (Πολιτική συλλογής και επεξεργασίας, άρθρο 13.2) — αυτούσιο κείμενο, να μην αλλάξει χωρίς τον DPO. */}
+      <p className="small" style={{ marginTop: 0 }}>
+        Αν βρίσκεσαι σε άμεσο κίνδυνο, κάλεσε τώρα το <a href="tel:112">112</a> ή το <a href="tel:166">166</a>. Το ημερολόγιο δεν παρακολουθείται σε εικοσιτετράωρη βάση.
+      </p>
       {sp.saved === "1" && <div className="notice">Αποθηκεύτηκε ✓</div>}
       {sp.saved === "care" && (
         <div className="card" style={{ borderColor: "var(--red)" }}>
