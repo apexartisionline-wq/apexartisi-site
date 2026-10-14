@@ -676,9 +676,6 @@ details.fold[open] > summary::before { transform: rotate(90deg); }
 .pair-col .panel { margin-top: 12px; }
 @media (max-width: 760px) {
   .hide-sm { display: none; }
-  .savebar { padding: 8px var(--card-pad); gap: 6px 10px; }
-  .savebar-actions { width: 100%; flex-wrap: nowrap; }
-  .savebar-actions > * { flex: 1; min-width: 0; padding-inline: 10px; }
 }
 /* Πυκνή γραμμή ενέργειας μέσα σε κάρτες προσοχής: κείμενο αριστερά, κουμπιά δεξιά. */
 .act.compact { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; align-items: center; }
@@ -741,13 +738,32 @@ details.fold[open] > summary::before { transform: rotate(90deg); }
 .step-head h3 { margin: 0; font-size: 1.25rem; letter-spacing: -0.01em; }
 .step-head .hint { margin: 4px 0 0; }
 @media (max-width: 600px) { .steps button .step-label { font-size: .76rem; } .step-dot { width: 32px; height: 32px; } .steps button + button::before { top: 22px; } }
-/* Μπάρα αποθήκευσης: Πίσω · κατάσταση · Συνέχεια/Αποθήκευση */
+/* Μπάρα αποθήκευσης (συμπαγής, 14/10): Πίσω · κατάσταση · Αποθήκευση τώρα · Συνέχεια — μία γραμμή, ~56px.
+   Μένει στο κάτω μέρος της οθόνης όσο το σημειωματάριο είναι μακρύ, αλλά η φόρμα έχει δικό της χώρο από κάτω
+   (form-foot) και τα πεδία έχουν scroll-margin, ώστε τίποτα να μην κρύβεται ή να κόβεται πίσω της. */
+.savebar { padding: 8px var(--card-pad); gap: 8px 12px; flex-wrap: nowrap; margin-top: 10px; }
+.savebar button { min-height: 40px; padding: 6px 12px; white-space: nowrap; }
 .savebar-left { flex: 0 0 auto; }
-.savebar-mid { flex: 1 1 200px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.savebar-hint { font-size: .8rem; color: var(--muted); }
+.savebar-mid { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; }
+.savebar .save-status { font-size: .85rem; white-space: nowrap; display: inline-flex; align-items: center; min-width: 0; max-width: 100%; }
+.savebar .save-text { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.savebar .only-sm { display: none; }
+@media (max-width: 760px) { .savebar .only-sm { display: inline; } }
+.savebar-actions { flex: 0 0 auto; }
 .btn.quiet { background: transparent; border-color: transparent; color: var(--accent-strong); }
 .btn.quiet:hover { background: var(--teal-quiet); }
-@media (max-width: 760px) { .savebar { gap: 8px; } .savebar-mid { order: -1; flex-basis: 100%; } .savebar-left { flex: 1; } .savebar-actions { flex: 1; justify-content: flex-end; } }
+.form-foot { margin: 14px 0 0; }
+.note-form textarea, .note-form input, .note-form select, .note-form .chips, .note-form fieldset { scroll-margin-bottom: 80px; }
+@media (max-width: 760px) {
+  /* Μία γραμμή και στο κινητό: εικονίδια για «Πίσω»/«Αποθήκευση τώρα», η κατάσταση κόβεται με «…» αν δεν χωρά. */
+  .savebar { flex-wrap: nowrap; gap: 6px; padding: 7px 10px; }
+  .savebar .save-status { font-size: .78rem; }
+  .savebar-actions { width: auto; flex: 0 0 auto; gap: 6px !important; }
+  .savebar-actions > * { flex: 0 0 auto; }
+  .savebar button { min-height: 38px; padding: 6px 10px; font-size: .9rem; }
+  .savebar button.icon-sm { padding: 6px 9px; }
+  .note-form textarea, .note-form input, .note-form select, .note-form .chips, .note-form fieldset { scroll-margin-bottom: 80px; }
+}
 /* Σελίδα ατομικής: σημειωματάριο αριστερά (62), «Πριν συνεχίσεις» δεξιά (38)· στο κινητό το πλαϊνό πρώτα (η ασφάλεια διαβάζεται πρώτη). */
 @media (min-width: 1000px) { .cols-62 { grid-template-columns: minmax(0, 62fr) minmax(0, 38fr); } }
 @media (max-width: 999px) { .cols-62 > .side { order: -1; } }

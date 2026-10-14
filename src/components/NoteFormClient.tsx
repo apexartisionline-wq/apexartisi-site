@@ -283,13 +283,14 @@ export function NoteFormClient({ action, hidden, initial, themeForms, themeDetai
       )}
 
       {problem && <div className="error" role="alert" style={{ marginTop: 10 }}>Δεν αποθηκεύτηκε: {problem} Ό,τι έγραψες είναι εδώ.</div>}
+      <p className="muted small form-foot">Όλα τα βήματα αποθηκεύονται μαζί, με όνομα και ώρα. Κάθε αλλαγή κρατά την προηγούμενη μορφή. Ctrl + Enter = Αποθήκευση.</p>
       <SaveBar
         dirty={touched}
         problem={problem}
         savedAt={savedAt}
         nav={{ back: tab > 0 ? () => setTab((tab - 1) as Tab) : undefined, next: tab < 3 ? () => setTab((tab + 1) as Tab) : undefined, nextLabel: tab < 3 ? (NOTE_TABS[tab + 1] === "Συνέχεια" ? "Συνέχεια" : `Συνέχεια: ${NOTE_TABS[tab + 1]}`) : undefined, last: tab === 3 }}
       />
-      <p className="muted small" style={{ margin: "6px 0 0" }}>Όλα τα βήματα αποθηκεύονται μαζί, με όνομα και ώρα. Κάθε αλλαγή κρατά την προηγούμενη μορφή. Ctrl + Enter = Αποθήκευση.</p>
+
     </form>
   );
 }

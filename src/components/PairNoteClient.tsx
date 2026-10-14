@@ -337,6 +337,7 @@ export function PairNoteClient({ action, slotId, members, initial, themeForms, t
       )}
 
       {problem && <div className="error" role="alert" style={{ marginTop: 10 }}>Δεν αποθηκεύτηκε: {problem} Ό,τι έγραψες είναι εδώ.</div>}
+      <p className="muted small form-foot">Αποθηκεύεται με όνομα και ώρα· κάθε αλλαγή κρατά την προηγούμενη μορφή. Ctrl + Enter = Αποθήκευση.</p>
       <SaveBar
         dirty={touched}
         problem={problem}
@@ -344,7 +345,7 @@ export function PairNoteClient({ action, slotId, members, initial, themeForms, t
         label="Αποθήκευση (δύο σημειώματα)"
         nav={{ back: tab > 0 ? () => setTab((tab - 1) as 0 | 1 | 2 | 3) : undefined, next: tab < 3 ? () => setTab((tab + 1) as 0 | 1 | 2 | 3) : undefined, nextLabel: tab < 3 ? (NOTE_TABS[tab + 1] === "Συνέχεια" ? "Συνέχεια" : `Συνέχεια: ${NOTE_TABS[tab + 1]}`) : undefined, last: tab === 3 }}
       />
-      <p className="muted small" style={{ margin: "6px 0 0" }}>Αποθηκεύεται με όνομα και ώρα· κάθε αλλαγή κρατά την προηγούμενη μορφή.</p>
+
     </form>
   );
 }
