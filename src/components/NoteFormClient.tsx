@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { ThemeDetails, type ThemeDetail } from "@/components/ThemeDetails";
-import { FormTabs } from "@/components/FormTabs";
+import { FormSteps } from "@/components/FormSteps";
 import { SaveBar } from "@/components/SaveBar";
 import { useNoteForm } from "./useNoteForm";
 import { DEFENSES, JOURNALING, MOOD, type NoteForm, noteFormSchema, PRESENTED, PROCESS, SELF_HELP, THEMES } from "@/lib/note-form";
@@ -19,6 +19,13 @@ type Props = {
 };
 
 export const NOTE_TABS = ["Εικόνα σήμερα", "Δουλειά στη συνεδρία", "Συνέχεια", "Ενημέρωση ομάδας"] as const;
+// Μία γραμμή οδηγίας ανά βήμα (όχι κλινικό περιεχόμενο — τι καταγράφεται εδώ).
+export const STEP_HINT = [
+  "Παρουσία, πώς παρουσιάστηκε, νηφαλιότητα, απογραφές.",
+  "Καταγράφεις μόνο όσα χρειάζονται για τη θεραπευτική συνέχεια.",
+  "Τι προτείναμε, τι συμφωνήθηκε, τι έμεινε ανοιχτό, τι χρειάζεται ο επόμενος θεραπευτής.",
+  "Ασφάλεια και προβληματισμός προς την ομάδα· εδώ αποθηκεύεις το σημείωμα.",
+] as const;
 type Tab = 0 | 1 | 2 | 3;
 
 // Ποια καρτέλα «ανήκει» κάθε πεδίο (για να πηγαίνει το μήνυμα λάθους εκεί που χρειάζεται).
@@ -93,7 +100,7 @@ export function NoteFormClient({ action, hidden, initial, themeForms, themeDetai
         goTo = TAB_OF[key as keyof NoteForm] ?? null;
       } else if (!navigator.onLine) msg = "Δεν υπάρχει σύνδεση στο ίντερνετ· πάτα ξανά μόλις επανέλθει.";
     }
-    if (msg && goTo !== null) msg += ` Είναι στην καρτέλα «${NOTE_TABS[goTo]}» — σε πάω εκεί.`;
+    if (msg && goTo !== null) msg += ` Είναι στο βήμα «${NOTE_TABS[goTo]}» — σε πάω εκεί.`;
     if (msg && key) setFocusKey(key);
     // Ήπια υπενθύμιση για κενά· με δεύτερο πάτημα αποθηκεύεται έτσι.
     if (!msg && d.came !== false && !editing) {
@@ -181,7 +188,8 @@ export function NoteFormClient({ action, hidden, initial, themeForms, themeDetai
       <input type="hidden" name="payload" value={JSON.stringify(payload)} />
       {restored && <div className="notice">Βρέθηκε πρόχειρο που δεν είχε αποθηκευτεί — συνέχισε από εκεί.</div>}
 
-      <FormTabs tabs={NOTE_TABS} icons={["doc", "target", "list", "group"]} active={tab} done={done} onChange={(i) => setTab(i as Tab)} label="Ενότητες σημειώματος" idPrefix="note-tab" />
+      <FormSteps steps={NOTE_TABS} active={tab} done={done} onChange={(i) => setTab(i as Tab)} label="Βήματα σημειώματος" idPrefix="note-tab" />
+      <div className="step-head"><h3>{NOTE_TABS[tab]}</h3><p className="hint">{STEP_HINT[tab]}</p></div>
 
       {tab === 0 && (
         <div id="note-tab-0" role="tabpanel">
@@ -210,7 +218,7 @@ export function NoteFormClient({ action, hidden, initial, themeForms, themeDetai
 
       {tab === 1 && (
         <div id="note-tab-1" role="tabpanel">
-          {absent ? <p className="muted">«Δεν ήρθε»: η καρτέλα αυτή δεν συμπληρώνεται.</p> : (
+          {absent ? <p className="muted">«Δεν ήρθε»: το βήμα αυτό δεν συμπληρώνεται.</p> : (
             <>
               <fieldset><legend>Τι έφερε</legend>{multi("brought", [...themeForms, ...THEMES], "Τι έφερε")}<p className="hint" style={{ margin: "6px 0 0" }}>Οι επιλογές είναι θέματα της δουλειάς, όχι διαγνωστικές κατηγορίες.</p><ThemeDetails items={themeDetails} intro="Η θεματική της εβδομάδας, για να τη δεις εδώ:" />{text("broughtText", "Τι έφερε, με λόγια", "Με δικά σου λόγια")}</fieldset>
               <fieldset><legend>Σε τι επικεντρώθηκε η παρέμβαση</legend>{text("intervention", "Σε τι επικεντρώθηκε η παρέμβαση", "π.χ. να μείνει στο συναίσθημά του")}</fieldset>
@@ -274,14 +282,14 @@ export function NoteFormClient({ action, hidden, initial, themeForms, themeDetai
         </div>
       )}
 
-      <div className="tab-nav">
-        {tab > 0 ? <button type="button" className="btn" onClick={() => setTab((tab - 1) as Tab)}>‹ {NOTE_TABS[tab - 1]}</button> : <span />}
-        {tab < 3 && <button type="button" className="btn" onClick={() => setTab((tab + 1) as Tab)}>Συνέχεια: {NOTE_TABS[tab + 1]} ›</button>}
-      </div>
-
       {problem && <div className="error" role="alert" style={{ marginTop: 10 }}>Δεν αποθηκεύτηκε: {problem} Ό,τι έγραψες είναι εδώ.</div>}
-      <SaveBar dirty={touched} problem={problem} savedAt={savedAt} />
-      <p className="muted small" style={{ margin: "6px 0 0" }}>Όλες οι καρτέλες αποθηκεύονται μαζί, με όνομα και ώρα. Κάθε αλλαγή κρατά την προηγούμενη μορφή. Ctrl + Enter = Αποθήκευση.</p>
+      <SaveBar
+        dirty={touched}
+        problem={problem}
+        savedAt={savedAt}
+        nav={{ back: tab > 0 ? () => setTab((tab - 1) as Tab) : undefined, next: tab < 3 ? () => setTab((tab + 1) as Tab) : undefined, nextLabel: tab < 3 ? (NOTE_TABS[tab + 1] === "Συνέχεια" ? "Συνέχεια" : `Συνέχεια: ${NOTE_TABS[tab + 1]}`) : undefined, last: tab === 3 }}
+      />
+      <p className="muted small" style={{ margin: "6px 0 0" }}>Όλα τα βήματα αποθηκεύονται μαζί, με όνομα και ώρα. Κάθε αλλαγή κρατά την προηγούμενη μορφή. Ctrl + Enter = Αποθήκευση.</p>
     </form>
   );
 }

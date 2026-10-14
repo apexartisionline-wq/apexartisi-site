@@ -7,6 +7,8 @@ import { ACCEPTED_HELP, CONNECTED, findOther, nameVariants, type PairSide, pairS
 import { vocative } from "@/lib/vocative";
 import { useNoteForm } from "./useNoteForm";
 import { SaveBar } from "@/components/SaveBar";
+import { FormSteps } from "@/components/FormSteps";
+import { NOTE_TABS, STEP_HINT } from "@/components/NoteFormClient";
 
 type Member = { id: string; name: string };
 type Props = {
@@ -19,6 +21,14 @@ type Props = {
   cameDefault: Record<string, boolean>; // πάτησε «Σύνδεση»;
   version: string; // πότε άλλαξε τελευταία φορά (για να μη σβήσει κάποιος αλλαγή άλλης συσκευής)
   savedAt?: string;
+};
+
+// Σε ποιο από τα 4 βήματα ανήκει κάθε πεδίο (ίδια βήματα με την ατομική, 14/10).
+const STEP_OF: Record<string, 0 | 1 | 2 | 3> = {
+  came: 0, absentText: 0, presented: 0, presentedText: 0, sober: 0, newSoberSince: 0, journaling: 0,
+  connected: 1, acceptedHelp: 1, stance: 1, emerged: 1, emergedText: 1, outcome: 1, positives: 1,
+  suggested: 2,
+  safeOk: 3, safetyText: 3, concern: 3, notify: 3,
 };
 
 // Νηφαλιότητα και ανησυχία χωρίς προεπιλογή (13/10): τα διαλέγει ο θεραπευτής για κάθε μέλος.
@@ -35,6 +45,7 @@ export function PairNoteClient({ action, slotId, members, initial, themeForms, t
     [m2.id]: { ...fresh(Boolean(cameDefault[m2.id] || initial[m2.id])), ...initial[m2.id], notify: false },
   });
   const [touched, setTouched] = useState(false);
+  const [tab, setTab] = useState<0 | 1 | 2 | 3>(0);
   const set = <K extends keyof PairSide>(id: string, k: K, v: PairSide[K]) => {
     setTouched(true);
     setD((x) => ({ ...x, [id]: { ...x[id], [k]: v } }));
@@ -107,7 +118,7 @@ export function PairNoteClient({ action, slotId, members, initial, themeForms, t
       return () => clearTimeout(t);
     }
     setFocusKey("");
-  }, [focusKey]);
+  }, [focusKey, tab]);
   const check = (e: React.FormEvent<HTMLFormElement>) => {
     let msg = "";
     let key = "";
@@ -125,7 +136,11 @@ export function PairNoteClient({ action, slotId, members, initial, themeForms, t
         break;
       }
     }
-    if (msg && key) { msg += " Σε πάω εκεί."; setFocusKey(key); }
+    if (msg && key) {
+      const step = STEP_OF[key.split("-")[0]];
+      if (step !== undefined) { setTab(step); msg += ` Είναι στο βήμα «${NOTE_TABS[step]}» — σε πάω εκεί.`; } else msg += " Σε πάω εκεί.";
+      setFocusKey(key);
+    }
     if (!msg && !navigator.onLine) msg = "Δεν υπάρχει σύνδεση στο ίντερνετ· πάτα ξανά μόλις επανέλθει.";
     if (!msg) {
       const hits = nameHits().join(" · ");
@@ -215,6 +230,14 @@ export function PairNoteClient({ action, slotId, members, initial, themeForms, t
   // Κάθε ερώτηση κλείνει όταν γεμίσει (λιγότερη κύλιση στη μέση της συνεδρίας).
   const filled = (k: keyof PairSide) => members.every((m) => { const v = d[m.id][k]; return Array.isArray(v) ? v.length > 0 : v !== undefined && v !== ""; });
   // Απλή συνάρτηση (όχι component), ώστε τα πεδία να μη χάνουν τον κέρσορα όσο γράφεις.
+  // Ποια βήματα έχουν κάτι γραμμένο και για τα δύο μέλη (✓ στον δείκτη βημάτων).
+  const hasAny = (m: Member, ...ks: (keyof PairSide)[]) => ks.some((k) => { const v = d[m.id][k]; return Array.isArray(v) ? v.length > 0 : v !== undefined && v !== "" && v !== false; });
+  const doneSteps: boolean[] = [
+    members.every((m) => d[m.id].came !== undefined && (d[m.id].came === false ? hasAny(m, "absentText") : hasAny(m, "presented", "presentedText") && d[m.id].sober !== undefined)),
+    members.every((m) => d[m.id].came === false || hasAny(m, "connected", "acceptedHelp", "stance", "emerged", "emergedText", "outcome", "positives")),
+    members.every((m) => d[m.id].came === false || hasAny(m, "suggested")),
+    members.every((m) => d[m.id].safeOk !== undefined),
+  ];
   const sec = (title: string, done: boolean, children: React.ReactNode) => (
     <details className="pair-sec" open key={title}>
       <summary>{title}{done && <span className="muted small"> ✓</span>}</summary>
@@ -230,61 +253,97 @@ export function PairNoteClient({ action, slotId, members, initial, themeForms, t
       {restored && <div className="notice">Βρέθηκε πρόχειρο που δεν είχε αποθηκευτεί — συνέχισε από εκεί.</div>}
       <p className="muted small" style={{ marginTop: 0 }}>
         Κάθε μέλος παίρνει <strong>δικό του σημείωμα</strong> στον φάκελό του. Γράψε <strong>χωρίς όνομα και χωρίς γένος</strong> για τον άλλον (π.χ. «στάθηκε δίπλα στο άλλο μέλος», όχι «δίπλα της»)· αν ξεφύγει όνομα, γράφεται αυτόματα «το άλλο μέλος».
-        <br />✓ δίπλα σε ερώτηση = συμπληρώθηκε και για τους δύο. Πάτα τον τίτλο για να κλείσει. Ctrl + Enter = Αποθήκευση.
+        <br />Τέσσερα βήματα, όπως στην ατομική· ✓ = συμπληρώθηκε και για τους δύο. Ctrl + Enter = Αποθήκευση.
       </p>
 
-      <fieldset>{both((m) => (
-        <>
-          {pick2(m, "Ήρθε;", [["Ήρθε", true], ["Δεν ήρθε", false]], "came")}
-          {d[m.id].came === false && (
+      <FormSteps steps={NOTE_TABS} active={tab} done={doneSteps} onChange={(i) => setTab(i as 0 | 1 | 2 | 3)} label="Βήματα σημειώματος Therapair" idPrefix="pair-tab" />
+      <div className="step-head"><h3>{NOTE_TABS[tab]}</h3><p className="hint">{STEP_HINT[tab]} Για κάθε μέλος η δική του στήλη.</p></div>
+
+      {tab === 0 && (
+        <div id="pair-tab-0" role="tabpanel">
+          <fieldset>{both((m) => (
             <>
-              <div className="muted small" style={{ marginTop: 6 }}>Δεν μετράει ως παρουσία. Γράψε μόνο τι έγινε / τι κάνουμε.</div>
-              {text(m, "absentText", "Τι έγινε / τι κάνουμε", "π.χ. ενημέρωσε ότι δεν μπορεί· θα κλείσει νέα ώρα", 2)}
+              {pick2(m, "Ήρθε;", [["Ήρθε", true], ["Δεν ήρθε", false]], "came")}
+              {d[m.id].came === false && (
+                <>
+                  <div className="muted small" style={{ marginTop: 6 }}>Δεν μετράει ως παρουσία. Γράψε μόνο τι έγινε / τι κάνουμε.</div>
+                  {text(m, "absentText", "Τι έγινε / τι κάνουμε", "π.χ. ενημέρωσε ότι δεν μπορεί· θα κλείσει νέα ώρα", 2)}
+                </>
+              )}
             </>
-          )}
-        </>
-      ))}</fieldset>
-      {sec("Πώς παρουσιάστηκε", filled("presented"), <>{both(clinical((m) => <>{multi(m, "presented", PRESENTED)}{text(m, "presentedText", "Πώς παρουσιάστηκε", "με λόγια", 1)}</>))}</>)}
-      {sec("Συνδέθηκε με το άλλο μέλος", filled("connected"), <>{both(clinical((m) => chips(m, "connected", CONNECTED)))}</>)}
-      {sec("Δέχτηκε βοήθεια", filled("acceptedHelp"), <>{both(clinical((m) => chips(m, "acceptedHelp", ACCEPTED_HELP)))}</>)}
-      {sec("Στάση", filled("stance"), <>{both(clinical((m) => chips(m, "stance", STANCE)))}</>)}
-      {sec("Τι εμφανίστηκε", filled("emergedText"), <><ThemeDetails items={themeDetails} intro="Η θεματική της εβδομάδας, για να τη δεις εδώ:" />{both(clinical((m) => <>{themeForms.length > 0 && multi(m, "emerged", themeForms)}{text(m, "emergedText", "Τι εμφανίστηκε", "με δικά σου λόγια", 3)}</>))}</>)}
-      {sec("Τι βγήκε από την κουβέντα", filled("outcome"), <>{both(clinical((m) => text(m, "outcome", "Τι βγήκε από την κουβέντα", "", 2)))}</>)}
-      {sec("Τα θετικά", filled("positives"), <>{both(clinical((m) => text(m, "positives", "Τα θετικά", "π.χ. στάθηκε δίπλα στο άλλο μέλος", 1)))}</>)}
-      {sec("Γράφει απογραφές;", filled("journaling"), <>{both(clinical((m) => journalChips(m)))}</>)}
-      {sec("Τι προτείναμε", filled("suggested"), <>{both(clinical((m) => text(m, "suggested", "Τι προτείναμε", "φαίνεται στην επόμενη ατομική", 1)))}</>)}
-      <fieldset>
-        <legend>Νηφαλιότητα και ασφάλεια</legend>
-        {both((m) => (
-          <>
-            {d[m.id].came !== false && pick2(m, "Νηφαλιότητα από την προηγούμενη φορά;", [["Ναι", true], ["Όχι", false]], "sober")}
-            {d[m.id].came !== false && d[m.id].sober === false && (
-              <label style={{ marginTop: 6 }}>Νέα ημερομηνία νηφαλιότητας
-                <input type="date" value={d[m.id].newSoberSince ?? ""} onChange={(e) => set(m.id, "newSoberSince", e.target.value as never)} />
-              </label>
-            )}
-            {pick2(m, "Ανησυχία για την ασφάλεια;", [["Όχι", true], ["Ναι", false]], "safeOk")}
-            {d[m.id].safeOk === false && (
-              <div className="must">
-                <label>Τι ανησυχεί και ποιος ενημερώθηκε <span>· υποχρεωτικό</span></label>
-                {text(m, "safetyText", "Τι ανησυχεί και ποιος ενημερώθηκε", "π.χ. σκέψεις χωρίς σχέδιο· ενημέρωσα τη διαχείριση 10:50", 2)}
-              </div>
-            )}
-          </>
-        ))}
-      </fieldset>
-      <fieldset>
-        <legend>Προβληματισμός προς τη θεραπευτική ομάδα</legend>
-        {both((m) => (
-          <>
-            {text(m, "concern", "Προβληματισμός", "Αν γράψεις εδώ, ενημερώνεται η ομάδα", 2)}
-            {sw(m, "notify", "Ενημέρωση ομάδας τώρα")}
-            <div className="small muted">Βάζει μία κίτρινη γραμμή για 24 ώρες στο «Σήμερα» της ομάδας (μόνο του με «Ανησυχία: Ναι» ή προβληματισμό· σε διόρθωση μόνο για κάτι καινούργιο). Δεν στέλνει τίποτα στο μέλος.</div>
-          </>
-        ))}
-      </fieldset>
+          ))}</fieldset>
+          {sec("Πώς παρουσιάστηκε", filled("presented"), <>{both(clinical((m) => <>{multi(m, "presented", PRESENTED)}{text(m, "presentedText", "Πώς παρουσιάστηκε", "με λόγια", 1)}</>))}</>)}
+          <fieldset>
+            <legend>Νηφαλιότητα από την προηγούμενη φορά</legend>
+            {both(clinical((m) => (
+              <>
+                {pick2(m, "Νηφαλιότητα;", [["Ναι", true], ["Όχι", false]], "sober")}
+                {d[m.id].sober === false && (
+                  <label style={{ marginTop: 6 }}>Νέα ημερομηνία νηφαλιότητας
+                    <input type="date" value={d[m.id].newSoberSince ?? ""} onChange={(e) => set(m.id, "newSoberSince", e.target.value as never)} />
+                  </label>
+                )}
+              </>
+            )))}
+          </fieldset>
+          {sec("Γράφει απογραφές;", filled("journaling"), <>{both(clinical((m) => journalChips(m)))}</>)}
+        </div>
+      )}
+
+      {tab === 1 && (
+        <div id="pair-tab-1" role="tabpanel">
+          {sec("Συνδέθηκε με το άλλο μέλος", filled("connected"), <>{both(clinical((m) => chips(m, "connected", CONNECTED)))}</>)}
+          {sec("Δέχτηκε βοήθεια", filled("acceptedHelp"), <>{both(clinical((m) => chips(m, "acceptedHelp", ACCEPTED_HELP)))}</>)}
+          {sec("Στάση", filled("stance"), <>{both(clinical((m) => chips(m, "stance", STANCE)))}</>)}
+          {sec("Τι εμφανίστηκε", filled("emergedText"), <><ThemeDetails items={themeDetails} intro="Η θεματική της εβδομάδας, για να τη δεις εδώ:" />{both(clinical((m) => <>{themeForms.length > 0 && multi(m, "emerged", themeForms)}{text(m, "emergedText", "Τι εμφανίστηκε", "με δικά σου λόγια", 3)}</>))}</>)}
+          {sec("Τι βγήκε από την κουβέντα", filled("outcome"), <>{both(clinical((m) => text(m, "outcome", "Τι βγήκε από την κουβέντα", "", 2)))}</>)}
+          {sec("Τα θετικά", filled("positives"), <>{both(clinical((m) => text(m, "positives", "Τα θετικά", "π.χ. στάθηκε δίπλα στο άλλο μέλος", 1)))}</>)}
+        </div>
+      )}
+
+      {tab === 2 && (
+        <div id="pair-tab-2" role="tabpanel">
+          {sec("Τι προτείναμε", filled("suggested"), <>{both(clinical((m) => text(m, "suggested", "Τι προτείναμε", "φαίνεται στην επόμενη ατομική", 1)))}</>)}
+        </div>
+      )}
+
+      {tab === 3 && (
+        <div id="pair-tab-3" role="tabpanel">
+          <fieldset>
+            <legend>Ανησυχία για την ασφάλεια</legend>
+            {both((m) => (
+              <>
+                {pick2(m, "Υπάρχει ανησυχία;", [["Όχι", true], ["Ναι", false]], "safeOk")}
+                {d[m.id].safeOk === false && (
+                  <div className="must">
+                    <label>Τι ανησυχεί και ποιος ενημερώθηκε <span>· υποχρεωτικό</span></label>
+                    {text(m, "safetyText", "Τι ανησυχεί και ποιος ενημερώθηκε", "π.χ. σκέψεις χωρίς σχέδιο· ενημέρωσα τη διαχείριση 10:50", 2)}
+                  </div>
+                )}
+              </>
+            ))}
+          </fieldset>
+          <fieldset>
+            <legend>Προβληματισμός προς τη θεραπευτική ομάδα</legend>
+            {both((m) => (
+              <>
+                {text(m, "concern", "Προβληματισμός", "Αν γράψεις εδώ, ενημερώνεται η ομάδα", 2)}
+                {sw(m, "notify", "Ενημέρωση ομάδας τώρα")}
+                <div className="small muted">Βάζει μία κίτρινη γραμμή για 24 ώρες στο «Σήμερα» της ομάδας (μόνο του με «Ανησυχία: Ναι» ή προβληματισμό· σε διόρθωση μόνο για κάτι καινούργιο). Δεν στέλνει τίποτα στο μέλος.</div>
+              </>
+            ))}
+          </fieldset>
+        </div>
+      )}
+
       {problem && <div className="error" role="alert" style={{ marginTop: 10 }}>Δεν αποθηκεύτηκε: {problem} Ό,τι έγραψες είναι εδώ.</div>}
-      <SaveBar dirty={touched} problem={problem} savedAt={savedAt} label="Αποθήκευση (δύο σημειώματα)" />
+      <SaveBar
+        dirty={touched}
+        problem={problem}
+        savedAt={savedAt}
+        label="Αποθήκευση (δύο σημειώματα)"
+        nav={{ back: tab > 0 ? () => setTab((tab - 1) as 0 | 1 | 2 | 3) : undefined, next: tab < 3 ? () => setTab((tab + 1) as 0 | 1 | 2 | 3) : undefined, nextLabel: tab < 3 ? (NOTE_TABS[tab + 1] === "Συνέχεια" ? "Συνέχεια" : `Συνέχεια: ${NOTE_TABS[tab + 1]}`) : undefined, last: tab === 3 }}
+      />
       <p className="muted small" style={{ margin: "6px 0 0" }}>Αποθηκεύεται με όνομα και ώρα· κάθε αλλαγή κρατά την προηγούμενη μορφή.</p>
     </form>
   );

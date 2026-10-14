@@ -17,6 +17,16 @@ const n = (v: number | null) => (v === null ? "—" : String(v).replace(".", ","
  * δεν φαινόταν εικόνα και για τα δύο μέλη): ίδιοι αριθμοί παντού — νηφαλιότητα, απογραφές 7 ημερών (λαχτάρα, ύπνος,
  * διάθεση), ατομικές/ομάδες του μήνα, συνέπεια 4 εβδομάδων, ανάγκες ασφάλειας. Φαίνεται ΠΑΝΤΑ, και χωρίς προηγούμενο σημείωμα.
  */
+/** Η οδηγία «την αξιολόγηση την κάνει ψυχολόγος — πού θα γίνει»: πάντα ορατή, δίπλα στην ασφάλεια. */
+export function RoutePsy({ intake, viewer, nextClinical }: { intake: Intake; viewer: { id: string; role: string; therapistKind: string | null }; nextClinical?: NextClinical }) {
+  if (!intake.trigger || isPsychologist(viewer)) return null;
+  return (
+    <p className="hint route-psy" data-tour="route-psy">
+      Την αξιολόγηση την κάνει ψυχολόγος — όχι σε αυτή την ατομική. {nextClinical ? <>Επόμενη ατομική με ψυχολόγο: <Link href={`/t/s/${nextClinical.slotId}`}>{formatDate(nextClinical.date)} {formatTime(nextClinical.startsAt)}{nextClinical.therapist && ` · ${nextClinical.therapist}`}</Link>.</> : <>Δεν έχει προγραμματιστεί ατομική με ψυχολόγο — το βλέπει η διαχείριση στο «Σήμερα» της.</>} Ό,τι δεις σήμερα, γράψ' το στην «Ενημέρωση ομάδας».
+    </p>
+  );
+}
+
 export function MemberGlance({ g, intake, groupsPerCycle, viewer, nextClinical, compact }: {
   g: Glance;
   intake: Intake;
@@ -51,7 +61,7 @@ export function MemberGlance({ g, intake, groupsPerCycle, viewer, nextClinical, 
         Ανάγκες ασφάλειας: <strong>{intake.trigger ? intake.label : risk ? RISK_LEVELS[risk as keyof typeof RISK_LEVELS] : "δεν έχει χρειαστεί"}</strong>{!intake.trigger && risk && ` · ${RISK_INFO[risk as keyof typeof RISK_INFO].action}`}
         {g.help14 > 0 && <> · κόκκινο κουμπί {g.help14} {g.help14 === 1 ? "φορά" : "φορές"} σε 14 ημέρες</>}
       </p>
-      {Boolean(intake.trigger) && !isPsychologist(viewer) && (
+      {!compact && Boolean(intake.trigger) && !isPsychologist(viewer) && (
         <p className="hint" style={{ margin: "4px 0 0" }} data-tour="route-psy">
           Την αξιολόγηση την κάνει ψυχολόγος — όχι σε αυτή την ατομική. {nextClinical ? <>Επόμενη ατομική με ψυχολόγο: <Link href={`/t/s/${nextClinical.slotId}`}>{formatDate(nextClinical.date)} {formatTime(nextClinical.startsAt)}{nextClinical.therapist && ` · ${nextClinical.therapist}`}</Link>.</> : <>Δεν έχει προγραμματιστεί ατομική με ψυχολόγο — το βλέπει η διαχείριση στο «Σήμερα» της.</>} Ό,τι δεις σήμερα, γράψ' το στην «Ενημέρωση ομάδας».
         </p>

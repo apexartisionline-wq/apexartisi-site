@@ -9,7 +9,7 @@ import { GoalWeekCard } from "@/components/GoalWeek";
 import { Icon } from "@/components/Icon";
 import { goalWeek } from "@/lib/goals";
 import { JoinButton } from "@/components/JoinButton";
-import { MemberGlance } from "@/components/MemberGlance";
+import { MemberGlance, RoutePsy } from "@/components/MemberGlance";
 import { ClearDraft } from "@/components/ClearDraft";
 import { NoteFormClient } from "@/components/NoteFormClient";
 import { PairNoteClient } from "@/components/PairNoteClient";
@@ -422,108 +422,12 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
         <Pill tone={pl.tone === "accent" ? "" : pl.tone}>{pl.word}</Pill> <span title={pl.source}>{pl.source}</span>{presence === "absent_confirmed" && b.joinedAt && <> · το πάτημα «Μπες» του μέλους ({hm(b.joinedAt)}) διατηρείται στο ιστορικό</>}
       </p>
 
-      <div className="cols cols-38">
-        <div className="stackv side">
-          <div data-tour="safety"><SafetyZone memberId={b.memberId} viewer={viewer} staff={staff} back={`/t/s/${x.id}`} /></div>
-
-          <Panel title="Με μια ματιά" tour="glance">
-            {x.date < today && <p className="hint" style={{ margin: "-6px 0 8px" }}>όπως είναι σήμερα, όχι τότε</p>}
-            <div className="stats">
-              <div className="stat"><b>{g.soberDays ?? "—"}</b><span>μέρες νηφαλιότητας{g.soberSince ? ` · από ${formatDate(g.soberSince)}` : ""}</span></div>
-              <div className="stat"><b>{g.journal.written}/7</b><span>απογραφές · 7 ημέρες</span></div>
-              {g.cycle ? (
-                <>
-                  <PresenceStat what={`ομάδες του μήνα (από ${s.groupsPerCycle})`} counted={g.cycle.groups} passed={g.cycle.groupsPassed} noRecord={g.cycle.groupsNoRecord} />
-                  <PresenceStat what={`ατομικές του μήνα (από ${g.cycle.length})`} counted={g.cycle.attended} passed={g.cycle.done} noRecord={g.cycle.presence.noRecord} />
-                </>
-              ) : (
-                <div className="stat"><b>—</b><span>δεν έχει ξεκινήσει κύκλος</span></div>
-              )}
-            </div>
-            <p className="hint" style={{ margin: "10px 0 0" }}>{PRESENCE_HINT}</p>
-            {g.cycle && <p className="hint" style={{ margin: "4px 0 0" }}>{g.cycle.periodLabel} · {g.cycle.booked} από {g.cycle.length} ατομικές προγραμματισμένες{describeSources(g.cycle.presence) && ` · πηγή: ${describeSources(g.cycle.presence)}`}{g.cycle.presence.confirmedAbsent > 0 && ` · ${g.cycle.presence.confirmedAbsent} «Δεν ήρθε» (επιβεβαίωση)`}</p>}
-            <p className="hint" style={{ margin: "6px 0 0" }}>
-              Ανάγκες ασφάλειας: <strong>{intake.trigger ? intake.label : risk ? RISK_LEVELS[risk] : "δεν έχει χρειαστεί"}</strong>{!intake.trigger && risk && ` · ${RISK_INFO[risk].action}`}
-              {g.help14 > 0 && <> · κόκκινο κουμπί {g.help14} {g.help14 === 1 ? "φορά" : "φορές"} σε 14 ημέρες</>}
-            </p>
-            {intake.trigger && !isPsychologist(viewer) && (
-              <p className="hint" style={{ margin: "4px 0 0" }} data-tour="route-psy">
-                Την αξιολόγηση την κάνει ψυχολόγος — όχι σε αυτή την ατομική. {nextClinical ? <>Επόμενη ατομική με ψυχολόγο: <Link href={`/t/s/${nextClinical.slotId}`}>{formatDate(nextClinical.date)} {formatTime(nextClinical.startsAt)}{nextClinical.therapist && ` · ${nextClinical.therapist}`}</Link>.</> : <>Δεν έχει προγραμματιστεί ατομική με ψυχολόγο — το βλέπει η διαχείριση στο «Σήμερα» της.</>} Ό,τι δεις σήμερα, γράψ' το στην «Ενημέρωση ομάδας».
-              </p>
-            )}
-          </Panel>
-
-          <Panel title="Ανοιχτό από την προηγούμενη φορά" id="open" tour="open">
-            {g.prev ? (
-              <>
-                {prevSafety && (
-                  <div className="attn yellow wm" style={{ marginBottom: 8 }} data-tour="prev-safety">
-                    <span className="iconbox yellow"><Icon name="alert" size={18} /></span>
-                    <div className="attn-body small">
-                      {g.prev.safety.safeOk === false && <div><strong>Ανησυχία για την ασφάλεια στο προηγούμενο σημείωμα:</strong> {g.prev.safety.safetyText || "βλ. προβληματισμό"}</div>}
-                      {g.prev.usedSince === "YES" && <div><strong>Χρήση από την προηγούμενη επαφή:</strong> ναι (κατά το προηγούμενο σημείωμα)</div>}
-                      {g.prev.safety.concern && <div><strong>Προβληματισμός προς την ομάδα:</strong> {g.prev.safety.concern}</div>}
-                    </div>
-                  </div>
-                )}
-                {hasHandover ? (
-                  <div className="stack wm">
-                    {h!.agreed && <div><span className="muted small">Συμφωνήθηκε ως επόμενο βήμα</span><div>{h!.agreed}</div></div>}
-                    {h!.openIssues && <div><span className="muted small">Έμεινε ανοιχτό</span><div>{h!.openIssues}</div></div>}
-                    {h!.handover && <div><span className="muted small">Για τον επόμενο θεραπευτή</span><div>{h!.handover}</div></div>}
-                    {h!.suggested && <div><span className="muted small">Τι προτείναμε</span><div>{h!.suggested}</div></div>}
-                  </div>
-                ) : (
-                  <div>{g.prev.next ? <><span className="muted small">Τι προτείναμε</span><div>{g.prev.next}</div></> : <span className="muted">Δεν άφησε κάτι για την επόμενη ατομική.</span>}</div>
-                )}
-                <NoteSummary author={`${nameWithKind(g.prev.by, g.prev.byKind)}${g.prev.pair ? " · Therapair" : ""}`} at={g.prev.date} text={g.prev.text} href={`/t/s/${g.prev.slotId}`} label="Δες το σημείωμα" />
-              </>
-            ) : <EmptyState>Πρώτη ατομική: δεν υπάρχει προηγούμενο σημείωμα.</EmptyState>}
-          </Panel>
-
-          {g.prev && (
-            <Panel title="Από την προηγούμενη ατομική" tour="since">
-              <div className="kv"><span>Λαχτάρα</span><strong>{g.journal.written > 0 ? `${n(g.journal.craving)} / 10` : "—"}</strong></div>
-              <div className="kv"><span>Ύπνος</span><strong>{g.journal.written > 0 ? `${n(g.journal.sleep)} ώρες` : "—"}</strong></div>
-              <div className="kv"><span>Απογραφές</span><strong>{g.journal.written} από 7 ημέρες</strong></div>
-              <details className="fold" style={{ marginTop: 8 }}>
-                <summary>Αναλυτική εικόνα (ομάδες, απογραφές, κόκκινο κουμπί)</summary>
-                <div style={{ marginTop: 8 }}>
-                  <SinceLast journalDetail={seesJournalDetail(viewer)} memberId={b.memberId} prev={g.prev} until={x.date < today ? x.date : today} untilAt={x.startsAt < now ? x.startsAt : now} compact />
-                </div>
-              </details>
-            </Panel>
-          )}
-
-          <Panel title="Στόχος και εργασία" tour="goal">
-            <GoalWeekCard detail={seesJournalDetail(viewer)} memberId={b.memberId} date={today} />
-            {g.assignment ? (
-              <Link className="linkrow" href={`/t/members/${b.member.id}/assignments`}>
-                <span className="iconbox"><Icon name="doc" /></span>
-                <span className="grow"><div>{g.assignment.title}</div><div className="hint">{g.assignment.answered ? "Έχει απαντήσει" : g.assignment.length ? "Σε εξέλιξη" : "Δεν ξεκίνησε"}</div></span>
-                <span className="arrow"><Icon name="chevron" /></span>
-              </Link>
-            ) : <p className="hint" style={{ margin: "8px 0 0" }}>Δεν έχει σταλεί εργασία.</p>}
-          </Panel>
-
-          <Panel>
-            <ThemeWeek forms={g.theme.forms} dailyText={g.theme.dailyText} compact />
-          </Panel>
-
-          {ax?.data.summary && (
-            <details className="panel fold">
-              <summary>Σύνοψη από την αρχική αξιολόγηση <span className="muted small">· {ax.author}</span></summary>
-              <div className="body-text wm" style={{ marginTop: 8 }}>{ax.data.summary}</div>
-              {isPsychologist(viewer) && <Link className="small" href={`/t/members/${b.memberId}/assessment`}>Όλη η αξιολόγηση ›</Link>}
-            </details>
-          )}
-        </div>
-
+      <div className="cols cols-62">
         <section className="panel">
           <div className="panel-head">
             <div>
               <h2 data-tour="notebook" style={{ margin: 0 }}>Σημειωματάριο</h2>
-              <div className="hint">Καταγραφή ατομικής</div>
+              <div className="hint">Τέσσερα βήματα · όλα αποθηκεύονται μαζί</div>
             </div>
             {writable && x.note && !showForm && initial && <Link className="btn primary" data-tour="edit-note" href={`/t/s/${x.id}?edit=1`}>Άλλαξε το σημείωμα</Link>}
           </div>
@@ -564,6 +468,88 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
             </details>
           )}
         </section>
+              <aside className="stackv side" aria-label="Πριν συνεχίσεις">
+          <div className="side-head"><h2>Πριν συνεχίσεις</h2><p className="hint">Άνοιξε μόνο ό,τι χρειάζεσαι. Η ασφάλεια είναι πάντα ανοιχτή.</p></div>
+          <div data-tour="safety"><SafetyZone memberId={b.memberId} viewer={viewer} staff={staff} back={`/t/s/${x.id}`} /><RoutePsy intake={intake} viewer={viewer} nextClinical={nextClinical} /></div>
+
+          <details className="side-fold" data-tour="open" id="open" open={Boolean(g.prev && (prevSafety || hasHandover))}>
+            <summary><span className="iconbox"><Icon name="doc" size={16} /></span>Ανοιχτό από την προηγούμενη φορά</summary>
+            <div className="side-body">
+              {g.prev ? (
+                <>
+                  {prevSafety && (
+                    <div className="attn yellow wm" style={{ marginBottom: 8 }} data-tour="prev-safety">
+                      <span className="iconbox yellow"><Icon name="alert" size={18} /></span>
+                      <div className="attn-body small">
+                        {g.prev.safety.safeOk === false && <div><strong>Ανησυχία για την ασφάλεια στο προηγούμενο σημείωμα:</strong> {g.prev.safety.safetyText || "βλ. προβληματισμό"}</div>}
+                        {g.prev.usedSince === "YES" && <div><strong>Χρήση από την προηγούμενη επαφή:</strong> ναι (κατά το προηγούμενο σημείωμα)</div>}
+                        {g.prev.safety.concern && <div><strong>Προβληματισμός προς την ομάδα:</strong> {g.prev.safety.concern}</div>}
+                      </div>
+                    </div>
+                  )}
+                  {hasHandover ? (
+                    <div className="stack wm">
+                      {h!.agreed && <div><span className="muted small">Συμφωνήθηκε ως επόμενο βήμα</span><div>{h!.agreed}</div></div>}
+                      {h!.openIssues && <div><span className="muted small">Έμεινε ανοιχτό</span><div>{h!.openIssues}</div></div>}
+                      {h!.handover && <div><span className="muted small">Για τον επόμενο θεραπευτή</span><div>{h!.handover}</div></div>}
+                      {h!.suggested && <div><span className="muted small">Τι προτείναμε</span><div>{h!.suggested}</div></div>}
+                    </div>
+                  ) : (
+                    <div className="wm">{g.prev.next ? <><span className="muted small">Τι προτείναμε</span><div>{g.prev.next}</div></> : <span className="muted">Δεν άφησε κάτι για την επόμενη ατομική.</span>}</div>
+                  )}
+                  <NoteSummary author={`${nameWithKind(g.prev.by, g.prev.byKind)}${g.prev.pair ? " · Therapair" : ""}`} at={g.prev.date} text={g.prev.text} href={`/t/s/${x.id}/prep#note`} label="Ολόκληρο, στην προετοιμασία" />
+                </>
+              ) : <EmptyState>Πρώτη ατομική: δεν υπάρχει προηγούμενο σημείωμα.</EmptyState>}
+            </div>
+          </details>
+
+          <details className="side-fold" data-tour="goal">
+            <summary><span className="iconbox"><Icon name="target" size={16} /></span>Στόχος εβδομάδας και εργασία</summary>
+            <div className="side-body">
+              <GoalWeekCard detail={seesJournalDetail(viewer)} memberId={b.memberId} date={today} />
+              {g.assignment ? (
+                <Link className="linkrow" href={`/t/members/${b.member.id}/assignments`}>
+                  <span className="iconbox"><Icon name="doc" /></span>
+                  <span className="grow"><div>{g.assignment.title}</div><div className="hint">{g.assignment.answered ? "Έχει απαντήσει" : g.assignment.length ? "Σε εξέλιξη" : "Δεν ξεκίνησε"}</div></span>
+                  <span className="arrow"><Icon name="chevron" /></span>
+                </Link>
+              ) : <p className="hint" style={{ margin: "8px 0 0" }}>Δεν έχει σταλεί εργασία.</p>}
+            </div>
+          </details>
+
+          <details className="side-fold" data-tour="glance">
+            <summary><span className="iconbox"><Icon name="list" size={16} /></span>Με μια ματιά</summary>
+            <div className="side-body">
+              {x.date < today && <p className="hint" style={{ margin: "0 0 8px" }}>όπως είναι σήμερα, όχι τότε</p>}
+              <MemberGlance g={g} intake={intake} groupsPerCycle={s.groupsPerCycle} viewer={viewer} nextClinical={nextClinical} compact />
+            </div>
+          </details>
+
+          {g.prev && (
+            <details className="side-fold" data-tour="since">
+              <summary><span className="iconbox"><Icon name="clock" size={16} /></span>Από την προηγούμενη ατομική ως σήμερα</summary>
+              <div className="side-body">
+                <SinceLast journalDetail={seesJournalDetail(viewer)} memberId={b.memberId} prev={g.prev} until={x.date < today ? x.date : today} untilAt={x.startsAt < now ? x.startsAt : now} compact />
+              </div>
+            </details>
+          )}
+
+          <details className="side-fold">
+            <summary><span className="iconbox"><Icon name="folder" size={16} /></span>Θεματική της εβδομάδας</summary>
+            <div className="side-body"><ThemeWeek forms={g.theme.forms} dailyText={g.theme.dailyText} compact /></div>
+          </details>
+
+          {ax?.data.summary && (
+            <details className="side-fold">
+              <summary><span className="iconbox"><Icon name="user" size={16} /></span>Σύνοψη από την αρχική αξιολόγηση</summary>
+              <div className="side-body">
+                <p className="muted small" style={{ margin: "0 0 6px" }}>{ax.author}</p>
+                <div className="body-text wm">{ax.data.summary}</div>
+                {isPsychologist(viewer) && <Link className="small" href={`/t/members/${b.memberId}/assessment`}>Όλη η αξιολόγηση ›</Link>}
+              </div>
+            </details>
+          )}
+        </aside>
       </div>
       <TourFor id="session" userId={user.id} />
     </main>
@@ -573,6 +559,7 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
 // Therapair: το ζευγάρι, η ασφάλεια και το «ανοιχτό» του καθενός, και το σημειωματάριο με τα δύο ονόματα.
 async function PairSession({ x, user, sp }: { x: Slot; user: { id: string; role: string }; sp: { saved?: string; error?: string; edit?: string } }) {
   const now = new Date();
+  const viewer = { id: user.id, role: user.role, therapistKind: (user as { therapistKind?: string | null }).therapistKind ?? null };
   const s = await getSettings();
   const room = roomUrl(s.rooms[x.position - 1]);
   const today = localParts(now).date;
@@ -587,7 +574,7 @@ async function PairSession({ x, user, sp }: { x: Slot; user: { id: string; role:
       // Εικόνα και για τα δύο μέλη (14/10): ίδιοι αριθμοί με την ατομική, ανά μέλος.
       g: await sessionGlance(m.id, x),
       intake: await currentRisk(m.id),
-    }))),
+    }))).then((rows) => Promise.all(rows.map(async (r) => ({ ...r, nextClinical: r.intake.trigger && !isPsychologist(viewer) ? await nextClinicalSession(r.m.id, now) : null })))),
   ]);
   const writable = canWrite(x, user) && now.getTime() >= x.startsAt.getTime() - 15 * 60_000;
   const initial: Record<string, Partial<PairSide>> = {};
@@ -595,7 +582,6 @@ async function PairSession({ x, user, sp }: { x: Slot; user: { id: string; role:
   const showForm = writable && (x.pairNotes.length === 0 || sp.edit === "1");
   const first = (n: string) => n.split(" ")[0];
 
-  const viewer = { id: user.id, role: user.role, therapistKind: (user as { therapistKind?: string | null }).therapistKind ?? null };
   return (
     <main className="wide">
       <PageHead
@@ -619,16 +605,18 @@ async function PairSession({ x, user, sp }: { x: Slot; user: { id: string; role:
       <ThemeWeek forms={theme.forms} dailyText={theme.dailyText} compact />
 
       <div className="pair-grid" style={{ marginTop: 12 }} data-tour="pair-members">
-        {perMember.map(({ m, prev, g, intake }) => (
+        {perMember.map(({ m, prev, g, intake, nextClinical }) => (
           <section key={m.id} className="pair-col">
             <h2 style={{ marginTop: 0 }}>{m.name} <Link className="small" href={`/t/members/${m.id}`}>φάκελος ›</Link></h2>
             <SafetyZone memberId={m.id} viewer={viewer} back={`/t/s/${x.id}`} />
-            <div className="panel small" data-tour="pair-glance">
-              <strong>Με μια ματιά</strong>
-              <div style={{ marginTop: 6 }}><MemberGlance g={g} intake={intake} groupsPerCycle={s.groupsPerCycle} viewer={viewer} compact /></div>
-            </div>
-            <div className="panel small">
-              <strong>Ανοιχτό από την προηγούμενη φορά</strong>
+            <RoutePsy intake={intake} viewer={viewer} nextClinical={nextClinical} />
+            <details className="side-fold" data-tour="pair-glance">
+              <summary><span className="iconbox"><Icon name="list" size={16} /></span>Με μια ματιά</summary>
+              <div className="side-body"><MemberGlance g={g} intake={intake} groupsPerCycle={s.groupsPerCycle} viewer={viewer} compact /></div>
+            </details>
+            <details className="side-fold" open={Boolean(prev && (prev.safety.safeOk === false || prev.safety.concern || prev.usedSince === "YES"))}>
+              <summary><span className="iconbox"><Icon name="doc" size={16} /></span>Ανοιχτό από την προηγούμενη φορά</summary>
+              <div className="side-body">
               <div style={{ marginTop: 4 }}>{prev ? (prev.next || <span className="muted">Δεν άφησε κάτι για την επόμενη ατομική.</span>) : <span className="muted">Πρώτη ατομική: δεν υπάρχει προηγούμενο σημείωμα.</span>}</div>
               {prev && (prev.safety.safeOk === false || prev.safety.concern || prev.usedSince === "YES") && (
                 <div className="warn-text wm" style={{ marginTop: 6 }}>
@@ -638,19 +626,26 @@ async function PairSession({ x, user, sp }: { x: Slot; user: { id: string; role:
                 </div>
               )}
               {prev && <div className="muted" style={{ marginTop: 4 }}>{nameWithKind(prev.therapist, prev.therapistKind)} · {formatDate(prev.date)} · <Link href={`/t/members/${m.id}/notes`}>όλα τα σημειώματα</Link></div>}
-            </div>
-            {prev && (
-              <div className="small">
-                <strong>Από την προηγούμενη ατομική ως σήμερα</strong>
-                <SinceLast journalDetail={seesJournalDetail(viewer)} memberId={m.id} prev={{ date: prev.date, by: prev.therapist, text: prev.text, slotId: prev.slotId, pair: prev.pair }} until={x.date < today ? x.date : today} untilAt={x.startsAt < now ? x.startsAt : now} />
               </div>
+            </details>
+            {prev && (
+              <details className="side-fold">
+                <summary><span className="iconbox"><Icon name="clock" size={16} /></span>Από την προηγούμενη ατομική ως σήμερα</summary>
+                <div className="side-body small">
+                  <SinceLast journalDetail={seesJournalDetail(viewer)} memberId={m.id} prev={{ date: prev.date, by: prev.therapist, text: prev.text, slotId: prev.slotId, pair: prev.pair }} until={x.date < today ? x.date : today} untilAt={x.startsAt < now ? x.startsAt : now} compact />
+                </div>
+              </details>
             )}
-            <GoalWeekCard detail={seesJournalDetail(viewer)} memberId={m.id} date={today} />
+            <details className="side-fold">
+              <summary><span className="iconbox"><Icon name="target" size={16} /></span>Στόχος εβδομάδας</summary>
+              <div className="side-body"><GoalWeekCard detail={seesJournalDetail(viewer)} memberId={m.id} date={today} /></div>
+            </details>
           </section>
         ))}
       </div>
 
-      <h2 data-tour="notebook" style={{ marginTop: 24 }}>Σημειωματάριο Therapair</h2>
+      <section className="panel" style={{ marginTop: 24 }}>
+      <div className="panel-head"><div><h2 data-tour="notebook" style={{ margin: 0 }}>Σημειωματάριο Therapair</h2><div className="hint">Τέσσερα βήματα · μία αποθήκευση, δύο σημειώματα</div></div></div>
       {sp.saved && <div className="notice">Αποθηκεύτηκε ✓ — ένα σημείωμα στον φάκελο του καθενός.</div>}
       {sp.saved && <ClearDraft k={`pair-draft:${x.id}`} />}
       {sp.error && <ErrorNote>Δεν αποθηκεύτηκε: {sp.error}</ErrorNote>}
@@ -700,6 +695,7 @@ async function PairSession({ x, user, sp }: { x: Slot; user: { id: string; role:
           )))}
         </details>
       )}
+      </section>
       <TourFor id="pair" userId={user.id} />
     </main>
   );
