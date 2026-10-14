@@ -62,19 +62,39 @@ export function NoteFormClient({ action, hidden, initial, themeForms, themeDetai
   const formRef = useNoteForm();
   const [warnedEmpty, setWarnedEmpty] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  // Όταν λείπει απάντηση: ανοίγει η σωστή καρτέλα ΚΑΙ η σελίδα πάει στην ερώτηση, που τονίζεται για λίγο
+  // (14/10: η υπεύθυνη έβλεπε «Δεν αποθηκεύτηκε» χωρίς να τη «πάει» πουθενά — η ερώτηση ήταν πάνω, εκτός οθόνης).
+  const [focusKey, setFocusKey] = useState("");
+  useEffect(() => {
+    if (!focusKey) return;
+    const el = document.querySelector<HTMLElement>(`[data-q="${focusKey}"]`) ?? document.getElementById(focusKey);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.classList.add("q-missing");
+      el.querySelector<HTMLElement>("button, input, textarea, select")?.focus({ preventScroll: true });
+      const t = setTimeout(() => el.classList.remove("q-missing"), 5000);
+      setFocusKey("");
+      return () => clearTimeout(t);
+    }
+    setFocusKey("");
+  }, [focusKey, tab]);
   const check = (e: React.FormEvent<HTMLFormElement>) => {
     let msg = "";
     let goTo: Tab | null = null;
-    if (d.came === undefined) { msg = "Διάλεξε «Ήρθε» ή «Δεν ήρθε»."; goTo = 0; }
-    else if (d.came && d.sober === undefined) { msg = "Απάντησε αν έμεινε νηφάλιο από την προηγούμενη φορά."; goTo = 0; }
-    else if (d.safeOk === undefined) { msg = "Απάντησε αν υπάρχει ανησυχία για την ασφάλεια."; goTo = 3; }
+    let key = "";
+    if (d.came === undefined) { msg = "Διάλεξε «Ήρθε» ή «Δεν ήρθε»."; goTo = 0; key = "came"; }
+    else if (d.came && d.sober === undefined) { msg = "Απάντησε αν έμεινε νηφάλιο από την προηγούμενη φορά."; goTo = 0; key = "sober"; }
+    else if (d.safeOk === undefined) { msg = "Απάντησε αν υπάρχει ανησυχία για την ασφάλεια."; goTo = 3; key = "safeOk"; }
     else {
       const r = noteFormSchema.safeParse(payload);
       if (!r.success) {
         msg = r.error.issues[0]?.message ?? "Κάτι λείπει.";
-        goTo = TAB_OF[r.error.issues[0]?.path[0] as keyof NoteForm] ?? null;
+        key = String(r.error.issues[0]?.path[0] ?? "");
+        goTo = TAB_OF[key as keyof NoteForm] ?? null;
       } else if (!navigator.onLine) msg = "Δεν υπάρχει σύνδεση στο ίντερνετ· πάτα ξανά μόλις επανέλθει.";
     }
+    if (msg && goTo !== null) msg += ` Είναι στην καρτέλα «${NOTE_TABS[goTo]}» — σε πάω εκεί.`;
+    if (msg && key) setFocusKey(key);
     // Ήπια υπενθύμιση για κενά· με δεύτερο πάτημα αποθηκεύεται έτσι.
     if (!msg && d.came !== false && !editing) {
       const empty = ([["positives", "Τα θετικά"], ["suggested", "Τι προτείναμε"]] as const).filter(([k]) => !String(d[k] ?? "").trim()).map(([, l]) => `«${l}»`).join(", ");
@@ -136,8 +156,8 @@ export function NoteFormClient({ action, hidden, initial, themeForms, themeDetai
     <textarea aria-label={label} placeholder={ph} rows={rows} style={{ minHeight: rows * 24 + 20, marginTop: 8 }} value={(d[k] as string | undefined) ?? ""} onChange={(e) => set(k, e.target.value as never)} />
   );
   // Δύο κουμπιά με λέξεις (χωρίς διακόπτη, χωρίς προεπιλογή): «Ήρθε», νηφαλιότητα, ανησυχία.
-  const pick2 = (label: string, opts: [string, boolean][], value: boolean | undefined, onPick: (v: boolean) => void) => (
-    <div>
+  const pick2 = (label: string, opts: [string, boolean][], value: boolean | undefined, onPick: (v: boolean) => void, key?: string) => (
+    <div data-q={key}>
       <div className="q-label">{label}{value === undefined && <span className="muted small"> · δεν απαντήθηκε</span>}</div>
       <span className="chips" role="group" aria-label={label}>
         {opts.map(([l, v]) => <button key={l} type="button" className="chip" aria-pressed={value === v} onClick={() => onPick(v)}>{l}</button>)}
@@ -165,7 +185,7 @@ export function NoteFormClient({ action, hidden, initial, themeForms, themeDetai
 
       {tab === 0 && (
         <div id="note-tab-0" role="tabpanel">
-          <fieldset>{pick2("Ήρθε στην ατομική;", [["Ήρθε", true], ["Δεν ήρθε", false]], d.came, (v) => set("came", v as never))}{absent && <p className="muted small" style={{ margin: "6px 0 0" }}>Δεν μετράει ως παρουσία. Γράψε μόνο ό,τι χρειάζεται (π.χ. αν ενημέρωσε, τι κάνουμε).</p>}</fieldset>
+          <fieldset>{pick2("Ήρθε στην ατομική;", [["Ήρθε", true], ["Δεν ήρθε", false]], d.came, (v) => set("came", v as never), "came")}{absent && <p className="muted small" style={{ margin: "6px 0 0" }}>Δεν μετράει ως παρουσία. Γράψε μόνο ό,τι χρειάζεται (π.χ. αν ενημέρωσε, τι κάνουμε).</p>}</fieldset>
           {absent ? (
             <fieldset><legend>Τι έγινε / τι κάνουμε</legend>{text("absentText", "Τι έγινε / τι κάνουμε", "π.χ. ενημέρωσε το πρωί ότι δεν μπορεί· θα κλείσει νέα ώρα", 2)}</fieldset>
           ) : (
@@ -175,7 +195,7 @@ export function NoteFormClient({ action, hidden, initial, themeForms, themeDetai
               <fieldset><legend>Πόσο βοηθά τον εαυτό του <span className="muted small">(φροντίδα εαυτού)</span></legend>{single("selfHelp", SELF_HELP, "Πόσο βοηθά τον εαυτό του")}</fieldset>
               <fieldset><legend>Πώς νιώθει στη διαδικασία</legend>{single("process", PROCESS, "Πώς νιώθει στη διαδικασία")}</fieldset>
               <fieldset>
-                {pick2("Νηφαλιότητα από την προηγούμενη φορά;", [["Ναι", true], ["Όχι", false]], d.sober, (v) => set("sober", v as never))}
+                {pick2("Νηφαλιότητα από την προηγούμενη φορά;", [["Ναι", true], ["Όχι", false]], d.sober, (v) => set("sober", v as never), "sober")}
                 {d.sober === false && (
                   <label style={{ marginTop: 8 }}>Νέα ημερομηνία νηφαλιότητας
                     <input type="date" value={d.newSoberSince ?? ""} onChange={(e) => set("newSoberSince", e.target.value as never)} required />
@@ -225,7 +245,7 @@ export function NoteFormClient({ action, hidden, initial, themeForms, themeDetai
       {tab === 3 && (
         <div id="note-tab-3" role="tabpanel">
           <fieldset id="safeOk-group">
-            {pick2("Υπάρχει ανησυχία για την ασφάλεια;", [["Όχι", true], ["Ναι", false]], d.safeOk, (v) => set("safeOk", v as never))}
+            {pick2("Υπάρχει ανησυχία για την ασφάλεια;", [["Όχι", true], ["Ναι", false]], d.safeOk, (v) => set("safeOk", v as never), "safeOk")}
             {d.safeOk === false && (
               <div className="must">
                 <label htmlFor="safetyText">Τι ανησυχεί και ποιος ενημερώθηκε <span>· υποχρεωτικό</span></label>

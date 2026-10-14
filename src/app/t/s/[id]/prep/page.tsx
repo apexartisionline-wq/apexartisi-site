@@ -4,18 +4,18 @@ import { Countdown } from "@/components/Countdown";
 import { GoalWeekCard } from "@/components/GoalWeek";
 import { Icon } from "@/components/Icon";
 import { JoinButton } from "@/components/JoinButton";
+import { MemberGlance } from "@/components/MemberGlance";
 import { NoteText } from "@/components/NoteText";
 import { SafetyZone } from "@/components/SafetyZone";
 import { SinceLast } from "@/components/SinceLast";
 import { ThemeWeek } from "@/components/ThemeWeek";
 import { TourFor } from "@/components/TourFor";
-import { EmptyState, PageHead, Panel, Pill, PresenceStat } from "@/components/ui";
+import { EmptyState, PageHead, Panel, Pill } from "@/components/ui";
 import { isPsychologist, nameWithKind, seesJournalDetail } from "@/lib/access";
 import { latestAssessment } from "@/lib/assessment-db";
 import { logAccess } from "@/lib/audit";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { RISK_INFO, RISK_LEVELS } from "@/lib/intake-rules";
 import { sessionNumber } from "@/lib/member";
 import { currentRisk, nextClinicalSession } from "@/lib/risk-db";
 import { sessionGlance } from "@/lib/session-glance";
@@ -63,7 +63,7 @@ export default async function PrepPage({ params }: { params: Promise<{ id: strin
   const theme = perMember[0].g.theme;
 
   return (
-    <main>
+    <main className={pair ? "wide" : undefined}>
       <TourFor id="prep" userId={user.id} />
       <PageHead
         crumbs={[{ href: "/t", label: "Σήμερα" }, { label: pair ? "Therapair" : "Ατομική" }, { label: "Προετοιμασία" }]}
@@ -93,15 +93,19 @@ export default async function PrepPage({ params }: { params: Promise<{ id: strin
         Διάβασε με τη σειρά: ασφάλεια → τι έμεινε ανοιχτό → το προηγούμενο σημείωμα ολόκληρο → τι έγινε από τότε. Το «Μπες» μένει πάνω όσο διαβάζεις· το σημειωματάριο είναι στη σελίδα της {pair ? "συνεδρίας" : "ατομικής"}.
       </p>
 
+      <div className={pair ? "pair-grid" : undefined} data-tour={pair ? "pair-members" : undefined}>
       {perMember.map(({ b, g, intake, ax, nextClinical }) => {
         const h = g.prev?.handover;
         const hasHandover = Boolean(h && (h.agreed || h.openIssues || h.handover));
         const prevSafety = Boolean(g.prev && (g.prev.safety.safeOk === false || g.prev.safety.concern || g.prev.usedSince === "YES"));
-        const risk = intake.level;
         return (
-          <section key={b.memberId} className="stackv" style={{ marginBottom: 24 }}>
-            {pair && <h2 style={{ margin: "8px 0 0" }}>{b.member.name}</h2>}
+          <section key={b.memberId} className={pair ? "stackv pair-col" : "stackv"} style={{ marginBottom: 24 }}>
+            {pair && <h2 style={{ margin: "8px 0 0" }}><Link href={`/t/members/${b.memberId}`} style={{ color: "inherit", textDecoration: "none" }}>{b.member.name}</Link> <Link className="small" href={`/t/members/${b.memberId}`}>φάκελος ›</Link></h2>}
             <div data-tour="safety"><SafetyZone memberId={b.memberId} viewer={viewer} back={`/t/s/${x.id}/prep`} /></div>
+
+            <Panel title="Με μια ματιά" tour="glance">
+              <MemberGlance g={g} intake={intake} groupsPerCycle={s.groupsPerCycle} viewer={viewer} nextClinical={nextClinical} compact={pair} />
+            </Panel>
 
             <Panel title="Ανοιχτό από την προηγούμενη φορά" tour="open">
               {g.prev ? (
@@ -140,35 +144,9 @@ export default async function PrepPage({ params }: { params: Promise<{ id: strin
 
             {g.prev && (
               <Panel title="Από την προηγούμενη ατομική ως σήμερα" tour="since">
-                <div className="stats" style={{ marginBottom: 10 }}>
-                  <div className="stat"><b>{g.journal.written > 0 ? `${n(g.journal.craving)} / 10` : "—"}</b><span>λαχτάρα · 7 ημέρες</span></div>
-                  <div className="stat"><b>{g.journal.written > 0 ? `${n(g.journal.sleep)} ώρες` : "—"}</b><span>ύπνος · 7 ημέρες</span></div>
-                  <div className="stat"><b>{g.journal.written}/7</b><span>απογραφές · 7 ημέρες</span></div>
-                </div>
                 <SinceLast journalDetail={seesJournalDetail(viewer)} memberId={b.memberId} prev={g.prev} until={today} untilAt={now} compact />
               </Panel>
             )}
-
-            <Panel title="Με μια ματιά" tour="glance">
-              <div className="stats">
-                <div className="stat"><b>{g.soberDays ?? "—"}</b><span>μέρες νηφαλιότητας{g.soberSince ? ` · από ${formatDate(g.soberSince)}` : ""}</span></div>
-                {g.cycle ? (
-                  <>
-                    <PresenceStat what={`ομάδες του μήνα (από ${s.groupsPerCycle})`} counted={g.cycle.groups} passed={g.cycle.groupsPassed} noRecord={g.cycle.groupsNoRecord} />
-                    <PresenceStat what={`ατομικές του μήνα (από ${g.cycle.length})`} counted={g.cycle.attended} passed={g.cycle.done} noRecord={g.cycle.presence.noRecord} />
-                  </>
-                ) : <div className="stat"><b>—</b><span>δεν έχει ξεκινήσει κύκλος</span></div>}
-              </div>
-              <p className="hint" style={{ margin: "10px 0 0" }}>
-                Ανάγκες ασφάλειας: <strong>{intake.trigger ? intake.label : risk ? RISK_LEVELS[risk] : "δεν έχει χρειαστεί"}</strong>{!intake.trigger && risk && ` · ${RISK_INFO[risk].action}`}
-                {g.help14 > 0 && <> · κόκκινο κουμπί {g.help14} {g.help14 === 1 ? "φορά" : "φορές"} σε 14 ημέρες</>}
-              </p>
-              {intake.trigger && !isPsychologist(viewer) && (
-                <p className="hint" style={{ margin: "4px 0 0" }} data-tour="route-psy">
-                  Την αξιολόγηση την κάνει ψυχολόγος — όχι σε αυτή την ατομική. {nextClinical ? <>Επόμενη ατομική με ψυχολόγο: <Link href={`/t/s/${nextClinical.slotId}`}>{formatDate(nextClinical.date)} {formatTime(nextClinical.startsAt)}{nextClinical.therapist && ` · ${nextClinical.therapist}`}</Link>.</> : <>Δεν έχει προγραμματιστεί ατομική με ψυχολόγο — το βλέπει η διαχείριση στο «Σήμερα» της.</>} Ό,τι δεις σήμερα, γράψ' το στην «Ενημέρωση ομάδας».
-                </p>
-              )}
-            </Panel>
 
             <Panel title="Στόχος και εργασία" tour="goal">
               <GoalWeekCard detail={seesJournalDetail(viewer)} memberId={b.memberId} date={today} />
@@ -191,6 +169,7 @@ export default async function PrepPage({ params }: { params: Promise<{ id: strin
           </section>
         );
       })}
+      </div>
 
       <Panel>
         <ThemeWeek forms={theme.forms} dailyText={theme.dailyText} compact />

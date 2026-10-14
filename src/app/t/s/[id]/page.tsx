@@ -9,6 +9,7 @@ import { GoalWeekCard } from "@/components/GoalWeek";
 import { Icon } from "@/components/Icon";
 import { goalWeek } from "@/lib/goals";
 import { JoinButton } from "@/components/JoinButton";
+import { MemberGlance } from "@/components/MemberGlance";
 import { ClearDraft } from "@/components/ClearDraft";
 import { NoteFormClient } from "@/components/NoteFormClient";
 import { PairNoteClient } from "@/components/PairNoteClient";
@@ -580,6 +581,9 @@ async function PairSession({ x, user, sp }: { x: Slot; user: { id: string; role:
       m,
       prev: (await memberNotes(m.id, { before: x.startsAt, excludeSlot: x.id, take: 1 }))[0] ?? null,
       history: await historyOf("pair_note", { memberId: m.id, ref: x.id }),
+      // Εικόνα και για τα δύο μέλη (14/10): ίδιοι αριθμοί με την ατομική, ανά μέλος.
+      g: await sessionGlance(m.id, x),
+      intake: await currentRisk(m.id),
     }))),
   ]);
   const writable = canWrite(x, user) && now.getTime() >= x.startsAt.getTime() - 15 * 60_000;
@@ -611,10 +615,14 @@ async function PairSession({ x, user, sp }: { x: Slot; user: { id: string; role:
       <ThemeWeek forms={theme.forms} dailyText={theme.dailyText} compact />
 
       <div className="pair-grid" style={{ marginTop: 12 }} data-tour="pair-members">
-        {perMember.map(({ m, prev }) => (
+        {perMember.map(({ m, prev, g, intake }) => (
           <section key={m.id} className="pair-col">
-            <h2 style={{ marginTop: 0 }}>{m.name}</h2>
+            <h2 style={{ marginTop: 0 }}>{m.name} <Link className="small" href={`/t/members/${m.id}`}>φάκελος ›</Link></h2>
             <SafetyZone memberId={m.id} viewer={viewer} back={`/t/s/${x.id}`} />
+            <div className="panel small" data-tour="pair-glance">
+              <strong>Με μια ματιά</strong>
+              <div style={{ marginTop: 6 }}><MemberGlance g={g} intake={intake} groupsPerCycle={s.groupsPerCycle} viewer={viewer} compact /></div>
+            </div>
             <div className="panel small">
               <strong>Ανοιχτό από την προηγούμενη φορά</strong>
               <div style={{ marginTop: 4 }}>{prev ? (prev.next || <span className="muted">Δεν άφησε κάτι για την επόμενη ατομική.</span>) : <span className="muted">Πρώτη ατομική: δεν υπάρχει προηγούμενο σημείωμα.</span>}</div>

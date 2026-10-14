@@ -93,21 +93,39 @@ export function PairNoteClient({ action, slotId, members, initial, themeForms, t
     }
     return hits;
   };
+  // Όταν λείπει απάντηση, η σελίδα πάει στην ερώτηση της σωστής στήλης και την τονίζει για λίγο (14/10).
+  const [focusKey, setFocusKey] = useState("");
+  useEffect(() => {
+    if (!focusKey) return;
+    const el = document.querySelector<HTMLElement>(`[data-q="${focusKey}"]`) ?? document.getElementById(focusKey);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.classList.add("q-missing");
+      el.querySelector<HTMLElement>("button, input, textarea, select")?.focus({ preventScroll: true });
+      const t = setTimeout(() => el.classList.remove("q-missing"), 5000);
+      setFocusKey("");
+      return () => clearTimeout(t);
+    }
+    setFocusKey("");
+  }, [focusKey]);
   const check = (e: React.FormEvent<HTMLFormElement>) => {
     let msg = "";
+    let key = "";
     const undecided = members.find((m) => d[m.id].came === undefined);
-    if (undecided) msg = `${first(undecided)}: διάλεξε «Ήρθε» ή «Δεν ήρθε».`;
+    if (undecided) { msg = `${first(undecided)}: διάλεξε «Ήρθε» ή «Δεν ήρθε».`; key = `came-${undecided.id}`; }
     const noSober = msg ? undefined : members.find((m) => d[m.id].came !== false && d[m.id].sober === undefined);
-    if (noSober) msg = `${first(noSober)}: απάντησε αν έμεινε νηφάλιο από την προηγούμενη φορά.`;
+    if (noSober) { msg = `${first(noSober)}: απάντησε αν έμεινε νηφάλιο από την προηγούμενη φορά.`; key = `sober-${noSober.id}`; }
     const noSafe = msg ? undefined : members.find((m) => d[m.id].safeOk === undefined);
-    if (noSafe) msg = `${first(noSafe)}: απάντησε αν υπάρχει ανησυχία για την ασφάλεια.`;
+    if (noSafe) { msg = `${first(noSafe)}: απάντησε αν υπάρχει ανησυχία για την ασφάλεια.`; key = `safeOk-${noSafe.id}`; }
     for (const m of msg ? [] : members) {
       const r = pairSideSchema.safeParse(outOf(d[m.id]));
       if (!r.success) {
         msg = `${m.name.split(" ")[0]}: ${r.error.issues[0]?.message ?? "κάτι λείπει."}`;
+        key = `${String(r.error.issues[0]?.path[0] ?? "")}-${m.id}`;
         break;
       }
     }
+    if (msg && key) { msg += " Σε πάω εκεί."; setFocusKey(key); }
     if (!msg && !navigator.onLine) msg = "Δεν υπάρχει σύνδεση στο ίντερνετ· πάτα ξανά μόλις επανέλθει.";
     if (!msg) {
       const hits = nameHits().join(" · ");
@@ -174,7 +192,7 @@ export function PairNoteClient({ action, slotId, members, initial, themeForms, t
     <textarea aria-label={`${label} — ${first(m)}`} placeholder={ph} rows={rows} style={{ minHeight: rows * 24 + 20, marginTop: 8 }} value={(d[m.id][k] as string | undefined) ?? ""} onChange={(e) => set(m.id, k, e.target.value as never)} />
   );
   const pick2 = (m: Member, label: string, opts: [string, boolean][], k: "came" | "safeOk" | "sober") => (
-    <div className="row spread" style={{ flexWrap: "wrap", gap: 6, marginTop: 6 }}>
+    <div className="row spread" style={{ flexWrap: "wrap", gap: 6, marginTop: 6 }} data-q={`${k}-${m.id}`}>
       <span>{label}{d[m.id][k] === undefined && <span className="muted small"> · δεν απαντήθηκε</span>}</span>
       <span className="chips" role="group" aria-label={`${label} — ${first(m)}`}>
         {opts.map(([l, v]) => <button key={l} type="button" className="chip" aria-pressed={d[m.id][k] === v} onClick={() => set(m.id, k, v as never)}>{l}</button>)}

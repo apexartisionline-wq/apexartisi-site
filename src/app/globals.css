@@ -718,3 +718,8 @@ details.fold[open] > summary::before { transform: rotate(90deg); }
 @media (prefers-reduced-motion: reduce) { .prep-count.now { animation: none; } }
 .prep-note { font-size: 1.02rem; line-height: 1.55; }
 @media (max-width: 760px) { .prep-bar { top: 0; border-radius: 0 0 var(--card-radius) var(--card-radius); margin-inline: -16px; padding: 10px 16px; } .prep-count { font-size: 1.05rem; } }
+
+/* Ερώτηση που λείπει στο σημειωματάριο (14/10): τονίζεται για λίγο αφού η σελίδα πάει εκεί. */
+.q-missing { outline: 3px solid var(--red); outline-offset: 6px; border-radius: var(--radius-sm); animation: q-missing-fade 5s ease-out forwards; }
+@keyframes q-missing-fade { 0%, 70% { outline-color: var(--red); } 100% { outline-color: transparent; } }
+@media (prefers-reduced-motion: reduce) { .q-missing { animation: none; } }
