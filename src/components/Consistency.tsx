@@ -59,7 +59,8 @@ const ago = (d: string, today: string) => {
  *
  * Ανοιχτά (θέλουν απόφαση της υπεύθυνης):
  *  1. Ομάδα όπου δεν καταγράφηκε ΚΑΝΕΝΑ μέλος (π.χ. δεν κρατήθηκε παρουσία) μετράει στον παρονομαστή όλων ως «χωρίς καταγραφή»·
- *     οι ομάδες δεν ακυρώνονται ποτέ (υπεύθυνη 13/10), άρα κάθε ομάδα του προγράμματος έγινε.
+ *     οι ομάδες δεν ακυρώνονται εκ των προτέρων (υπεύθυνη 13/10)· από 14/10 ο συντονιστής ή η διαχείριση μπορεί να σημειώσει
+ *     εκ των υστέρων «δεν έγινε», οπότε η ομάδα βγαίνει από τον παρονομαστή όλων.
  *  2. Στα ημερολόγια ο παρονομαστής περιλαμβάνει και τη σημερινή μέρα, ενώ η σημερινή εγγραφή γράφεται μόνο μετά την ώρα
  *     του ημερολογίου (journalDate)· μέχρι τότε όλοι φαίνονται με μία μέρα «λιγότερη».
  */
@@ -127,7 +128,8 @@ export async function Consistency({
     const start = m.programStartDate && m.programStartDate > from ? m.programStartDate : from;
     const notStarted = Boolean(m.programStartDate && m.programStartDate > today);
     const g = memberGroups(occ.filter((o) => o.date >= start), m.attendances, { now, joinDate: m.programStartDate });
-    const groupDays = g.rows.filter((r) => r.state === "present" || r.state === "no_record").map((r) => ({ date: r.date, time: r.time, present: r.state === "present", noneRecorded: r.state !== "present" && !recordedDays.has(r.date) }));
+    // «δεν έγινε» (not_held) φαίνεται στη λίστα αλλά δεν μετράει (ούτε στον παρονομαστή).
+    const groupDays = g.rows.filter((r) => r.state === "present" || r.state === "no_record" || r.state === "not_held").map((r) => ({ date: r.date, time: r.time, present: r.state === "present", notHeld: r.state === "not_held", noneRecorded: r.state === "no_record" && !recordedDays.has(r.date) }));
     const groups = g.counted;
     // Ίδιο διάστημα με τον φάκελο (memberConsistency): μόνο μετά την έναρξη του προγράμματος του μέλους.
     const sessions = m.bookings
@@ -229,7 +231,7 @@ export async function Consistency({
             <li><b>παρουσία · Επιβεβαίωση θεραπευτή</b> — σημείωμα «Ήρθε».</li>
             <li><b>δεν ήρθε</b> — σημείωμα «Δεν ήρθε». Υπερισχύει του πατήματος «Μπες», που μένει στο ιστορικό.</li>
             <li><b>χωρίς καταγραφή</b> — έληξε η ώρα, ούτε πάτημα ούτε επιβεβαίωση. Μένει στον παρονομαστή, αλλά δεν είναι απουσία.</li>
-            <li><b>Ομάδες</b> — «παρουσία» (πάτησε «Μπες στην ομάδα» ή το σημείωσε η διαχείριση) ή «χωρίς καταγραφή». Δεν υπάρχει επιβεβαιωμένη απουσία ομάδας. Οι ομάδες δεν ακυρώνονται. Αν δεν καταγράφηκε κανένα μέλος εκείνη τη μέρα, ίσως δεν κρατήθηκε παρουσία.</li>
+            <li><b>Ομάδες</b> — «παρουσία» (πάτησε «Μπες στην ομάδα» ή το σημείωσε η διαχείριση) ή «χωρίς καταγραφή». Δεν υπάρχει επιβεβαιωμένη απουσία ομάδας. Οι ομάδες δεν ακυρώνονται εκ των προτέρων· αν τελικά <b>δεν έγινε</b>, ο συντονιστής ή η διαχείριση το σημειώνει εκ των υστέρων στη σελίδα της ομάδας και δεν μετράει για κανέναν. Αν δεν καταγράφηκε κανένα μέλος εκείνη τη μέρα, ίσως δεν κρατήθηκε παρουσία.</li>
             <li><b>δεν είχε ατομική</b> — καμία ατομική στο διάστημα· δεν είναι απουσία.</li>
             <li><b>μελλοντική</b> — δεν έχει φτάσει η ώρα (επόμενες 7 μέρες)· δεν μετράει.</li>
             <li><b>Χαμηλότερη συμμετοχή</b> — ομάδες κάτω από {LOW_GROUPS}% ή τουλάχιστον μία ατομική χωρίς παρουσία (δεν σημαίνει απουσία). Είναι φίλτρο, όχι αξιολόγηση.</li>
@@ -274,9 +276,9 @@ export async function Consistency({
                       <span className={styles.metric}>
                         <span className={styles.mlabel}>Ομάδες</span>
                         {r.groupDays.length === 0 ? <span className="muted">καμία ακόμα</span> : (
-                          <span><b>{r.groups}/{r.groupDays.length}</b> <span className={styles.unit}>{PRESENCE_UNIT}</span></span>
+                          <span><b>{r.groups}/{r.groupDays.filter((d) => !d.notHeld).length}</b> <span className={styles.unit}>{PRESENCE_UNIT}</span></span>
                         )}
-                        {r.groupDays.length - r.groups > 0 && <span className={styles.unit}>{r.groupDays.length - r.groups} χωρίς καταγραφή</span>}
+                        {r.groupDays.filter((d) => !d.notHeld).length - r.groups > 0 && <span className={styles.unit}>{r.groupDays.filter((d) => !d.notHeld).length - r.groups} χωρίς καταγραφή</span>}
                         {r.groupPct !== null && r.groupPct < LOW_GROUPS && <span className="pill yellow">κάτω από {LOW_GROUPS}%</span>}
                       </span>
                       <span className={styles.metric}>
@@ -312,11 +314,11 @@ export async function Consistency({
                     {r.groupDays.length === 0 ? <p className="empty">Καμία προγραμματισμένη ομάδα στο διάστημα.</p> : (
                       <ul className={styles.days}>
                         {r.groupDays.map((d) => {
-                          const word = d.present ? "παρουσία" : d.noneRecorded ? "χωρίς καταγραφή · κανένα μέλος δεν καταγράφηκε σε αυτή την ομάδα" : "χωρίς καταγραφή";
-                          const tone = d.present ? styles.ok : d.noneRecorded ? styles.grey : styles.no;
+                          const word = d.notHeld ? "δεν έγινε" : d.present ? "παρουσία" : d.noneRecorded ? "χωρίς καταγραφή · κανένα μέλος δεν καταγράφηκε σε αυτή την ομάδα" : "χωρίς καταγραφή";
+                          const tone = d.present ? styles.ok : d.noneRecorded || d.notHeld ? styles.grey : styles.no;
                           return (
                             <li key={`${d.date} ${d.time}`}>
-                              {canEdit ? (
+                              {canEdit && !d.notHeld ? (
                                 <form action={toggleAttendance}>
                                   <input type="hidden" name="memberId" value={r.m.id} />
                                   <input type="hidden" name="date" value={d.date} />

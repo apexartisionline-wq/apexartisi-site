@@ -26,3 +26,15 @@ describe("ανάγκες ασφάλειας", () => {
     expect(maskPhones("2 φορές το 2024")).toBe("2 φορές το 2024");
   });
 });
+
+describe("προθεσμία αξιολόγησης αναγκών (απόφαση 14/10)", () => {
+  it("μέχρι την επόμενη ατομική με ψυχολόγο, το πολύ 7 μέρες", async () => {
+    const { assessmentDeadline, daysOverdue } = await import("./risk");
+    const trig = new Date("2026-10-01T10:00:00Z");
+    expect(assessmentDeadline(trig, new Date("2026-10-03T10:00:00Z")).toISOString()).toBe("2026-10-03T10:00:00.000Z");
+    expect(assessmentDeadline(trig, new Date("2026-10-20T10:00:00Z")).toISOString()).toBe("2026-10-08T10:00:00.000Z");
+    expect(assessmentDeadline(trig, null).toISOString()).toBe("2026-10-08T10:00:00.000Z");
+    expect(daysOverdue(new Date("2026-10-08T10:00:00Z"), new Date("2026-10-10T12:00:00Z"))).toBe(2);
+    expect(daysOverdue(new Date("2026-10-08T10:00:00Z"), new Date("2026-10-07T12:00:00Z"))).toBe(0);
+  });
+});

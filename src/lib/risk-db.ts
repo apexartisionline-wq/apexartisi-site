@@ -4,7 +4,9 @@ import { memberNotes } from "./member-notes";
 import { notifyRole } from "./notify";
 import { dec, enc } from "./crypto";
 import { prisma } from "./db";
-import { type Level, LEVELS, needsReview, type RiskReview, riskSchema, type Trigger } from "./risk";
+import { assessmentDeadline, daysOverdue, type Level, LEVELS, needsReview, type RiskReview, riskSchema, type Trigger } from "./risk";
+import { Prisma } from "@prisma/client";
+import { localParts } from "./time";
 
 export async function riskHistory(memberId: string, take = 10) {
   const rows = await prisma.riskReview.findMany({ where: { memberId }, orderBy: { createdAt: "desc" }, take });
@@ -102,4 +104,35 @@ export async function nextSession(memberId: string, now = new Date()) {
     select: { slot: { select: { id: true, date: true, startsAt: true, therapist: { select: { name: true, therapistKind: true } } } } },
   });
   return b ? { slotId: b.slot.id, date: b.slot.date, startsAt: b.slot.startsAt, therapist: b.slot.therapist?.name ?? "", kind: b.slot.therapist?.therapistKind ?? null } : null;
+}
+
+/** Η αφορμή μαζί με την προθεσμία της (απόφαση 14/10) και αν έχει περάσει. */
+export async function riskTriggerDue(memberId: string, now = new Date()) {
+  const trig = await riskTrigger(memberId);
+  if (!trig) return null;
+  const next = await nextClinicalSession(memberId, trig.at);
+  const dueAt = assessmentDeadline(trig.at, next?.startsAt ?? null);
+  return { ...trig, dueAt, overdue: dueAt <= now, daysOverdue: daysOverdue(dueAt, now), nextClinical: next };
+}
+
+/**
+ * Κλιμάκωση (cron κάθε μισή ώρα): για κάθε ενεργό μέλος με εκπρόθεσμη αξιολόγηση, ένα μήνυμα στη διαχείριση την ημέρα.
+ * Δεν αναθέτει, δεν κλείνει τίποτα — η διαχείριση συντονίζει.
+ */
+export async function remindOverdueAssessments(now = new Date()): Promise<number> {
+  const members = await prisma.user.findMany({ where: { role: "MEMBER", active: true }, select: { id: true, name: true } });
+  let sent = 0;
+  for (const m of members) {
+    const due = await riskTriggerDue(m.id, now);
+    if (!due?.overdue) continue;
+    try {
+      await prisma.notificationLog.create({ data: { key: `risk_overdue:${m.id}:${localParts(now).date}` } });
+    } catch (e) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") continue;
+      throw e;
+    }
+    await notifyRole("ADMIN", { title: "Εκπρόθεσμη αξιολόγηση αναγκών ασφάλειας", body: `${m.name} · ${due.daysOverdue === 0 ? "σήμερα" : `${due.daysOverdue} ${due.daysOverdue === 1 ? "μέρα" : "μέρες"}`} μετά την προθεσμία — δες το «Σήμερα»`, url: "/admin", tag: `risk-overdue-${m.id}` }).catch(() => undefined);
+    sent++;
+  }
+  return sent;
 }

@@ -173,7 +173,7 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
     const rev = reviews.find((r) => r.memberId === id);
     const list = buildActions({
       memberId: id, memberName: memberName.get(id) ?? "Μέλος",
-      riskTrigger: rr?.at ? { at: rr.at, text: (rr as { trigText?: string }).trigText ?? "νέα αφορμή" } : null,
+      riskTrigger: rr?.at ? { at: rr.at, text: (rr as { trigText?: string }).trigText ?? "νέα αφορμή", dueAt: (rr as { dueAt?: Date }).dueAt ?? null } : null,
       initialAssessmentMissing: !assessed.has(id) && upcoming.has(id) ? { detail: "δεν έχει γίνει ακόμα · στην επόμενη ατομική με ψυχολόγο", since: null } : null,
       cycleReviewDue: rev ? { cycleId: rev.cycleId, since: cycleSince.get(rev.cycleId) ?? null } : null,
       care: careRows.filter((c) => c.memberId === id && c.dueAt <= now),
@@ -190,7 +190,8 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
     const f = (flags.get(id) ?? []).filter((x) => (x.level === "red" || x.key === "risk_review" || x.key === "no_contact") && !inBox.has(`${id}:${x.key}`));
     const issues: Issue[] = [
       ...(box ? box.items.map((a) => ({ text: a.text, at: a.createdAt, href: alertHref(id, a), by: `${a.sourceLabel}, ${a.by}`, red: !a.mild })) : []),
-      ...f.filter((x) => x.key !== "risk_review").map((x) => ({ text: x.text, at: x.at, href: x.href, red: x.level === "red" })),
+      // Η αφορμή «θέλει αξιολόγηση» φαίνεται ως ενέργεια· μόνο όταν είναι ΕΚΠΡΟΘΕΣΜΗ (απόφαση 14/10) γίνεται και κόκκινη γραμμή.
+      ...f.filter((x) => x.key !== "risk_review" || x.level === "red").map((x) => ({ text: x.text, at: x.at, href: x.href, red: x.level === "red" })),
     ];
     const acts = (actionsBy.get(id) ?? []).filter((a) => a.kind !== "cycle_review" && a.kind !== "care");
     // Η αφορμή «θέλει αξιολόγηση» φαίνεται ως ενέργεια (με ανάληψη), όχι ως δεύτερη γραμμή σήματος.

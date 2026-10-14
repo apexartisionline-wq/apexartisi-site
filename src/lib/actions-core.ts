@@ -115,12 +115,12 @@ export const CARE_WHO: Record<string, string> = {
   risk_contact: "η διαχείριση",
 };
 
-function fromItem(base: Omit<ActionView, "state" | "claimedBy" | "claimedAt" | "doneBy" | "doneAt" | "doneNote" | "createdAt" | "dueAt">, createdAt: Date | null, row: ItemRow | undefined): ActionView {
+function fromItem(base: Omit<ActionView, "state" | "claimedBy" | "claimedAt" | "doneBy" | "doneAt" | "doneNote" | "createdAt" | "dueAt">, createdAt: Date | null, row: ItemRow | undefined, ruleDueAt: Date | null = null): ActionView {
   const done = Boolean(row?.doneAt);
   return {
     ...base,
     createdAt: createdAt ?? row?.createdAt ?? null,
-    dueAt: row?.dueAt ?? null,
+    dueAt: row?.dueAt ?? ruleDueAt,
     state: done ? "done" : row?.claimedAt ? "claimed" : "unclaimed",
     claimedBy: row?.claimedByName ?? null,
     claimedAt: row?.claimedAt ?? null,
@@ -133,7 +133,7 @@ function fromItem(base: Omit<ActionView, "state" | "claimedBy" | "claimedAt" | "
 export type ActionInput = {
   memberId: string;
   memberName: string;
-  riskTrigger: { at: Date; text: string } | null; // αφορμή για αξιολόγηση αναγκών ασφάλειας (δεν έχει γίνει ακόμα)
+  riskTrigger: { at: Date; text: string; dueAt?: Date | null } | null; // αφορμή για αξιολόγηση αναγκών ασφάλειας (δεν έχει γίνει ακόμα)· dueAt από τον κανόνα 14/10
   initialAssessmentMissing: { detail: string; since?: Date | null } | null;
   cycleReviewDue: { cycleId: string; lastTherapist?: string | null; since?: Date | null } | null;
   care: CareRow[]; // ανοιχτά
@@ -164,7 +164,7 @@ export function buildActions(i: ActionInput): ActionView[] {
       ...common, key: `safety_assessment:${ref}`, kind: "safety_assessment", source: "item",
       title: "Αξιολόγηση αναγκών ασφάλειας", detail: `μετά από ${i.riskTrigger.text}`,
       ownerRule: "ψυχολόγος", href: `/t/members/${i.memberId}/risk`, ref, needsClinician: true, adminOnly: false, manualDone: false,
-    }, i.riskTrigger.at, row("safety_assessment", ref)));
+    }, i.riskTrigger.at, row("safety_assessment", ref), i.riskTrigger.dueAt ?? null));
   }
   if (i.initialAssessmentMissing) {
     out.push(fromItem({

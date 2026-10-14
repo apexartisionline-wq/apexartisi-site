@@ -6,7 +6,7 @@ import { prisma } from "@/lib/db";
 import { keepHistory } from "@/lib/history";
 import { ensureGroupSession, groupDays } from "@/lib/groups";
 import { getSettings } from "@/lib/settings";
-import { formatDate } from "@/lib/time";
+import { formatDate, formatWhen } from "@/lib/time";
 
 const MENTION_ROWS = 4;
 
@@ -53,12 +53,35 @@ async function save(formData: FormData) {
   redirect(`/t/group/${date}/${time.replace(":", "")}?saved=1`);
 }
 
+// «Η ομάδα δεν έγινε» (απόφαση 14/10): εκ των υστέρων, από τον συντονιστή ή τη διαχείριση, με λόγο· όχι ακύρωση εκ των προτέρων.
+// Η ομάδα βγαίνει από τον παρονομαστή όλων· η σημείωση και η αναίρεσή της κρατιούνται στο ιστορικό.
+async function notHeld(formData: FormData) {
+  "use server";
+  const user = await requireRole("THERAPIST", "ADMIN");
+  const date = String(formData.get("date"));
+  const time = String(formData.get("time"));
+  const undo = formData.get("undo") === "1";
+  const reason = String(formData.get("reason") ?? "").trim().slice(0, 300);
+  const g = await findGroup(date, time);
+  if (!g || (user.role !== "ADMIN" && g.coordinatorId !== user.id)) notFound();
+  const back = `/t/group/${date}/${time.replace(":", "")}`;
+  if (g.startsAt > new Date()) redirect(`${back}?e=early`);
+  if (!undo && !reason) redirect(`${back}?e=reason`);
+  const session = await ensureGroupSession(date, time);
+  const old = await prisma.groupSession.findUnique({ where: { id: session.id }, select: { cancelledAt: true, cancelledById: true, cancelReason: true } });
+  await prisma.$transaction([
+    keepHistory("group_not_held", { ref: session.id, before: { cancelledAt: old?.cancelledAt ?? null, cancelledById: old?.cancelledById ?? null, cancelReason: old?.cancelReason ?? "", date, time }, byId: user.id }),
+    prisma.groupSession.update({ where: { id: session.id }, data: undo ? { cancelledAt: null, cancelledById: null, cancelReason: "" } : { cancelledAt: new Date(), cancelledById: user.id, cancelReason: reason } }),
+  ]);
+  redirect(`${back}?${undo ? "held=1" : "notheld=1"}`);
+}
+
 export default async function GroupNotePage({
   params,
   searchParams,
 }: {
   params: Promise<{ date: string; time: string }>;
-  searchParams: Promise<{ saved?: string }>;
+  searchParams: Promise<{ saved?: string; notheld?: string; held?: string; e?: string }>;
 }) {
   const user = await requireRole("THERAPIST", "ADMIN");
   const [p, sp] = await Promise.all([params, searchParams]);
@@ -76,6 +99,7 @@ export default async function GroupNotePage({
     prisma.attendance.findMany({ where: { date: key.date }, include: { member: { select: { id: true, name: true } } } }),
   ]);
   const canWrite = user.role === "ADMIN" || g.coordinatorId === user.id;
+  const notHeldBy = session?.cancelledById ? await prisma.user.findUnique({ where: { id: session.cancelledById }, select: { name: true } }) : null;
   const members = await prisma.user.findMany({ where: { role: "MEMBER", active: true }, orderBy: { name: "asc" }, select: { id: true, name: true } });
   const mentions = session?.mentions ?? [];
 
@@ -92,6 +116,34 @@ export default async function GroupNotePage({
         {present.length === 0 && <span className="muted">κανείς ακόμα</span>}
       </div>
       {sp.saved && <div className="notice">Αποθηκεύτηκε ✓</div>}
+      {sp.notheld && <div className="notice">Σημειώθηκε ότι η ομάδα δεν έγινε ✓ Δεν μετράει στον παρονομαστή κανενός.</div>}
+      {sp.held && <div className="notice">Η σημείωση «δεν έγινε» αναιρέθηκε ✓ (μένει στο ιστορικό).</div>}
+      {sp.e === "early" && <div className="error">Η ομάδα δεν έχει ξεκινήσει ακόμα· το «δεν έγινε» σημειώνεται εκ των υστέρων.</div>}
+      {sp.e === "reason" && <div className="error">Γράψε σε μία γραμμή γιατί δεν έγινε.</div>}
+      {session?.cancelledAt ? (
+        <div className="attn yellow" data-tour="not-held">
+          <div className="attn-body">
+            <strong>Η ομάδα δεν έγινε</strong> · {notHeldBy?.name ?? "—"}, {formatWhen(session.cancelledAt)}{session.cancelReason && <> · {session.cancelReason}</>}
+            <div className="hint">Δεν μετράει στον παρονομαστή κανενός μέλους (ούτε «χωρίς καταγραφή»). Οι ομάδες δεν ακυρώνονται εκ των προτέρων· αυτό είναι καταγραφή εκ των υστέρων.</div>
+            {canWrite && (
+              <form action={notHeld} style={{ marginTop: 6 }}>
+                <input type="hidden" name="date" value={key.date} /><input type="hidden" name="time" value={key.time} /><input type="hidden" name="undo" value="1" />
+                <button type="submit" className="outline sm">Τελικά έγινε — αναίρεση</button>
+              </form>
+            )}
+          </div>
+        </div>
+      ) : canWrite && g.startsAt <= new Date() ? (
+        <details className="card small" data-tour="not-held">
+          <summary>Η ομάδα δεν έγινε;</summary>
+          <form action={notHeld} className="row" style={{ gap: 6, flexWrap: "wrap", marginTop: 6 }}>
+            <input type="hidden" name="date" value={key.date} /><input type="hidden" name="time" value={key.time} />
+            <input name="reason" maxLength={300} required placeholder="γιατί δεν έγινε (π.χ. πρόβλημα σύνδεσης)" style={{ flex: 1, minWidth: 200 }} />
+            <button type="submit" className="outline">Σημείωσε «δεν έγινε»</button>
+          </form>
+          <p className="hint" style={{ margin: "6px 0 0" }}>Μόνο εκ των υστέρων, με λόγο· η ομάδα βγαίνει από τον παρονομαστή όλων. Καταγράφεται ποιος και πότε.</p>
+        </details>
+      ) : null}
 
       {canWrite ? (
         <form action={save} className="card">

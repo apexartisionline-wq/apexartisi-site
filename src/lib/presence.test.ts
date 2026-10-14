@@ -59,3 +59,17 @@ describe("ομάδες ανά μέλος: πραγματικό πρόγραμμ�
     expect(r.rows.map((x) => x.state)).toEqual(["no_record", "present"]);
   });
 });
+
+describe("ομάδα «δεν έγινε» (απόφαση 14/10)", () => {
+  it("βγαίνει από τον παρονομαστή όλων, ακόμη κι αν κάποιος πάτησε «Μπες»", async () => {
+    const { memberGroups } = await import("./group-presence");
+    const occ = [
+      { date: "2026-10-05", time: "21:00", startsAt: new Date("2026-10-05T18:00:00Z"), endsAt: new Date("2026-10-05T19:30:00Z"), notHeld: true },
+      { date: "2026-10-06", time: "21:00", startsAt: new Date("2026-10-06T18:00:00Z"), endsAt: new Date("2026-10-06T19:30:00Z") },
+    ];
+    const g = memberGroups(occ, [{ date: "2026-10-05", joinedAt: new Date("2026-10-05T18:05:00Z") }], { now: new Date("2026-10-10T00:00:00Z"), joinDate: null });
+    expect(g.rows.map((r) => r.state)).toEqual(["not_held", "no_record"]);
+    expect(g.passed).toBe(1);
+    expect(g.counted).toBe(0);
+  });
+});

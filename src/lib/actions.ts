@@ -83,7 +83,7 @@ export async function loadMemberActions(memberId: string, memberName: string, fl
   const rr = flags.find((x) => x.key === "risk_review");
   return buildActions({
     memberId, memberName,
-    riskTrigger: rr?.at ? { at: rr.at, text: rr.trigText ?? "νέα αφορμή" } : null,
+    riskTrigger: rr?.at ? { at: rr.at, text: rr.trigText ?? "νέα αφορμή", dueAt: (rr as { dueAt?: Date }).dueAt ?? null } : null,
     initialAssessmentMissing: assessed ? null : { detail: "δεν έχει γίνει ακόμα", since: member.programStartDate ? new Date(`${member.programStartDate}T00:00:00Z`) : member.createdAt },
     cycleReviewDue: finished && !reviewDone ? { cycleId: finished.id, lastTherapist, since } : null,
     care: care.filter((c) => c.dueAt <= now),

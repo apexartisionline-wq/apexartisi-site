@@ -13,7 +13,7 @@ import { getSettings } from "@/lib/settings";
 import { addDays, formatDate, formatHour, formatTime, localParts } from "@/lib/time";
 import { claimAction } from "@/app/t/actions";
 import { runRetentionDaily } from "@/lib/retention-db";
-import { nextSession, riskTrigger } from "@/lib/risk-db";
+import { nextSession, riskTriggerDue } from "@/lib/risk-db";
 import { kindWord } from "@/lib/access";
 
 async function settle(formData: FormData) {
@@ -81,7 +81,7 @@ export default async function AdminToday({ searchParams }: { searchParams: Promi
   const assessedIds = new Set((await prisma.assessment.findMany({ where: { complete: true, memberId: { in: activeMembers.map((m) => m.id) } }, select: { memberId: true }, distinct: ["memberId"] })).map((r) => r.memberId));
   const openClinician = await prisma.actionItem.findMany({ where: { doneAt: null, kind: { in: ["safety_assessment", "initial_assessment"] }, memberId: { in: activeMembers.map((m) => m.id) } }, select: { memberId: true, kind: true, claimedByName: true } });
   const psyRows = (await Promise.all(activeMembers.map(async (m) => {
-    const trig = await riskTrigger(m.id);
+    const trig = await riskTriggerDue(m.id, now);
     const initial = !assessedIds.has(m.id);
     if (!trig && !initial) return null;
     const next = await nextSession(m.id, now);
@@ -125,13 +125,13 @@ export default async function AdminToday({ searchParams }: { searchParams: Promi
       )}
 
       {psyRows.length > 0 && (
-        <section className="card" style={{ borderColor: "var(--yellow)" }} data-tour="psy-route">
+        <section className="card" style={{ borderColor: psyRows.some((r) => r.trig?.overdue) ? "var(--red)" : "var(--yellow)" }} data-tour="psy-route">
           <strong>Εκκρεμεί από ψυχολόγο — πού θα γίνει</strong>
-          <p className="muted small" style={{ margin: "4px 0 8px" }}>Αξιολόγηση αναγκών ασφάλειας (μετά από αφορμή) και αρχική αξιολόγηση τις κάνει μόνο ψυχολόγος. Με την εναλλαγή κλινικού/βιωματικού, η επόμενη ατομική μπορεί να είναι με βιωματικό· εδώ φαίνεται για να το ρυθμίσει η διαχείριση (π.χ. να μπει ψυχολόγος ή να ανατεθεί). Δεν ορίζεται προθεσμία από την εφαρμογή.</p>
+          <p className="muted small" style={{ margin: "4px 0 8px" }}>Αξιολόγηση αναγκών ασφάλειας (μετά από αφορμή) και αρχική αξιολόγηση τις κάνει μόνο ψυχολόγος. Με την εναλλαγή κλινικού/βιωματικού, η επόμενη ατομική μπορεί να είναι με βιωματικό· εδώ φαίνεται για να το ρυθμίσει η διαχείριση. <strong>Προθεσμία αξιολόγησης αναγκών (απόφαση 14/10): μέχρι την επόμενη ατομική με ψυχολόγο, το πολύ 7 μέρες από την αφορμή.</strong> Όταν περάσει: κόκκινο εδώ και στο «Σήμερα» της ομάδας, και μήνυμα στη διαχείριση μία φορά την ημέρα.</p>
           <ul>
             {psyRows.map(({ m, trig, initial, next, claimed, nextIsPsy }) => (
               <li key={m.id}>
-                <Link href={`/t/members/${m.id}${trig ? "/risk" : "/assessment"}`}>{m.name}</Link>: {trig ? `αξιολόγηση αναγκών ασφάλειας (μετά από ${trig.text})` : "αρχική αξιολόγηση (δεν έγινε)"}
+                <Link href={`/t/members/${m.id}${trig ? "/risk" : "/assessment"}`}>{m.name}</Link>: {trig ? <>αξιολόγηση αναγκών ασφάλειας (μετά από {trig.text}, {formatDate(localParts(trig.at).date)} · εκκρεμεί {Math.max(0, Math.floor((now.getTime() - trig.at.getTime()) / 86_400_000))} μέρες) · προθεσμία {formatDate(localParts(trig.dueAt).date)}{trig.overdue && <strong className="warn-text" style={{ color: "var(--red)" }}> — ΕΚΠΡΟΘΕΣΜΗ {trig.daysOverdue > 0 && `(${trig.daysOverdue} ${trig.daysOverdue === 1 ? "μέρα" : "μέρες"})`}</strong>}</> : "αρχική αξιολόγηση (δεν έγινε)"}
                 {" · "}{claimed ? <span className="badge ok">ανέλαβε: {claimed}</span> : <span className="badge yellow">χωρίς ανάληψη</span>}
                 {" · "}επόμενη ατομική: {next ? <>{formatDate(next.date)} {formatTime(next.startsAt)}{next.therapist && ` · ${next.therapist}`}{next.kind && ` (${kindWord(next.kind)})`}{!nextIsPsy && <strong className="warn-text"> — όχι ψυχολόγος</strong>}</> : <strong className="warn-text">δεν έχει προγραμματιστεί</strong>}
               </li>

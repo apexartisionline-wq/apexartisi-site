@@ -75,3 +75,15 @@ export function needsReview(triggers: Trigger[], lastReviewAt: Date | null): Tri
 export function maskPhones(s: string): string {
   return s.replace(/\+?\d[\d\s-]{6,}\d/g, "•••");
 }
+
+/**
+ * Προθεσμία αξιολόγησης αναγκών ασφάλειας (απόφαση υπεύθυνης 14/10): από την αφορμή, μέχρι την επόμενη ατομική με ψυχολόγο
+ * και το πολύ ASSESSMENT_MAX_DAYS μέρες. Όταν περάσει: κόκκινη γραμμή στο «Σήμερα» της διαχείρισης (και της ομάδας) και μήνυμα
+ * στη διαχείριση — μία φορά την ημέρα. Καθαρή λογική, χωρίς βάση.
+ */
+export const ASSESSMENT_MAX_DAYS = 7;
+export function assessmentDeadline(triggerAt: Date, nextClinicalAt: Date | null): Date {
+  const max = new Date(triggerAt.getTime() + ASSESSMENT_MAX_DAYS * 86_400_000);
+  return nextClinicalAt && nextClinicalAt < max ? nextClinicalAt : max;
+}
+export const daysOverdue = (dueAt: Date, now: Date): number => Math.max(0, Math.floor((now.getTime() - dueAt.getTime()) / 86_400_000));

@@ -5,6 +5,7 @@ import { escalatePending, remindCareTasks } from "@/lib/help";
 import { sendQueuedPushes } from "@/lib/notify";
 import { runSchedule } from "@/lib/schedule";
 import { runRetentionDaily } from "@/lib/retention-db";
+import { remindOverdueAssessments } from "@/lib/risk-db";
 
 function authorized(req: Request): boolean {
   const secret = process.env.CRON_SECRET;
@@ -22,6 +23,8 @@ export async function POST(req: Request) {
   if (new Date().getUTCMinutes() % 30 === 0) {
     await checkDropouts().catch((e) => console.error("[dropout]", e));
     await remindCareTasks();
+    // Εκπρόθεσμη αξιολόγηση αναγκών (απόφαση 14/10): μήνυμα στη διαχείριση, μία φορά την ημέρα ανά μέλος.
+    await remindOverdueAssessments().catch((e) => console.error("[risk-overdue]", e));
   }
   // Χρόνοι τήρησης (έγγραφο 13): αυτόματη εκκαθάριση μία φορά την ημέρα, νωρίς το πρωί (ώρα Ελλάδας ~04:00–05:00).
   if (new Date().getUTCHours() === 1 && new Date().getUTCMinutes() === 17) await runRetentionDaily().catch((e) => console.error("[retention]", e));

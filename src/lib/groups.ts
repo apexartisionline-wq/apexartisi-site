@@ -12,6 +12,8 @@ export type GroupDay = {
   overridden: boolean;
   sessionId: string | null;
   hasNote: boolean;
+  startsAt: Date;
+  notHeld: boolean;
 };
 
 /**
@@ -39,9 +41,10 @@ export async function syncGroupProgramme(s: Settings, now = new Date()): Promise
 
 /**
  * Οι ομάδες ενός διαστήματος από το πραγματικό πρόγραμμα: μέχρι σήμερα όσες είναι γραμμένες ως γεγονότα,
- * μετά από σήμερα το εβδομαδιαίο πρόγραμμα (και ό,τι έχει ήδη γραφτεί). Οι ομάδες δεν ακυρώνονται ποτέ (υπεύθυνη 13/10).
+ * μετά από σήμερα το εβδομαδιαίο πρόγραμμα (και ό,τι έχει ήδη γραφτεί). Οι ομάδες δεν ακυρώνονται εκ των προτέρων (υπεύθυνη 13/10)·
+ * «δεν έγινε» σημειώνεται εκ των υστέρων (notHeld, απόφαση 14/10).
  */
-export async function groupOccurrences(from: string, to: string, s: Settings, now = new Date()): Promise<(Occurrence & { sessionId: string | null; coordinatorId: string | null; noteAt: Date | null })[]> {
+export async function groupOccurrences(from: string, to: string, s: Settings, now = new Date()): Promise<(Occurrence & { sessionId: string | null; coordinatorId: string | null; noteAt: Date | null; notHeld: boolean })[]> {
   await syncGroupProgramme(s, now);
   const today = localParts(now).date;
   const rows = await prisma.groupSession.findMany({ where: { date: { gte: from, lte: to } } });
@@ -50,7 +53,7 @@ export async function groupOccurrences(from: string, to: string, s: Settings, no
     const [h, m] = time.split(":").map(Number);
     const startsAt = athensToUtc(date, h, m);
     const r = byKey.get(`${date} ${time}`);
-    return { date, time, startsAt, endsAt: new Date(startsAt.getTime() + s.groupDurationMinutes * 60_000), sessionId: r?.id ?? null, coordinatorId: r?.coordinatorId ?? null, noteAt: r?.noteAt ?? null };
+    return { date, time, startsAt, endsAt: new Date(startsAt.getTime() + s.groupDurationMinutes * 60_000), sessionId: r?.id ?? null, coordinatorId: r?.coordinatorId ?? null, noteAt: r?.noteAt ?? null, notHeld: Boolean(r?.cancelledAt) };
   };
   const out = [];
   for (const r of rows) if (r.date <= today) out.push(make(r.date, r.time));
@@ -78,6 +81,8 @@ export async function groupDays(from: string, to: string, s: Settings): Promise<
       overridden: Boolean(o.coordinatorId && o.coordinatorId !== rotated),
       sessionId: o.sessionId,
       hasNote: Boolean(o.noteAt),
+      startsAt: o.startsAt,
+      notHeld: o.notHeld,
     };
   });
 }

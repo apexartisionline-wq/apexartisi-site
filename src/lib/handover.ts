@@ -1,6 +1,6 @@
 import "server-only";
 import { assessmentFlags } from "./assessment-db";
-import { riskTrigger } from "./risk-db";
+import { riskTriggerDue } from "./risk-db";
 import { z } from "zod";
 import { dec, enc } from "./crypto";
 import { prisma } from "./db";
@@ -63,8 +63,15 @@ export async function memberSafety(memberId: string, now = new Date()) {
     ...((j.selfHarm === "YES" || j.selfHarm === "UNSURE") ? [{ level: "red" as const, key: `journal_${j.date}`, text: `Έγραψε στο ημερολόγιο (${formatDate(j.date)}): σκέψεις να κάνει κακό στον εαυτό του`, at: j.updatedAt, href: `/t/members/${memberId}` }] : []),
     ...(j.used ? [{ level: "red" as const, key: `journal_used_${j.date}`, text: `Έγραψε στο ημερολόγιο (${formatDate(j.date)}): έκανε χρήση`, at: j.updatedAt, href: `/t/members/${memberId}` }] : []),
   ]);
-  const trig = await riskTrigger(memberId);
-  const review = trig ? [{ level: "yellow" as const, key: "risk_review", trigText: trig.text, text: `Θέλει αξιολόγηση αναγκών ασφάλειας (μετά από ${trig.text})`, at: trig.at, href: `/t/members/${memberId}/risk` }] : [];
+  const trig = await riskTriggerDue(memberId, now);
+  // Προθεσμία (απόφαση 14/10): μέχρι την επόμενη ατομική με ψυχολόγο, το πολύ 7 μέρες· μετά κόκκινο για όλη την ομάδα.
+  const review = trig ? [{
+    level: (trig.overdue ? "red" : "yellow") as "red" | "yellow", key: "risk_review", trigText: trig.text, dueAt: trig.dueAt,
+    text: trig.overdue
+      ? `Αξιολόγηση αναγκών ασφάλειας ΕΚΠΡΟΘΕΣΜΗ (μετά από ${trig.text}· προθεσμία ${formatDate(localParts(trig.dueAt).date)})`
+      : `Θέλει αξιολόγηση αναγκών ασφάλειας (μετά από ${trig.text}· μέχρι ${formatDate(localParts(trig.dueAt).date)})`,
+    at: trig.at, href: `/t/members/${memberId}/risk`,
+  }] : [];
   // Τα κόκκινα πρώτα (η εγκυμοσύνη είναι κίτρινη).
   const all = [...fromAssessment, ...fromJournal, ...review, ...flags];
   return [...all.filter((f) => f.level === "red"), ...all.filter((f) => f.level !== "red")];

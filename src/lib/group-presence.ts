@@ -1,18 +1,21 @@
 /**
  * Ομάδες ανά μέλος (απόφαση 13/10): μία ομάδα μπαίνει στον παρονομαστή όταν ήταν στο πραγματικό πρόγραμμα, έληξε η ώρα της,
- * είναι από την ένταξη του μέλους και μετά — ακόμη κι αν δεν υπάρχει καταγραφή παρουσίας. Οι ομάδες δεν ακυρώνονται ποτέ (υπεύθυνη 13/10).
+ * είναι από την ένταξη του μέλους και μετά — ακόμη κι αν δεν υπάρχει καταγραφή παρουσίας. Οι ομάδες δεν ακυρώνονται εκ των προτέρων
+ * (υπεύθυνη 13/10)· αν τελικά δεν έγινε, ο συντονιστής ή η διαχείριση το σημειώνει εκ των υστέρων (απόφαση 14/10) και βγαίνει
+ * από τον παρονομαστή όλων («δεν έγινε», ούτε παρουσία ούτε «χωρίς καταγραφή»).
  * Παρουσία = «Μπες στην ομάδα» ή διόρθωση της διαχείρισης (Attendance). Χωρίς καταγραφή = «Χωρίς καταγραφή», όχι απουσία.
  * Ομάδα με καταγεγραμμένη παρουσία μετράει αμέσως (και στον αριθμητή και στον παρονομαστή).
  * Καθαρή λογική, χωρίς βάση.
  */
-export type Occurrence = { date: string; time: string; startsAt: Date; endsAt: Date };
-export type GroupState = "present" | "no_record" | "future" | "before_join";
+export type Occurrence = { date: string; time: string; startsAt: Date; endsAt: Date; notHeld?: boolean };
+export type GroupState = "present" | "no_record" | "future" | "before_join" | "not_held";
 
 export const GROUP_LABEL: Record<GroupState, string> = {
   present: "παρουσία",
   no_record: "χωρίς καταγραφή",
   future: "δεν έχει τελειώσει ακόμα",
   before_join: "πριν από την ένταξη",
+  not_held: "δεν έγινε",
 };
 
 export function memberGroups(occ: Occurrence[], attendance: { date: string; joinedAt: Date }[], o: { now: Date; joinDate: string | null }) {
@@ -29,6 +32,7 @@ export function memberGroups(occ: Occurrence[], attendance: { date: string; join
   const rows = sorted.map((g) => {
     let state: GroupState;
     if (o.joinDate && g.date < o.joinDate) state = "before_join";
+    else if (g.notHeld) state = "not_held";
     else if (matched.has(g)) state = "present";
     else if (g.endsAt <= o.now) state = "no_record";
     else state = "future";
