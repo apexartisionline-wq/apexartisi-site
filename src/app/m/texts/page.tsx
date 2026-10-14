@@ -11,6 +11,7 @@ export default async function TextsPage() {
   const now = new Date();
   const today = localParts(now).date;
   const items = await prisma.content.findMany({
+    omit: { image: true },
     where: { date: { gte: addDays(today, -21), lte: today } },
     orderBy: [{ date: "desc" }, { kind: "asc" }],
   });

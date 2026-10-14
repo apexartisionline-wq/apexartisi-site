@@ -9,12 +9,13 @@ import { formatDate } from "@/lib/time";
 export default async function TextPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await requireMember();
   const { id } = await params;
-  const [s, c, forms] = await Promise.all([getSettings(), prisma.content.findUnique({ where: { id } }), hasConsent(user.id, "forms")]);
+  const [s, c, forms] = await Promise.all([getSettings(), prisma.content.findUnique({ where: { id }, omit: { image: true } }), hasConsent(user.id, "forms")]);
   if (!c || !isPublished(c.date, c.kind === "DAILY_TEXT" ? s.dailyTextTime : s.formsTime, new Date())) notFound();
   return (
     <main>
       <p className="muted">{formatDate(c.date)}</p>
       <h1>{c.title}</h1>
+      {c.imageMime && <img src={`/api/content/${c.id}/image`} alt={c.title} style={{ width: "100%", borderRadius: 12, marginBottom: 12 }} />}
       {c.body && <div className="card body-text">{c.body}</div>}
       {c.url && !forms && <p className="muted small">Οι φόρμες δεν είναι ανοιχτές για σένα, γιατί δεν έχεις πει «ναι» γι' αυτές. Μπορείς να δουλέψεις το θέμα στην ατομική σου.</p>}
       {c.url && forms && (

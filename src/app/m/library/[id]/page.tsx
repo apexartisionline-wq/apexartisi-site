@@ -25,6 +25,7 @@ export default async function LibraryItemPage({ params }: { params: Promise<{ id
           <video controls controlsList="nodownload" disablePictureInPicture preload="metadata" src={src} style={{ width: "100%" }} playsInline />
         )}
         {item.kind === "PDF" && <a className="btn primary big" href={src}>Άνοιγμα</a>}
+        {item.kind === "IMAGE" && <img src={src} alt={item.title} style={{ width: "100%", borderRadius: 12 }} />}
         {item.kind === "LINK" && item.url && (
           <a className="btn primary big" href={item.url} target="_blank" rel="noopener noreferrer">Άνοιγμα βίντεο</a>
         )}

@@ -64,7 +64,7 @@ export const RETENTION: Record<RetentionKey, RetentionRule> = {
 };
 
 /** Ενέργειες της καταγραφής πρόσβασης που είναι τεκμηρίωση κινδύνου (5 έτη), όχι απλό αρχείο καταγραφής (6 μήνες). */
-export const RISK_ACCESS_ACTIONS = ["emergency_reveal", "emergency_view"];
+export const RISK_ACCESS_ACTIONS = ["emergency_reveal", "emergency_view", "emergency_admin_notify"];
 
 /** + μήνες σε ημερομηνία (ημερολογιακά· 31/1 + 1 μήνας = 28 ή 29/2). */
 export function addMonths(d: Date, months: number): Date {

@@ -3,10 +3,10 @@ import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { formatDate, localParts } from "@/lib/time";
 
-const KIND = { PDF: "PDF", AUDIO: "Ήχος", VIDEO: "Βίντεο", LINK: "Σύνδεσμος" } as const;
+const KIND = { PDF: "PDF", AUDIO: "Ήχος", VIDEO: "Βίντεο", IMAGE: "Εικόνα", LINK: "Σύνδεσμος" } as const;
 const ERR: Record<string, string> = {
   title: "Χρειάζεται τίτλος.",
-  type: "Μόνο PDF, ήχος ή βίντεο.",
+  type: "Μόνο PDF, ήχος, βίντεο ή εικόνα.",
   size: "Το αρχείο είναι πάνω από 40 MB. Για μεγάλο βίντεο βάλε σύνδεσμο.",
   url: "Ο σύνδεσμος πρέπει να ξεκινά με https://",
   empty: "Διάλεξε αρχείο ή γράψε σύνδεσμο.",
@@ -54,8 +54,8 @@ export default async function AdminLibrary({ searchParams }: { searchParams: Pro
           <textarea id="description" name="description" maxLength={2000} />
         </div>
         <div className="field">
-          <label htmlFor="file">Αρχείο (PDF, ήχος ή βίντεο, έως 40 MB)</label>
-          <input id="file" name="file" type="file" accept="application/pdf,audio/*,video/*" />
+          <label htmlFor="file">Αρχείο (PDF, ήχος, βίντεο ή εικόνα, έως 40 MB)</label>
+          <input id="file" name="file" type="file" accept="application/pdf,audio/*,video/*,image/*" />
         </div>
         <div className="field">
           <label htmlFor="url">ή σύνδεσμος (π.χ. μεγάλο βίντεο)</label>

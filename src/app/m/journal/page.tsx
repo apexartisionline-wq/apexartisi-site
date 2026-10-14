@@ -41,11 +41,16 @@ async function save(formData: FormData) {
     goalCheck: data.goalCheck ?? null,
     goalNote: enc(data.goalNote),
   };
+  const before = await prisma.journalEntry.findUnique({ where: { memberId_date: { memberId: user.id, date } }, select: { used: true } });
   await prisma.journalEntry.upsert({
     where: { memberId_date: { memberId: user.id, date } },
     create: { memberId: user.id, date, ...fields },
     update: fields,
   });
+  // «Έκανα χρήση»: μία γραμμή 7 ημερών στην ομάδα, αφορμή για αξιολόγηση αναγκών, και μήνυμα στη διαχείριση (απόφαση 14/10)· όχι κόκκινο κουτί.
+  if (fields.used && !before?.used) {
+    await notifyRole("ADMIN", { title: "Νέο σοβαρό σημείο στην ομάδα", body: "Έγραψε στο ημερολόγιο ότι έκανε χρήση — δες το «Σήμερα»", url: "/admin", tag: `alert-${user.id}` }).catch(() => undefined);
+  }
   const concern = fields.used || fields.selfHarm === "YES";
   // Σκέψεις να κάνει κακό στον εαυτό του: κόκκινη γραμμή 24 ώρες πάνω-πάνω στο «Σήμερα» όλης της ομάδας (μία φορά τη μέρα).
   if (fields.selfHarm === "YES") {

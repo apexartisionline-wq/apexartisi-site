@@ -10,7 +10,7 @@ import { formatDate } from "@/lib/time";
 export default async function TherapistContent({ params }: { params: Promise<{ id: string }> }) {
   await requireRole("THERAPIST", "ADMIN");
   const { id } = await params;
-  const [s, c] = await Promise.all([getSettings(), prisma.content.findUnique({ where: { id } })]);
+  const [s, c] = await Promise.all([getSettings(), prisma.content.findUnique({ where: { id }, omit: { image: true } })]);
   if (!c) notFound();
   const out = isPublished(c.date, c.kind === "DAILY_TEXT" ? s.dailyTextTime : s.formsTime, new Date());
   return (
@@ -21,6 +21,7 @@ export default async function TherapistContent({ params }: { params: Promise<{ i
         {!out && <> · <strong>δεν έχει βγει ακόμα στα μέλη</strong></>}
       </p>
       <h1>{c.title}</h1>
+      {c.imageMime && <img src={`/api/content/${c.id}/image`} alt={c.title} style={{ maxWidth: "100%", borderRadius: 12, marginBottom: 12 }} />}
       {c.body && <div className="card body-text">{c.body}</div>}
       {c.url && (
         <>
@@ -28,7 +29,7 @@ export default async function TherapistContent({ params }: { params: Promise<{ i
           <p className="small muted">Ανοίγει για να τη δεις. Το μέλος τη συμπληρώνει από τα δικά του «Κείμενα», με τον κωδικό του.</p>
         </>
       )}
-      {!c.body && !c.url && <p className="muted">Μόνο τίτλος, χωρίς κείμενο.</p>}
+      {!c.body && !c.url && !c.imageMime && <p className="muted">Μόνο τίτλος, χωρίς κείμενο.</p>}
     </main>
   );
 }

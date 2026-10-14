@@ -23,6 +23,7 @@ const ACTION: Record<string, string> = {
   risk_review_HIGH: "αξιολόγησε ανάγκες ασφάλειας: Υψηλές",
   emergency_reveal: "ΑΝΟΙΞΕ στοιχεία έκτακτης ανάγκης",
   emergency_view: "είδε στοιχεία έκτακτης ανάγκης",
+  emergency_admin_notify: "ζήτησε τη διαχείριση για άμεσο κίνδυνο",
   cycle_review_view: "άνοιξε ανασκόπηση κύκλου",
   cycle_review_save: "έγραψε ανασκόπηση κύκλου",
   month_folder_view: "άνοιξε φάκελο μήνα",

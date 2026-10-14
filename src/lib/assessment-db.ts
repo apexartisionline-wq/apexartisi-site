@@ -134,7 +134,7 @@ export const ALERT_SOURCE: Record<string, string> = { ASSESSMENT: "Αρχική 
 export function alertText(source: string, kind: string): string {
   if (source === "ASSESSMENT") return ALERTS[kind as AlertKind] ?? kind;
   if (source === "RISK") return kind === "HIGH" ? "Υψηλές ανάγκες ασφάλειας · τηλεφωνεί η διαχείριση την επόμενη μέρα" : "Αυξημένες ανάγκες ασφάλειας · τηλεφωνεί η διαχείριση μέσα σε 24 ώρες";
-  if (source === "EMERGENCY") return "Άνοιξαν τα στοιχεία έκτακτης ανάγκης";
+  if (source === "EMERGENCY") return kind === "CALL_ADMIN" ? "Θεραπευτής ζητά τη διαχείριση ΤΩΡΑ — άμεσος κίνδυνος στην ατομική" : "Άνοιξαν τα στοιχεία έκτακτης ανάγκης";
   if (source === "JOURNAL") return "Έγραψε στο ημερολόγιο ότι είχε σκέψεις να κάνει κακό στον εαυτό του";
   if (source === "NOTE") return "Προβληματισμός προς τη θεραπευτική ομάδα — άνοιξε το σημείωμα";
   return kind;

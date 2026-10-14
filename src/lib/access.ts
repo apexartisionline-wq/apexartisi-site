@@ -26,6 +26,13 @@ export const nameWithKind = (name: string, k: string | null | undefined): string
 /** Ψυχολόγος (κλινικός ή «και τα δύο») ή διαχείριση. Ίδιος κανόνας με την εγγραφή (canWriteRisk/canWriteAssessment). */
 export const isPsychologist = (u: Viewer): boolean => u.role === "ADMIN" || u.therapistKind === "CLINICAL" || u.therapistKind === "BOTH";
 
+/**
+ * Αυξημένες ή Υψηλές ανάγκες ασφάλειας: «τα βλέπουν όλοι όλα» (απόφαση 14/10) — κάθε θεραπευτής του μέλους βλέπει τις
+ * απαντήσεις και την αιτιολόγηση των αξιολογήσεων αναγκών και την αρχική αξιολόγηση (ανάγνωση, με υδατογράφημα).
+ * Σε Συνήθεις (ή χωρίς αξιολόγηση) μένει ο κανόνας του ψυχολόγου. Η εγγραφή μένει στον ψυχολόγο.
+ */
+export const seesSafetyDetail = (u: Viewer, level: string | null | undefined): boolean => isPsychologist(u) || level === "MEDIUM" || level === "HIGH";
+
 /** Απαντήσεις και κείμενα του ημερολογίου, μέρα-μέρα: μόνο η διαχείριση. */
 export const seesJournalDetail = (u: Viewer): boolean => u.role === "ADMIN";
 

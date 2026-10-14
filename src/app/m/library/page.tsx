@@ -5,7 +5,7 @@ import { prisma } from "@/lib/db";
 import { currentStep, STEPS } from "@/lib/steps";
 import { formatDate, localParts } from "@/lib/time";
 
-const KIND = { PDF: "PDF", AUDIO: "Ήχος", VIDEO: "Βίντεο", LINK: "Βίντεο" } as const;
+const KIND = { PDF: "PDF", AUDIO: "Ήχος", VIDEO: "Βίντεο", IMAGE: "Εικόνα", LINK: "Βίντεο" } as const;
 
 // Το μέλος λέει σε ποιο βήμα βρίσκεται· κάθε αλλαγή κρατιέται ως νέα γραμμή.
 async function saveStep(formData: FormData) {

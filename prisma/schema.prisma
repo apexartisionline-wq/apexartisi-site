@@ -214,6 +214,9 @@ model Content {
   title String
   body  String      @default("")
   url   String?
+  // Εικόνα (π.χ. η κάρτα «Καθημερινή σκέψη» του πρωινού): φαίνεται στο «Σήμερα» του μέλους και στο «Υλικό» των θεραπευτών.
+  imageMime String?
+  image     Bytes?
 
   @@index([date, kind])
 }
@@ -418,6 +421,7 @@ enum LibraryKind {
   PDF
   AUDIO
   VIDEO
+  IMAGE
   LINK
 }
 

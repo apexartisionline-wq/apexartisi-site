@@ -22,7 +22,7 @@ export default async function MemberHome() {
   await ensureDemoToday();
   const [cycle, contents, upcoming, journal, attended, requests, consents] = await Promise.all([
     cycleInfo(user.id),
-    prisma.content.findMany({ where: { date: today.date }, orderBy: { title: "asc" } }),
+    prisma.content.findMany({ where: { date: today.date }, orderBy: { title: "asc" }, omit: { image: true } }),
     prisma.booking.findMany({
       where: { memberId: user.id, slot: { startsAt: { gte: new Date(now.getTime() - s.pairMinutes * 60_000) } } },
       include: { slot: true },
@@ -136,7 +136,10 @@ export default async function MemberHome() {
       <section className="card">
         <strong>Το κείμενο της ημέρας</strong>
         {text ? (
-          <p><Link href={`/m/texts/${text.id}`}>{text.title}</Link></p>
+          <>
+            {text.imageMime && <Link href={`/m/texts/${text.id}`}><img src={`/api/content/${text.id}/image`} alt={text.title} style={{ width: "100%", borderRadius: 12, marginTop: 8 }} /></Link>}
+            <p><Link href={`/m/texts/${text.id}`}>{text.title}</Link></p>
+          </>
         ) : (
           <p className="muted">{isAfterLocal(today, s.dailyTextTime) ? "Δεν υπάρχει κείμενο για σήμερα." : `Έρχεται στις ${s.dailyTextTime}.`}</p>
         )}

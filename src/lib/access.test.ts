@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isPsychologist, seesJournalDetail, seesMonthFolder, watermarkCss, watermarksNotes, watermarkWhen } from "./access";
+import { isPsychologist, seesJournalDetail, seesMonthFolder, seesSafetyDetail, watermarkCss, watermarksNotes, watermarkWhen } from "./access";
 
 const admin = { role: "ADMIN", therapistKind: null };
 const psy = { role: "THERAPIST", therapistKind: "CLINICAL" };
@@ -12,6 +12,13 @@ describe("τι βλέπει ο θεραπευτής (απόφαση 13/10)", () 
     expect(isPsychologist(psy)).toBe(true);
     expect(isPsychologist(both)).toBe(true);
     expect(isPsychologist(bio)).toBe(false);
+  });
+  it("Αυξημένες/Υψηλές: τα βλέπουν όλοι όλα (απόφαση 14/10)· Συνήθεις ή χωρίς αξιολόγηση: μόνο ψυχολόγος", () => {
+    expect(seesSafetyDetail(bio, "MEDIUM")).toBe(true);
+    expect(seesSafetyDetail(bio, "HIGH")).toBe(true);
+    expect(seesSafetyDetail(bio, "LOW")).toBe(false);
+    expect(seesSafetyDetail(bio, null)).toBe(false);
+    expect(seesSafetyDetail(psy, null)).toBe(true);
   });
   it("ημερολόγιο μέρα-μέρα και φάκελος μήνα: μόνο διαχείριση — ούτε ο ψυχολόγος", () => {
     expect(seesJournalDetail(admin)).toBe(true);

@@ -24,6 +24,7 @@ import { isPsychologist, nameWithKind, seesJournalDetail } from "@/lib/access";
 import { logAccess } from "@/lib/audit";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { notifyRole } from "@/lib/notify";
 import { RISK_CHANGE, USED_SINCE } from "@/lib/handover-rules";
 import { RISK_INFO, RISK_LEVELS } from "@/lib/intake-rules";
 import { sessionNumber } from "@/lib/member";
@@ -115,6 +116,8 @@ async function raiseNoteAlert(memberId: string, kind: string, byId: string) {
   const since = new Date(Date.now() - 24 * 3600_000);
   if (await prisma.teamAlert.findFirst({ where: { memberId, source: "NOTE", kind, createdAt: { gte: since } } })) return;
   await prisma.teamAlert.create({ data: { memberId, source: "NOTE", kind, byId } });
+  // Η διαχείριση ειδοποιείται με μήνυμα (απόφαση 14/10)· οι θεραπευτές το βλέπουν στο «Σήμερα».
+  await notifyRole("ADMIN", { title: "Ενημέρωση ομάδας από σημείωμα", body: "Ανησυχία ή προβληματισμός — δες το «Σήμερα»", url: "/admin", tag: `alert-${memberId}` }).catch(() => undefined);
 }
 
 async function saveIndividual(formData: FormData) {

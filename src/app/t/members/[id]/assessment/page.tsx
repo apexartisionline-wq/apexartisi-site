@@ -5,7 +5,8 @@ import { AssessmentClient } from "@/components/AssessmentClient";
 import { assessmentLines, assessmentSchema, gr, missingForComplete, stripAdminOnly } from "@/lib/assessment";
 import { dec } from "@/lib/crypto";
 import { canWriteAssessment, EC_WHEN, latestAssessment, latestProfile, saveAssessment } from "@/lib/assessment-db";
-import { isPsychologist } from "@/lib/access";
+import { isPsychologist, seesSafetyDetail } from "@/lib/access";
+import { currentRisk } from "@/lib/risk-db";
 import { logAccess } from "@/lib/audit";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
@@ -45,6 +46,20 @@ export default async function AssessmentPage({ params, searchParams }: { params:
   const latest = await latestAssessment(id);
   // Μόνο ψυχολόγος (ή η διαχείριση) βλέπει την αξιολόγηση (απόφαση 13/10, src/lib/access.ts)· οι υπόλοιποι μία γραμμή.
   if (!isPsychologist(user)) {
+    // Αυξημένες/Υψηλές: «τα βλέπουν όλοι όλα» (απόφαση 14/10) — ανάγνωση χωρίς στοιχεία διαχείρισης, με υδατογράφημα.
+    const risk = await currentRisk(id);
+    if (latest && seesSafetyDetail(user, risk.level)) {
+      await logAccess(user.id, id, "assessment_view");
+      return (
+        <main>
+          <p style={{ margin: "8px 0 0" }}><Link className="back" href={`/t/members/${id}`}>‹ {member.name}</Link></p>
+          <FolderTabs memberId={id} active="history" />
+          <h1 style={{ marginBottom: 4 }}>Αρχική αξιολόγηση</h1>
+          <p className="muted" style={{ marginTop: 0 }}>{latest.complete ? "Ολοκληρώθηκε" : "Σε εξέλιξη"} · {latest.author}, {formatWhen(latest.at)} · ανάγνωση: ανάγκες ασφάλειας {risk.level === "HIGH" ? "Υψηλές" : "Αυξημένες"}, τη βλέπει όλη η ομάδα</p>
+          <div className="wm"><ReadView d={latest.data} admin={false} /></div>
+        </main>
+      );
+    }
     await logAccess(user.id, id, "assessment_status_view");
     return (
       <main>

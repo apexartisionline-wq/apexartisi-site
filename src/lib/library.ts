@@ -10,6 +10,7 @@ export function kindFromMime(mime: string): LibraryKind | null {
   if (mime === "application/pdf") return "PDF";
   if (mime.startsWith("audio/")) return "AUDIO";
   if (mime.startsWith("video/")) return "VIDEO";
+  if (mime.startsWith("image/")) return "IMAGE";
   return null;
 }
 

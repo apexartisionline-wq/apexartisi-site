@@ -9,7 +9,7 @@ import { getSettings } from "@/lib/settings";
 import { addDays, formatDate, localParts, mondayOf } from "@/lib/time";
 import styles from "./page.module.css";
 
-const KIND = { PDF: "PDF", AUDIO: "Ήχος", VIDEO: "Βίντεο", LINK: "Βίντεο" } as const;
+const KIND = { PDF: "PDF", AUDIO: "Ήχος", VIDEO: "Βίντεο", IMAGE: "Εικόνα", LINK: "Βίντεο" } as const;
 const PAST_WEEKS = 4;
 
 type Item = { id: string; date: string; kind: "DAILY_TEXT" | "FORM"; title: string; body: string; url: string | null };
@@ -40,7 +40,7 @@ export default async function TherapistMaterial({ searchParams }: { searchParams
     prisma.content.findMany({
       where: { date: { gte: pastFrom } },
       orderBy: [{ date: "asc" }],
-      select: { id: true, date: true, kind: true, title: true, body: true, url: true },
+      select: { id: true, date: true, kind: true, title: true, body: true, url: true, imageMime: true },
     }),
     prisma.libraryItem.findMany({ where: { published: true }, orderBy: { createdAt: "desc" }, select: { id: true, kind: true, title: true, description: true } }),
   ]);
