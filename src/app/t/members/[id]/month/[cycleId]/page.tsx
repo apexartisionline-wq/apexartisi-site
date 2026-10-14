@@ -54,14 +54,16 @@ export default async function MonthFolder({ params }: { params: Promise<{ id: st
         <div>Νηφαλιότητα: <strong>{pic.soberDays ?? "—"} μέρες</strong>{pic.relapses ? ` · ${pic.relapses} ${pic.relapses === 1 ? "αλλαγή" : "αλλαγές"} ημερομηνίας` : ""}</div>
       </div>
 
-      <h2>Ανασκόπηση θεραπευτή</h2>
+      <h2>Κλείσιμο κύκλου</h2>
       {review ? (
         <div className="card">
-          <div className="muted small">Πώς πάνε οι στόχοι</div><div className="body-text">{review.goals}</div>
-          <div className="muted small" style={{ marginTop: 8 }}>Πώς δούλεψε, τι εικόνα είχε</div><div className="body-text">{review.memberSays}</div>
+          {review.goals && <><div className="muted small">Πώς πάνε οι στόχοι</div><div className="body-text">{review.goals}</div></>}
+          {review.memberSays && <><div className="muted small" style={{ marginTop: 8 }}>Πώς δούλεψε, τι εικόνα είχε</div><div className="body-text">{review.memberSays}</div></>}
+          {review.note && <><div className="muted small" style={{ marginTop: 8 }}>Κάτι επιπλέον</div><div className="body-text">{review.note}</div></>}
+          {!review.goals && !review.memberSays && !review.note && <div className="muted small">Κλείστηκε χωρίς σημείωση· η σύνοψη αρχειοθετήθηκε αυτόματα.</div>}
           <div className="muted small" style={{ marginTop: 8 }}>{review.author} · {formatWhen(review.at)}</div>
         </div>
-      ) : <div className="card muted small">Δεν έχει γραφτεί. <Link className="no-print" href={`/t/members/${id}/cycle`}>Γράψε την ›</Link></div>}
+      ) : <div className="card muted small">Δεν έχει κλείσει. <Link className="no-print" href={`/t/members/${id}/cycle`}>Κλείσιμο κύκλου ›</Link></div>}
 
       <h2>Στόχοι εβδομάδας</h2>
       {pic.weeks.length === 0 ? <div className="card muted small">Δεν έβαλε στόχους.</div> : (

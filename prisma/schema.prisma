@@ -614,8 +614,11 @@ model CycleReview {
   id         String   @id @default(cuid())
   cycleId    String
   memberId   String
-  goals      String // κρυπτογραφημένο: πώς πάνε οι στόχοι
-  memberSays String // κρυπτογραφημένο: τι λέει το μέλος
+  goals      String // κρυπτογραφημένο: πώς πάνε οι στόχοι (παλιά μορφή «δύο γραμμές»· κενό από 14/10)
+  memberSays String // κρυπτογραφημένο: τι λέει το μέλος (παλιά μορφή· κενό από 14/10)
+  // Κλείσιμο κύκλου (απόφαση 14/10): προαιρετικό «κάτι επιπλέον» και στιγμιότυπο της αυτόματης σύνοψης (JSON), κρυπτογραφημένα.
+  note       String   @default("")
+  summary    String   @default("")
   authorId   String
   createdAt  DateTime @default(now())
 

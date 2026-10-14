@@ -10,9 +10,39 @@ import { memberGroups } from "./group-presence";
 import { cyclePeriod, cyclePeriodLabel } from "./member";
 import { getSettings } from "./settings";
 import { addDays, localParts, mondayOf } from "./time";
+import { cycleIsComplete, type CycleProgress } from "./cycle-rules";
 
 
-/** Ο τελευταίος κύκλος που έχει ολοκληρώσει όλες τις ατομικές του (όλες έγιναν). */
+type CycleRow = { id: string; length: number; startedAt: Date; closedAt: Date | null; bookings: { slot: { startsAt: Date; date: string } }[] };
+
+/** Πόσες ομάδες του πραγματικού προγράμματος πέρασαν μέσα στον κύκλο (από την έναρξή του, μετά την ένταξη, χωρίς «δεν έγινε»). */
+export async function cycleGroupsPassed(memberId: string, cycle: CycleRow, now = new Date()): Promise<number> {
+  const s = await getSettings();
+  const { from, to } = cyclePeriod(cycle);
+  const today = localParts(now).date;
+  if (from > today) return 0;
+  const [member, occ] = await Promise.all([
+    prisma.user.findUniqueOrThrow({ where: { id: memberId }, select: { programStartDate: true } }),
+    groupOccurrences(from, to < today ? to : today, s, now),
+  ]);
+  return occ.filter((o) => !o.notHeld && o.endsAt <= now && (!member.programStartDate || o.date >= member.programStartDate)).length;
+}
+
+/** Η πρόοδος ενός κύκλου προς το κλείσιμο: ατομικές που πέρασαν / προβλεπόμενες, ομάδες που πέρασαν / προβλεπόμενες. */
+export async function cycleProgress(memberId: string, cycle: CycleRow, now = new Date()): Promise<CycleProgress> {
+  const s = await getSettings();
+  return {
+    sessionsPassed: cycle.bookings.filter((b) => b.slot.startsAt <= now).length,
+    sessionsTotal: cycle.length,
+    groupsPassed: await cycleGroupsPassed(memberId, cycle, now),
+    groupsTotal: s.groupsPerCycle,
+  };
+}
+
+/**
+ * Ο τελευταίος κύκλος που έχει τελειώσει (απόφαση 14/10): ΚΑΙ οι ατομικές του (όλες προγραμματισμένες και πέρασε η ώρα τους)
+ * ΚΑΙ οι ομάδες του (όσες προβλέπει ο κύκλος πέρασαν από την έναρξή του). Μέχρι τότε δεν ανοίγει το κλείσιμο.
+ */
 export async function lastFinishedCycle(memberId: string, now = new Date()) {
   const cycles = await prisma.cycle.findMany({
     where: { memberId },
@@ -20,7 +50,17 @@ export async function lastFinishedCycle(memberId: string, now = new Date()) {
     take: 3,
     include: { bookings: { include: { slot: { select: { startsAt: true, date: true, kind: true, note: { select: { id: true } } } } }, orderBy: { slot: { startsAt: "asc" } } } },
   });
-  return cycles.find((c) => c.bookings.length >= c.length && c.bookings.every((b) => b.slot.startsAt <= now)) ?? null;
+  for (const c of cycles) {
+    if (!(c.bookings.length >= c.length && c.bookings.every((b) => b.slot.startsAt <= now))) continue;
+    if (cycleIsComplete(await cycleProgress(memberId, c, now))) return c;
+  }
+  return null;
+}
+
+/** Ο τρέχων (τελευταίος) κύκλος με την πρόοδό του — για να φαίνεται «πόσο απέχει» το κλείσιμο. */
+export async function currentCycleProgress(memberId: string, now = new Date()) {
+  const c = await prisma.cycle.findFirst({ where: { memberId }, orderBy: { startedAt: "desc" }, include: { bookings: { select: { slot: { select: { startsAt: true, date: true } } }, orderBy: { slot: { startsAt: "asc" } } } } });
+  return c ? { cycle: c, progress: await cycleProgress(memberId, c, now) } : null;
 }
 
 /** Η εικόνα του κύκλου, μόνη της: ατομικές, ομάδες, ημερολόγιο, στόχοι εβδομάδας, κόκκινο κουμπί, νηφαλιότητα. */
@@ -71,12 +111,28 @@ export async function cyclePicture(memberId: string, cycle: PicCycle) {
   };
 }
 
+export type CycleArchive = { pic: Awaited<ReturnType<typeof cyclePicture>>; data: CycleSummaryData } | null;
 export async function cycleReviews(memberId: string) {
   const rows = await prisma.cycleReview.findMany({ where: { memberId }, orderBy: { createdAt: "desc" }, take: 12 });
   const names = new Map((await prisma.user.findMany({ where: { id: { in: rows.map((r) => r.authorId) } }, select: { id: true, name: true } })).map((u) => [u.id, u.name]));
-  return rows.map((r) => ({ id: r.id, cycleId: r.cycleId, goals: dec(r.goals), memberSays: dec(r.memberSays), at: r.createdAt, author: names.get(r.authorId) ?? "" }));
+  const parse = (raw: string): CycleArchive => { if (!raw) return null; try { return JSON.parse(dec(raw)) as CycleArchive; } catch { return null; } };
+  return rows.map((r) => ({ id: r.id, cycleId: r.cycleId, goals: dec(r.goals), memberSays: dec(r.memberSays), note: dec(r.note), archive: parse(r.summary), at: r.createdAt, author: names.get(r.authorId) ?? "" }));
 }
 
+/**
+ * Κλείσιμο κύκλου (απόφαση 14/10): το στιγμιότυπο της αυτόματης σύνοψης (όπως ήταν τη στιγμή του κλεισίματος) και το
+ * προαιρετικό «κάτι επιπλέον» αρχειοθετούνται στον φάκελο του μέλους. Καμία ερμηνεία, κανένα AI.
+ */
+export async function closeCycle(memberId: string, cycle: NonNullable<Awaited<ReturnType<typeof lastFinishedCycle>>>, authorId: string, note: string) {
+  const [pic, data] = await Promise.all([cyclePicture(memberId, cycle), cycleSummaryData(memberId, cycle)]);
+  const snapshot = JSON.stringify({ pic, data });
+  await prisma.$transaction([
+    prisma.cycleReview.create({ data: { memberId, cycleId: cycle.id, authorId, goals: enc(""), memberSays: enc(""), note: enc(note), summary: enc(snapshot) } }),
+    prisma.cycle.updateMany({ where: { id: cycle.id, closedAt: null }, data: { closedAt: new Date() } }),
+  ]);
+}
+
+/** Παλιά μορφή (πριν 14/10): δύο γραμμές. Μένει για τα παλιά δεδομένα και τα tests. */
 export async function saveCycleReview(memberId: string, cycleId: string, authorId: string, goals: string, memberSays: string) {
   await prisma.cycleReview.create({ data: { memberId, cycleId, authorId, goals: enc(goals), memberSays: enc(memberSays) } });
 }
@@ -103,13 +159,16 @@ export async function cycleSummaryData(memberId: string, cycle: NonNullable<Awai
   const fromAt = new Date(`${from}T00:00:00Z`);
   const toAt = new Date(`${addDays(to, 1)}T00:00:00Z`);
   const s = await getSettings();
-  const [pic, notes, journal, assignments, review] = await Promise.all([
+  const [pic, notes, journal, assignments, review, forms] = await Promise.all([
     cyclePicture(memberId, cycle),
     memberNotes(memberId, { since: fromAt, before: toAt }),
     prisma.journalEntry.findMany({ where: { memberId, date: { gte: from, lte: to } }, select: { date: true, mood: true, craving: true, sleepHours: true, used: true, selfHarm: true, win: true }, orderBy: { date: "asc" } }),
     prisma.assignment.findMany({ where: { memberId, createdAt: { gte: fromAt, lt: toAt } }, select: { id: true, title: true, step: true, answeredAt: true, createdAt: true }, orderBy: { createdAt: "asc" } }),
     prisma.cycleReview.findFirst({ where: { cycleId: cycle.id }, orderBy: { createdAt: "desc" } }),
+    // Θεματικές της περιόδου: από τους τίτλους των φορμών («Πίστη: …» → «Πίστη»), όπως στο μήνυμα μήνα.
+    prisma.content.findMany({ where: { kind: "FORM", date: { gte: from, lte: to } }, orderBy: { date: "asc" }, select: { title: true, date: true } }),
   ]);
+  const themes = [...new Set(forms.map((f) => (f.title.includes(":") ? f.title.split(":")[0].trim() : f.title.trim())).filter(Boolean))];
   const slotTherapists = new Map((await prisma.slot.findMany({ where: { id: { in: cycle.bookings.map((b) => b.slotId) } }, select: { id: true, kind: true, therapist: { select: { name: true } } } })).map((x) => [x.id, x]));
   const avg = (xs: number[]) => (xs.length ? Math.round((xs.reduce((a, b) => a + b, 0) / xs.length) * 10) / 10 : null);
   const reviewer = review ? await prisma.user.findUnique({ where: { id: review.authorId }, select: { name: true } }) : null;
@@ -134,12 +193,16 @@ export async function cycleSummaryData(memberId: string, cycle: NonNullable<Awai
       })),
       groups: { came: pic.groups.came, passed: pic.groups.passed, noRecord: pic.groups.noRecord, total: pic.groups.total, source: "πραγματικό πρόγραμμα ομάδων· παρουσία = «Μπες στην ομάδα» ή διόρθωση από τη διαχείριση" },
       journal: { written: journal.length, days: pic.journal.days, source: "εγγραφές ημερολογίου ανάκαμψης του μέλους" },
+      // Μέρες που δεν ήρθε: «Δεν ήρθε» (σημείωμα) ή χωρίς καταγραφή σε ατομική που πέρασε — χωριστά, όχι «απουσίες».
+      missed: cycle.bookings.filter((b) => { const st = statesBy.get(b.id); return st === "absent_confirmed" || st === "no_record"; }).map((b) => ({ date: b.slot.date, state: statesBy.get(b.id) ?? "no_record" })),
       help: { count: pic.help, source: "πατήματα του κόκκινου κουμπιού" },
     },
     // Τι καταγράφηκε ως πρόοδος ή δυσκολία — μόνο μετρήσεις και καταγραφές, χωρίς ερμηνεία.
     recorded: {
       mood: avg(journal.map((j) => j.mood)), craving: avg(journal.map((j) => j.craving)), sleep: avg(journal.map((j) => j.sleepHours)),
       usedDays: journal.filter((j) => j.used).map((j) => j.date),
+      // «Μέρες με επιθυμία»: λαχτάρα 6/10 και πάνω στο ημερολόγιο (ίδιο κατώφλι με το «πιο δυνατή λαχτάρα» της ατομικής).
+      cravingDays: journal.filter((j) => j.craving >= 6).map((j) => ({ date: j.date, craving: j.craving })),
       selfHarmDays: journal.filter((j) => j.selfHarm === "YES" || j.selfHarm === "UNSURE").map((j) => j.date),
       wins: journal.map((j) => ({ date: j.date, text: dec(j.win) })).filter((w) => w.text),
       soberDays: pic.soberDays, relapses: pic.relapses,
@@ -150,7 +213,8 @@ export async function cycleSummaryData(memberId: string, cycle: NonNullable<Awai
       notes: notes.map((n) => ({ slotId: n.slotId, date: n.date, therapist: n.therapist, pair: n.pair, riskChange: n.riskChange, usedSince: n.usedSince, handover: n.handover })),
       goals: pic.weeks,
       assignments: assignments.map((a) => ({ id: a.id, title: a.title, step: a.step, answered: Boolean(a.answeredAt) })),
-      source: "σημειώματα ατομικών/Therapair, στόχοι εβδομάδας, εργασίες",
+      themes,
+      source: "σημειώματα ατομικών/Therapair, στόχοι εβδομάδας, εργασίες, θεματικές της εβδομάδας (φόρμες)",
     },
     // Τι χρειάζεται συνέχεια — τα πεδία συνέχειας του τελευταίου σημειώματος, όπως γράφτηκαν.
     next: {
@@ -158,7 +222,7 @@ export async function cycleSummaryData(memberId: string, cycle: NonNullable<Awai
       source: "το τελευταίο σημείωμα του κύκλου (καρτέλα «Συνέχεια»)",
     },
     // Ανθρώπινη ανασκόπηση (2 γραμμές) — αν υπάρχει.
-    review: review ? { goals: dec(review.goals), memberSays: dec(review.memberSays), at: review.createdAt, author: reviewer?.name ?? "" } : null,
+    review: review ? { goals: dec(review.goals), memberSays: dec(review.memberSays), note: dec(review.note), at: review.createdAt, author: reviewer?.name ?? "" } : null,
     // Προσχέδιο σύνοψης: δεν υπάρχει. Θα γραφεί από άνθρωπο ή (μελλοντικά) θα προταθεί ως προσχέδιο προς έγκριση.
     draft: null as null,
   };

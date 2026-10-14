@@ -177,7 +177,7 @@ export function buildActions(i: ActionInput): ActionView[] {
     const ref = `cycle:${i.cycleReviewDue.cycleId}`;
     out.push(fromItem({
       ...common, key: `cycle_review:${ref}`, kind: "cycle_review", source: "item",
-      title: "Ανασκόπηση κύκλου (2 γραμμές)", detail: "ολοκληρώθηκαν οι ατομικές του κύκλου",
+      title: "Κλείσιμο κύκλου (αρχειοθέτηση)", detail: "έγιναν οι ατομικές και οι ομάδες του κύκλου",
       ownerRule: i.cycleReviewDue.lastTherapist ? `όποιος είχε την τελευταία ατομική (${i.cycleReviewDue.lastTherapist})` : "όποιος είχε την τελευταία ατομική",
       href: `/t/members/${i.memberId}/cycle`, ref, needsClinician: false, adminOnly: false, manualDone: false,
     }, i.cycleReviewDue.since ?? null, row("cycle_review", ref)));

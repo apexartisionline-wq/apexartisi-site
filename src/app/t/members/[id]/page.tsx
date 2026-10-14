@@ -198,7 +198,7 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
             )}
           </Panel>
 
-          <Panel icon="refresh" title={cycle ? `Τρέχων κύκλος · Μήνας ${months}` : "Τρέχων κύκλος"} link={{ href: `/t/members/${id}/cycle`, label: "Ανασκόπηση κύκλου" }} tour="consistency">
+          <Panel icon="refresh" title={cycle ? `Τρέχων κύκλος · Μήνας ${months}` : "Τρέχων κύκλος"} link={{ href: `/t/members/${id}/cycle`, label: "Κλείσιμο κύκλου" }} tour="consistency">
             {!cycle ? <EmptyState>Δεν έχει ξεκινήσει κύκλος.</EmptyState> : cycle.done === 0 && cycle.groupsPassed === 0 ? (
               <EmptyState>Καμία προγραμματισμένη ατομική ή ομάδα δεν έχει περάσει ακόμη · {cycle.periodLabel}.</EmptyState>
             ) : (
@@ -271,7 +271,7 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
           </Panel>
 
           <Panel title="Μήνες" tour="months">
-            {seesMonthFolder(user) ? <MonthLinks memberId={id} /> : <p className="hint" style={{ margin: 0 }}>Ο φάκελος κάθε μήνα (με λήψη PDF) είναι στη διαχείριση. Η ανασκόπηση κύκλου: <Link href={`/t/members/${id}/cycle`}>Μήνες ›</Link> · <Link href={`/t/members/${id}/incident`}>Συμβάντα ›</Link></p>}
+            {seesMonthFolder(user) ? <MonthLinks memberId={id} /> : <p className="hint" style={{ margin: 0 }}>Ο φάκελος κάθε μήνα (με λήψη PDF) είναι στη διαχείριση. Το κλείσιμο κύκλου και το αρχείο: <Link href={`/t/members/${id}/cycle`}>Μήνες ›</Link> · <Link href={`/t/members/${id}/incident`}>Συμβάντα ›</Link></p>}
           </Panel>
         </div>
       </div>
