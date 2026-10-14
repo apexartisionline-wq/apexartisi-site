@@ -41,8 +41,8 @@ export function MemberGlance({ g, intake, viewer, nextClinical, compact, memberI
       <PeriodTabs
         weekLabel={week.period.label}
         monthLabel={month.period.label}
-        week={<PicturePanel pic={week} compact journalHref={memberId ? `/t/members/${memberId}/journal` : undefined} />}
-        month={<PicturePanel pic={month} compact journalHref={memberId ? `/t/members/${memberId}/journal` : undefined} />}
+        week={<PicturePanel pic={week} compact hidePeriod journalHref={memberId ? `/t/members/${memberId}/journal` : undefined} />}
+        month={<PicturePanel pic={month} compact hidePeriod journalHref={memberId ? `/t/members/${memberId}/journal` : undefined} />}
       />
       {memberId && <p className="hint" style={{ margin: "4px 0 0" }}><Link href={`/t/members/${memberId}`}>Προηγούμενες εβδομάδες και μήνες: στον φάκελο ›</Link></p>}
       <p className="hint" style={{ margin: "6px 0 0" }}>

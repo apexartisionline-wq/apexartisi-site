@@ -11,16 +11,19 @@ import { formatDate, formatTime, localParts } from "@/lib/time";
  * Κάθε αριθμός και κάθε φράση βγαίνουν από το ΙΔΙΟ αντικείμενο (src/lib/picture.ts), ώστε να μη διαφωνούν ποτέ.
  * Χωρίς ελεύθερο κείμενο του μέλους: το ημερολόγιο εδώ είναι μόνο αριθμοί (οι ημέρες ανοίγουν στη σελίδα «Απογραφές»).
  */
-export function PicturePanel({ pic, journalHref, consistencyHref, compact, canOpenDays = true }: { pic: MemberPicture; journalHref?: string; consistencyHref?: string; compact?: boolean; canOpenDays?: boolean }) {
+export function PicturePanel({ pic, journalHref, consistencyHref, compact, canOpenDays = true, hidePeriod }: { pic: MemberPicture; journalHref?: string; consistencyHref?: string; compact?: boolean; canOpenDays?: boolean; hidePeriod?: boolean }) {
   const { period, sessions: s, groups: g, journal: j, sober } = pic;
   const frac = (present: number, passed: number) => (passed === 0 ? "—" : `${present}/${passed}`);
   const q = period.kind === "month" ? "p=month" : "p=week";
   return (
     <div className={`pic${compact ? " compact" : ""}`}>
-      <p className="pic-period">
-        {period.label}
-        {period.clippedFrom && <> · μετρά από {shortDate(period.clippedFrom)} (έναρξη προγράμματος)</>}
-      </p>
+      {/* Η περίοδος λέγεται μία φορά: εδώ, ή στον επιλογέα από πάνω (hidePeriod) — τότε μένει μόνο η σημείωση της έναρξης. */}
+      {(!hidePeriod || period.clippedFrom) && (
+        <p className="pic-period">
+          {!hidePeriod && period.label}
+          {period.clippedFrom && <>{!hidePeriod && " · "}μετρά από {shortDate(period.clippedFrom)} (έναρξη προγράμματος)</>}
+        </p>
+      )}
 
       <section className="pic-block" aria-label="Ατομικές">
         <div className="pic-head"><b className="pic-big">{frac(s.present, s.passed)}</b><span><strong>Ατομικές</strong> <span className="hint">(και Therapair) · παρουσίες / που πέρασαν</span></span></div>
