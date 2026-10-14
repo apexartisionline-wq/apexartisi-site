@@ -135,7 +135,7 @@ export default async function PersonPage({ params, searchParams }: { params: Pro
           <h2>Κύκλος ατομικών</h2>
           <form action={newCycle} className="card row spread">
             <input type="hidden" name="id" value={p.id} />
-            <span>{cycle ? `Τρέχων κύκλος: ${cycle.booked} κλεισμένες, ${cycle.done} έγιναν, από ${cycle.length}` : "Δεν υπάρχει ανοιχτός κύκλος."}</span>
+            <span>{cycle ? `Τρέχων κύκλος: ${cycle.booked} κλεισμένες, ${cycle.done} πέρασαν (${cycle.attended} με παρουσία), στόχος ${cycle.length}` : "Δεν υπάρχει ανοιχτός κύκλος."}</span>
             <span className="row">
               <input name="length" type="number" min={1} defaultValue={s.cycleLength} style={{ width: 80 }} />
               <button type="submit">Νέος κύκλος</button>

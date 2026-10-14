@@ -7,11 +7,8 @@ import { prisma } from "./db";
 import { CASE_FIELDS, type CaseData, safetyFlags } from "./handover-rules";
 import { memberIntake } from "./intake";
 import { memberNotes } from "./member-notes";
-import { groupOccurrences } from "./groups";
-import { memberGroups } from "./group-presence";
 import { getSettings } from "./settings";
-import { countPresence, sessionPresence } from "./presence";
-import { addDays, formatDate, localParts } from "./time";
+import { formatDate, localParts } from "./time";
 
 /** Σήματα ασφάλειας ενός μέλους (βλ. handover-rules.ts). Από το ημερολόγιο παίρνει μόνο τα δύο σημάδια και την ημερομηνία τελευταίας εγγραφής — όχι κείμενα. */
 export async function memberSafety(memberId: string, now = new Date()) {
@@ -94,42 +91,4 @@ export async function saveCase(memberId: string, formData: FormData, authorId: s
   const data: CaseData = {};
   for (const f of CASE_FIELDS) data[f.key] = z.string().max(3000).parse(String(formData.get(f.key) ?? "")).trim();
   await prisma.caseSummary.create({ data: { memberId, authorId, content: enc(JSON.stringify(data)) } });
-}
-
-/**
- * Συνέπεια των τελευταίων εβδομάδων: ομάδες και ατομικές, με τον κοινό κανόνα (απόφαση 13/10):
- * ομάδες = πραγματικό πρόγραμμα, μετά την ένταξη, όσες έληξαν και δεν ακυρώθηκαν· ατομικές = όσες προγραμματισμένες πέρασαν.
- * Παρουσία ατομικής: επιβεβαίωση θεραπευτή, αλλιώς πάτημα «Μπες» του μέλους («Από σύνδεση»).
- */
-export async function memberConsistency(memberId: string, weeks = 4, now = new Date()) {
-  const s = await getSettings();
-  const member = await prisma.user.findUniqueOrThrow({ where: { id: memberId }, select: { programStartDate: true } });
-  const today = localParts(now).date;
-  const windowStart = addDays(today, -7 * weeks + 1);
-  const from = member.programStartDate && member.programStartDate > windowStart ? member.programStartDate : windowStart;
-  const [occ, att, bookings] = await Promise.all([
-    groupOccurrences(from, today, s, now),
-    prisma.attendance.findMany({ where: { memberId, date: { gte: from } }, select: { date: true, joinedAt: true } }),
-    prisma.booking.findMany({ where: { memberId, slot: { date: { gte: from }, startsAt: { lte: now } } }, select: { joinedAt: true, confirmedCame: true, slot: { select: { startsAt: true, kind: true } } } }),
-  ]);
-  const g = memberGroups(occ, att, { now, joinDate: member.programStartDate });
-  const counted = g.rows.filter((r) => r.state === "present" || r.state === "no_record");
-  const sessions = countPresence(bookings.map((b) => sessionPresence({
-    startsAt: b.slot.startsAt,
-    endsAt: new Date(b.slot.startsAt.getTime() + (b.slot.kind === "PAIR" ? s.pairMinutes : s.sessionMinutes) * 60_000),
-    now, joinedAt: b.joinedAt, confirmedCame: b.confirmedCame,
-  })));
-  return {
-    weeks,
-    // Μία γραμμή ανά ομάδα του προγράμματος που μετράει (παρουσία ή χωρίς καταγραφή).
-    groupDays: counted.map((r) => ({ date: r.date, time: r.time, present: r.state === "present" })),
-    groups: g.counted,
-    groupsPassed: g.passed,
-    groupsNoRecord: g.noRecord,
-    // Παρουσίες ατομικών / προγραμματισμένες που πέρασαν.
-    sessionsDone: sessions.counted,
-    sessionsTotal: sessions.timePassed,
-    sessions,
-    from,
-  };
 }

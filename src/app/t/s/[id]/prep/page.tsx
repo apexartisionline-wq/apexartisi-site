@@ -106,7 +106,7 @@ export default async function PrepPage({ params }: { params: Promise<{ id: strin
             <div data-tour="safety"><SafetyZone memberId={b.memberId} viewer={viewer} back={`/t/s/${x.id}/prep`} /></div>
 
             <Panel title="Με μια ματιά" tour="glance">
-              <MemberGlance g={g} intake={intake} groupsPerCycle={s.groupsPerCycle} viewer={viewer} nextClinical={nextClinical} compact={pair} />
+              <MemberGlance g={g} intake={intake} viewer={viewer} nextClinical={nextClinical} compact={pair} memberId={b.memberId} />
             </Panel>
 
             <Panel title="Ανοιχτό από την προηγούμενη φορά" tour="open">

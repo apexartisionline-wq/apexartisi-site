@@ -39,7 +39,7 @@ async function undo(formData: FormData) {
     include: { slot: true },
   });
   if (!w.open || !b || b.slot.startsAt <= new Date() || b.slot.date < w.weekStart || b.slot.date > w.weekEnd) redirect("/m/book");
-  await cancelBooking(b.id);
+  await cancelBooking(b.id, { byId: user.id, reason: "Ακύρωση από το μέλος" });
   // Η διαχείριση (που φτιάχνει το πρόγραμμα) το μαθαίνει αμέσως· οι θεραπευτές το βλέπουν στο «Σήμερα» τους.
   await notifyRole("ADMIN", { title: "Ακύρωση ατομικής από μέλος", body: `${user.name} · ${formatDate(b.slot.date)} ${formatHour(b.slot.hour)}`, url: "/admin/bookings" }).catch(() => undefined);
   revalidatePath("/m");

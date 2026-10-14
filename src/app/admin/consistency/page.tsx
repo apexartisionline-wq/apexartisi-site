@@ -1,6 +1,7 @@
-import { Consistency, parseLow, parseSort, parseWeeks } from "@/components/Consistency";
+import { Consistency, parseLow, parseSort } from "@/components/Consistency";
+import { parsePeriod } from "@/lib/picture-db";
 
-export default async function AdminConsistency({ searchParams }: { searchParams: Promise<{ weeks?: string; sort?: string; low?: string }> }) {
-  const { weeks, sort, low } = await searchParams;
-  return <Consistency weeks={parseWeeks(weeks)} basePath="/admin/consistency" canEdit sort={parseSort(sort)} low={parseLow(low)} />;
+export default async function AdminConsistency({ searchParams }: { searchParams: Promise<{ p?: string; w?: string; m?: string; sort?: string; low?: string }> }) {
+  const sp = await searchParams;
+  return <Consistency choice={parsePeriod(sp)} basePath="/admin/consistency" canEdit sort={parseSort(sp.sort)} low={parseLow(sp.low)} />;
 }

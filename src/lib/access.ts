@@ -33,8 +33,13 @@ export const isPsychologist = (u: Viewer): boolean => u.role === "ADMIN" || u.th
  */
 export const seesSafetyDetail = (u: Viewer, level: string | null | undefined): boolean => isPsychologist(u) || level === "MEDIUM" || level === "HIGH";
 
-/** Απαντήσεις και κείμενα του ημερολογίου, μέρα-μέρα: μόνο η διαχείριση. */
+/**
+ * Ημερολόγιο ανάκαμψης (απόφαση 13/10, διευκρίνιση 14/10): στις συνόψεις όλοι οι θεραπευτές βλέπουν μόνο αριθμούς·
+ * ανοίγοντας μια συγκεκριμένη μέρα (journal/[date]) βλέπουν ολόκληρη την καταχώριση (αριθμοί, σημείωση, νίκη) —
+ * με υδατογράφημα και καταγραφή πρόσβασης. Η διαχείριση βλέπει όλες τις μέρες ανοιχτές στη λίστα (seesJournalDetail).
+ */
 export const seesJournalDetail = (u: Viewer): boolean => u.role === "ADMIN";
+export const opensJournalDay = (u: Viewer): boolean => u.role === "ADMIN" || u.role === "THERAPIST";
 
 /** Φάκελος «Μήνας» (με λήψη PDF): μόνο η διαχείριση. */
 export const seesMonthFolder = (u: Viewer): boolean => u.role === "ADMIN";

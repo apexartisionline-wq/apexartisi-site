@@ -1,10 +1,11 @@
-import { Consistency, parseLow, parseSort, parseWeeks } from "@/components/Consistency";
+import { Consistency, parseLow, parseSort } from "@/components/Consistency";
+import { parsePeriod } from "@/lib/picture-db";
 
-export default async function TherapistConsistency({ searchParams }: { searchParams: Promise<{ weeks?: string; sort?: string; low?: string }> }) {
-  const { weeks, sort, low } = await searchParams;
+export default async function TherapistConsistency({ searchParams }: { searchParams: Promise<{ p?: string; w?: string; m?: string; sort?: string; low?: string }> }) {
+  const sp = await searchParams;
   return (
     <main className="wide">
-      <Consistency weeks={parseWeeks(weeks)} basePath="/t/consistency" canEdit={false} sort={parseSort(sort)} low={parseLow(low)} />
+      <Consistency choice={parsePeriod(sp)} basePath="/t/consistency" canEdit={false} sort={parseSort(sp.sort)} low={parseLow(sp.low)} />
     </main>
   );
 }

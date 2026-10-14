@@ -17,7 +17,7 @@ import { NoteTags } from "@/components/NoteTags";
 import { SafetyZone } from "@/components/SafetyZone";
 import { type StaffOption } from "@/components/ActionRow";
 import { NoteSummary } from "@/components/NoteSummary";
-import { EmptyState, ErrorNote, PageHead, Panel, Pill, PresenceStat } from "@/components/ui";
+import { EmptyState, ErrorNote, PageHead, Panel, Pill } from "@/components/ui";
 import { describeSources, PRESENCE_HINT, PRESENCE_LABEL, sessionPresence } from "@/lib/presence";
 import { ThemeWeek } from "@/components/ThemeWeek";
 import { latestAssessment, latestProfile } from "@/lib/assessment-db";
@@ -521,7 +521,7 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
             <summary><span className="iconbox"><Icon name="list" size={16} /></span>Με μια ματιά</summary>
             <div className="side-body">
               {x.date < today && <p className="hint" style={{ margin: "0 0 8px" }}>όπως είναι σήμερα, όχι τότε</p>}
-              <MemberGlance g={g} intake={intake} groupsPerCycle={s.groupsPerCycle} viewer={viewer} nextClinical={nextClinical} compact />
+              <MemberGlance g={g} intake={intake} viewer={viewer} nextClinical={nextClinical} compact memberId={b.memberId} />
             </div>
           </details>
 
@@ -612,7 +612,7 @@ async function PairSession({ x, user, sp }: { x: Slot; user: { id: string; role:
             <RoutePsy intake={intake} viewer={viewer} nextClinical={nextClinical} />
             <details className="side-fold" data-tour="pair-glance">
               <summary><span className="iconbox"><Icon name="list" size={16} /></span>Με μια ματιά</summary>
-              <div className="side-body"><MemberGlance g={g} intake={intake} groupsPerCycle={s.groupsPerCycle} viewer={viewer} compact /></div>
+              <div className="side-body"><MemberGlance g={g} intake={intake} viewer={viewer} compact memberId={m.id} /></div>
             </details>
             <details className="side-fold" open={Boolean(prev && (prev.safety.safeOk === false || prev.safety.concern || prev.usedSince === "YES"))}>
               <summary><span className="iconbox"><Icon name="doc" size={16} /></span>Ανοιχτό από την προηγούμενη φορά</summary>

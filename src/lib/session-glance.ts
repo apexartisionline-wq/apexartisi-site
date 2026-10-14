@@ -2,26 +2,19 @@ import "server-only";
 import { dec } from "./crypto";
 import { prisma } from "./db";
 import { memberNotes } from "./member-notes";
-import { memberConsistency } from "./handover";
-import { cycleInfo } from "./member";
-import { soberDays } from "./note-form";
+import { bothPictures } from "./picture-db";
 import { addDays, localParts } from "./time";
-
-export type JournalDay = { date: string; craving: number; sleep: number; mood: number } | null;
 
 /** Όσα χρειάζεται ο θεραπευτής «με μια ματιά» πριν/κατά την ατομική. */
 export async function sessionGlance(memberId: string, beforeSlot: { id: string; startsAt: Date }) {
   const now = new Date();
   const today = localParts(now).date;
-  const from7 = addDays(today, -6);
-  const [member, cycle, consistency, help14, prev, journal, assignment, forms, dailyText] = await Promise.all([
-    prisma.user.findUniqueOrThrow({ where: { id: memberId }, select: { programStartDate: true, soberSince: true } }),
-    cycleInfo(memberId),
-    memberConsistency(memberId, 4, now),
+  const [pictures, help14, prev, assignment, forms, dailyText] = await Promise.all([
+    // Εβδομάδα (τελευταίες 7 ημέρες) και Μήνας (ο τρέχων κύκλος) — η ίδια λογική με φάκελο και «Συνέπεια» (14/10).
+    bothPictures(memberId, now),
     prisma.helpRequest.count({ where: { memberId, isDrill: false, createdAt: { gte: new Date(now.getTime() - 14 * 86_400_000) } } }),
     // Το προηγούμενο σημείωμα (άλλης συνεδρίας) για «ανοιχτό από την προηγούμενη φορά».
     memberNotes(memberId, { before: beforeSlot.startsAt, excludeSlot: beforeSlot.id, take: 1 }).then((ns) => ns[0] ?? null),
-    prisma.journalEntry.findMany({ where: { memberId, date: { gte: from7, lte: today } }, select: { date: true, craving: true, sleepHours: true, mood: true } }),
     prisma.assignment.findFirst({ where: { memberId }, orderBy: { createdAt: "desc" }, select: { id: true, title: true, answer: true, answeredAt: true } }),
     // Φόρμες της θεματικής αυτής της εβδομάδας (Δευτέρα–Κυριακή).
     prisma.content.findMany({ where: { kind: "FORM", date: { gte: mondayOf(today), lte: addDays(mondayOf(today), 6) } }, orderBy: { date: "asc" }, select: { id: true, title: true, date: true, body: true, url: true } }),
@@ -29,33 +22,12 @@ export async function sessionGlance(memberId: string, beforeSlot: { id: string; 
     prisma.content.findFirst({ where: { kind: "DAILY_TEXT", date: today }, select: { id: true, title: true, date: true, body: true, url: true } }),
   ]);
 
-  const byDate = new Map(journal.map((j) => [j.date, j]));
-  const days: JournalDay[] = Array.from({ length: 7 }, (_, i) => {
-    const d = addDays(from7, i);
-    const j = byDate.get(d);
-    return j ? { date: d, craving: j.craving, sleep: j.sleepHours, mood: j.mood } : null;
-  });
-  const written = days.filter(Boolean) as Exclude<JournalDay, null>[];
-  const avg = (xs: number[]) => (xs.length ? Math.round((xs.reduce((a, b) => a + b, 0) / xs.length) * 10) / 10 : null);
-
   return {
-    soberSince: member.soberSince,
-    soberDays: soberDays(member.soberSince, today),
-    cycle: cycle ? { done: cycle.done, attended: cycle.attended, length: cycle.length, groups: cycle.groups, groupsPassed: cycle.groupsPassed, groupsNoRecord: cycle.groupsNoRecord, booked: cycle.booked, presence: cycle.presence, periodLabel: cycle.periodLabel } : null,
-    groups: { done: consistency.groups, total: consistency.groupsPassed, noRecord: consistency.groupsNoRecord },
-    sessions: { done: consistency.sessionsDone, total: consistency.sessionsTotal, noRecord: consistency.sessions.noRecord },
+    pictures,
     help14,
     prev: prev
       ? { by: prev.therapist, byKind: prev.therapistKind, date: prev.date, next: prev.next, slotId: prev.slotId, text: prev.text, pair: prev.pair, handover: prev.handover, safety: prev.safety, usedSince: prev.usedSince }
       : null,
-    journal: {
-      days,
-      fromDate: from7,
-      written: written.length,
-      craving: avg(written.map((d) => d.craving)),
-      sleep: avg(written.map((d) => d.sleep)),
-      mood: avg(written.map((d) => d.mood)),
-    },
     assignment: assignment ? { id: assignment.id, title: assignment.title, answered: Boolean(assignment.answeredAt), length: dec(assignment.answer).length } : null,
     forms: forms.map((f, i) => `Φόρμα ${i + 1} · ${f.title}`).slice(0, 3),
     // Οι ίδιες φόρμες με σύνδεσμο, για να τις ανοίξει ο θεραπευτής («Υλικό»).

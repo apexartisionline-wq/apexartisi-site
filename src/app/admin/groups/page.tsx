@@ -50,12 +50,8 @@ async function declareHoliday(formData: FormData) {
   if (started.length) err(week, `Υπάρχουν ατομικές της μέρας που έχουν ήδη ξεκινήσει ή έχουν σημείωμα (${started.length}). Δεν έγινε καμία αλλαγή.`);
   await prisma.holiday.create({ data: { date, reason, groupTime, createdById: user.id } });
   for (const b of bookings) {
-    await keepHistory("booking_cancelled", {
-      memberId: b.memberId, ref: b.slot.id,
-      before: { reason: `Αργία: ${reason}`, date: b.slot.date, hour: b.slot.hour, startsAt: b.slot.startsAt, therapistId: b.slot.therapistId, kind: b.slot.kind, cycleId: b.cycleId, bookedAt: b.createdAt },
-      byId: user.id,
-    });
-    await cancelBooking(b.id);
+    // Το ιστορικό της ακύρωσης το γράφει η ίδια η cancelBooking (ίδιος κανόνας για αργία, μέλος, διαχείριση).
+    await cancelBooking(b.id, { byId: user.id, reason: `Αργία: ${reason}` });
   }
   // Τα μέλη που έχασαν ατομική το μαθαίνουν και με ειδοποίηση (η φράση της αργίας εγκρίθηκε 13/10).
   await notifyMembers([...new Set(bookings.map((b) => b.memberId))], {

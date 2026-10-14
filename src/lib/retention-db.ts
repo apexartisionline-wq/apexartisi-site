@@ -74,7 +74,7 @@ async function clinicalOf(db: Tx, memberId: string, run: boolean): Promise<[stri
     ["«Προσοχή σε…» από σημειώματα ομάδας", () => db.groupMention.count({ where }), () => db.groupMention.deleteMany({ where })],
     ["ενέργειες (ανάληψη)", () => db.actionItem.count({ where }), () => db.actionItem.deleteMany({ where })],
     ["μηνύματα φροντίδας και τηλεφωνήματα (εκτός ανάγκες ασφάλειας)", () => db.careTask.count({ where: { memberId, kind: { notIn: RISK_CARE } } }), () => db.careTask.deleteMany({ where: { memberId, kind: { notIn: RISK_CARE } } })],
-    ["ιστορικό αλλαγών", () => db.recordHistory.count({ where: { memberId, kind: { not: "booking_cancelled" } } }), () => db.recordHistory.deleteMany({ where: { memberId, kind: { not: "booking_cancelled" } } })],
+    ["ιστορικό αλλαγών", () => db.recordHistory.count({ where: { memberId, kind: { notIn: ["booking_cancelled", "booking_moved"] } } }), () => db.recordHistory.deleteMany({ where: { memberId, kind: { notIn: ["booking_cancelled", "booking_moved"] } } })],
     ["ανοίγματα κόκκινου κουμπιού (χωρίς αίτημα)", () => db.helpOpen.count({ where }), () => db.helpOpen.deleteMany({ where })],
   ];
   const out: [string, number][] = [];
@@ -184,13 +184,13 @@ export async function runRetention(o: { now?: Date; dryRun: boolean; byId?: stri
 
   // 4. Ραντεβού που δεν πραγματοποιήθηκαν: 6 μήνες από την ημερομηνία του ραντεβού.
   const unheldCut = cutoff("unheld", now);
-  const cancelled = await prisma.recordHistory.findMany({ where: { ...m, kind: "booking_cancelled" }, select: { id: true, before: true, createdAt: true } });
+  const cancelled = await prisma.recordHistory.findMany({ where: { ...m, kind: { in: ["booking_cancelled", "booking_moved"] } }, select: { id: true, before: true, createdAt: true } });
   const oldCancelled = cancelled.filter((r) => {
     let at = r.createdAt;
     try { const b = JSON.parse(dec(r.before)) as { startsAt?: string }; if (b.startsAt) at = new Date(b.startsAt); } catch {}
     return at < unheldCut;
   }).map((r) => r.id);
-  add("unheld", "ακυρώσεις στο ιστορικό", run ? (await prisma.recordHistory.deleteMany({ where: { id: { in: oldCancelled } } })).count : oldCancelled.length);
+  add("unheld", "ακυρώσεις και μεταφορές στο ιστορικό", run ? (await prisma.recordHistory.deleteMany({ where: { id: { in: oldCancelled } } })).count : oldCancelled.length);
   const crWhere = { ...m, status: { not: "PENDING" as const }, sessionAt: { lt: unheldCut } };
   add("unheld", "αιτήματα αλλαγής/ακύρωσης που έκλεισαν", run ? (await prisma.changeRequest.deleteMany({ where: crWhere })).count : await prisma.changeRequest.count({ where: crWhere }));
 

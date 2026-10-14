@@ -188,6 +188,8 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
           <label htmlFor="note"><strong>Κάτι που θέλεις να γράψεις</strong> (προαιρετικό)</label>
           <textarea id="note" name="note" defaultValue={dec(entry?.note)} />
         </div>
+        {/* Ενημέρωση πριν την αποθήκευση (απόφαση 14/10): ολόκληρη η καταχώριση — και η σημείωση και η νίκη — μπορεί να τη δει η ομάδα. */}
+        <p className="muted small" style={{ margin: "4px 0 8px" }}>Ό,τι γράφεις εδώ — οι απαντήσεις, η σημείωση και η νίκη σου — μπορεί να το δει ολόκληρο η ομάδα σου (οι θεραπευτές σου και η διαχείριση). Κανείς άλλος.</p>
         <button className="primary big" type="submit">Αποθήκευση</button>
       </form>
     </main>

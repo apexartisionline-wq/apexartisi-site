@@ -82,7 +82,7 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
           <strong>{monthNo ? `Μήνας ${monthNo}` : "—"}</strong>
         </div>
         <div>
-          <span className="muted small">Ατομικές του μήνα</span>
+          <span className="muted small">Ατομικές του μήνα που πέρασαν</span>
           <strong>{cycle ? `${Math.min(cycle.done, cycle.length)} από ${cycle.length}` : "—"}</strong>
         </div>
       </section>

@@ -15,17 +15,17 @@ const kindOf = (v: FormDataEntryValue | null) => (v === "PAIR" ? "PAIR" : "INDIV
 
 async function cancel(formData: FormData) {
   "use server";
-  await requireRole("ADMIN");
+  const user = await requireRole("ADMIN");
   const b = await prisma.booking.findUnique({ where: { id: String(formData.get("id")) }, select: { memberId: true, slot: { select: { date: true } } } });
-  await cancelBooking(String(formData.get("id")));
+  await cancelBooking(String(formData.get("id")), { byId: user.id, reason: "Ακύρωση από τη διαχείριση" });
   if (b) await tellMember(b.memberId, `Η ατομική της ${formatDate(b.slot.date)} ακυρώθηκε. Δες το «Σήμερα» για το πρόγραμμά σου.`);
   back(formData.get("week"), "ok=1");
 }
 
 async function move(formData: FormData) {
   "use server";
-  await requireRole("ADMIN");
-  const res = await moveBooking(String(formData.get("id")), String(formData.get("date")), Number(formData.get("hour")), kindOf(formData.get("kind")));
+  const user = await requireRole("ADMIN");
+  const res = await moveBooking(String(formData.get("id")), String(formData.get("date")), Number(formData.get("hour")), kindOf(formData.get("kind")), user.id);
   if (res.ok) {
     const b = await prisma.booking.findUnique({ where: { id: res.bookingId }, select: { memberId: true } });
     if (b) await tellMember(b.memberId, `Η ατομική σου μεταφέρθηκε: ${formatDate(String(formData.get("date")))} ${formatHour(Number(formData.get("hour")))}.`);

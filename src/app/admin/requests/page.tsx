@@ -11,17 +11,17 @@ const fmt = (d: Date) => d.toLocaleString("el-GR", { timeZone: "Europe/Athens", 
 // Αιτήματα αλλαγής/ακύρωσης από τα μέλη· τα εκτελεί η Εύα.
 async function handle(formData: FormData) {
   "use server";
-  await requireRole("ADMIN");
+  const user = await requireRole("ADMIN");
   const id = String(formData.get("id"));
   const action = String(formData.get("action"));
   const reply = String(formData.get("reply") ?? "").trim().slice(0, 500);
   const req = await prisma.changeRequest.findUnique({ where: { id } });
   if (!req || req.status !== "PENDING") redirect("/admin/requests");
   if (action === "cancel" && req.bookingId) {
-    await cancelBooking(req.bookingId);
+    await cancelBooking(req.bookingId, { byId: user.id, reason: "Ακύρωση μετά από αίτημα του μέλους" });
   } else if (action === "move" && req.bookingId) {
     const kind = formData.get("kind") === "PAIR" ? "PAIR" : "INDIVIDUAL";
-    const res = await moveBooking(req.bookingId, String(formData.get("date")), Number(formData.get("hour")), kind);
+    const res = await moveBooking(req.bookingId, String(formData.get("date")), Number(formData.get("hour")), kind, user.id);
     if (!res.ok) redirect(`/admin/requests?e=${encodeURIComponent(res.reason)}`);
   }
   await prisma.changeRequest.update({

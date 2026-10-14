@@ -779,3 +779,20 @@ details.side-fold > summary:focus-visible { outline: 3px solid var(--accent); ou
 details.side-fold > .side-body { padding: 0 16px 16px; }
 details.side-fold .iconbox { width: 30px; height: 30px; }
 @media (prefers-reduced-motion: reduce) { details.side-fold > summary::after { transition: none; } }
+/* Εικόνα περιόδου (14/10): «Εβδομάδα / Μήνας», τρεις χωριστές εικόνες (ατομικές, ομάδες, ημερολόγιο) και νηφαλιότητα. */
+.ptabs { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin: 0 0 8px; }
+.ptab { background: transparent; border: 1px solid var(--card-line); color: var(--ink); padding: 4px 12px; min-height: 32px; border-radius: 999px; font-weight: 700; font-size: .9rem; }
+.ptab.on { background: var(--accent-strong); border-color: var(--accent-strong); color: #fff; }
+.ptab-when { font-size: .85rem; color: var(--muted); margin-left: 6px; }
+.pic-period { margin: 0 0 6px; font-size: .85rem; color: var(--muted); }
+.pic-block { padding: 8px 0; border-top: 1px solid var(--card-line); }
+.pic-block:first-of-type { border-top: 0; padding-top: 0; }
+.pic-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 2px; }
+.pic-big { font-size: 1.45rem; line-height: 1.1; color: var(--accent-strong); font-weight: 800; min-width: 52px; }
+.pic-line { margin: 2px 0; font-size: .92rem; }
+.pic-sub { margin: 2px 0 0; }
+.pic.compact .pic-big { font-size: 1.25rem; min-width: 44px; }
+.pic.compact .pic-line { font-size: .86rem; }
+.pic-list { list-style: none; padding: 0; margin: 6px 0 0; }
+.pic-list li { display: flex; flex-wrap: wrap; gap: 4px 10px; padding: 4px 0; border-top: 1px dashed var(--card-line); font-size: .88rem; }
+.pic-list li b { font-weight: 700; }

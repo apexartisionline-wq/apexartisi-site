@@ -4,9 +4,10 @@ import { FolderTabs } from "@/components/FolderTabs";
 import { Icon } from "@/components/Icon";
 import { ActionRow, type StaffOption } from "@/components/ActionRow";
 import { NoteSummary } from "@/components/NoteSummary";
-import { EmptyState, PageHead, Panel, Pill, PresenceStat } from "@/components/ui";
+import { EmptyState, PageHead, Panel, Pill } from "@/components/ui";
+import { PicturePanel } from "@/components/PicturePanel";
 import { notFound } from "next/navigation";
-import { isPsychologist, nameWithKind, seesJournalDetail, seesMonthFolder } from "@/lib/access";
+import { isPsychologist, nameWithKind, seesMonthFolder } from "@/lib/access";
 import { logAccess } from "@/lib/audit";
 import { currentStep, lastStepWork } from "@/lib/steps";
 import { SafetyZone } from "@/components/SafetyZone";
@@ -17,10 +18,9 @@ import { soberDays } from "@/lib/note-form";
 import { dec } from "@/lib/crypto";
 import { prisma } from "@/lib/db";
 import { recentGoals } from "@/lib/goals";
-import { caseHistory, memberConsistency, memberSafety } from "@/lib/handover";
+import { caseHistory, memberSafety } from "@/lib/handover";
 import { loadMemberActions, recentlyDone } from "@/lib/actions";
-import { describeCounts, describeSources, PRESENCE_HINT } from "@/lib/presence";
-import { describeGroups } from "@/lib/group-presence";
+import { memberPicture, parsePeriod, periodQuery } from "@/lib/picture-db";
 import { CASE_FIELDS } from "@/lib/handover-rules";
 import { memberIntake } from "@/lib/intake";
 import { RISK_INFO } from "@/lib/intake-rules";
@@ -34,7 +34,7 @@ import { addDays, formatDate, formatTime, formatWhen, localParts, mondayOf } fro
 
 // Καρτέλα μέλους «Με μια ματιά» (13/10): επισκόπηση που διαβάζεται σε ένα λεπτό — όλοι δουλεύουν με όλα τα μέλη.
 // Τηλέφωνα, διευθύνσεις και συγκαταθέσεις δεν φαίνονται εδώ (μόνο η διαχείριση).
-export default async function TherapistMemberPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ case?: string }> }) {
+export default async function TherapistMemberPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ case?: string; p?: string; w?: string; m?: string }> }) {
   const user = await requireRole("THERAPIST", "ADMIN");
   const [{ id }, sp] = await Promise.all([params, searchParams]);
   const member = await prisma.user.findFirst({ where: { id, role: "MEMBER" } });
@@ -42,15 +42,16 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
   await logAccess(user.id, id, "member_file_view");
   const now = new Date();
   const today = localParts(now).date;
-  const [cycle, intake, consistency, [summary], plan, notes, ax, journal7, step, stepWork, groupMentions, nextBooking, careOpen, helpOpen, s, goals, finished, months, openIncidents] = await Promise.all([
+  const choice = parsePeriod(sp);
+  const [cycle, intake, pic, [summary], plan, notes, ax, step, stepWork, groupMentions, nextBooking, careOpen, helpOpen, s, goals, finished, months, openIncidents] = await Promise.all([
     cycleInfo(id),
     memberIntake(member),
-    memberConsistency(id, 4, now),
+    // Εικόνα περιόδου (14/10): Εβδομάδα (7 ημέρες, με βελάκια) / Μήνας (κύκλος) — ίδια λογική με «Με μια ματιά» και «Συνέπεια».
+    memberPicture(id, choice, now),
     caseHistory(id, 1),
     prisma.safetyPlan.findUnique({ where: { memberId: id }, select: { updatedAt: true } }),
     memberNotes(id, { take: 1 }),
     latestAssessment(id),
-    prisma.journalEntry.count({ where: { memberId: id, date: { gte: addDays(today, -6), lte: today } } }),
     currentStep(id),
     lastStepWork(id),
     prisma.groupMention.findMany({
@@ -198,39 +199,14 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
             )}
           </Panel>
 
-          <Panel icon="refresh" title={cycle ? `Τρέχων κύκλος · Μήνας ${months}` : "Τρέχων κύκλος"} link={{ href: `/t/members/${id}/cycle`, label: "Κλείσιμο κύκλου" }} tour="consistency">
-            {!cycle ? <EmptyState>Δεν έχει ξεκινήσει κύκλος.</EmptyState> : cycle.done === 0 && cycle.groupsPassed === 0 ? (
-              <EmptyState>Καμία προγραμματισμένη ατομική ή ομάδα δεν έχει περάσει ακόμη · {cycle.periodLabel}.</EmptyState>
-            ) : (
-              <>
-                <p className="hint" style={{ margin: "0 0 8px" }}>{cycle.periodLabel}</p>
-                <div className="kv"><span>Ατομικές που προβλέπει ο κύκλος</span><strong>{cycle.length}</strong></div>
-                <div className="kv"><span>Έχουν προγραμματιστεί</span><strong>{cycle.booked}</strong></div>
-                <div className="kv"><span>Ατομικές</span><strong>{describeCounts(cycle.presence)}</strong></div>
-                {cycle.attended > 0 && <div className="kv"><span>Πηγή παρουσίας</span><strong className="small">{describeSources(cycle.presence)}</strong></div>}
-                <div className="kv"><span>Ομάδες</span><strong>{describeGroups({ counted: cycle.groups, passed: cycle.groupsPassed, noRecord: cycle.groupsNoRecord })} <span className="muted small">· ο κύκλος προβλέπει {s.groupsPerCycle}</span></strong></div>
-                <p className="hint" style={{ margin: "6px 0 0" }}>Παρουσία: πάτημα «Μπες» του μέλους («Από σύνδεση») ή επιβεβαίωση θεραπευτή· η επιβεβαίωση «Ήρθε / Δεν ήρθε» υπερισχύει. «Χωρίς καταγραφή» δεν σημαίνει απουσία.</p>
-              </>
-            )}
+          <Panel icon="refresh" title={cycle ? `Μήνας ${months} και εβδομάδα` : "Εβδομάδα και μήνας"} link={{ href: `/t/members/${id}/cycle`, label: "Κλείσιμο κύκλου" }} tour="consistency">
+            <PeriodPicker base={`/t/members/${id}`} choice={choice} cycles={pic.cycles} />
+            <PicturePanel pic={pic} journalHref={`/t/members/${id}/journal`} consistencyHref="/t/consistency" />
+            <p className="hint" style={{ margin: "8px 0 0" }}>Παρουσία: πάτημα «Μπες» του μέλους («Από σύνδεση») ή επιβεβαίωση θεραπευτή· η επιβεβαίωση «Ήρθε / Δεν ήρθε» υπερισχύει. «Χωρίς καταγραφή» = εκκρεμεί, όχι απουσία. Ακυρωμένες και μεταφερμένες δεν μετρούν.</p>
           </Panel>
         </div>
 
         <div className="stackv">
-          <Panel title="Πρόσφατη πορεία" icon="list">
-            <p className="hint" style={{ margin: "-6px 0 10px" }}>Τελευταίες {consistency.weeks} εβδομάδες · από {formatDate(consistency.from)}</p>
-            <div className="stats tiles">
-              <PresenceStat what="ομάδες" counted={consistency.groups} passed={consistency.groupsPassed} noRecord={consistency.groupsNoRecord} />
-              <PresenceStat what="ατομικές" counted={consistency.sessionsDone} passed={consistency.sessionsTotal} noRecord={consistency.sessions.noRecord} />
-            </div>
-            <p className="hint" style={{ margin: "8px 0 0" }}>{PRESENCE_HINT}</p>
-            {describeSources(consistency.sessions) && <p className="hint" style={{ margin: "4px 0 0" }}>Πηγή παρουσίας ατομικών: {describeSources(consistency.sessions)}{consistency.sessions.confirmedAbsent > 0 && ` · ${consistency.sessions.confirmedAbsent} «Δεν ήρθε» (επιβεβαίωση)`}</p>}
-            <div className="row" style={{ gap: 4, marginTop: 8 }} aria-label="Παρουσίες στις ομάδες, μέρα με μέρα">
-              {consistency.groupDays.map((d) => <span key={d.date} title={`${formatDate(d.date)}: ${d.present ? "καταγράφηκε παρουσία" : "χωρίς καταγραφή παρουσίας"}`} className={`dot${d.present ? " ok" : ""}`} />)}
-            </div>
-            <div className="kv" style={{ marginTop: 8 }}><span>Απογραφές</span><strong>{journal7} από 7 <span className="muted small">τελευταίες 7 ημέρες</span></strong></div>
-            <p className="hint" style={{ margin: "6px 0 0" }}><Link href={`/t/members/${id}/journal`}>{seesJournalDetail(user) ? "Όλες οι απογραφές, μέρα-μέρα ›" : "Απογραφές (αριθμοί) ›"}</Link> · <Link href="/t/consistency">Συνέπεια όλων ›</Link></p>
-          </Panel>
-
           <section className="panel sober" data-tour="sober">
             <div className="row" style={{ gap: 14, flexWrap: "nowrap" }}>
               <span className="iconbox lg"><Icon name="leaf" size={28} /></span>
@@ -297,5 +273,28 @@ async function MonthLinks({ memberId }: { memberId: string }) {
       )).reverse()}
       <p className="hint" style={{ margin: "8px 0 0" }}><Link href={`/t/members/${memberId}/incident`}>Συμβάντα ›</Link></p>
     </>
+  );
+}
+
+/** Επιλογέας περιόδου με συνδέσμους (ξαναφορτώνει τη σελίδα — εδώ δεν υπάρχει σημειωματάριο να χαθεί). */
+function PeriodPicker({ base, choice, cycles }: { base: string; choice: ReturnType<typeof parsePeriod>; cycles: { index: number; label: string; open: boolean }[] }) {
+  const href = (c: ReturnType<typeof parsePeriod>) => `${base}?${periodQuery(c)}`;
+  const current = choice.kind === "month" ? (choice.index && choice.index <= cycles.length ? choice.index : cycles.length) : null;
+  return (
+    <div className="ptabs" role="navigation" aria-label="Περίοδος">
+      <Link href={href({ kind: "week", back: 0 })} className={`ptab${choice.kind === "week" ? " on" : ""}`} aria-current={choice.kind === "week" ? "page" : undefined}>Εβδομάδα</Link>
+      <Link href={href({ kind: "month", index: null })} className={`ptab${choice.kind === "month" ? " on" : ""}`} aria-current={choice.kind === "month" ? "page" : undefined}>Μήνας</Link>
+      {choice.kind === "week" && (
+        <span className="ptab-when">
+          <Link href={href({ kind: "week", back: choice.back + 1 })} aria-label="Προηγούμενες 7 ημέρες">‹ πριν</Link>
+          {choice.back > 0 && <> · <Link href={href({ kind: "week", back: choice.back - 1 })} aria-label="Επόμενες 7 ημέρες">μετά ›</Link></>}
+        </span>
+      )}
+      {choice.kind === "month" && cycles.length > 1 && (
+        <span className="ptab-when">
+          {cycles.map((c) => (c.index === current ? <b key={c.index}> Μήνας {c.index}</b> : <Link key={c.index} href={href({ kind: "month", index: c.index })} style={{ marginLeft: 6 }}>Μήνας {c.index}</Link>))}
+        </span>
+      )}
+    </div>
   );
 }

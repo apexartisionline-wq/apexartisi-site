@@ -1,6 +1,7 @@
 import "server-only";
 import type { SlotKind } from "@prisma/client";
 import { prisma } from "./db";
+import { enc } from "./crypto";
 import { closeCycleIfFull, cycleForNewBooking } from "./member";
 import { bookingWindow, neededKind, pickSlot, slotCapacity, type Kind } from "./program";
 import { getSettings } from "./settings";
@@ -118,8 +119,8 @@ export async function bookHour(args: {
  * Μεταφέρει μια κράτηση σε άλλη ώρα (το κάνει η Εύα). Η κράτηση κρατά ταυτότητα,
  * κύκλο και ιστορικό — αλλάζει μόνο η θέση.
  */
-export async function moveBooking(bookingId: string, date: string, hour: number, kind: SlotKind): Promise<BookResult> {
-  const old = await prisma.booking.findUnique({ where: { id: bookingId } });
+export async function moveBooking(bookingId: string, date: string, hour: number, kind: SlotKind, byId: string): Promise<BookResult> {
+  const old = await prisma.booking.findUnique({ where: { id: bookingId }, include: { slot: true } });
   if (!old) return { ok: false, reason: "Η κράτηση δεν υπάρχει." };
   const free = await freeSlots(date, hour, kind, old.memberId, new Date(0));
   if (free.length === 0) return { ok: false, reason: "Δεν υπάρχει ελεύθερη θέση με θεραπευτή εκείνη την ώρα." };
@@ -135,6 +136,9 @@ export async function moveBooking(bookingId: string, date: string, hour: number,
         where: { id: bookingId },
         data: { slotId: pick.slot.id, kind: pick.kind, alternationOk: pick.ok, joinedAt: null, confirmedCame: null, confirmedAt: null, confirmedById: null },
       });
+      // Ιστορικό μεταφοράς (απόφαση 14/10): από πού σε πού, ποιος, πότε. Η ατομική μετρά μόνο στη νέα ημερομηνία·
+      // στην παλιά περίοδο φαίνεται «1 μεταφέρθηκε» ως πληροφορία. Τήρηση 6 μήνες, μαζί με τις ακυρώσεις.
+      await tx.recordHistory.create({ data: { kind: "booking_moved", memberId: old.memberId, ref: old.slot.id, byId, before: enc(JSON.stringify({ date: old.slot.date, hour: old.slot.hour, startsAt: old.slot.startsAt, kind: old.slot.kind, cycleId: old.cycleId, toDate: pick.slot.date, toHour: pick.slot.hour, toStartsAt: pick.slot.startsAt, toSlotId: pick.slot.id, joinedAt: old.joinedAt, confirmedCame: old.confirmedCame })) } });
     });
   } catch (e) {
     if (e instanceof Error && e.message === "FULL") return { ok: false, reason: "Η ώρα γέμισε μόλις τώρα." };
@@ -167,11 +171,14 @@ export async function openHours(from: string, to: string, after: Date) {
  * Διορθώνει και τον κύκλο: αν είχε κλείσει λόγω αυτής της κράτησης, ξανανοίγει· αν ήταν
  * νέος, άδειος κύκλος που άνοιξε μόνο γι' αυτήν, σβήνεται.
  */
-export async function cancelBooking(bookingId: string): Promise<void> {
+export async function cancelBooking(bookingId: string, by: { byId: string; reason: string }): Promise<void> {
   await prisma.$transaction(async (tx) => {
-    const b = await tx.booking.findUnique({ where: { id: bookingId } });
+    const b = await tx.booking.findUnique({ where: { id: bookingId }, include: { slot: true } });
     if (!b) return;
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${b.memberId}))`;
+    // Ιστορικό ακύρωσης (απόφαση 14/10): ημερομηνία/ώρα της θέσης, ποιος, πότε — χωρίς κείμενο του μέλους. Τήρηση 6 μήνες
+    // («ακυρωμένα ραντεβού», retention-db). Χρειάζεται για να γράφεται «1 ακυρώθηκε» στην εικόνα της περιόδου.
+    await tx.recordHistory.create({ data: { kind: "booking_cancelled", memberId: b.memberId, ref: b.slot.id, byId: by.byId, before: enc(JSON.stringify({ reason: by.reason, date: b.slot.date, hour: b.slot.hour, startsAt: b.slot.startsAt, therapistId: b.slot.therapistId, kind: b.slot.kind, cycleId: b.cycleId, bookedAt: b.createdAt })) } });
     await tx.booking.delete({ where: { id: bookingId } });
     if (!b.cycleId) return;
     const cycle = await tx.cycle.findUnique({ where: { id: b.cycleId }, include: { _count: { select: { bookings: true } } } });
