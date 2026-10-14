@@ -99,7 +99,7 @@ async function main() {
   const settings = settingsSchema.parse({
     ...DEFAULT_SETTINGS,
     orgName: "APEX-ARTISI ONLINE (δοκιμή)",
-    requireStaff2FA: false,
+    requireStaff2FA: true, // και στη δοκιμή (απόφαση υπεύθυνης 14/10): να ελεγχθεί σωστά, υποχρεωτικό στην κανονική εφαρμογή
     consentVersion: VERSION,
     // Χωρίς δωμάτια (14/10): το σκέτο zoom.us/ δεν είναι δωμάτιο — η εφαρμογή δείχνει «δεν έχει οριστεί».
     groupRoomUrl: "",
@@ -137,7 +137,19 @@ async function ensureAssessmentChecks() {
  * Αφορά μόνο τα ψεύτικα ονόματα· λογαριασμοί που φτιάχνει η διαχείριση δεν αγγίζονται.
  */
 const DEMO_USERNAMES = ["eva", "anna", "vasilis", "dimitra", "nikos", "eleni", "giorgos", "maria"];
+/** Αποφάσεις 14/10 και σε παλιές βάσεις της δοκιμής: Therapair 60′ (ήταν 55) και υποχρεωτικός δεύτερος κωδικός. */
+async function ensureDemoSettings() {
+  const row = await prisma.setting.findUnique({ where: { key: "app" } });
+  if (!row) return;
+  const v = row.value as Record<string, unknown>;
+  const next = { ...v, ...(v.pairMinutes === 55 ? { pairMinutes: 60 } : {}), requireStaff2FA: true };
+  if (JSON.stringify(next) !== JSON.stringify(v)) {
+    await prisma.setting.update({ where: { key: "app" }, data: { value: next } });
+    console.log("[demo] Ρυθμίσεις: Therapair 60′, δεύτερος κωδικός υποχρεωτικός.");
+  }
+}
 async function ensureDemoAccess(password: string) {
+  await ensureDemoSettings();
   const users = await prisma.user.findMany({ where: { username: { in: DEMO_USERNAMES } }, select: { id: true, username: true, passwordHash: true } });
   let reset = 0;
   for (const u of users) {

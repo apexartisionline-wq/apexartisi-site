@@ -91,7 +91,7 @@ export const DEFAULT_SETTINGS: Settings = {
   sessionDays: [2, 4],
   sessionHours: [9, 10, 11, 12, 13, 14, 15, 16, 17],
   sessionMinutes: 40,
-  pairMinutes: 55,
+  pairMinutes: 60, // Therapair 60′ (απόφαση υπεύθυνης 14/10· τα παλιά έγγραφα έγραφαν 55)
   sessionJoinBeforeMinutes: 10,
   rooms: ["", "", "", ""],
   changeRequestHours: 12,
