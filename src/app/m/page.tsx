@@ -9,11 +9,13 @@ import { extraGroupTimes, holidaysFrom } from "@/lib/groups";
 import { bookingWindow, canRequestChange, groupsOn, isAfter, joinableGroup, sessionJoinable, slotMinutes } from "@/lib/program";
 import { weekGoal } from "@/lib/goals";
 import { getSettings } from "@/lib/settings";
+import { ROOM_MISSING_MEMBER } from "@/lib/rooms";
 import { vocative } from "@/lib/vocative";
 import { addDays, formatDate, formatHour, formatTime, isAfterLocal, localParts } from "@/lib/time";
 
-export default async function MemberHome() {
+export default async function MemberHome({ searchParams }: { searchParams: Promise<{ e?: string }> }) {
   const user = await requireMember();
+  const sp = await searchParams;
   const s = await getSettings();
   const now = new Date();
   const today = localParts(now);
@@ -60,6 +62,7 @@ export default async function MemberHome() {
       <h1>Γεια σου, {vocative(user.name.split(" ")[0])}</h1>
 
       <Announcements />
+      {sp.e === "room" && <div className="notice">{ROOM_MISSING_MEMBER}</div>}
       {/* Φράση αργίας: εγκεκριμένη από την υπεύθυνη (13/10) — να μην αλλάξει χωρίς ερώτηση. */}
       {holidays.map((h) => (
         <div key={h.date} className="notice">

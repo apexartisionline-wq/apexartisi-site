@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { currentUser } from "@/lib/auth";
+import { staffGateOk } from "@/lib/staff-gate";
 import { prisma } from "@/lib/db";
 
 // «Σύνδεση» του θεραπευτή: καταγράφει την ώρα που μπήκε (το Zoom το ανοίγει ο browser).
@@ -9,6 +10,7 @@ const body = z.object({ kind: z.enum(["SLOT", "GROUP"]), ref: z.string().min(1).
 export async function POST(req: Request) {
   const user = await currentUser();
   if (!user || user.role === "MEMBER") return new NextResponse(null, { status: 401 });
+  if (!(await staffGateOk(user))) return new NextResponse(null, { status: 403 });
   const parsed = body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return new NextResponse(null, { status: 400 });
   const { kind, ref } = parsed.data;

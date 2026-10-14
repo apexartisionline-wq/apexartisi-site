@@ -4,6 +4,8 @@ import { TourFor } from "@/components/TourFor";
 import { DayPicker } from "@/components/DayPicker";
 import { StaffMessagesLine } from "@/components/StaffMessagesLine";
 import { JoinButton } from "@/components/JoinButton";
+import { DemoStartButton } from "@/components/DemoStartButton";
+import { roomUrl, ROOM_MISSING } from "@/lib/rooms";
 import { Icon } from "@/components/Icon";
 import { ActionRow, type StaffOption } from "@/components/ActionRow";
 import { alertHref } from "@/components/AlertBoxes";
@@ -29,8 +31,8 @@ import { addDays, athensToUtc, formatDate, formatTime, localParts, toMinutes } f
 async function demoStart() {
   "use server";
   const user = await requireRole("THERAPIST", "ADMIN");
-  await startDemoSession(user);
-  redirect("/t");
+  const id = await startDemoSession(user).catch((e) => { console.error("[demo]", e); return null; });
+  redirect(id ? `/t?demo=${id}` : "/t?demo=0");
 }
 
 const KIND_LABEL: Record<string, string> = { CLINICAL: "ψυχολόγος", BIOMATIC: "βιωματικός θεραπευτής", BOTH: "ψυχολόγος και βιωματικός" };
@@ -56,7 +58,7 @@ type Item = {
 
 // «Σήμερα»: το κεντρικό σημείο της μέρας του θεραπευτή (ανασχεδιασμός 13/10, 2ο πέρασμα — εγκεκριμένη εικόνα «Σήμερα»).
 // Αριστερά (~60%) το πρόγραμμα με την επόμενη συνεδρία ως πρώτο σημείο αναφοράς, δεξιά (~40%) «Χρειάζεται προσοχή» και «Εκκρεμότητες».
-export default async function TherapistDay({ searchParams }: { searchParams: Promise<{ date?: string }> }) {
+export default async function TherapistDay({ searchParams }: { searchParams: Promise<{ date?: string; demo?: string }> }) {
   const user = await requireRole("THERAPIST", "ADMIN");
   const sp = await searchParams;
   const now = new Date();
@@ -99,7 +101,7 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
         key: `g${g.time}`, startsAt, endsAt: new Date(startsAt.getTime() + s.groupDurationMinutes * 60_000),
         kind: "Ομάδα" as const, icon: "group" as const, title: "Εσύ συντονίζεις",
         href: `/t/group/${g.date}/${g.time.replace(":", "")}`, hasNote: g.hasNote, memberJoinedAt: null, memberConfirmed: null,
-        join: { kind: "GROUP" as const, ref: `${g.date} ${g.time}`, room: s.groupRoomUrl, label: "Μπες στην ομάδα" },
+        join: { kind: "GROUP" as const, ref: `${g.date} ${g.time}`, room: roomUrl(s.groupRoomUrl), label: "Μπες στην ομάδα" },
         opensForMembersAt: joinBefore(startsAt, s.groupJoinBeforeMinutes),
       };
     }),
@@ -110,7 +112,7 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
         kind: (pair ? "Therapair" : "Ατομική") as "Ατομική" | "Therapair", icon: (pair ? "group" : "user") as "user" | "group", title: short(x),
         href: `/t/s/${x.id}`, prepHref: `/t/s/${x.id}/prep`, memberHref: !pair && x.bookings[0] ? `/t/members/${x.bookings[0].member.id}` : undefined, memberId: !pair ? x.bookings[0]?.member.id : undefined,
         hasNote: pair ? x.pairNotes.length > 0 : Boolean(x.note), memberJoinedAt: !pair ? (x.bookings[0]?.joinedAt ?? null) : null, memberConfirmed: !pair ? (x.bookings[0]?.confirmedCame ?? null) : null,
-        join: { kind: "SLOT" as const, ref: x.id, room: s.rooms[x.position - 1] ?? "", label: pair ? "Μπες στο Therapair" : "Μπες στην ατομική" },
+        join: { kind: "SLOT" as const, ref: x.id, room: roomUrl(s.rooms[x.position - 1]), label: pair ? "Μπες στο Therapair" : "Μπες στην ατομική" },
         opensForMembersAt: joinBefore(x.startsAt, s.sessionJoinBeforeMinutes),
       };
     }),
@@ -224,6 +226,8 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
       </PageHead>
 
       {holiday && <div className="notice">Αργία ({holiday.reason}): δεν γίνονται ατομικές{holiday.groupTime ? ` · ομάδα στη θέση τους στις ${holiday.groupTime}` : ""}.</div>}
+      {sp.demo === "0" && <div className="error">Η δοκιμαστική ατομική δεν φτιάχτηκε. Δοκίμασε ξανά· αν επιμένει, πες το στη διαχείριση.</div>}
+      {sp.demo && sp.demo !== "0" && (() => { const d = items.find((it) => it.key === sp.demo); return d ? <div className="notice">Η δοκιμαστική ατομική μπήκε στο πρόγραμμα: {formatTime(d.startsAt)}–{formatTime(d.endsAt)} με {d.title}. Πάτα «Προετοιμασία» ή «Μπες στην ατομική».</div> : <div className="notice">Η δοκιμαστική ατομική φτιάχτηκε.</div>; })()}
       <div className="cols cols-60">
         <div className="stackv">
           <Panel title="Το πρόγραμμά μου" link={{ href: "#week", label: "Επόμενες ημέρες" }} tour="program">
@@ -252,6 +256,7 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
                       {isNext && isToday ? (
                         <>
                           <JoinButton kind={it.join.kind} refId={it.join.ref} roomUrl={it.join.room} next={it.href} label={it.join.label} className="primary lg" icon="video" />
+                          {!it.join.room && <span className="hint" title={ROOM_MISSING}>Δωμάτιο: δεν έχει οριστεί{user.role === "ADMIN" && <> · <Link href="/admin/settings">Ρυθμίσεις</Link></>}</span>}
                           <div className="row" style={{ gap: 8, flexWrap: "nowrap" }}>
                             <Link href={it.prepHref ?? it.href} className="btn outline sm" style={{ flex: 1 }}>{it.kind === "Ομάδα" ? "Σημείωμα ομάδας" : "Προετοιμασία"}</Link>
                             {it.memberHref && <Link href={it.memberHref} className="btn outline sm" style={{ flex: 1 }}><Icon name="folder" size={16} /> Φάκελος</Link>}
@@ -274,14 +279,14 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
             <details className="fold small" style={{ marginTop: 14 }} data-tour="legend">
               <summary className="muted">Πώς δουλεύουν τα κουμπιά και οι ενδείξεις</summary>
               <p className="muted" style={{ margin: "6px 0 0" }}>
-                «Προετοιμασία» ανοίγει μία σελίδα διαβάσματος με το προηγούμενο σημείωμα ολόκληρο, χρονόμετρο και «Μπες» — για όποιον έχει χρόνο πριν. «Μπες» ανοίγει το Zoom σε νέα καρτέλα, καταγράφει την ώρα που το πάτησες και φέρνει εδώ τη σελίδα της συνεδρίας. «Το μέλος πάτησε «Μπες»» είναι η ώρα του πατήματος· δεν είναι επιβεβαίωση συμμετοχής από το Zoom.
+                «Προετοιμασία» ανοίγει μία σελίδα διαβάσματος με το προηγούμενο σημείωμα ολόκληρο, χρονόμετρο και «Μπες» — για όποιον έχει χρόνο πριν. «Μπες» ανοίγει το Zoom σε νέα καρτέλα, καταγράφει την ώρα που το πάτησες και φέρνει εδώ τη σελίδα της συνεδρίας· αν το δωμάτιο δεν έχει οριστεί, το λέει και δεν ανοίγει τίποτα. «Το μέλος πάτησε «Μπες»» είναι η ώρα του πατήματος· δεν είναι επιβεβαίωση συμμετοχής από το Zoom.
                 Μια συνεδρία που πέρασε η ώρα της μένει «εκκρεμεί καταγραφή» μέχρι να υπάρξει «Μπες» ή σημείωμα· δεν θεωρείται απουσία. Το σημειωματάριο ανοίγει 15 λεπτά πριν.
               </p>
             </details>
             {isToday && isDemoSite() && (
               <form action={demoStart} className="row" style={{ marginTop: 12, gap: 10 }}>
                 <span className="hint">Δοκιμαστικό περιβάλλον</span>
-                <button type="submit" className="sm" title="Φτιάχνει μια ατομική τώρα με ψεύτικο μέλος, για να δεις πώς συνδέεσαι και τι βλέπεις μέσα στην ατομική">Ξεκίνα δοκιμαστική ατομική τώρα</button>
+                <DemoStartButton />
               </form>
             )}
           </Panel>

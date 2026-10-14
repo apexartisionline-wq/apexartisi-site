@@ -179,9 +179,10 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           <F label="Μέρες ατομικών"><Days name="sessionDays" value={s.sessionDays} /></F>
           <div className="grid2">
             {s.rooms.map((r, i) => (
-              <F key={i} label={`Δωμάτιο ${i + 1} (Zoom)`}><input name={`room${i + 1}`} type="url" defaultValue={r} /></F>
+              <F key={i} label={`Δωμάτιο ${i + 1} (Zoom)`}><input name={`room${i + 1}`} type="url" defaultValue={r} placeholder="https://…zoom.us/j/…" /></F>
             ))}
           </div>
+          <p className="hint">Κάθε δωμάτιο θέλει τον πλήρη σύνδεσμο της συνάντησης (π.χ. https://us02web.zoom.us/j/1234567890?pwd=…). Σκέτο «https://zoom.us/» δεν είναι δωμάτιο: τα κουμπιά «Μπες» θα λένε «δεν έχει οριστεί».</p>
         </section>
 
         <section className="card">

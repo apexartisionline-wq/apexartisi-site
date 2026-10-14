@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { logAccess } from "@/lib/audit";
 import { currentUser } from "@/lib/auth";
+import { staffGateOk } from "@/lib/staff-gate";
 import { decryptBytes } from "@/lib/crypto";
 import { prisma } from "@/lib/db";
 
@@ -13,6 +14,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   if (!photo) return new NextResponse(null, { status: 404 });
   const memberId = photo.assignment.memberId;
   if (user.role === "MEMBER" && user.id !== memberId) return new NextResponse(null, { status: 404 });
+  if (!(await staffGateOk(user))) return new NextResponse(null, { status: 403 }); // 2FA / έντυπο εχεμύθειας, όπως στις σελίδες
   if (user.role !== "MEMBER") await logAccess(user.id, memberId, "assignment_photo_view");
   return new NextResponse(new Uint8Array(decryptBytes(Buffer.from(photo.data))), {
     headers: { "content-type": "image/jpeg", "cache-control": "private, no-store" },

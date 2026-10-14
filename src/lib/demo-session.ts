@@ -22,6 +22,20 @@ export async function startDemoSession(therapist: { id: string; therapistKind: "
   const now = new Date();
   const p = localParts(now);
   const startsAt = new Date(now.getTime() + 2 * 60_000);
+  // Όχι δεύτερη δοκιμαστική ατομική όσο η προηγούμενη του ίδιου θεραπευτή δεν έχει τελειώσει (ή δεν έχει σημείωμα):
+  // ξαναχρησιμοποιείται η ίδια (14/10, για να μη γεμίζει το πρόγραμμα με διπλές).
+  const { getSettings } = await import("./settings");
+  const minutes = (await getSettings()).sessionMinutes;
+  const open = await prisma.slot.findFirst({
+    where: { date: p.date, position: DEMO_POSITION, therapistId: therapist.id, kind: "INDIVIDUAL", note: null, startsAt: { gt: new Date(now.getTime() - minutes * 60_000) }, bookings: { some: { memberId: member.id } } },
+    orderBy: { startsAt: "desc" },
+    select: { id: true, startsAt: true },
+  });
+  if (open) {
+    // Αν δεν έχει ξεκινήσει ακόμα, ξαναμπαίνει «σε 2 λεπτά»· αν τρέχει, μένει όπως είναι.
+    if (open.startsAt > now) await prisma.slot.update({ where: { id: open.id }, data: { startsAt } });
+    return open.id;
+  }
   const slot = await prisma.slot.upsert({
     where: { date_hour_position: { date: p.date, hour: p.hour, position: DEMO_POSITION } },
     create: { date: p.date, hour: p.hour, position: DEMO_POSITION, kind: "INDIVIDUAL", startsAt, therapistId: therapist.id },

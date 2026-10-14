@@ -37,6 +37,7 @@ import { currentRisk, nextClinicalSession } from "@/lib/risk-db";
 import { alertWorthy, composeNote, type NoteForm, noteFlags, noteFormSchema } from "@/lib/note-form";
 import { sessionGlance } from "@/lib/session-glance";
 import { getSettings } from "@/lib/settings";
+import { roomUrl, ROOM_MISSING } from "@/lib/rooms";
 import { formatDate, formatHour, formatSpan, formatTime, formatWhen, localParts } from "@/lib/time";
 
 async function loadSlot(id: string) {
@@ -371,7 +372,7 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
     goalWeek(b.memberId, today),
   ]);
   const editors = new Map((await prisma.user.findMany({ where: { id: { in: [...new Set(versions.map((v) => v.editorId))] } }, select: { id: true, name: true } })).map((u) => [u.id, u.name]));
-  const room = s.rooms[x.position - 1] ?? "";
+  const room = roomUrl(s.rooms[x.position - 1]);
   // Ο ισχύων κανόνας: το σημειωματάριο ανοίγει 15 λεπτά πριν από την ώρα της, για όποιον έχει την ώρα (ή τη διαχείριση).
   const writable = canWrite(x, user) && now.getTime() >= x.startsAt.getTime() - 15 * 60_000;
   const initial: Partial<NoteForm> | null = x.note?.data ? (JSON.parse(dec(x.note.data)) as NoteForm) : null;
@@ -404,10 +405,12 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
       >
         <Link className="btn outline" href={`/t/members/${b.member.id}`}><Icon name="folder" size={18} /> Κλινικός φάκελος</Link>
         {!assessed && isPsychologist(viewer) && <Link className="btn outline" href={`/t/members/${b.member.id}/assessment`}>Αρχική αξιολόγηση ›</Link>}
-        {x.date === today && room && canWrite(x, user) && (
-          joined
-            ? <a className="btn primary" href={room} target="_blank" rel="noopener noreferrer"><Icon name="video" size={18} /> Άνοιγμα Zoom</a>
-            : <JoinButton kind="SLOT" refId={x.id} roomUrl={room} next={`/t/s/${x.id}`} label="Μπες στην ατομική" icon="video" />
+        {x.date === today && canWrite(x, user) && (
+          room
+            ? (joined
+              ? <a className="btn primary" href={room} target="_blank" rel="noopener noreferrer"><Icon name="video" size={18} /> Άνοιγμα Zoom</a>
+              : <JoinButton kind="SLOT" refId={x.id} roomUrl={room} next={`/t/s/${x.id}`} label="Μπες στην ατομική" icon="video" />)
+            : <span className="hint" title={ROOM_MISSING}>Δωμάτιο Zoom: δεν έχει οριστεί{user.role === "ADMIN" && <> · <Link href="/admin/settings">Ρυθμίσεις</Link></>}</span>
         )}
         <span className="conn" title="Είναι η ώρα του πατήματος του κουμπιού «Μπες», όχι επιβεβαίωση συμμετοχής από το Zoom.">
           <i className={joined ? "on" : ""} />
@@ -571,7 +574,7 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
 async function PairSession({ x, user, sp }: { x: Slot; user: { id: string; role: string }; sp: { saved?: string; error?: string; edit?: string } }) {
   const now = new Date();
   const s = await getSettings();
-  const room = s.rooms[x.position - 1] ?? "";
+  const room = roomUrl(s.rooms[x.position - 1]);
   const today = localParts(now).date;
   const members = [...x.bookings].sort((p, q) => p.member.name.localeCompare(q.member.name, "el")).map((b) => b.member) as [{ id: string; name: string }, { id: string; name: string }];
   const [joined, { forms, theme, themeDetails }, perMember] = await Promise.all([
@@ -605,6 +608,7 @@ async function PairSession({ x, user, sp }: { x: Slot; user: { id: string; role:
         {x.date === today && room && (joined
           ? <a className="btn primary" href={room} target="_blank" rel="noopener noreferrer"><Icon name="video" size={18} /> Άνοιγμα Zoom</a>
           : canWrite(x, user) && <JoinButton kind="SLOT" refId={x.id} roomUrl={room} next={`/t/s/${x.id}`} label="Μπες στο Therapair" icon="video" />)}
+        {x.date === today && !room && canWrite(x, user) && <span className="hint" title={ROOM_MISSING}>Δωμάτιο Zoom: δεν έχει οριστεί{user.role === "ADMIN" && <> · <Link href="/admin/settings">Ρυθμίσεις</Link></>}</span>}
         {x.date === today && room && (
           <span className="conn" title="Είναι η ώρα του πατήματος του κουμπιού «Μπες», όχι επιβεβαίωση συμμετοχής από το Zoom.">
             <i className={joined ? "on" : ""} />{joined ? `Συνδέθηκες στις ${formatHour(localParts(joined.at).hour, localParts(joined.at).minute)}` : "Δεν έχεις πατήσει «Μπες»"}

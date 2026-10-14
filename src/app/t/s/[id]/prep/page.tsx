@@ -20,6 +20,7 @@ import { sessionNumber } from "@/lib/member";
 import { currentRisk, nextClinicalSession } from "@/lib/risk-db";
 import { sessionGlance } from "@/lib/session-glance";
 import { getSettings } from "@/lib/settings";
+import { roomUrl, ROOM_MISSING } from "@/lib/rooms";
 import { formatDate, formatHour, formatSpan, formatTime, localParts } from "@/lib/time";
 
 // «Προετοιμασία» (υπεύθυνη 14/10): πριν από την ατομική ο θεραπευτής δεν χρειάζεται ολόκληρη τη σελίδα της
@@ -41,7 +42,7 @@ export default async function PrepPage({ params }: { params: Promise<{ id: strin
   const endsAt = new Date(x.startsAt.getTime() + minutes * 60_000);
   if (endsAt <= now) redirect(`/t/s/${x.id}`);
   const today = localParts(now).date;
-  const room = s.rooms[x.position - 1] ?? "";
+  const room = roomUrl(s.rooms[x.position - 1]);
   const mine = user.role === "ADMIN" || x.therapistId === user.id;
   const canJoin = x.date === today && Boolean(room) && mine;
   const viewer = { id: user.id, role: user.role, therapistKind: (user as { therapistKind?: string | null }).therapistKind ?? null };
@@ -86,6 +87,7 @@ export default async function PrepPage({ params }: { params: Promise<{ id: strin
               {!pair && members[0].joinedAt && <> · το μέλος πάτησε «Μπες» {hm(members[0].joinedAt)}</>}
             </span>
           )}
+          {x.date === today && mine && !room && <span className="hint" title={ROOM_MISSING}>Δωμάτιο Zoom: δεν έχει οριστεί{user.role === "ADMIN" && <> · <Link href="/admin/settings">Ρυθμίσεις</Link></>}</span>}
           {x.date === today && !mine && <span className="hint">Την ώρα την έχει {x.therapist?.name ?? "άλλος θεραπευτής"}.</span>}
         </div>
       </div>

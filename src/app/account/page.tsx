@@ -128,6 +128,9 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
                 <p className="small">
                   Βλέπεις δεδομένα υγείας, γι' αυτό χρειάζεται και δεύτερος κωδικός από εφαρμογή επαλήθευσης στο κινητό
                   (π.χ. Google Authenticator, Microsoft Authenticator, 1Password).
+                  {s.requireStaff2FA
+                    ? " Είναι υποχρεωτικός: χωρίς αυτόν δεν ανοίγουν οι φάκελοι."
+                    : " Σε αυτή την εγκατάσταση η διαχείριση τον έχει προς το παρόν προαιρετικό (ρύθμιση «Υποχρεωτικός δεύτερος κωδικός»)· σε πραγματική λειτουργία θα είναι υποχρεωτικός πριν ανοίξουν οι φάκελοι."}
                 </p>
                 {!qr ? (
                   <form action={start2fa}><button className="primary" type="submit">Ξεκίνα τη ρύθμιση</button></form>

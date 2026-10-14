@@ -101,8 +101,9 @@ async function main() {
     orgName: "APEX-ARTISI ONLINE (δοκιμή)",
     requireStaff2FA: false,
     consentVersion: VERSION,
-    groupRoomUrl: "https://zoom.us/",
-    rooms: ["https://zoom.us/", "https://zoom.us/", "https://zoom.us/", "https://zoom.us/"],
+    // Χωρίς δωμάτια (14/10): το σκέτο zoom.us/ δεν είναι δωμάτιο — η εφαρμογή δείχνει «δεν έχει οριστεί».
+    groupRoomUrl: "",
+    rooms: ["", "", "", ""],
     groups: DEFAULT_SETTINGS.groups.map((g, i) => ({ ...g, rotation: [staff[i % staff.length].id] })),
   });
   await prisma.setting.upsert({ where: { key: "app" }, create: { key: "app", value: settings }, update: { value: settings } });
