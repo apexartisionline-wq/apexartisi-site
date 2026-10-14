@@ -23,7 +23,7 @@ async function main() {
   const passwordHash = await bcrypt.hash(password, 12);
 
   const eva = await prisma.user.create({
-    data: { username: "eva", name: "Εύα (δοκιμή)", role: "ADMIN", therapistKind: "BIOMATIC", passwordHash },
+    data: { username: "eva", name: "Εύα (δοκιμή)", role: "ADMIN", therapistKind: "BIOMATIC", passwordHash, ndaExempt: true }, // η υπεύθυνη δεν υπογράφει το έντυπο εχεμύθειας
   });
   const therapists: [string, string, TherapistKind][] = [
     ["anna", "Άννα Κ. (ψυχολόγος)", "CLINICAL"],
@@ -144,7 +144,8 @@ async function ensureDemoAccess(password: string) {
     if (!same) reset++;
     await prisma.user.update({
       where: { id: u.id },
-      data: { ...(same ? {} : { passwordHash: await bcrypt.hash(password, 12) }), failedLogins: 0, lockedUntil: null, active: true },
+      // Η ψεύτικη υπεύθυνη (eva) εξαιρείται από το έντυπο εχεμύθειας (14/10)· και σε παλιές βάσεις της δοκιμής.
+      data: { ...(same ? {} : { passwordHash: await bcrypt.hash(password, 12) }), failedLogins: 0, lockedUntil: null, active: true, ...(u.username === "eva" ? { ndaExempt: true } : {}) },
     });
   }
   console.log(`[demo] Ψεύτικοι λογαριασμοί: ${users.length} ξεκλείδωτοι, ${reset} με κωδικό που ξαναμπήκε.`);

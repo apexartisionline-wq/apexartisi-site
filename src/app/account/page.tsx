@@ -1,3 +1,4 @@
+import Link from "next/link";
 import bcrypt from "bcryptjs";
 import { redirect } from "next/navigation";
 import { Nav } from "@/components/Nav";
@@ -5,6 +6,7 @@ import { hashPassword, logoutEverywhere, requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { navLinks } from "@/lib/nav";
 import { getSettings } from "@/lib/settings";
+import { ndaStatus, NDA_STATE } from "@/lib/nda";
 import { PushToggle } from "@/components/PushToggle";
 import { vapidPublicKey } from "@/lib/push";
 import { MEMBER_PREFS, type Prefs } from "@/lib/schedule";
@@ -113,6 +115,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
           {staff && <p className="muted small">Το κόκκινο κουμπί έρχεται ως ειδοποίηση σε όλο το προσωπικό. Όποιος εφημερεύει, να επιτρέψει στο κινητό να περνά από το αθόρυβο.</p>}
         </div>
 
+        {staff && <NdaAccountLine user={user} />}
         {staff && (
           <>
             <h2>Δεύτερος κωδικός (επαλήθευση σε δύο βήματα)</h2>
@@ -178,6 +181,22 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
           <button type="submit">Έξοδος από όλες τις συσκευές</button>
         </form>
       </main>
+    </>
+  );
+}
+
+// Έντυπο εχεμύθειας (14/10): το προσωπικό βλέπει την κατάστασή του και ανοίγει τη σελίδα του εντύπου.
+async function NdaAccountLine({ user }: { user: { id: string; role: string; ndaExempt: boolean } }) {
+  const st = await ndaStatus(user);
+  if (!st.doc || st.exempt) return null;
+  const state = !st.consent ? "none" : st.signed ? "signed" : "accepted";
+  return (
+    <>
+      <h2>Έντυπο εχεμύθειας</h2>
+      <div className="card row spread" style={{ flexWrap: "wrap", gap: 8 }}>
+        <span>Έκδοση {st.doc.version}: <strong>{NDA_STATE[state].text}</strong></span>
+        <Link className="btn outline sm" href="/nda">{state === "signed" ? "Δες το έντυπο" : "Άνοιγμα ›"}</Link>
+      </div>
     </>
   );
 }

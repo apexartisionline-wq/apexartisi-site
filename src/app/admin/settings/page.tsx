@@ -49,6 +49,7 @@ async function save(formData: FormData) {
     helpMaxAlerts: n("helpMaxAlerts"),
     dropoutDays: n("dropoutDays"),
     requireStaff2FA: formData.get("requireStaff2FA") === "on",
+    ndaRequireFile: formData.get("ndaRequireFile") === "on",
     requireIntake: formData.get("requireIntake") === "on",
     consentVersion: g("consentVersion").trim() || "σχέδιο",
     helplines: [0, 1, 2, 3, 4, 5]
@@ -214,6 +215,10 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           <label className="row" style={{ gap: 8 }}>
             <input type="checkbox" name="requireStaff2FA" defaultChecked={s.requireStaff2FA} style={{ width: "auto" }} />
             Υποχρεωτικός δεύτερος κωδικός (2FA) για όλο το προσωπικό
+          </label>
+          <label className="row" style={{ gap: 8 }}>
+            <input type="checkbox" name="ndaRequireFile" defaultChecked={s.ndaRequireFile} style={{ width: "auto" }} />
+            Έντυπο εχεμύθειας: η πρόσβαση ανοίγει μόνο όταν υπάρχει και υπογεγραμμένο αρχείο (αλλιώς αρκεί η ψηφιακή αποδοχή και το αρχείο μένει «εκκρεμεί»)
           </label>
           <label className="row" style={{ gap: 8 }}>
             <input type="checkbox" name="requireIntake" defaultChecked={s.requireIntake} style={{ width: "auto" }} />

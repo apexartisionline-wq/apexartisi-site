@@ -81,6 +81,9 @@ model User {
   therapistKind  TherapistKind?
 
   notifyPrefs Json @default("{}")
+  // Έντυπο εχεμύθειας (14/10): η υπεύθυνη (και όποιος εξαιρεθεί ρητά) δεν το υπογράφει· όλοι οι άλλοι λογαριασμοί προσωπικού ναι.
+  ndaExempt   Boolean @default(false)
+  staffConsents StaffConsent[]
 
   sessions      Session[]
   cycles        Cycle[]
@@ -308,6 +311,48 @@ model SafetyPlan {
 }
 
 // Καταγραφή πρόσβασης: ποιος άνοιξε ποιον φάκελο/σημείωμα.
+// Έντυπο εχεμύθειας (NDA, έγγραφο 16 του δικηγόρου — απόφαση 14/10): το ανεβάζει η διαχείριση ως αρχείο, με εκδόσεις.
+// Το κείμενο του εντύπου δεν μπαίνει ποτέ στον κώδικα.
+model StaffDocument {
+  id           String         @id @default(cuid())
+  kind         String         @default("NDA")
+  version      Int
+  title        String
+  fileName     String
+  mime         String
+  file         Bytes
+  note         String         @default("") // τι άλλαξε σε αυτή την έκδοση
+  uploadedById String
+  createdAt    DateTime       @default(now())
+  consents     StaffConsent[]
+
+  @@unique([kind, version])
+}
+
+// Συναίνεση συνεργάτη σε μια έκδοση του εντύπου: η ψηφιακή αποδοχή μέσα στην εφαρμογή (συμπληρωματική καταγραφή)
+// και το υπογεγραμμένο αρχείο (gov.gr ή σάρωση — το κύριο αποδεικτικό). Δεν σβήνεται· νέα έκδοση = νέα γραμμή.
+model StaffConsent {
+  id             String        @id @default(cuid())
+  userId         String
+  user           User          @relation(fields: [userId], references: [id])
+  documentId     String
+  document       StaffDocument @relation(fields: [documentId], references: [id])
+  acceptedAt     DateTime      @default(now())
+  typedName      String
+  ip             String        @default("")
+  userAgent      String        @default("")
+  signedFileName String?
+  signedMime     String?
+  signedFile     Bytes?
+  signedHow      String? // GOV (gov.gr) | SCAN (σάρωση) | PAPER (πρωτότυπο σε χαρτί στο γραφείο)
+  signedAt       DateTime?
+  signedById     String? // ποιος το ανέβασε ή το σημείωσε (ο ίδιος ή η διαχείριση)
+  signedNote     String        @default("")
+
+  @@unique([userId, documentId])
+  @@index([userId])
+}
+
 model AccessLog {
   id       String   @id @default(cuid())
   userId   String

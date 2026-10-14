@@ -14,6 +14,7 @@ import { newCycle, reset2fa, updatePerson } from "../actions";
 import { ResetCodeForm } from "../CodeForms";
 import { SELF_HARM } from "@/lib/journal-labels";
 import { MemberSessions } from "@/components/MemberSessions";
+import { ndaStatus, NDA_STATE, SIGNED_HOW } from "@/lib/nda";
 
 
 export default async function PersonPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ ok?: string }> }) {
@@ -126,6 +127,8 @@ export default async function PersonPage({ params, searchParams }: { params: Pro
         </form>
       )}
 
+      {!isMember && <NdaLine userId={p.id} role={p.role} ndaExempt={p.ndaExempt} />}
+
       {isMember && (
         <>
           <p><Link className="btn" href={`/admin/people/${p.id}/close`}>Ολοκλήρωση συνεργασίας ›</Link></p>
@@ -170,5 +173,20 @@ export default async function PersonPage({ params, searchParams }: { params: Pro
         </>
       )}
     </>
+  );
+}
+
+// Έντυπο εχεμύθειας (14/10): μία γραμμή στον φάκελο κάθε λογαριασμού προσωπικού· λεπτομέρειες και ενέργειες στο «Εχεμύθεια».
+async function NdaLine({ userId, role, ndaExempt }: { userId: string; role: string; ndaExempt: boolean }) {
+  const st = await ndaStatus({ id: userId, role, ndaExempt });
+  const state = !st.doc ? null : st.exempt ? "exempt" : !st.consent ? "none" : st.signed ? "signed" : "accepted";
+  return (
+    <div className="card row spread" style={{ flexWrap: "wrap", gap: 8 }}>
+      <span>
+        Έντυπο εχεμύθειας: <strong>{state ? NDA_STATE[state].text : "δεν έχει ανέβει έντυπο"}</strong>
+        {st.consent && <span className="muted small"> · αποδοχή {formatWhen(st.consent.acceptedAt)}{st.consent.signedAt && ` · ${SIGNED_HOW[st.consent.signedHow ?? ""] ?? ""} ${formatWhen(st.consent.signedAt)}`}</span>}
+      </span>
+      <Link className="btn outline sm" href="/admin/nda">Εχεμύθεια ›</Link>
+    </div>
   );
 }
