@@ -46,6 +46,7 @@ type Item = {
   href: string;
   memberHref?: string; // φάκελος (μόνο στην ατομική)
   memberId?: string;
+  prepHref?: string; // «Προετοιμασία» (14/10): μόνο ατομική/Therapair
   hasNote: boolean;
   memberJoinedAt: Date | null; // πάτησε «Μπες» το μέλος (μόνο ατομική)
   memberConfirmed: boolean | null; // επιβεβαίωση θεραπευτή «Ήρθε/Δεν ήρθε» (μόνο ατομική)
@@ -107,7 +108,7 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
       return {
         key: x.id, startsAt: x.startsAt, endsAt: new Date(x.startsAt.getTime() + (pair ? s.pairMinutes : s.sessionMinutes) * 60_000),
         kind: (pair ? "Therapair" : "Ατομική") as "Ατομική" | "Therapair", icon: (pair ? "group" : "user") as "user" | "group", title: short(x),
-        href: `/t/s/${x.id}`, memberHref: !pair && x.bookings[0] ? `/t/members/${x.bookings[0].member.id}` : undefined, memberId: !pair ? x.bookings[0]?.member.id : undefined,
+        href: `/t/s/${x.id}`, prepHref: `/t/s/${x.id}/prep`, memberHref: !pair && x.bookings[0] ? `/t/members/${x.bookings[0].member.id}` : undefined, memberId: !pair ? x.bookings[0]?.member.id : undefined,
         hasNote: pair ? x.pairNotes.length > 0 : Boolean(x.note), memberJoinedAt: !pair ? (x.bookings[0]?.joinedAt ?? null) : null, memberConfirmed: !pair ? (x.bookings[0]?.confirmedCame ?? null) : null,
         join: { kind: "SLOT" as const, ref: x.id, room: s.rooms[x.position - 1] ?? "", label: pair ? "Μπες στο Therapair" : "Μπες στην ατομική" },
         opensForMembersAt: joinBefore(x.startsAt, s.sessionJoinBeforeMinutes),
@@ -252,7 +253,7 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
                         <>
                           <JoinButton kind={it.join.kind} refId={it.join.ref} roomUrl={it.join.room} next={it.href} label={it.join.label} className="primary lg" icon="video" />
                           <div className="row" style={{ gap: 8, flexWrap: "nowrap" }}>
-                            <Link href={it.href} className="btn outline sm" style={{ flex: 1 }}>{it.kind === "Ομάδα" ? "Σημείωμα ομάδας" : "Προετοιμασία"}</Link>
+                            <Link href={it.prepHref ?? it.href} className="btn outline sm" style={{ flex: 1 }}>{it.kind === "Ομάδα" ? "Σημείωμα ομάδας" : "Προετοιμασία"}</Link>
                             {it.memberHref && <Link href={it.memberHref} className="btn outline sm" style={{ flex: 1 }}><Icon name="folder" size={16} /> Φάκελος</Link>}
                           </div>
                         </>
@@ -260,7 +261,7 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
                         <Link href={it.href} className="btn outline sm">{it.hasNote ? "Άνοιγμα" : it.kind === "Ομάδα" ? "Σημείωμα ομάδας" : "Γράψε σημείωμα"}</Link>
                       ) : (
                         <>
-                          <Link href={it.href} className="btn outline">{it.kind === "Ομάδα" ? "Σημείωμα ομάδας" : "Προετοιμασία"}</Link>
+                          <Link href={it.prepHref ?? it.href} className="btn outline">{it.kind === "Ομάδα" ? "Σημείωμα ομάδας" : "Προετοιμασία"}</Link>
                           {isToday && <JoinButton kind={it.join.kind} refId={it.join.ref} roomUrl={it.join.room} next={it.href} label={it.join.label} className="outline sm" />}
                         </>
                       )}
@@ -273,7 +274,7 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
             <details className="fold small" style={{ marginTop: 14 }} data-tour="legend">
               <summary className="muted">Πώς δουλεύουν τα κουμπιά και οι ενδείξεις</summary>
               <p className="muted" style={{ margin: "6px 0 0" }}>
-                «Μπες» ανοίγει το Zoom σε νέα καρτέλα, καταγράφει την ώρα που το πάτησες και φέρνει εδώ τη σελίδα της συνεδρίας. «Το μέλος πάτησε «Μπες»» είναι η ώρα του πατήματος· δεν είναι επιβεβαίωση συμμετοχής από το Zoom.
+                «Προετοιμασία» ανοίγει μία σελίδα διαβάσματος με το προηγούμενο σημείωμα ολόκληρο, χρονόμετρο και «Μπες» — για όποιον έχει χρόνο πριν. «Μπες» ανοίγει το Zoom σε νέα καρτέλα, καταγράφει την ώρα που το πάτησες και φέρνει εδώ τη σελίδα της συνεδρίας. «Το μέλος πάτησε «Μπες»» είναι η ώρα του πατήματος· δεν είναι επιβεβαίωση συμμετοχής από το Zoom.
                 Μια συνεδρία που πέρασε η ώρα της μένει «εκκρεμεί καταγραφή» μέχρι να υπάρξει «Μπες» ή σημείωμα· δεν θεωρείται απουσία. Το σημειωματάριο ανοίγει 15 λεπτά πριν.
               </p>
             </details>
@@ -289,11 +290,11 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
             <Panel title="Συνέχεια από την ομάδα">
               <p className="hint" style={{ margin: "0 0 10px" }}>Πριν από την επόμενη ατομική ({next.title}): δες το τελευταίο σημείωμα και τις ανοιχτές συμφωνίες.</p>
               {nextNote ? (
-                <NoteSummary author={nextNote.therapist} at={nextNote.startsAt} text={nextNote.text} href={`${next.href}#open`} />
+                <NoteSummary author={nextNote.therapist} at={nextNote.startsAt} text={nextNote.text} href={`${next.prepHref ?? next.href}#note`} />
               ) : (
                 <EmptyState>Δεν υπάρχει προηγούμενο σημείωμα για αυτό το μέλος.</EmptyState>
               )}
-              <p style={{ margin: "12px 0 0" }}><Link className="btn outline" href={next.href}>Προετοιμασία της ατομικής</Link></p>
+              <p style={{ margin: "12px 0 0" }}><Link className="btn outline" href={next.prepHref ?? next.href}>Προετοιμασία της ατομικής</Link></p>
             </Panel>
           )}
 

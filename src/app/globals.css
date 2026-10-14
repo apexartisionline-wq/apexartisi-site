@@ -703,3 +703,18 @@ details.fold[open] > summary::before { transform: rotate(90deg); }
   .wm-scope .note-text > *, .wm-scope .notesum-prev, .wm-scope .wm > * { display: none !important; }
   .wm-scope .note-text::before, .wm-scope .wm::before { content: "Τα σημειώματα δεν εκτυπώνονται."; font-style: italic; }
 }
+
+/* «Προετοιμασία» (14/10): σταθερή μπάρα πάνω με το χρονόμετρο και το «Μπες», ώστε ο θεραπευτής να μη χάνεται στο διάβασμα. */
+.prep-bar { position: sticky; top: 8px; z-index: 6; background: var(--card); border: 1px solid var(--card-line); border-radius: var(--card-radius); box-shadow: 0 6px 16px rgba(12, 22, 32, 0.08); padding: 12px 16px; display: flex; align-items: center; gap: 10px 16px; flex-wrap: wrap; margin-bottom: 16px; }
+.prep-bar .prep-count { flex: 1 1 260px; }
+.prep-bar .prep-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.prep-count { display: flex; flex-direction: column; gap: 2px; padding: 8px 12px; border-radius: var(--radius-sm); font-weight: 700; font-size: 1.15rem; letter-spacing: -0.01em; }
+.prep-count .prep-count-small { font-size: var(--fs-help); font-weight: 500; }
+.prep-count.soon { color: var(--accent); background: var(--teal-quiet); }
+.prep-count.now, .prep-count.live { background: var(--accent); color: var(--accent-text); }
+.prep-count.now { animation: prep-pulse 1.6s ease-in-out infinite; }
+.prep-count.over { color: var(--muted); }
+@keyframes prep-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(8, 127, 140, 0.45); } 50% { box-shadow: 0 0 0 8px rgba(8, 127, 140, 0); } }
+@media (prefers-reduced-motion: reduce) { .prep-count.now { animation: none; } }
+.prep-note { font-size: 1.02rem; line-height: 1.55; }
+@media (max-width: 760px) { .prep-bar { top: 0; border-radius: 0 0 var(--card-radius) var(--card-radius); margin-inline: -16px; padding: 10px 16px; } .prep-count { font-size: 1.05rem; } }
