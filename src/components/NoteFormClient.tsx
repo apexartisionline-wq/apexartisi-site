@@ -154,7 +154,6 @@ export function NoteFormClient({ action, hidden, initial, themeForms, themeDetai
     d.safeOk !== undefined,
   ];
   const absent = d.came === false;
-  const goConcern = () => { setTab(3); setTimeout(() => document.getElementById("safeOk-group")?.scrollIntoView({ behavior: "smooth", block: "center" }), 50); };
 
   return (
     <form ref={formRef} action={action} onSubmit={check} className="note-form" id="notebook">
@@ -261,7 +260,7 @@ export function NoteFormClient({ action, hidden, initial, themeForms, themeDetai
       </div>
 
       {problem && <div className="error" role="alert" style={{ marginTop: 10 }}>Δεν αποθηκεύτηκε: {problem} Ό,τι έγραψες είναι εδώ.</div>}
-      <SaveBar dirty={touched} problem={problem} savedAt={savedAt} onConcern={goConcern} />
+      <SaveBar dirty={touched} problem={problem} savedAt={savedAt} />
       <p className="muted small" style={{ margin: "6px 0 0" }}>Όλες οι καρτέλες αποθηκεύονται μαζί, με όνομα και ώρα. Κάθε αλλαγή κρατά την προηγούμενη μορφή. Ctrl + Enter = Αποθήκευση.</p>
     </form>
   );
