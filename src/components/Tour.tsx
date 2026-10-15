@@ -27,9 +27,18 @@ export function Tour({ id, name, steps: all, auto }: { id: string; name: string;
     };
     setSteps(all.filter((s) => visible(s.target) && (!s.when || document.querySelector(s.when)) && !(s.unless && document.querySelector(s.unless))));
   }, [all]);
-  // Το κουμπί «Ξενάγηση» μπαίνει στο πάνω μενού (για να μη σκεπάζει τίποτα στη σελίδα).
+  // Το κουμπί «Ξενάγηση» μπαίνει στο μενού (για να μη σκεπάζει τίποτα στη σελίδα): στο πλαϊνό, όταν φαίνεται
+  // (θεραπευτές σε μεγάλη οθόνη), αλλιώς στο πάνω. Ξαναδιαλέγεται όταν αλλάζει το πλάτος της οθόνης.
   const [slot, setSlot] = useState<Element | null>(null);
-  useEffect(() => setSlot(document.querySelector("nav.top")), []);
+  useEffect(() => {
+    const pick = () => {
+      const side = document.querySelector(".sidenav .tour-slot");
+      setSlot(side && side.getClientRects().length ? side : document.querySelector("nav.top"));
+    };
+    pick();
+    window.addEventListener("resize", pick);
+    return () => window.removeEventListener("resize", pick);
+  }, []);
   const [rect, setRect] = useState<Rect | null>(null);
   const [vp, setVp] = useState({ w: 0, h: 0 });
   const bubble = useRef<HTMLDivElement>(null);

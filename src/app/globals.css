@@ -796,3 +796,81 @@ details.side-fold .iconbox { width: 30px; height: 30px; }
 .pic-list { list-style: none; padding: 0; margin: 6px 0 0; }
 .pic-list li { display: flex; flex-wrap: wrap; gap: 4px 10px; padding: 4px 0; border-top: 1px dashed var(--card-line); font-size: .88rem; }
 .pic-list li b { font-weight: 700; }
+/* ── Προσχέδιο υπεύθυνης για την οθόνη της ατομικής (14/10, ολοκληρώθηκε 15/10) ──
+   Πλαϊνό μενού θεραπευτή (≥ 1100px) · κεφαλίδα «Ατομική συνεδρία» με μέλος/ώρα/κατάσταση · βήματα σε όλο το πλάτος
+   πάνω από σημειωματάριο και «Πριν συνεχίσεις» · ασφάλεια ως αναδιπλούμενο κουτί · μπάρα σε όλο το κάτω μέρος. */
+.sidenav { display: none; }
+@media (min-width: 1100px) {
+  .has-side > .sidenav { display: flex; flex-direction: column; position: fixed; top: 0; bottom: 0; left: 0; width: 248px; z-index: 40; padding: 28px 16px 20px; background: color-mix(in srgb, var(--teal-quiet) 65%, var(--canvas)); border-right: 1px solid var(--card-line); overflow-y: auto; }
+  .has-side > nav.top { display: none; }
+  .has-side > .staff { margin-left: 248px; }
+  .has-side .savebar { left: 248px; }
+}
+.sidenav-brand { display: block; padding: 0 12px 28px; }
+.sidenav-brand img { height: 44px; width: auto; display: block; }
+.sidenav-links { display: flex; flex-direction: column; gap: 6px; }
+.sidenav a, .sidenav-out { display: flex; align-items: center; gap: 14px; padding: 12px 14px; border-radius: var(--radius); color: var(--text); text-decoration: none; font-weight: 500; font-size: 1.05rem; line-height: 1.2; }
+.sidenav a:hover { background: var(--card); }
+.sidenav a.on { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent-strong); font-weight: 650; }
+.sidenav a svg { color: var(--accent-strong); flex: none; }
+.sidenav a:focus-visible, .sidenav-out:focus-visible { outline: 3px solid var(--accent); outline-offset: -3px; }
+.sidenav-foot { margin-top: auto; padding-top: 16px; border-top: 1px solid var(--card-line); display: flex; flex-direction: column; gap: 4px; }
+.sidenav-foot .tour-btn { width: 100%; margin: 0 0 8px; min-height: 44px; }
+.sidenav-out { width: 100%; border: 0; background: none; cursor: pointer; font: inherit; color: var(--muted); min-height: 0; }
+.sidenav-out svg { color: var(--muted); }
+
+.session-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; color: var(--text); font-size: 1.1rem; margin-top: 4px; }
+.session-meta .meta-item { display: inline-flex; align-items: center; gap: 8px; color: inherit; text-decoration: none; }
+.session-meta a.meta-item { font-weight: 650; }
+.session-meta a.meta-item:hover { color: var(--accent-strong); }
+.session-meta svg { color: var(--muted); }
+.meta-sep { width: 1px; height: 22px; background: var(--card-line); }
+.state-pill { display: inline-flex; align-items: center; gap: 8px; padding: 5px 14px; border-radius: 999px; font-size: .95rem; font-weight: 600; background: var(--soft); color: var(--muted); }
+.state-pill i { width: 9px; height: 9px; border-radius: 50%; background: currentColor; }
+.state-pill.live { background: color-mix(in srgb, var(--ok) 14%, transparent); color: var(--text); }
+.state-pill.live i { background: var(--ok); }
+.session-sub { margin: -8px 0 18px; padding-bottom: 14px; border-bottom: 1px solid var(--card-line); }
+
+.note-grid { grid-template-columns: minmax(0, 1fr); grid-template-areas: "side" "steps" "note"; }
+.note-grid:not(.has-steps) { grid-template-areas: "side" "note"; }
+.note-grid > .ws-steps { grid-area: steps; }
+.note-grid > .note-panel { grid-area: note; }
+.note-grid > .side { grid-area: side; }
+@media (min-width: 1000px) {
+  .note-grid { grid-template-columns: minmax(0, 62fr) minmax(0, 38fr); grid-template-areas: "steps steps" "note side"; }
+  .note-grid:not(.has-steps) { grid-template-areas: "note side"; }
+}
+.ws-steps .steps { margin: 0; }
+.ws-steps .steps-status { margin: 2px 0 0; }
+.note-panel .step-head h2 { margin: 0; font-size: 1.55rem; letter-spacing: -0.01em; }
+.note-panel .step-head .hint { margin: 4px 0 0; font-size: 1rem; }
+.note-grid > .side { background: var(--card); border: 1px solid var(--card-line); border-radius: var(--card-radius); padding: 20px; }
+.note-grid > .side .side-head { margin-bottom: 4px; }
+details.side-fold .fold-note { margin-left: auto; font-size: .85rem; font-weight: 500; color: var(--muted); }
+details.side-fold .fold-note + * { margin-left: 0; }
+details.side-fold.safety-fold.red { border-color: var(--red); }
+details.side-fold.safety-fold.red .fold-note { color: var(--red); font-weight: 700; }
+details.side-fold.safety-fold.yellow { border-color: var(--yellow); }
+details.side-fold.safety-fold.yellow .fold-note { color: var(--yellow-ink); font-weight: 700; }
+details.side-fold.safety-fold > summary::after { margin-left: 12px; }
+
+/* Μπάρα αποθήκευσης σε όλο το κάτω μέρος της σελίδας (σταθερή). Ο χώρος κάτω από τη φόρμα (main.wide: 96px) είναι
+   μεγαλύτερος από το ύψος της (~64px), οπότε στο τέλος της κύλισης τίποτα δεν κρύβεται πίσω της. */
+.savebar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; margin: 0; border-radius: 0; padding: 9px 32px calc(9px + env(safe-area-inset-bottom)); background: var(--card); border-top: 1px solid var(--card-line); box-shadow: 0 -6px 18px rgba(12, 22, 32, 0.06); }
+.savebar-mid { justify-content: flex-end; gap: 14px; }
+.savebar .save-hint { color: var(--muted); font-size: .9rem; white-space: nowrap; }
+.savebar .back-btn { min-height: 44px; padding: 8px 26px; font-weight: 650; }
+.savebar .next-btn { min-height: 44px; padding: 8px 24px; font-weight: 700; font-size: 1rem; }
+@media (max-width: 1250px) { .savebar .save-hint { display: none; } }
+@media (max-width: 760px) {
+  .savebar { padding: 7px 10px calc(7px + env(safe-area-inset-bottom)); }
+  .savebar .back-btn { padding: 6px 10px; min-height: 38px; }
+  .savebar .next-btn { padding: 6px 12px; min-height: 38px; font-size: .9rem; }
+  .savebar-mid { justify-content: flex-start; }
+}
+/* Μέσα στο κουτί «Ασφάλεια» το εσωτερικό πλαίσιο χάνει το δεύτερο περίγραμμα (το χρώμα το έχει ήδη το κουτί). */
+details.safety-fold .attn { border: 0; box-shadow: none; padding: 4px 0 0; background: transparent; }
+details.safety-fold .attn > .iconbox { display: none; }
+details.safety-fold > .side-body > .panel { border: 0; padding: 4px 0 0 !important; box-shadow: none; }
+.sidenav-foot form { margin: 0; }
+.sidenav-out { justify-content: flex-start; text-align: left; }

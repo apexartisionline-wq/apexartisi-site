@@ -9,7 +9,8 @@ import { Icon } from "@/components/Icon";
  * βήμα). «Αποθηκευμένο» μόνο όταν υπάρχει πραγματικά αποθηκευμένη μορφή. Σε ενδιάμεσο βήμα η αποθήκευση μένει
  * διαθέσιμη (διακριτικά), για να μη χάνεται σημείωμα αν διακοπεί η συνεδρία.
  * Στο κινητό (≤760px) «Πίσω» και «Αποθήκευση τώρα» γίνονται εικονίδια (με aria-label/title) ώστε η μπάρα να μένει
- * σε μία γραμμή (~54px) και να μην καλύπτει τη φόρμα.
+ * σε μία γραμμή (~54px) και να μην καλύπτει τη φόρμα. Από 15/10 (προσχέδιο υπεύθυνης) η μπάρα πιάνει όλο το κάτω μέρος
+ * της σελίδας (σταθερή), με «Πίσω» αριστερά και «Η αποθήκευση κρατά το ιστορικό αλλαγών» + «Συνέχεια →» δεξιά.
  */
 export function SaveBar({ dirty, problem, savedAt, label = "Αποθήκευση σημειώματος", nav }: {
   dirty: boolean; problem: string; savedAt?: string; label?: string;
@@ -24,15 +25,16 @@ export function SaveBar({ dirty, problem, savedAt, label = "Αποθήκευση
   return (
     <div className="savebar">
       <span className="savebar-left">
-        {nav?.back ? <button type="button" className="btn sm icon-sm" onClick={nav.back} aria-label="Πίσω" title="Πίσω στο προηγούμενο βήμα"><Icon name="back" size={16} /><span className="hide-sm"> Πίσω</span></button> : <span />}
+        {nav?.back ? <button type="button" className="btn outline back-btn icon-sm" onClick={nav.back} aria-label="Πίσω" title="Πίσω στο προηγούμενο βήμα"><Icon name="back" size={18} /><span className="hide-sm"> Πίσω</span></button> : <span />}
       </span>
       <span className="savebar-mid">
         <span className={`save-status ${state}`} aria-live="polite" title={`${text}. Η αποθήκευση κρατά το ιστορικό αλλαγών.`}><i /><span className="save-text hide-sm">{text}</span><span className="save-text only-sm">{short}</span></span>
+        <span className="save-hint hide-sm">Η αποθήκευση κρατά το ιστορικό αλλαγών.</span>
       </span>
       <span className="row savebar-actions" style={{ gap: 8 }}>
         {!last && <button className="btn quiet sm icon-sm" type="submit" disabled={pending} aria-label="Αποθήκευση τώρα" title="Αποθηκεύει ό,τι έχεις γράψει ως εδώ"><Icon name="save" size={16} /><span className="hide-sm"> {pending ? "Αποθήκευση…" : "Αποθήκευση τώρα"}</span></button>}
-        {!last && nav?.next && <button type="button" className="primary sm" onClick={nav.next} aria-label={nav.nextLabel ?? "Συνέχεια"} title={nav.nextLabel}>Συνέχεια <Icon name="chevron" size={16} /></button>}
-        {last && <button className="primary sm" type="submit" disabled={pending}><Icon name="save" size={16} /> {pending ? "Αποθήκευση…" : label}</button>}
+        {!last && nav?.next && <button type="button" className="primary next-btn" onClick={nav.next} aria-label={nav.nextLabel ?? "Συνέχεια"} title={nav.nextLabel}>Συνέχεια <span aria-hidden="true">→</span></button>}
+        {last && <button className="primary next-btn" type="submit" disabled={pending}><Icon name="save" size={16} /> {pending ? "Αποθήκευση…" : label}</button>}
       </span>
     </div>
   );

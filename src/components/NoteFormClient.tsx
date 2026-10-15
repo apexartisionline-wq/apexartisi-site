@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { ThemeDetails, type ThemeDetail } from "@/components/ThemeDetails";
 import { FormSteps } from "@/components/FormSteps";
+import { useSteps } from "@/components/NoteWorkspace";
 import { SaveBar } from "@/components/SaveBar";
 import { useNoteForm } from "./useNoteForm";
 import { DEFENSES, JOURNALING, MOOD, type NoteForm, noteFormSchema, PRESENTED, PROCESS, SELF_HELP, THEMES } from "@/lib/note-form";
@@ -44,7 +45,19 @@ export function NoteFormClient({ action, hidden, initial, themeForms, themeDetai
   // Σε διόρθωση ο διακόπτης «Ενημέρωση ομάδας» ξεκινά κλειστός: η ομάδα ενημερώθηκε ήδη την πρώτη φορά.
   const [d, setD] = useState<Partial<NoteForm>>({ came: initial ? (initial.came ?? true) : cameDefault ? true : undefined, ...initial, notify: false });
   const editing = Boolean(initial);
-  const [tab, setTab] = useState<Tab>(0);
+  // Τα βήματα: από το πλαίσιο της οθόνης (NoteWorkspace, σε όλο το πλάτος) όταν υπάρχει, αλλιώς τοπικά.
+  const ws = useSteps();
+  const [localTab, setLocalTab] = useState<Tab>(0);
+  const tab = (ws ? ws.tab : localTab) as Tab;
+  const setTab = (t: Tab) => (ws ? ws.setTab(t) : setLocalTab(t));
+  // «Πίσω» / «Συνέχεια» από τη μπάρα: το νέο βήμα ξεκινά από τον τίτλο του (αν έχεις κατέβει πιο κάτω, ανεβαίνει η σελίδα).
+  const goStep = (t: Tab) => {
+    setTab(t);
+    requestAnimationFrame(() => {
+      const el = document.querySelector<HTMLElement>(".ws-steps") ?? document.getElementById("notebook");
+      if (el && el.getBoundingClientRect().top < 0) el.scrollIntoView({ block: "start", behavior: "smooth" });
+    });
+  };
   const [touched, setTouched] = useState(false);
   const [problem, setProblem] = useState("");
   const set = <K extends keyof NoteForm>(k: K, v: NoteForm[K]) => {
@@ -181,6 +194,8 @@ export function NoteFormClient({ action, hidden, initial, themeForms, themeDetai
     d.safeOk !== undefined,
   ];
   const absent = d.came === false;
+  const doneKey = done.join(",");
+  useEffect(() => { ws?.setDone(done); }, [doneKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <form ref={formRef} action={action} onSubmit={check} className="note-form" id="notebook">
@@ -188,8 +203,8 @@ export function NoteFormClient({ action, hidden, initial, themeForms, themeDetai
       <input type="hidden" name="payload" value={JSON.stringify(payload)} />
       {restored && <div className="notice">Βρέθηκε πρόχειρο που δεν είχε αποθηκευτεί — συνέχισε από εκεί.</div>}
 
-      <FormSteps steps={NOTE_TABS} active={tab} done={done} onChange={(i) => setTab(i as Tab)} label="Βήματα σημειώματος" idPrefix="note-tab" />
-      <div className="step-head"><h3>{NOTE_TABS[tab]}</h3><p className="hint">{STEP_HINT[tab]}</p></div>
+      {!ws && <FormSteps steps={NOTE_TABS} active={tab} done={done} onChange={(i) => setTab(i as Tab)} label="Βήματα σημειώματος" idPrefix="note-tab" />}
+      <div className="step-head" data-tour="notebook"><h2>{NOTE_TABS[tab]}</h2><p className="hint">{STEP_HINT[tab]}</p></div>
 
       {tab === 0 && (
         <div id="note-tab-0" role="tabpanel">
@@ -288,7 +303,7 @@ export function NoteFormClient({ action, hidden, initial, themeForms, themeDetai
         dirty={touched}
         problem={problem}
         savedAt={savedAt}
-        nav={{ back: tab > 0 ? () => setTab((tab - 1) as Tab) : undefined, next: tab < 3 ? () => setTab((tab + 1) as Tab) : undefined, nextLabel: tab < 3 ? (NOTE_TABS[tab + 1] === "Συνέχεια" ? "Συνέχεια" : `Συνέχεια: ${NOTE_TABS[tab + 1]}`) : undefined, last: tab === 3 }}
+        nav={{ back: tab > 0 ? () => goStep((tab - 1) as Tab) : undefined, next: tab < 3 ? () => goStep((tab + 1) as Tab) : undefined, nextLabel: tab < 3 ? (NOTE_TABS[tab + 1] === "Συνέχεια" ? "Συνέχεια" : `Συνέχεια: ${NOTE_TABS[tab + 1]}`) : undefined, last: tab === 3 }}
       />
 
     </form>

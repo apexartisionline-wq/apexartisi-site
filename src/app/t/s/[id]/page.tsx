@@ -11,10 +11,12 @@ import { goalWeek } from "@/lib/goals";
 import { JoinButton } from "@/components/JoinButton";
 import { MemberGlance, RoutePsy } from "@/components/MemberGlance";
 import { ClearDraft } from "@/components/ClearDraft";
-import { NoteFormClient } from "@/components/NoteFormClient";
+import { NOTE_TABS, NoteFormClient } from "@/components/NoteFormClient";
+import { NoteWorkspace } from "@/components/NoteWorkspace";
 import { PairNoteClient } from "@/components/PairNoteClient";
 import { NoteTags } from "@/components/NoteTags";
 import { SafetyZone } from "@/components/SafetyZone";
+import { memberSafety } from "@/lib/handover";
 import { type StaffOption } from "@/components/ActionRow";
 import { NoteSummary } from "@/components/NoteSummary";
 import { EmptyState, ErrorNote, PageHead, Panel, Pill } from "@/components/ui";
@@ -395,13 +397,24 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
     : [];
   // Εκκρεμεί αξιολόγηση αναγκών ασφάλειας από ψυχολόγο και ο θεραπευτής της ατομικής δεν είναι: πού θα γίνει.
   const nextClinical = intake.trigger && !isPsychologist(viewer) ? await nextClinicalSession(b.memberId, now) : null;
+  const flags = await memberSafety(b.memberId, now);
+  // Κατάσταση της ώρας (όχι της παρουσίας): πριν / σε εξέλιξη / η ώρα πέρασε. Μια συνεδρία δεν «έγινε» επειδή πέρασε η ώρα της.
+  const timeState = now < x.startsAt ? { word: "Επόμενη", tone: "grey" } : now < endsAt ? { word: "Σε εξέλιξη", tone: "live" } : { word: "Η ώρα της πέρασε", tone: "grey" };
 
   return (
     <main className="wide">
+      {/* Κεφαλίδα κατά το προσχέδιο (14/10): τύπος συνεδρίας ως τίτλος, και από κάτω μέλος · ώρα · κατάσταση. */}
       <PageHead
         crumbs={[{ href: "/t", label: "Σήμερα" }, { label: "Ατομική" }]}
-        title={<Link href={`/t/members/${b.member.id}`} style={{ color: "inherit", textDecoration: "none" }}>{b.member.name}</Link>}
-        sub={<>Ατομική · {formatDate(x.date)} {formatSpan(x.startsAt, s.sessionMinutes)}{number && ` · ${number}`}{x.therapist && ` · ${x.therapist.name}`}</>}
+        title="Ατομική συνεδρία"
+        sub={
+          <span className="session-meta">
+            <Link href={`/t/members/${b.member.id}`} className="meta-item"><Icon name="user" size={20} /> {b.member.name}</Link>
+            <span className="meta-sep" aria-hidden="true" />
+            <span className="meta-item"><Icon name="clock" size={20} /> {formatDate(x.date)} · {formatSpan(x.startsAt, s.sessionMinutes)}</span>
+            <span className={`state-pill ${timeState.tone}`}><i aria-hidden="true" />{timeState.word}</span>
+          </span>
+        }
       >
         <Link className="btn outline" href={`/t/members/${b.member.id}`}><Icon name="folder" size={18} /> Κλινικός φάκελος</Link>
         {!assessed && isPsychologist(viewer) && <Link className="btn outline" href={`/t/members/${b.member.id}/assessment`}>Αρχική αξιολόγηση ›</Link>}
@@ -412,25 +425,24 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
               : <JoinButton kind="SLOT" refId={x.id} roomUrl={room} next={`/t/s/${x.id}`} label="Μπες στην ατομική" icon="video" />)
             : <span className="hint" title={ROOM_MISSING}>Δωμάτιο Zoom: δεν έχει οριστεί{user.role === "ADMIN" && <> · <Link href="/admin/settings">Ρυθμίσεις</Link></>}</span>
         )}
-        <span className="conn" title="Είναι η ώρα του πατήματος του κουμπιού «Μπες», όχι επιβεβαίωση συμμετοχής από το Zoom.">
-          <i className={joined ? "on" : ""} />
-          {joined ? `Συνδέθηκες στις ${hm(joined.at)}` : x.date === today ? "Δεν έχεις πατήσει «Μπες»" : "Καμία σύνδεση"}
-          {b.joinedAt && <> · το μέλος πάτησε «Μπες» {hm(b.joinedAt)}</>}
-        </span>
       </PageHead>
-      <p className="hint" style={{ margin: "-10px 0 16px" }}>
+      <p className="hint session-sub">
+        {number && <>{number} · </>}{x.therapist && <>{x.therapist.name} · </>}
         <Pill tone={pl.tone === "accent" ? "" : pl.tone}>{pl.word}</Pill> <span title={pl.source}>{pl.source}</span>{presence === "absent_confirmed" && b.joinedAt && <> · το πάτημα «Μπες» του μέλους ({hm(b.joinedAt)}) διατηρείται στο ιστορικό</>}
+        {" · "}<span className="conn conn-inline" title="Είναι η ώρα του πατήματος του κουμπιού «Μπες», όχι επιβεβαίωση συμμετοχής από το Zoom.">{joined ? `Συνδέθηκες στις ${hm(joined.at)}` : x.date === today ? "Δεν έχεις πατήσει «Μπες»" : "Καμία σύνδεση"}{b.joinedAt && <> · το μέλος πάτησε «Μπες» {hm(b.joinedAt)}</>}</span>
       </p>
 
-      <div className="cols cols-62">
-        <section className="panel">
-          <div className="panel-head">
-            <div>
-              <h2 data-tour="notebook" style={{ margin: 0 }}>Σημειωματάριο</h2>
-              <div className="hint">Τέσσερα βήματα · όλα αποθηκεύονται μαζί</div>
+      <NoteWorkspace steps={NOTE_TABS} enabled={showForm}>
+        <section className="panel note-panel">
+          {!showForm && (
+            <div className="panel-head">
+              <div>
+                <h2 data-tour="notebook" style={{ margin: 0 }}>Σημειωματάριο</h2>
+                <div className="hint">Τέσσερα βήματα · όλα αποθηκεύονται μαζί</div>
+              </div>
+              {writable && x.note && initial && <Link className="btn primary" data-tour="edit-note" href={`/t/s/${x.id}?edit=1`}>Άλλαξε το σημείωμα</Link>}
             </div>
-            {writable && x.note && !showForm && initial && <Link className="btn primary" data-tour="edit-note" href={`/t/s/${x.id}?edit=1`}>Άλλαξε το σημείωμα</Link>}
-          </div>
+          )}
           {sp.saved && <div className="notice">Αποθηκεύτηκε ✓ {x.note && <span className="muted small">· {x.note.therapist.name}, {formatWhen(x.note.updatedAt)}</span>}</div>}
           {sp.saved && <ClearDraft k={`note-draft:${x.id}`} />}
           {sp.error && <ErrorNote>Δεν αποθηκεύτηκε: {sp.error} Το κείμενό σου κρατήθηκε ως πρόχειρο σε αυτή την καρτέλα.</ErrorNote>}
@@ -468,9 +480,20 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
             </details>
           )}
         </section>
-              <aside className="stackv side" aria-label="Πριν συνεχίσεις">
-          <div className="side-head"><h2>Πριν συνεχίσεις</h2><p className="hint">Άνοιξε μόνο ό,τι χρειάζεσαι. Η ασφάλεια είναι πάντα ανοιχτή.</p></div>
-          <div data-tour="safety"><SafetyZone memberId={b.memberId} viewer={viewer} staff={staff} back={`/t/s/${x.id}`} /><RoutePsy intake={intake} viewer={viewer} nextClinical={nextClinical} /></div>
+        <aside className="stackv side" aria-label="Πριν συνεχίσεις">
+          <div className="side-head"><h2>Πριν συνεχίσεις</h2><p className="hint">Άνοιξε μόνο ό,τι χρειάζεσαι.{flags.length > 0 && " Η ασφάλεια ανοίγει μόνη της όταν υπάρχει ανοιχτό σήμα."}</p></div>
+          {/* Ασφάλεια ως αναδιπλούμενο κουτί, όπως στο προσχέδιο (14/10). Ανοίγει ΜΟΝΗ της όταν υπάρχει ανοιχτό σήμα ή εκκρεμεί
+              αξιολόγηση (τότε δεν κρύβεται ποτέ)· χωρίς σήματα μένει κλειστό με «Κανένα ανοιχτό σήμα» στον τίτλο. */}
+          <details className={`side-fold safety-fold${flags.length > 0 ? (flags.some((f) => f.level === "red") ? " red" : " yellow") : ""}`} data-tour="safety" open={flags.length > 0 || Boolean(intake.trigger)}>
+            <summary>
+              <span className="iconbox"><Icon name="shield" size={16} /></span>Ασφάλεια
+              <span className="fold-note">{flags.length === 0 ? "Κανένα ανοιχτό σήμα" : flags.some((f) => f.level === "red") ? "Σοβαρό σήμα" : `${flags.length} ${flags.length === 1 ? "σήμα" : "σήματα"}`}</span>
+            </summary>
+            <div className="side-body">
+              <SafetyZone memberId={b.memberId} viewer={viewer} staff={staff} back={`/t/s/${x.id}`} flags={flags} />
+              <RoutePsy intake={intake} viewer={viewer} nextClinical={nextClinical} />
+            </div>
+          </details>
 
           <details className="side-fold" data-tour="open" id="open" open={Boolean(g.prev && (prevSafety || hasHandover))}>
             <summary><span className="iconbox"><Icon name="doc" size={16} /></span>Ανοιχτό από την προηγούμενη φορά</summary>
@@ -550,7 +573,7 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
             </details>
           )}
         </aside>
-      </div>
+      </NoteWorkspace>
       <TourFor id="session" userId={user.id} />
     </main>
   );
