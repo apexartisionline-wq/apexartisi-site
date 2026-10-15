@@ -173,41 +173,61 @@ nav.top {
 .brand-name { font-size: 1.6rem; }
 @media (max-width: 760px) { .brand-mark { width: 40px; height: 40px; } .brand-name { font-size: 1.4rem; } }
 .apex-word.big { font-size: 2rem; display: inline-block; }
-/* Σελίδα εισόδου (κοινή πρόταση τριών ειδικών, 10/10): στο φως το φόντο της σελίδας γίνεται το «χαρτί» του brand
-   και οι κάρτες λευκές, ώστε το λογότυπο να ακουμπά σε ήρεμο φόντο και η κάρτα να έχει βάθος χωρίς σκιές·
-   στο σκοτάδι η συνηθισμένη λογική (φόντο #0C1620, κάρτες #132231) ισχύει ήδη. Ένα accent: σήμα, λέξη, «Είσοδος». */
-@media (prefers-color-scheme: light) {
-  body:has(main.login) { background: var(--surface); }
-  main.login .card { background: var(--bg); }
+/* Σελίδα εισόδου (νέα κατεύθυνση 15/10, εικόνα της υπεύθυνης): φόρμα αριστερά σε «χαρτί» (--surface), φωτογραφία δεξιά.
+   Στο κινητό μόνο η φόρμα (η φωτογραφία κρύβεται και δεν κατεβαίνει). Μόνο tokens: αλλάζουν μόνα τους στο σκοτάδι. */
+.login-split { position: relative; min-height: 100vh; min-height: 100dvh; display: grid; grid-template-columns: minmax(0, 1fr); background: var(--surface); }
+body:has(.login-split) { background: var(--surface); }
+main.login { max-width: none; margin: 0; padding: 72px 20px 48px; display: flex; flex-direction: column; justify-content: center; }
+.login-inner { width: 100%; max-width: 440px; margin: 0 auto; }
+.login-photo { display: none; }
+@media (min-width: 768px) {
+  .login-split { grid-template-columns: minmax(400px, 42%) minmax(0, 1fr); }
+  main.login { padding: 72px clamp(32px, 5vw, 80px) 48px; }
+  .login-photo { display: block; background: var(--soft) url(/login/eisodos.webp) 62% 45% / cover no-repeat; }
 }
-main.login { max-width: 420px; padding-top: min(12vh, 96px); padding-bottom: 40px; }
-main.login .card { border-radius: var(--radius-lg); padding: 24px; box-shadow: none; margin: 0; }
-/* Κάθετη εκδοχή του λογοτύπου (όπως στο design system): το δαχτυλίδι μόνο του στο κέντρο, από κάτω το «Apex». */
-.login-brand { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; margin: 0; }
-.login-brand .login-mark { width: 76px; height: 76px; color: var(--accent); }
-.login-brand img { height: 76px; width: auto; }
-.login-brand .apex-word { font-size: 2.75rem; letter-spacing: -0.03em; line-height: 1; }
-.login-tagline { text-align: center; font-size: 1.0625rem; font-weight: 600; color: var(--text); margin: 10px 0 0; }
-.login-global { text-align: center; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin: 4px 0 0; }
-.login-hello { text-align: center; font-size: 1.0625rem; margin: 18px 0 24px; }
-.login-card label { font-size: 0.9375rem; margin-bottom: 6px; }
-.login-card .field { margin-bottom: 16px; }
-.login-card input { min-height: 48px; }
-.login-card button.big { min-height: 52px; padding: 14px 16px; margin-top: 4px; border-radius: var(--radius); }
-.login-error { padding: 12px 14px; border-radius: var(--radius); background: var(--red-quiet); color: var(--red-ink); border: 1px solid var(--red); margin: 0 0 16px; font-size: 0.9375rem; }
-.login-otp { margin-top: 16px; font-size: 0.9375rem; color: var(--muted); }
-.login-otp summary { cursor: pointer; }
-.login-otp input { margin-top: 8px; }
-.login-forgot { margin: 16px 0 0; font-size: 0.9375rem; line-height: 1.5; }
-.login-help { margin-top: 24px !important; border-color: var(--red) !important; }
-.login-lines { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
-.login-lines .btn { width: 100%; min-height: 48px; display: flex; align-items: center; justify-content: center; text-align: center; }
+@media (min-width: 768px) and (prefers-color-scheme: dark) { .login-photo { filter: brightness(0.82); } }
+/* Λογότυπο οριζόντιο: σήμα (με το λεπτό τόξο) δίπλα στο «Apex», ίδιο accent (αποφάσεις 5/10 και 10/10). */
+.login-brand { display: flex; align-items: center; gap: 14px; margin: 0 0 40px; }
+.login-brand .login-mark { width: 64px; height: 64px; flex: none; color: var(--accent); }
+.login-brand img { height: 64px; width: auto; }
+.login-brand .apex-word { font-size: 3.25rem; letter-spacing: -0.03em; line-height: 1; }
+.login-hello { font-size: 2.5rem; font-weight: 800; line-height: 1.1; letter-spacing: -0.02em; color: var(--text); margin: 0; }
+.login-tagline { font-size: 1.25rem; font-weight: 500; color: var(--muted); margin: 10px 0 32px; }
+.login-form label { font-size: 0.9375rem; font-weight: 600; color: var(--text); margin-bottom: 8px; }
+.login-form .field { margin-bottom: 20px; }
+.login-form input { min-height: 54px; padding: 12px 16px; background: var(--bg); border-color: var(--line); }
+.login-form input::placeholder { color: var(--muted); opacity: 1; }
+@media (prefers-color-scheme: dark) { .login-form input { background: var(--field); } }
+.pw-field { position: relative; }
+.pw-field input { padding-right: 56px; }
+.pw-toggle { position: absolute; top: 50%; right: 4px; transform: translateY(-50%); min-height: 44px; width: 44px; padding: 0; border: 0; background: none; color: var(--muted); border-radius: var(--radius-sm); }
+.pw-toggle:hover { color: var(--accent-strong); background: var(--soft); }
+.login-submit { gap: 12px; min-height: 56px; margin-top: 8px; border-radius: var(--radius); font-size: 1.125rem; }
+.login-error { padding: 12px 14px; border-radius: var(--radius); background: var(--red-quiet); color: var(--red-ink); border: 1px solid var(--red); margin: 0 0 20px; font-size: 0.9375rem; }
+/* Κάτω από την «Είσοδο»: δύο διακριτικοί σύνδεσμοι, ο ένας κάτω από τον άλλον· όποιος ανοίξει δείχνει το περιεχόμενό του από κάτω. */
+.login-more { display: flex; flex-direction: column; align-items: center; gap: 2px; margin-top: 16px; font-size: 0.9375rem; }
+.login-more details { width: 100%; text-align: center; }
+.login-more summary { cursor: pointer; list-style: none; display: inline-block; color: var(--accent-strong); font-weight: 600; padding: 10px 0; }
+.login-more summary::-webkit-details-marker { display: none; }
+.login-more summary:hover { text-decoration: underline; }
+.login-more details[open] { text-align: left; }
+.login-forgot p { margin: 0; color: var(--muted); line-height: 1.5; }
+.login-otp summary { color: var(--muted); font-weight: 500; font-size: 0.875rem; }
+.login-otp input { margin-top: 4px; }
+@media (prefers-color-scheme: dark) { .login-more summary { color: var(--accent); } .login-otp summary { color: var(--muted); } }
+/* «ΕΛ | EN» πάνω δεξιά· σε μικρή κάρτα, ώστε να διαβάζεται και πάνω στη φωτογραφία. */
+.login-lang { position: absolute; top: calc(16px + env(safe-area-inset-top)); right: 16px; z-index: 2; display: flex; align-items: center; gap: 2px; background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 2px 6px; font-size: 0.9375rem; font-weight: 700; }
+.login-lang a { padding: 8px 10px; min-height: 40px; display: inline-flex; align-items: center; text-decoration: none; color: var(--muted); border-radius: 999px; }
+.login-lang a[aria-current] { color: var(--accent-strong); }
+@media (prefers-color-scheme: dark) { .login-lang a[aria-current] { color: var(--accent); } }
+.login-lang span { color: var(--line); }
 @media (max-width: 420px) {
-  main.login { padding-top: 48px; }
-  main.login .card { padding: 20px; }
-  .login-brand { gap: 8px; }
-  .login-brand .login-mark, .login-brand img { width: 64px; height: 64px; }
-  .login-brand .apex-word { font-size: 2.4rem; }
+  main.login { padding: 72px 16px 40px; }
+  .login-brand { gap: 12px; margin-bottom: 32px; }
+  .login-brand .login-mark, .login-brand img { width: 52px; height: 52px; }
+  .login-brand .apex-word { font-size: 2.75rem; }
+  .login-hello { font-size: 2.125rem; }
+  .login-tagline { font-size: 1.125rem; margin-bottom: 28px; }
 }
 nav.top a { padding: 6px 10px; border-radius: var(--radius-sm); text-decoration: none; color: var(--text); font-weight: 500; }
 nav.top a:hover { background: var(--soft); }
