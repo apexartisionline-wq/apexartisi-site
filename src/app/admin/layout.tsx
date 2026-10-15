@@ -1,3 +1,4 @@
+import { BackButton } from "@/components/BackButton";
 import { Nav } from "@/components/Nav";
 import { requireRole, requireStaff2FA } from "@/lib/auth";
 import { navLinks } from "@/lib/nav";
@@ -10,7 +11,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <>
       <Nav links={navLinks("ADMIN")} menu />
-      <main className="wide">{children}</main>
+      <main className="wide"><BackButton home="/admin" />{children}</main>
     </>
   );
 }

@@ -467,6 +467,17 @@ body:has(main.help) .redbar { display: none; }
 
 /* «‹ Πίσω»: στο iPhone (εφαρμογή από την αρχική οθόνη) είναι ο μόνος δρόμος πίσω — μεγάλο για το δάχτυλο. */
 a.back { display: inline-flex; align-items: center; min-height: 44px; padding-right: 12px; font-weight: 600; font-size: 1rem; text-decoration: none; }
+/* «‹ Πίσω» πάνω αριστερά σε κάθε σελίδα (16/10, BackButton). Όχι διπλό όπου η σελίδα έχει δικό της «‹ …» (a.back). */
+.backbar { max-width: 760px; margin: 0 auto; padding: 8px 16px 0; }
+.staff > .backbar { max-width: 1100px; padding: 14px 16px 0; }
+.staff > .backbar:has(+ main.wide) { max-width: 1536px; padding: 14px 32px 0; }
+main > .backbar { max-width: none; margin: 0 0 4px; padding: 0; }
+.backbar:has(+ main a.back), main:has(a.back) > .backbar { display: none; }
+.back-link { display: inline-flex; align-items: center; gap: 4px; min-height: 44px; padding: 0 12px 0 0; margin-left: -4px; border: 0; background: none; color: var(--accent-strong); font: inherit; font-weight: 600; font-size: 1rem; cursor: pointer; }
+.back-link:hover { color: var(--accent); background: none; text-decoration: underline; }
+@media (prefers-color-scheme: dark) { .back-link { color: var(--accent); } .back-link:hover { color: var(--accent-strong); } }
+@media (max-width: 760px) { .staff > .backbar, .staff > .backbar:has(+ main.wide) { padding: 10px 16px 0; } }
+@media print { .backbar { display: none; } }
 
 /* Σημείωμα: έντονοι τίτλοι· στον φάκελο κλειστό σε μία γραμμή */
 .note-text > div + div { margin-top: 2px; }

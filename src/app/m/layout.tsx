@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BackButton } from "@/components/BackButton";
 import { Nav } from "@/components/Nav";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
@@ -16,6 +17,7 @@ export default async function MemberLayout({ children }: { children: React.React
   return (
     <>
       <Nav links={navLinks("MEMBER", { hasPlan, hasMessages })} />
+      <BackButton home="/m" />
       {children}
       <div className="redbar">
         <Link href="/m/help" className="btn red big">Κόκκινο κουμπί</Link>

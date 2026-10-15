@@ -1,8 +1,9 @@
 import Link from "next/link";
 import bcrypt from "bcryptjs";
 import { redirect } from "next/navigation";
+import { BackButton } from "@/components/BackButton";
 import { Nav } from "@/components/Nav";
-import { hashPassword, logoutEverywhere, requireRole } from "@/lib/auth";
+import { hashPassword, logoutEverywhere, requireRole, homeFor } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { navLinks } from "@/lib/nav";
 import { getSettings } from "@/lib/settings";
@@ -92,6 +93,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
     <>
       <Nav menu={user.role !== "MEMBER"} links={navLinks(user.role, { hasPlan: user.role === "MEMBER" && Boolean(await prisma.safetyPlan.findUnique({ where: { memberId: user.id }, select: { memberId: true } })) })} />
       <main>
+        <BackButton home={homeFor(user.role)} />
         <h1>Ο λογαριασμός μου</h1>
         <div className="card">
           <div>{user.name}</div>

@@ -1,3 +1,4 @@
+import { BackButton } from "@/components/BackButton";
 import { Nav } from "@/components/Nav";
 import { NoCopy } from "@/components/NoCopy";
 import { SideNav } from "@/components/SideNav";
@@ -20,7 +21,7 @@ export default async function TherapistLayout({ children }: { children: React.Re
     <div className={side ? "has-side" : undefined}>
       {side && <SideNav links={navLinks(user.role)} />}
       <Nav links={navLinks(user.role)} menu />
-      <div className={wm ? "staff wm-scope" : "staff"} style={style}>{children}</div>
+      <div className={wm ? "staff wm-scope" : "staff"} style={style}><BackButton home="/t" />{children}</div>
       {wm && <NoCopy name={user.name} />}
     </div>
   );
