@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { withMemberCode } from "@/lib/forms";
 import { ensureDemoToday } from "@/lib/demo-session";
 import { cycleInfo, isPublished, journalDate } from "@/lib/member";
+import { memberPicture } from "@/lib/picture-db";
 import { extraGroupTimes, holidaysFrom } from "@/lib/groups";
 import { bookingWindow, canRequestChange, groupsOn, isAfter, joinableGroup, sessionJoinable, slotMinutes } from "@/lib/program";
 import { weekGoal } from "@/lib/goals";
@@ -22,8 +23,10 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
   const window = bookingWindow(now, s);
 
   await ensureDemoToday();
-  const [cycle, contents, upcoming, journal, attended, requests, consents] = await Promise.all([
+  const [cycle, pic, contents, upcoming, journal, attended, requests, consents] = await Promise.all([
     cycleInfo(user.id),
+    // Η ίδια εικόνα του μήνα (κύκλου) που βλέπει η ομάδα (απόφαση 14/10, src/lib/picture.ts) — εδώ μόνο τα απλά νούμερα.
+    memberPicture(user.id, { kind: "month", index: null }, now),
     prisma.content.findMany({ where: { date: today.date }, orderBy: { title: "asc" }, omit: { image: true } }),
     prisma.booking.findMany({
       where: { memberId: user.id, slot: { startsAt: { gte: new Date(now.getTime() - s.pairMinutes * 60_000) } } },
@@ -82,8 +85,14 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
           <strong>{monthNo ? `Μήνας ${monthNo}` : "—"}</strong>
         </div>
         <div>
-          <span className="muted small">Ατομικές του μήνα που πέρασαν</span>
-          <strong>{cycle ? `${Math.min(cycle.done, cycle.length)} από ${cycle.length}` : "—"}</strong>
+          <span className="muted small">Ατομικές του μήνα</span>
+          <strong>{pic.cycleId && pic.sessions.target ? `${pic.sessions.passed} από ${pic.sessions.target} πέρασαν` : "—"}</strong>
+          {pic.cycleId && pic.sessions.scheduled > 0 && (
+            <div className="hint">
+              {pic.sessions.present} με παρουσία
+              {pic.sessions.upcoming + pic.sessions.inProgress > 0 && ` · ${pic.sessions.upcoming + pic.sessions.inProgress} ${pic.sessions.upcoming + pic.sessions.inProgress === 1 ? "επόμενη" : "επόμενες"}`}
+            </div>
+          )}
         </div>
       </section>
       <Link href="/m/journal" className="card" style={{ display: "block", textDecoration: "none", color: "inherit" }}>
