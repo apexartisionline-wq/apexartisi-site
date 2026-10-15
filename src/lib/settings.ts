@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { z } from "zod";
 import { prisma } from "./db";
 
@@ -120,12 +121,14 @@ export const DEFAULT_SETTINGS: Settings = {
 
 const KEY = "app";
 
-export async function getSettings(): Promise<Settings> {
+// Μία ανάγνωση ανά αίτημα (React cache, 15/10): πριν, μία σελίδα όπως το «Σήμερα» τη διάβαζε ξανά και ξανά (layout, σελίδα,
+// σήματα, κύκλοι), με ~100 ms τη φορά στο Netlify. Έξω από αίτημα (scripts) η cache δεν κρατά τίποτα — ίδια συμπεριφορά.
+export const getSettings = cache(async (): Promise<Settings> => {
   const row = await prisma.setting.findUnique({ where: { key: KEY } });
   const merged = { ...DEFAULT_SETTINGS, ...((row?.value as object) ?? {}) };
   const parsed = settingsSchema.safeParse(merged);
   return parsed.success ? parsed.data : DEFAULT_SETTINGS;
-}
+});
 
 export async function saveSettings(s: Settings): Promise<void> {
   const value = settingsSchema.parse(s);

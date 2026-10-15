@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { memberSafety } from "@/lib/handover";
+import { memberSafetyMany } from "@/lib/safety-batch";
 import { formatDate, formatTime } from "@/lib/time";
 
 // Όλα τα ενεργά μέλη (όλοι οι θεραπευτές δουλεύουν με όλους). Λίστα τύπου iOS:
@@ -23,7 +23,9 @@ export default async function MembersOverview() {
       },
     },
   });
-  const rows = await Promise.all(members.map(async (m) => ({ ...m, flags: await memberSafety(m.id, now) })));
+  // Όλα τα μέλη μαζί, με λίγες ερωτήσεις (15/10, ίδιο με το «Σήμερα»).
+  const safety = await memberSafetyMany(members.map((m) => m.id), now);
+  const rows = members.map((m) => ({ ...m, flags: safety.get(m.id) ?? [] }));
   const rank = (r: (typeof rows)[number]) => (r.flags[0]?.level === "red" ? 0 : r.flags[0]?.level === "yellow" ? 1 : 2);
   rows.sort((a, b) => rank(a) - rank(b));
 

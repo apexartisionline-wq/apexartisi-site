@@ -20,7 +20,7 @@ import { buildActions, type ActionView } from "@/lib/actions-core";
 import { fetchCare, fetchItemRows, fetchOpenHelp } from "@/lib/actions";
 import { dueCycleReviews } from "@/lib/cycle-review";
 import { groupDays } from "@/lib/groups";
-import { memberSafety } from "@/lib/handover";
+import { memberSafetyMany } from "@/lib/safety-batch";
 import { memberNotes } from "@/lib/member-notes";
 import { sessionPresence } from "@/lib/presence";
 import { getSettings } from "@/lib/settings";
@@ -156,14 +156,15 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
   const assessed = new Set(assessedRows.map((r) => r.memberId));
   const upcoming = new Set(upcomingRows.map((r) => r.memberId));
   const [flagsAll, reviews, itemRows, careRows, helpRows] = await Promise.all([
-    Promise.all(memberIds.map(async (id) => [id, await memberSafety(id)] as const)),
+    // Όλα τα μέλη μαζί, με λίγες ερωτήσεις (15/10): ανά μέλος το «Σήμερα» ξεπερνούσε το όριο των 10″ του Netlify.
+    memberSafetyMany(memberIds, now),
     dueCycleReviews(memberIds),
     fetchItemRows(memberIds, now),
     // Και τα τηλεφωνήματα της διαχείρισης: οι θεραπευτές βλέπουν την κατάσταση (χωρίς τηλέφωνο), δεν τα αναλαμβάνουν.
     fetchCare(memberIds, { includeAdminKinds: true }),
     fetchOpenHelp(memberIds),
   ]);
-  const flags = new Map(flagsAll);
+  const flags = flagsAll;
   const cycleSince = new Map<string, Date>();
   if (reviews.length > 0) {
     const bs = await prisma.booking.findMany({ where: { cycleId: { in: reviews.map((r) => r.cycleId) } }, select: { cycleId: true, slot: { select: { startsAt: true } } } });

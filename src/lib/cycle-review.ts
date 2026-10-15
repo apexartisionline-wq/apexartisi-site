@@ -138,13 +138,29 @@ export async function saveCycleReview(memberId: string, cycleId: string, authorI
 }
 
 /** Μέλη που τελείωσαν κύκλο χωρίς ανασκόπηση (για το «Να το δεις» όλης της ομάδας). */
-export async function dueCycleReviews(memberIds: string[]) {
-  const out: { memberId: string; cycleId: string }[] = [];
-  for (const id of memberIds) {
-    const c = await lastFinishedCycle(id);
-    if (c && !(await prisma.cycleReview.findFirst({ where: { cycleId: c.id }, select: { id: true } }))) out.push({ memberId: id, cycleId: c.id });
-  }
-  return out;
+export async function dueCycleReviews(memberIds: string[], now = new Date()) {
+  // Ίδιος κανόνας με το lastFinishedCycle (οι 3 τελευταίοι κύκλοι, όλες οι ατομικές προγραμματισμένες και πέρασαν,
+  // και cycleIsComplete με τις ομάδες), αλλά για όλα τα μέλη μαζί (15/10): οι κύκλοι με μία ερώτηση, ο έλεγχος των ομάδων
+  // μόνο όπου οι ατομικές έχουν ήδη τελειώσει, παράλληλα. Πριν, ένα-ένα μέλος, κόστιζε ~3″ στο «Σήμερα» του θεραπευτή.
+  if (memberIds.length === 0) return [];
+  const cycles = await prisma.cycle.findMany({
+    where: { memberId: { in: memberIds } },
+    orderBy: { startedAt: "desc" },
+    include: { bookings: { include: { slot: { select: { startsAt: true, date: true, kind: true, note: { select: { id: true } } } } }, orderBy: { slot: { startsAt: "asc" } } } },
+  });
+  const byMember = new Map<string, typeof cycles>();
+  for (const c of cycles) { const l = byMember.get(c.memberId) ?? []; if (l.length < 3) l.push(c); byMember.set(c.memberId, l); }
+  const finished = await Promise.all(memberIds.map(async (id) => {
+    for (const c of byMember.get(id) ?? []) {
+      if (!(c.bookings.length >= c.length && c.bookings.every((b) => b.slot.startsAt <= now))) continue;
+      if (cycleIsComplete(await cycleProgress(id, c, now))) return { memberId: id, cycleId: c.id };
+    }
+    return null;
+  }));
+  const picked = finished.filter((x): x is { memberId: string; cycleId: string } => Boolean(x));
+  if (picked.length === 0) return [];
+  const reviewed = new Set((await prisma.cycleReview.findMany({ where: { cycleId: { in: picked.map((p) => p.cycleId) } }, select: { cycleId: true } })).map((r) => r.cycleId));
+  return picked.filter((p) => !reviewed.has(p.cycleId));
 }
 
 /**

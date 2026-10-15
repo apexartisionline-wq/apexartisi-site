@@ -1,6 +1,7 @@
 import "server-only";
 import { createHash, randomBytes } from "node:crypto";
 import bcrypt from "bcryptjs";
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { Role, User } from "@prisma/client";
@@ -27,8 +28,10 @@ function ipFailed(ip: string): void {
   else a.n++;
 }
 
-// Για σταθερό χρόνο απάντησης όταν ο χρήστης δεν υπάρχει.
-const DUMMY_HASH = bcrypt.hashSync("not-a-real-code", 12);
+// Για σταθερό χρόνο απάντησης όταν ο χρήστης δεν υπάρχει: ένα έτοιμο bcrypt (κόστος 12, όπως οι πραγματικοί κωδικοί) ενός
+// τυχαίου κειμένου. Πριν υπολογιζόταν σε κάθε ξεκίνημα του server (~0,4″ εδώ, πολύ περισσότερο σε κρύο function του
+// Netlify) — 15/10, μέρος της διόρθωσης του «Κάτι δεν φόρτωσε σωστά» μετά τη σύνδεση. Δεν είναι μυστικό.
+const DUMMY_HASH = "$2b$12$JLtafLK9gQBdISpVsETD.u1mPLZm.giHhJszxbcNUk74Mj8PMiiem";
 
 const hashToken = (t: string) => createHash("sha256").update(t).digest("hex");
 
@@ -94,13 +97,14 @@ export async function logout(): Promise<void> {
   jar.delete(COOKIE);
 }
 
-export async function currentUser(): Promise<User | null> {
+// Μία ανάγνωση της σύνδεσης ανά αίτημα (React cache, 15/10): το layout και η σελίδα ρωτούσαν το ίδιο πράγμα δύο φορές.
+export const currentUser = cache(async (): Promise<User | null> => {
   const token = (await cookies()).get(COOKIE)?.value;
   if (!token) return null;
   const session = await prisma.session.findUnique({ where: { id: hashToken(token) }, include: { user: true } });
   if (!session || session.expiresAt < new Date() || !session.user.active) return null;
   return session.user;
-}
+});
 
 /** Αποσύνδεση από όλες τις συσκευές. */
 export async function logoutEverywhere(userId: string): Promise<void> {

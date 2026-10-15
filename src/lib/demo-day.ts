@@ -38,6 +38,28 @@ async function ensureExtraMembers(db: PrismaClient, today: string): Promise<void
   }
 }
 
+/** Τίποτα δεν θα άλλαζε το ensureDemoDay: δεν υπάρχει eva, ή υπάρχουν όλα τα επιπλέον μέλη και κάθε θέση του σχεδίου παραλείπεται. */
+async function demoDayReady(db: PrismaClient, date: string): Promise<boolean> {
+  const usernames = [...new Set(["eva", ...EXTRA_MEMBERS.map((e) => e[0]), ...DEMO_PLAN.flatMap((p) => [p.therapist, ...p.members])])];
+  const [users, holiday, slots] = await Promise.all([
+    db.user.findMany({ where: { username: { in: usernames } }, select: { id: true, username: true } }),
+    db.holiday.findUnique({ where: { date }, select: { date: true } }),
+    db.slot.findMany({ where: { date }, select: { hour: true, position: true, _count: { select: { bookings: true } } } }),
+  ]);
+  const id = new Map(users.map((u) => [u.username, u.id]));
+  if (!id.has("eva")) return true;
+  if (EXTRA_MEMBERS.some((e) => !id.has(e[0]))) return false;
+  if (holiday) return true;
+  const memberIds = DEMO_PLAN.flatMap((p) => p.members.map((m) => id.get(m))).filter((x): x is string => Boolean(x));
+  const booked = new Set((await db.booking.findMany({ where: { memberId: { in: memberIds }, slot: { date } }, select: { memberId: true } })).map((b) => b.memberId));
+  return DEMO_PLAN.every((p) => {
+    const members = p.members.map((m) => id.get(m)).filter((x): x is string => Boolean(x));
+    if (!id.has(p.therapist) || members.length !== p.members.length) return true;
+    if (slots.some((x) => x.hour === p.hour && x.position === p.position && x._count.bookings > 0)) return true;
+    return members.some((m) => booked.has(m));
+  });
+}
+
 /** Ίδιος κανόνας με την κράτηση: γεμάτος κύκλος κλείνει και ανοίγει νέος (αλλιώς «ατομική 9 από 8»). */
 export async function cycleForDemoBooking(db: PrismaClient, memberId: string, length = 8): Promise<string> {
   const open = await db.cycle.findFirst({ where: { memberId, closedAt: null }, orderBy: { startedAt: "desc" }, include: { _count: { select: { bookings: true } } } });
@@ -52,6 +74,10 @@ export async function cycleForDemoBooking(db: PrismaClient, memberId: string, le
  * και τις μέρες που δεν έγινε build (11/10).
  */
 export async function ensureDemoDay(db: PrismaClient, date: string): Promise<boolean> {
+  // Γρήγορος έλεγχος (15/10): τέσσερις ερωτήσεις μαζί για να δούμε αν η μέρα είναι ήδη έτοιμη — ίδιοι όροι με τον βρόχο
+  // παρακάτω. Πριν, κάθε κρύο ξεκίνημα της δοκιμής έκανε ~30 ερωτήσεις μία-μία (~6″ με τη βάση στη Φρανκφούρτη) πριν
+  // καν αρχίσει το «Σήμερα» του θεραπευτή, και μαζί με τα υπόλοιπα ξεπερνούσε το όριο των 10″ του Netlify.
+  if (await demoDayReady(db, date)) return false;
   if (!(await db.user.findUnique({ where: { username: "eva" }, select: { id: true } }))) return false;
   await ensureExtraMembers(db, date);
   // Συμπληρώνει ό,τι λείπει: παραλείπει θέση που έχει ήδη κράτηση και μέλος που έχει ήδη ατομική τη μέρα αυτή.
