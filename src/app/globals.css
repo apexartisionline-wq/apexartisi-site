@@ -907,3 +907,59 @@ details.safety-fold .attn > .iconbox { display: none; }
 details.safety-fold > .side-body > .panel { border: 0; padding: 4px 0 0 !important; box-shadow: none; }
 .sidenav-foot form { margin: 0; }
 .sidenav-out { justify-content: flex-start; text-align: left; }
+
+/* ── «Μέλη» (ανασχεδιασμός 16/10): αναζήτηση, φίλτρα, κάρτα ανά μέλος. Μόνο tokens του brand. ── */
+.members-tools { display: grid; gap: 12px; margin: 0 0 8px; }
+.members-search { position: relative; display: block; }
+.members-search > svg { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+.members-search input { min-height: 52px; padding: 12px 16px 12px 48px; font-size: 1.05rem; background: var(--card); border: 1px solid var(--card-line); border-radius: var(--radius); }
+.members-search input:focus { border-color: var(--accent); }
+.members-filters { display: flex; gap: 8px; flex-wrap: wrap; }
+.members-filter { min-height: 40px; padding: 6px 12px; border-radius: 999px; font-size: .9rem; font-weight: 600; background: var(--card); border: 1px solid var(--card-line); color: var(--text); gap: 8px; }
+.members-filter .members-count { min-width: 24px; padding: 1px 7px; border-radius: 999px; background: var(--canvas); color: var(--muted); font-size: .8rem; font-weight: 700; text-align: center; }
+.members-filter[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+.members-filter[aria-pressed="true"] .members-count { background: var(--card); color: var(--text); }
+.members-filter.is-red[aria-pressed="false"] .members-count:not(:empty) { color: var(--red-ink); background: var(--red-quiet); }
+.members-result { color: var(--muted); font-size: var(--fs-help); margin: 6px 0 10px; }
+.members-result:empty { margin: 0 0 6px; }
+.members-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.member-card {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "main open" "alert alert" "next next";
+  gap: 10px 12px; padding: 16px 18px; background: var(--card); border: 1px solid var(--card-line); border-left: 4px solid var(--card-line);
+  border-radius: var(--radius); color: var(--text); text-decoration: none; transition: border-color .15s, background-color .15s;
+}
+.member-card:hover { color: var(--text); border-color: var(--teal-line); background: var(--teal-quiet); }
+.member-card.is-red { border-left-color: var(--red); }
+.member-card.is-yellow { border-left-color: var(--yellow); }
+.member-main { grid-area: main; display: flex; align-items: center; gap: 8px 12px; flex-wrap: wrap; min-width: 0; }
+.member-name { font-size: 1.125rem; font-weight: 700; letter-spacing: -0.01em; line-height: 1.3; }
+.member-badges { display: inline-flex; gap: 6px; flex-wrap: wrap; }
+.pill.quiet { background: var(--canvas); color: var(--muted); }
+.member-overdue { box-shadow: inset 0 0 0 1px var(--red); }
+.member-alert { grid-area: alert; display: flex; gap: 8px; align-items: flex-start; font-size: .95rem; line-height: 1.45; padding: 8px 12px; border-radius: var(--radius-sm); }
+.member-alert > svg { flex: none; margin-top: 2px; }
+.member-alert.red { background: var(--red-quiet); }
+.member-alert.red > svg { color: var(--red-ink); }
+.member-alert.yellow { background: var(--yellow-quiet); }
+.member-alert.yellow > svg { color: var(--yellow-ink); }
+.member-card.no-alert { grid-template-areas: "main open" "next next"; }
+.member-more { color: var(--muted); white-space: nowrap; }
+.member-next { grid-area: next; display: flex; gap: 8px; align-items: flex-start; font-size: .95rem; color: var(--text); }
+.member-next > svg { flex: none; margin-top: 2px; color: var(--accent); }
+.member-next > span { display: flex; flex-direction: column; }
+.member-next-label { color: var(--muted); }
+.member-next-when { font-weight: 600; }
+.member-next-who { color: var(--muted); }
+.member-next.none { color: var(--muted); }
+.member-next.none > svg { color: var(--muted); }
+.member-open { grid-area: open; display: inline-flex; align-items: center; gap: 2px; color: var(--accent); font-weight: 600; font-size: .9rem; align-self: start; }
+.member-open-text { display: none; }
+.members-empty { background: var(--card); border: 1px dashed var(--card-line); border-radius: var(--radius); padding: 24px; text-align: center; color: var(--muted); }
+.members-empty p { margin: 0 0 12px; }
+@media (min-width: 900px) {
+  .members-tools { grid-template-columns: minmax(280px, 380px) minmax(0, 1fr); align-items: center; }
+  .member-card { grid-template-columns: minmax(200px, 1.1fr) minmax(0, 1.6fr) minmax(190px, 1fr) auto; grid-template-areas: "main alert next open"; align-items: center; gap: 16px; padding: 14px 18px; }
+  .member-card.no-alert { grid-template-areas: "main . next open"; }
+  .member-open { align-self: center; }
+  .member-open-text { display: inline; }
+}

@@ -70,6 +70,8 @@ export function safetyFlags(x: SafetyInput): Flag[] {
     const afterRisk = flags.some((f) => f.level === "red");
     flags.push({
       level: afterRisk ? "red" : "yellow",
+      // Κλειδί μόνο για φίλτρα (σελίδα «Μέλη»): «missed» = «Δεν ήρθε», «no_record» = «Χωρίς καταγραφή». Ο κανόνας δεν άλλαξε.
+      key: missed.noted ? "missed" : "no_record",
       text: `${missed.noted ? "Δεν ήρθε στην ατομική (επιβεβαίωση θεραπευτή)" : "Χωρίς καταγραφή παρουσίας στην ατομική"}${afterRisk ? ", μετά από σήμα ασφάλειας" : ""}`,
       at: missed.at,
       href: `/t/s/${missed.slotId}`,
