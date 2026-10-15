@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { unstable_rethrow } from "next/navigation";
+import { saveFailure } from "@/lib/save-failure";
 import { ThemeDetails, type ThemeDetail } from "@/components/ThemeDetails";
 import { FormSteps } from "@/components/FormSteps";
 import { useSteps } from "@/components/NoteWorkspace";
@@ -9,7 +11,7 @@ import { useNoteForm } from "./useNoteForm";
 import { DEFENSES, JOURNALING, MOOD, type NoteForm, noteFormSchema, PRESENTED, PROCESS, SELF_HELP, THEMES } from "@/lib/note-form";
 
 type Props = {
-  action: (formData: FormData) => void;
+  action: (formData: FormData) => void | Promise<void>;
   hidden: Record<string, string>;
   initial: Partial<NoteForm> | null;
   themeForms: string[];
@@ -82,6 +84,28 @@ export function NoteFormClient({ action, hidden, initial, themeForms, themeDetai
   const formRef = useNoteForm();
   const [warnedEmpty, setWarnedEmpty] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  // Αποθήκευση που δεν πέτυχε (16/10): η σελίδα δεν φεύγει· ό,τι γράφτηκε μένει, με μήνυμα (src/lib/save-failure.ts).
+  const [stale, setStale] = useState(false);
+  const leaving = useRef(false);
+  const run = async (fd: FormData) => {
+    try {
+      await action(fd);
+    } catch (e) {
+      unstable_rethrow(e); // η μετάβαση μετά την αποθήκευση (redirect) δεν είναι σφάλμα
+      const f = saveFailure(e);
+      setStale(f.stale);
+      setProblem(f.text);
+      setSubmitting(false);
+      // Το μήνυμα να φαίνεται ολόκληρο, πάνω από τη σταθερή μπάρα αποθήκευσης.
+      setTimeout(() => document.getElementById("save-problem")?.scrollIntoView({ block: "center", behavior: "smooth" }), 60);
+    }
+  };
+  // Νέα έκδοση: επαναφόρτωση χωρίς την ερώτηση «φεύγεις;» — το πρόχειρο της καρτέλας ξαναβρίσκεται μόνο του.
+  const reloadKeep = () => {
+    leaving.current = true;
+    try { if (draftKey) sessionStorage.setItem(draftKey, JSON.stringify(d)); } catch {}
+    window.location.reload();
+  };
   // Όταν λείπει απάντηση: ανοίγει η σωστή καρτέλα ΚΑΙ η σελίδα πάει στην ερώτηση, που τονίζεται για λίγο
   // (14/10: η υπεύθυνη έβλεπε «Δεν αποθηκεύτηκε» χωρίς να τη «πάει» πουθενά — η ερώτηση ήταν πάνω, εκτός οθόνης).
   const [focusKey, setFocusKey] = useState("");
@@ -153,7 +177,7 @@ export function NoteFormClient({ action, hidden, initial, themeForms, themeDetai
   // Προστασία από ακούσια έξοδο με μη αποθηκευμένες αλλαγές (όχι όταν αποθηκεύεται).
   useEffect(() => {
     if (!touched || submitting) return;
-    const h = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ""; };
+    const h = (e: BeforeUnloadEvent) => { if (leaving.current) return; e.preventDefault(); e.returnValue = ""; };
     window.addEventListener("beforeunload", h);
     return () => window.removeEventListener("beforeunload", h);
   }, [touched, submitting]);
@@ -198,7 +222,7 @@ export function NoteFormClient({ action, hidden, initial, themeForms, themeDetai
   useEffect(() => { ws?.setDone(done); }, [doneKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <form ref={formRef} action={action} onSubmit={check} className="note-form" id="notebook">
+    <form ref={formRef} action={run} onSubmit={check} className="note-form" id="notebook">
       {Object.entries(hidden).map(([k, v]) => <input key={k} type="hidden" name={k} value={v} />)}
       <input type="hidden" name="payload" value={JSON.stringify(payload)} />
       {restored && <div className="notice">Βρέθηκε πρόχειρο που δεν είχε αποθηκευτεί — συνέχισε από εκεί.</div>}
@@ -297,7 +321,12 @@ export function NoteFormClient({ action, hidden, initial, themeForms, themeDetai
         </div>
       )}
 
-      {problem && <div className="error" role="alert" style={{ marginTop: 10 }}>Δεν αποθηκεύτηκε: {problem} Ό,τι έγραψες είναι εδώ.</div>}
+      {problem && (
+        <div id="save-problem" className="error" role="alert" style={{ marginTop: 10 }}>
+          Δεν αποθηκεύτηκε: {problem} Ό,τι έγραψες είναι εδώ.
+          {stale && <> <button type="button" className="btn sm" style={{ marginLeft: 6 }} onClick={reloadKeep}>Ξαναφόρτωσε</button></>}
+        </div>
+      )}
       <p className="muted small form-foot">Όλα τα βήματα αποθηκεύονται μαζί, με όνομα και ώρα. Κάθε αλλαγή κρατά την προηγούμενη μορφή. Ctrl + Enter = Αποθήκευση.</p>
       <SaveBar
         dirty={touched}

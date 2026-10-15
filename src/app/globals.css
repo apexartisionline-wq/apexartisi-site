@@ -643,6 +643,8 @@ nav.top.has-menu { max-width: 1536px; padding-inline: 32px; }
 .save-status.saving i { background: var(--accent); }
 .save-status.saved i { background: var(--ok); }
 .save-status.error i { background: var(--red); }
+/* Η ένδειξη «Δεν αποθηκεύτηκε» δεν είναι το κόκκινο κουτί .error (16/10: έπαιρνε το φόντο του και δεν διαβαζόταν). */
+.save-status.error { padding: 0; margin: 0; background: none; border-radius: 0; color: var(--red-ink); font-weight: 600; }
 /* Αριθμοί «με μια ματιά»: κάθε αριθμός λέει την περίοδό του. */
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 0; }
 .stat { text-align: center; padding: 4px 8px; border-left: 1px solid var(--card-line); }

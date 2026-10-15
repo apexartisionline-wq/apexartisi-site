@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { unstable_rethrow } from "next/navigation";
+import { saveFailure } from "@/lib/save-failure";
 import { ThemeDetails, type ThemeDetail } from "@/components/ThemeDetails";
 import { JOURNALING, PRESENTED } from "@/lib/note-form";
 import { ACCEPTED_HELP, CONNECTED, findOther, nameVariants, type PairSide, pairSideSchema, STANCE } from "@/lib/pair-note";
@@ -12,7 +14,7 @@ import { NOTE_TABS, STEP_HINT } from "@/components/NoteFormClient";
 
 type Member = { id: string; name: string };
 type Props = {
-  action: (formData: FormData) => void;
+  action: (formData: FormData) => void | Promise<void>;
   slotId: string;
   members: [Member, Member];
   initial: Record<string, Partial<PairSide>>;
@@ -161,9 +163,31 @@ export function PairNoteClient({ action, slotId, members, initial, themeForms, t
     else setSubmitting(true);
   };
   const [submitting, setSubmitting] = useState(false);
+  // Αποθήκευση που δεν πέτυχε (16/10): η σελίδα δεν φεύγει· ό,τι γράφτηκε μένει, με μήνυμα (src/lib/save-failure.ts).
+  const [stale, setStale] = useState(false);
+  const leaving = useRef(false);
+  const run = async (fd: FormData) => {
+    try {
+      await action(fd);
+    } catch (e) {
+      unstable_rethrow(e); // η μετάβαση μετά την αποθήκευση (redirect) δεν είναι σφάλμα
+      const f = saveFailure(e);
+      setStale(f.stale);
+      setProblem(f.text);
+      setSubmitting(false);
+      // Το μήνυμα να φαίνεται ολόκληρο, πάνω από τη σταθερή μπάρα αποθήκευσης.
+      setTimeout(() => document.getElementById("save-problem")?.scrollIntoView({ block: "center", behavior: "smooth" }), 60);
+    }
+  };
+  // Νέα έκδοση: επαναφόρτωση χωρίς την ερώτηση «φεύγεις;» — το πρόχειρο της καρτέλας ξαναβρίσκεται μόνο του.
+  const reloadKeep = () => {
+    leaving.current = true;
+    try { if (draftKey) sessionStorage.setItem(draftKey, JSON.stringify(d)); } catch {}
+    window.location.reload();
+  };
   useEffect(() => {
     if (!touched || submitting) return;
-    const h = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ""; };
+    const h = (e: BeforeUnloadEvent) => { if (leaving.current) return; e.preventDefault(); e.returnValue = ""; };
     window.addEventListener("beforeunload", h);
     return () => window.removeEventListener("beforeunload", h);
   }, [touched, submitting]);
@@ -246,7 +270,7 @@ export function PairNoteClient({ action, slotId, members, initial, themeForms, t
   );
 
   return (
-    <form ref={formRef} action={action} onSubmit={check} className="note-form" id="notebook">
+    <form ref={formRef} action={run} onSubmit={check} className="note-form" id="notebook">
       <input type="hidden" name="slotId" value={slotId} />
       <input type="hidden" name="version" value={version} />
       <input type="hidden" name="payload" value={JSON.stringify(Object.fromEntries(members.map((m) => [m.id, outOf(d[m.id])])))} />
@@ -336,7 +360,12 @@ export function PairNoteClient({ action, slotId, members, initial, themeForms, t
         </div>
       )}
 
-      {problem && <div className="error" role="alert" style={{ marginTop: 10 }}>Δεν αποθηκεύτηκε: {problem} Ό,τι έγραψες είναι εδώ.</div>}
+      {problem && (
+        <div id="save-problem" className="error" role="alert" style={{ marginTop: 10 }}>
+          Δεν αποθηκεύτηκε: {problem} Ό,τι έγραψες είναι εδώ.
+          {stale && <> <button type="button" className="btn sm" style={{ marginLeft: 6 }} onClick={reloadKeep}>Ξαναφόρτωσε</button></>}
+        </div>
+      )}
       <p className="muted small form-foot">Αποθηκεύεται με όνομα και ώρα· κάθε αλλαγή κρατά την προηγούμενη μορφή. Ctrl + Enter = Αποθήκευση.</p>
       <SaveBar
         dirty={touched}

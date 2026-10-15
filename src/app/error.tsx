@@ -7,7 +7,8 @@ import { useEffect, useState, useTransition } from "react";
 // αμέσως μετά από ανέβασμα νέας έκδοσης). Αν φταίει παλιό κομμάτι κώδικα που δεν υπάρχει πια (ChunkLoadError —
 // συμβαίνει όταν ανέβει νέα έκδοση ενώ η σελίδα ήταν ανοιχτή), η σελίδα ξαναφορτώνει μόνη της μία φορά.
 // Αλλιώς: ένα ήρεμο μήνυμα με «Ξαναφόρτωσε» — ποτέ γυμνό «Application error».
-const isStale = (e: Error) => /ChunkLoadError|Loading chunk|Loading CSS chunk|dynamically imported module|Failed to fetch/i.test(`${e.name} ${e.message}`);
+// Και (16/10) ενέργεια (αποθήκευση) από σελίδα που ήταν ανοιχτή πριν ανέβει νέα έκδοση: «Server Action … was not found».
+const isStale = (e: Error) => /ChunkLoadError|Loading chunk|Loading CSS chunk|dynamically imported module|Failed to fetch|UnrecognizedActionError|Server Action .* was not found/i.test(`${e.name} ${e.message}`);
 
 const RETRY_KEY = "apex-retry";
 const markRetry = () => { try { sessionStorage.setItem(RETRY_KEY, String(Date.now())); } catch {} };
