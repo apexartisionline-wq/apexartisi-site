@@ -3,6 +3,7 @@ import { requireRole } from "@/lib/auth";
 import { STEP_MODES, type StepMode } from "@/lib/step-modes";
 import { prisma } from "@/lib/db";
 import { currentStep, lastStepWork, STEPS } from "@/lib/steps";
+import { stepTitle } from "@/lib/step-titles";
 import { formatDate, localParts } from "@/lib/time";
 
 // Η διαχείριση στέλνει τα βήματα (1–12) μέσα στην εφαρμογή· το μέλος τα βρίσκει στη «Βιβλιοθήκη» και οι θεραπευτές τα
@@ -29,18 +30,13 @@ export default async function AdminSteps({ searchParams }: { searchParams: Promi
       {sp.e && <div className="error">{ERR[sp.e] ?? ERR["1"]}</div>}
 
       <form action="/api/steps" method="post" encType="multipart/form-data" className="card step-form">
-        <div className="row" style={{ gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
-          <div className="field" style={{ width: 140 }}>
-            <label htmlFor="s-step">Βήμα</label>
-            <select id="s-step" name="step" required defaultValue="">
-              <option value="" disabled>—</option>
-              {STEPS.map((n) => <option key={n} value={n}>Βήμα {n}</option>)}
-            </select>
-          </div>
-          <div className="field" style={{ flex: 1, minWidth: 200 }}>
-            <label htmlFor="s-title">Τίτλος</label>
-            <input id="s-title" name="title" required maxLength={200} placeholder="π.χ. Παραδέχτηκα ότι…" />
-          </div>
+        <div className="field">
+          <label htmlFor="s-step">Βήμα</label>
+          <select id="s-step" name="step" required defaultValue="">
+            <option value="" disabled>Διάλεξε βήμα</option>
+            {STEPS.map((n) => <option key={n} value={n}>Βήμα {n} · {stepTitle(n)}</option>)}
+          </select>
+          <p className="hint" style={{ margin: "4px 0 0" }}>Ο τίτλος μπαίνει αυτόματα από το βήμα.</p>
         </div>
         <fieldset className="field step-modes">
           <legend>Πώς θα το κάνει το μέλος</legend>

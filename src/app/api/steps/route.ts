@@ -6,6 +6,7 @@ import { notifyMembers } from "@/lib/notify";
 import { staffGateOk } from "@/lib/staff-gate";
 import { isStepMode, looksLikePdf, needsPdf, STEP_PDF_MAX } from "@/lib/step-modes";
 import { STEPS } from "@/lib/steps";
+import { stepTitle } from "@/lib/step-titles";
 
 const back = (req: Request, q: string) => NextResponse.redirect(new URL(`/admin/steps?${q}`, req.url), 303);
 
@@ -17,11 +18,12 @@ export async function POST(req: Request) {
   if (!(await staffGateOk(user))) return new NextResponse(null, { status: 403 });
   const form = await req.formData();
   const step = Number(form.get("step"));
-  const title = String(form.get("title") ?? "").trim().slice(0, 200);
+  // Ο τίτλος μπαίνει αυτόματα από το βήμα και είναι σταθερός (16/10)· ό,τι κι αν στείλει η φόρμα δεν χρησιμοποιείται.
   const instructions = String(form.get("instructions") ?? "").slice(0, 5000);
   const mode = String(form.get("mode") ?? "FORM");
   const memberIds = form.getAll("member").map(String);
-  if (!STEPS.includes(step) || !title || memberIds.length === 0 || !isStepMode(mode)) return back(req, "e=1");
+  if (!STEPS.includes(step) || memberIds.length === 0 || !isStepMode(mode)) return back(req, "e=1");
+  const title = stepTitle(step);
   let pdf: Uint8Array<ArrayBuffer> | null = null, pdfName: string | null = null;
   if (needsPdf(mode)) {
     const file = form.get("pdf");
