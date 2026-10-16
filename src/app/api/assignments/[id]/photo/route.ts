@@ -10,7 +10,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (!user || user.role !== "MEMBER") return new NextResponse(null, { status: 401 });
   const { id } = await params;
   const back = (q: string) => NextResponse.redirect(new URL(`/m/library/a/${id}?${q}`, req.url), 303);
-  const a = await prisma.assignment.findFirst({ where: { id, memberId: user.id }, include: { _count: { select: { photos: true } } } });
+  const a = await prisma.assignment.findFirst({ where: { id, memberId: user.id }, include: { _count: { select: { photos: true } } }, omit: { pdf: true, answerPdf: true } });
   if (!a) return new NextResponse(null, { status: 404 });
 
   const files = (await req.formData()).getAll("photo").filter((f): f is File => f instanceof File && f.size > 0);

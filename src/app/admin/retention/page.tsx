@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/auth";
 import { dec, enc } from "@/lib/crypto";
 import { prisma } from "@/lib/db";
-import { RETENTION, type RetentionKey } from "@/lib/retention";
+import { daysLeft, RETENTION, type RetentionKey } from "@/lib/retention";
 import { runRetention, upcomingExpiries } from "@/lib/retention-db";
 import { formatDate, formatTime, localParts } from "@/lib/time";
 
@@ -112,6 +112,7 @@ export default async function RetentionPage({ searchParams }: { searchParams: Pr
       )}
 
       <h2>Πότε λήγει ο φάκελος κάθε μέλους</h2>
+      <p className="hint">Η διαγραφή γίνεται αυτόματα, μία φορά την ημέρα. Η διαχείριση ειδοποιείται <strong>30 και 7 μέρες πριν</strong> από κάθε λήξη (για να βάλει αναστολή διαγραφής αν χρειάζεται) και <strong>μετά από κάθε διαγραφή</strong> φακέλων μελών.</p>
       {upcoming.length === 0 ? <div className="card muted">Κανένα μέλος με ολοκλήρωση συνεργασίας.</div> : (
         <div className="card table-wrap">
           <table>
@@ -121,7 +122,7 @@ export default async function RetentionPage({ searchParams }: { searchParams: Pr
                 <tr key={u.id}>
                   <td>{u.name}</td>
                   <td>{dmy(u.end)}</td>
-                  <td>{u.clinicalDone ? "διαγράφηκε / λήγει τώρα" : dmy(u.clinicalAt)}</td>
+                  <td>{u.clinicalDone ? "διαγράφηκε / λήγει τώρα" : <>{dmy(u.clinicalAt)}{daysLeft(u.clinicalAt, now) <= 30 && <> <span className="badge yellow">σε {daysLeft(u.clinicalAt, now)} {daysLeft(u.clinicalAt, now) === 1 ? "μέρα" : "μέρες"}</span></>}</>}</td>
                   <td>{dmy(u.registryAt)}</td>
                   <td>{u.held && <span className="badge yellow">αναστολή</span>}</td>
                 </tr>

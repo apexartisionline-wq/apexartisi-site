@@ -99,3 +99,16 @@ export function memberDue(end: Date | null, now: Date, held: boolean) {
   if (!end || held) return { clinical: false, registry: false };
   return { clinical: expiresAt("clinical", end) <= now, registry: expiresAt("registry", end) <= now };
 }
+
+/**
+ * Ειδοποιήσεις πριν τη διαγραφή (υπεύθυνη 16/10: «η εφαρμογή παρακολουθεί την ημερομηνία λήξης και μας ενημερώνει για
+ * τη διαγραφή»· αυτόματη διαγραφή όπως πριν, με ειδοποίηση 30 και 7 μέρες πριν και μετά τη διαγραφή).
+ */
+export const NOTICE_DAYS = [30, 7] as const;
+const DAY_MS = 86_400_000;
+export const daysLeft = (at: Date, now: Date): number => Math.ceil((at.getTime() - now.getTime()) / DAY_MS);
+/** Ποια όρια ειδοποίησης έχουν «περάσει» για μια λήξη (π.χ. 20 μέρες πριν → [30]· 5 μέρες πριν → [30, 7]). */
+export function noticesDue(at: Date, now: Date): number[] {
+  const left = daysLeft(at, now);
+  return left > 0 ? NOTICE_DAYS.filter((d) => left <= d) : [];
+}

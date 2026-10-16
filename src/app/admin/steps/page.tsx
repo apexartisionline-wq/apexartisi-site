@@ -1,26 +1,19 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/auth";
+import { STEP_MODES, type StepMode } from "@/lib/step-modes";
 import { prisma } from "@/lib/db";
-import { notifyMembers } from "@/lib/notify";
 import { currentStep, lastStepWork, STEPS } from "@/lib/steps";
 import { formatDate, localParts } from "@/lib/time";
 
-// Η διαχείριση στέλνει τα βήματα (1–12) μέσα στην εφαρμογή· το μέλος τα γράφει στη «Βιβλιοθήκη»
-// και οι θεραπευτές τα βλέπουν στον φάκελό του.
-async function sendStep(formData: FormData) {
-  "use server";
-  const user = await requireRole("ADMIN");
-  const step = Number(formData.get("step"));
-  const title = String(formData.get("title") ?? "").trim().slice(0, 200);
-  const instructions = String(formData.get("instructions") ?? "").slice(0, 5000);
-  const memberIds = formData.getAll("member").map(String);
-  if (!STEPS.includes(step) || !title || memberIds.length === 0) redirect("/admin/steps?e=1");
-  const members = await prisma.user.findMany({ where: { id: { in: memberIds }, role: "MEMBER", active: true }, select: { id: true } });
-  await prisma.assignment.createMany({ data: members.map((m) => ({ memberId: m.id, step, title, instructions, createdById: user.id })) });
-  await notifyMembers(members.map((m) => m.id), { title: "Νέα εργασία στη βιβλιοθήκη", url: "/m/library", tag: "assignment" });
-  redirect(`/admin/steps?ok=${members.length}`);
-}
+// Η διαχείριση στέλνει τα βήματα (1–12) μέσα στην εφαρμογή· το μέλος τα βρίσκει στη «Βιβλιοθήκη» και οι θεραπευτές τα
+// βλέπουν στον φάκελό του. Από 16/10 με τρεις τρόπους (src/lib/step-modes.ts): φόρμα μέσα στο Apex, PDF που γράφεται στο
+// τετράδιο, PDF που συμπληρώνεται και ανεβαίνει. Η αποστολή γίνεται από το /api/steps (το PDF είναι μεγαλύτερο από 1 MB).
+const ERR: Record<string, string> = {
+  "1": "Διάλεξε βήμα, γράψε τίτλο και τσέκαρε τουλάχιστον ένα μέλος.",
+  pdf: "Για βήμα με PDF, διάλεξε το αρχείο PDF.",
+  size: "Το PDF είναι πάνω από 5 MB. Δοκίμασε μικρότερο αρχείο.",
+  type: "Το αρχείο δεν είναι PDF.",
+};
 
 export default async function AdminSteps({ searchParams }: { searchParams: Promise<{ ok?: string; e?: string }> }) {
   await requireRole("ADMIN");
@@ -31,11 +24,11 @@ export default async function AdminSteps({ searchParams }: { searchParams: Promi
   return (
     <main>
       <h1>Βήματα</h1>
-      <p className="muted">Στείλε ένα βήμα σε ένα ή περισσότερα μέλη. Το βρίσκουν στη «Βιβλιοθήκη» τους, με ειδοποίηση, και το γράφουν εκεί. Οι θεραπευτές βλέπουν στον φάκελο του μέλους σε ποιο βήμα είναι και τι γράφει.</p>
+      <p className="muted">Στείλε ένα βήμα σε ένα ή περισσότερα μέλη. Το βρίσκουν στη «Βιβλιοθήκη» τους, με ειδοποίηση. Διάλεξε πώς θα το κάνουν: φόρμα μέσα στο Apex, PDF που το γράφουν στο τετράδιό τους, ή PDF που το συμπληρώνουν και το ανεβάζουν. Οι θεραπευτές βλέπουν στον φάκελο του μέλους σε ποιο βήμα είναι και τι έγραψε.</p>
       {sp.ok && <div className="notice">Στάλθηκε σε {sp.ok} {sp.ok === "1" ? "μέλος" : "μέλη"} ✓</div>}
-      {sp.e && <div className="error">Διάλεξε βήμα, γράψε τίτλο και τσέκαρε τουλάχιστον ένα μέλος.</div>}
+      {sp.e && <div className="error">{ERR[sp.e] ?? ERR["1"]}</div>}
 
-      <form action={sendStep} className="card">
+      <form action="/api/steps" method="post" encType="multipart/form-data" className="card step-form">
         <div className="row" style={{ gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
           <div className="field" style={{ width: 140 }}>
             <label htmlFor="s-step">Βήμα</label>
@@ -49,8 +42,21 @@ export default async function AdminSteps({ searchParams }: { searchParams: Promi
             <input id="s-title" name="title" required maxLength={200} placeholder="π.χ. Παραδέχτηκα ότι…" />
           </div>
         </div>
+        <fieldset className="field step-modes">
+          <legend>Πώς θα το κάνει το μέλος</legend>
+          {(Object.keys(STEP_MODES) as StepMode[]).map((k) => (
+            <label key={k} className="step-mode">
+              <input type="radio" name="mode" value={k} defaultChecked={k === "FORM"} />
+              <span><strong>{STEP_MODES[k].admin}</strong><span className="hint">{STEP_MODES[k].hint}</span></span>
+            </label>
+          ))}
+        </fieldset>
+        <div className="field pdf-field">
+          <label htmlFor="s-pdf">Αρχείο PDF του βήματος <span className="muted small">(ως 5 MB)</span></label>
+          <input id="s-pdf" name="pdf" type="file" accept="application/pdf" />
+        </div>
         <div className="field">
-          <label htmlFor="s-instr">Οδηγίες / ερωτήσεις του βήματος</label>
+          <label htmlFor="s-instr">Οδηγίες / ερωτήσεις του βήματος <span className="muted small">(στο PDF: προαιρετικά, λίγα λόγια για το μέλος)</span></label>
           <textarea id="s-instr" name="instructions" maxLength={5000} rows={6} />
         </div>
         <fieldset className="field">

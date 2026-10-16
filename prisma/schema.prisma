@@ -500,6 +500,15 @@ model Assignment {
   answer       String            @default("") // κρυπτογραφημένο
   answeredAt   DateTime?
   photos       AssignmentPhoto[]
+  // Πώς δίνεται και πώς απαντιέται (16/10): FORM = φόρμα μέσα στο Apex · PDF_NOTEBOOK = PDF, το μέλος γράφει στο τετράδιό του ·
+  // PDF_FILL = PDF, το μέλος το συμπληρώνει και το ανεβάζει. Τα bytes δεν φορτώνονται στις σελίδες (omit), μόνο από τα API.
+  mode          String    @default("FORM")
+  pdf           Bytes? // το PDF της διαχείρισης, κρυπτογραφημένο
+  pdfName       String?
+  answerPdf     Bytes? // το συμπληρωμένο PDF του μέλους, κρυπτογραφημένο
+  answerPdfName String?
+  answerPdfAt   DateTime?
+  notebookAt    DateTime? // «Το έγραψα στο τετράδιό μου»
 
   @@index([memberId, createdAt])
 }

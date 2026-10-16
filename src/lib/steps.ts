@@ -1,4 +1,5 @@
 import "server-only";
+import { stepStatus } from "./step-modes";
 import { prisma } from "./db";
 
 export const STEPS = Array.from({ length: 12 }, (_, i) => i + 1);
@@ -13,8 +14,8 @@ export async function lastStepWork(memberId: string) {
   const a = await prisma.assignment.findFirst({
     where: { memberId, step: { not: null } },
     orderBy: { createdAt: "desc" },
-    select: { id: true, step: true, title: true, createdAt: true, answeredAt: true },
+    select: { id: true, step: true, title: true, createdAt: true, answeredAt: true, mode: true, notebookAt: true, answerPdfAt: true },
   });
   if (!a) return null;
-  return { id: a.id, step: a.step!, title: a.title, createdAt: a.createdAt, status: a.answeredAt ? "Το έγραψε" : "Δεν το έγραψε ακόμα" };
+  return { id: a.id, step: a.step!, title: a.title, createdAt: a.createdAt, status: stepStatus(a) };
 }

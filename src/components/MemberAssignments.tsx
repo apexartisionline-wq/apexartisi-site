@@ -3,7 +3,8 @@ import { requireRole } from "@/lib/auth";
 import { dec } from "@/lib/crypto";
 import { prisma } from "@/lib/db";
 import { notifyMembers } from "@/lib/notify";
-import { formatDate, localParts } from "@/lib/time";
+import { isStepMode, STEP_MODES, stepStatus } from "@/lib/step-modes";
+import { formatDate, formatWhen, localParts } from "@/lib/time";
 
 async function give(formData: FormData) {
   "use server";
@@ -25,6 +26,7 @@ export async function MemberAssignments({ memberId }: { memberId: string }) {
       where: { memberId },
       orderBy: { createdAt: "desc" },
       include: { photos: { select: { id: true }, orderBy: { createdAt: "asc" } } },
+      omit: { pdf: true, answerPdf: true }, // τα PDF ανοίγουν από το /api (με καταγραφή πρόσβασης), δεν φορτώνονται εδώ
     }),
     prisma.user.findMany({ where: { role: { in: ["THERAPIST", "ADMIN"] } }, select: { id: true, name: true } }),
   ]);
@@ -52,6 +54,15 @@ export async function MemberAssignments({ memberId }: { memberId: string }) {
             <strong>{a.step && <span className="badge">Βήμα {a.step}</span>} {a.title}</strong>
             <span className="small muted">{formatDate(localParts(a.createdAt).date)} · {who.get(a.createdById) ?? ""}</span>
           </div>
+          {a.mode !== "FORM" && (
+            <p className="small step-pdf">
+              <span className="muted">{isStepMode(a.mode) ? STEP_MODES[a.mode].admin : ""} ·</span>
+              <a href={`/api/assignments/${a.id}/pdf`} target="_blank" rel="noopener">Το PDF του βήματος</a>
+              <span className="muted">· {stepStatus(a)}</span>
+              {a.notebookAt && <span className="muted">({formatWhen(a.notebookAt)})</span>}
+              {a.answerPdfAt && <a href={`/api/assignments/${a.id}/pdf?f=answer`} target="_blank" rel="noopener">Το συμπληρωμένο PDF ({formatWhen(a.answerPdfAt)})</a>}
+            </p>
+          )}
           {a.answeredAt ? (
             <>
               {dec(a.answer) && <p style={{ whiteSpace: "pre-wrap" }}>{dec(a.answer)}</p>}

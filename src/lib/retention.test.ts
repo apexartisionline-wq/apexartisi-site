@@ -33,3 +33,15 @@ describe("χρόνοι τήρησης (έγγραφο 13)", () => {
     expect(memberDue(null, d("2030-01-10T00:00:00Z"), false)).toEqual({ clinical: false, registry: false });
   });
 });
+
+describe("ειδοποιήσεις πριν τη διαγραφή (16/10)", () => {
+  const now = d("2026-10-16T10:00:00Z");
+  it("30 και 7 μέρες πριν, όχι μετά τη λήξη", async () => {
+    const { noticesDue, daysLeft } = await import("./retention");
+    expect(noticesDue(d("2026-12-20T10:00:00Z"), now)).toEqual([]);
+    expect(noticesDue(d("2026-11-10T10:00:00Z"), now)).toEqual([30]);
+    expect(noticesDue(d("2026-10-20T10:00:00Z"), now)).toEqual([30, 7]);
+    expect(noticesDue(d("2026-10-16T09:00:00Z"), now)).toEqual([]);
+    expect(daysLeft(d("2026-10-23T10:00:00Z"), now)).toBe(7);
+  });
+});

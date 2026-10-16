@@ -12,7 +12,7 @@ import { prisma } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
 import { addDays, formatDate, formatHour, formatTime, localParts } from "@/lib/time";
 import { claimAction } from "@/app/t/actions";
-import { runRetentionDaily } from "@/lib/retention-db";
+import { expiringSoon, runRetentionDaily } from "@/lib/retention-db";
 import { nextSession, riskTriggerDue } from "@/lib/risk-db";
 import { kindWord } from "@/lib/access";
 
@@ -96,7 +96,10 @@ export default async function AdminToday({ searchParams }: { searchParams: Promi
     return { t, name: u?.name ?? "Μέλος", phone: p?.data.mobile || u?.phone || "" };
   }));
 
+  // Φάκελοι που λήγουν μέσα σε 30 μέρες (τήρηση δεδομένων, 16/10): διαγράφονται αυτόματα — εδώ για να προλάβει αναστολή.
+  const expiring = await expiringSoon(now).catch(() => []);
   const todo = [
+    expiring.length > 0 && { href: "/admin/retention", text: `Τήρηση δεδομένων: ${expiring.length} ${expiring.length === 1 ? "φάκελος λήγει" : "φάκελοι λήγουν"} μέσα σε 30 μέρες (ο πιο κοντινός σε ${Math.min(...expiring.map((e) => e.left))} ${Math.min(...expiring.map((e) => e.left)) === 1 ? "μέρα" : "μέρες"}) — διαγράφονται αυτόματα` },
     requests && { href: "/admin/requests", text: `${requests} ${requests === 1 ? "αίτημα" : "αιτήματα"} αλλαγής ραντεβού` },
     flags && { href: "/admin/bookings", text: `${flags} ραντεβού ${flags === 1 ? "θέλει" : "θέλουν"} έλεγχο εναλλαγής βιωματικού/κλινικού` },
     pairs && { href: "/admin/bookings", text: `${pairs} Therapair ${pairs === 1 ? "θέλει" : "θέλουν"} έγκριση ζευγαριού` },

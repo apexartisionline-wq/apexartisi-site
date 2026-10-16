@@ -3,7 +3,9 @@ import { randomBytes, randomUUID } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { dec, enc } from "./crypto";
 import { prisma } from "./db";
-import { collaborationEnd, cutoff, expiresAt, memberDue, RISK_ACCESS_ACTIONS, type RetentionKey } from "./retention";
+import { Prisma } from "@prisma/client";
+import { notifyRole } from "./notify";
+import { collaborationEnd, cutoff, daysLeft, expiresAt, memberDue, noticesDue, RISK_ACCESS_ACTIONS, type RetentionKey } from "./retention";
 
 /**
  * Αυτόματη εκκαθάριση κατά τους χρόνους τήρησης (src/lib/retention.ts · έγγραφο 13 του φακέλου συμμόρφωσης).
@@ -223,8 +225,52 @@ export async function runRetention(o: { now?: Date; dryRun: boolean; byId?: stri
 export async function runRetentionDaily(now = new Date()): Promise<boolean> {
   const since = new Date(now.getTime() - 20 * 3600_000);
   if (await prisma.purgeLog.findFirst({ where: { category: "run", at: { gte: since } }, select: { id: true } })) return false;
-  await runRetention({ now, dryRun: false, byId: null });
+  const r = await runRetention({ now, dryRun: false, byId: null });
+  await notifyRetention(now, r.lines).catch((e) => console.error("[retention-notice]", e));
   return true;
+}
+
+/** Φάκελοι μελών που λήγουν μέσα σε 30 μέρες (για το «Σήμερα» της διαχείρισης και τις ειδοποιήσεις). */
+export async function expiringSoon(now = new Date()) {
+  const up = await upcomingExpiries(now);
+  return up.flatMap((u) => (u.held ? [] : ([["clinical", u.clinicalAt], ["registry", u.registryAt]] as const)
+    .filter(([, at]) => noticesDue(at, now).length > 0)
+    .map(([kind, at]) => ({ memberId: u.id, name: u.name, kind, at, left: daysLeft(at, now) }))));
+}
+
+/**
+ * Ειδοποιήσεις τήρησης προς τη διαχείριση (16/10): μία φορά ανά φάκελο και όριο (30 και 7 μέρες πριν, κλειδί στο
+ * NotificationLog), ώστε να προλάβει «Αναστολή διαγραφής» αν χρειάζεται· και μετά από εκκαθάριση που έσβησε φακέλους
+ * μελών (κλινικός, μητρώο, τεκμηρίωση κινδύνου). Τα αρχεία καταγραφής και τα ακυρωμένα ραντεβού λήγουν κυλιόμενα κάθε
+ * μέρα — αυτά μένουν μόνο στο πρωτόκολλο της σελίδας, χωρίς μήνυμα. Η ειδοποίηση δεν έχει ονόματα (φαίνεται στο κινητό)·
+ * τα ονόματα είναι μέσα στη σελίδα «Τήρηση δεδομένων».
+ */
+export async function notifyRetention(now = new Date(), deleted: PurgeLine[] = []): Promise<{ notices: number; deleted: number }> {
+  let fresh = 0, soon7 = false;
+  for (const e of await expiringSoon(now)) {
+    for (const d of noticesDue(e.at, now)) {
+      try {
+        await prisma.notificationLog.create({ data: { key: `retention_notice:${d}:${e.kind}:${e.memberId}:${e.at.toISOString().slice(0, 10)}` } });
+        fresh++;
+        if (d === 7) soon7 = true;
+      } catch (err) {
+        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") continue;
+        throw err;
+      }
+    }
+  }
+  if (fresh > 0) {
+    await notifyRole("ADMIN", {
+      title: "Τήρηση δεδομένων: προσεχής διαγραφή",
+      body: `${soon7 ? "Φάκελος μέλους λήγει σε 7 μέρες ή λιγότερο" : "Φάκελος μέλους λήγει σε 30 μέρες ή λιγότερο"} και θα διαγραφεί αυτόματα. Αν χρειάζεται αναστολή διαγραφής, δες «Τήρηση δεδομένων».`,
+      url: "/admin/retention", tag: "retention-notice",
+    }).catch(() => undefined);
+  }
+  const removed = deleted.filter((l) => (l.category === "clinical" || l.category === "registry" || l.category === "risk") && l.count > 0).reduce((a, l) => a + l.count, 0);
+  if (removed > 0) {
+    await notifyRole("ADMIN", { title: "Τήρηση δεδομένων: έγινε διαγραφή", body: `Διαγράφηκαν ${removed} εγγραφές φακέλων μελών, όπως ορίζουν οι χρόνοι τήρησης. Το πρωτόκολλο είναι στη σελίδα «Τήρηση δεδομένων».`, url: "/admin/retention", tag: "retention-done" }).catch(() => undefined);
+  }
+  return { notices: fresh, deleted: removed };
 }
 
 /** Για τη σελίδα «Τήρηση δεδομένων»: πότε λήγει ο φάκελος κάθε μέλους με ολοκλήρωση. */

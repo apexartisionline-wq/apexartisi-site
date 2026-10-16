@@ -1095,3 +1095,13 @@ html:has(.savebar) { scroll-padding-bottom: 104px; }
 .care-full-h { margin: 0 0 6px; font-size: .85rem; font-weight: 700; color: var(--muted); }
 .care-full .note-text { max-width: 80ch; line-height: 1.55; }
 .care-full .note-text > div + div { margin-top: 4px; }
+/* «Βήματα» της διαχείρισης (16/10): τρεις τρόποι· το αρχείο PDF φαίνεται μόνο όταν χρειάζεται. */
+.step-modes { display: grid; gap: 8px; border: 0; padding: 0; margin: 12px 0; }
+.step-mode { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--card-line); border-radius: var(--radius); cursor: pointer; background: var(--card); }
+.step-mode:has(input:checked) { border-color: var(--accent); background: var(--teal-quiet); }
+.step-mode input { width: auto; margin-top: 4px; }
+.step-mode span { display: flex; flex-direction: column; gap: 2px; }
+.step-form:has(input[name="mode"][value="FORM"]:checked) .pdf-field { display: none; }
+.step-pdf { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin: 8px 0; }
+.steps-members label { flex-wrap: nowrap; align-items: flex-start; }
+.steps-members label input { margin-top: 4px; flex: none; }
