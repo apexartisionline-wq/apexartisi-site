@@ -68,6 +68,8 @@ model User {
   createdAt    DateTime  @default(now())
 
   phone            String? // για να καλέσει ο θεραπευτής στο κόκκινο κουμπί
+  email            String? // email λογαριασμού (καλωσόρισμα, νέος κωδικός)· μόνο διαχείριση
+  mustChangeCode   Boolean   @default(false) // ο κωδικός ήρθε με email: αλλάζει υποχρεωτικά στην 1η είσοδο
   // Μόνο για μέλη
   memberCode       String?       @unique // ψευδώνυμο για τα Google Forms (όχι όνομα)
   source           MemberSource?

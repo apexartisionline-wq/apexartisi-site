@@ -1,6 +1,7 @@
 # Αιτήσεις άδειας για τα ερωτηματολόγια (σχέδια email)
 
 Τα στέλνει η υπεύθυνη από το email του προγράμματος. Συμπληρώστε ό,τι είναι σε [αγκύλες].
+**17/10:** μπήκαν ως πρόχειρα στο Gmail του προγράμματος (apexartisionline@gmail.com) με την απόφαση 16/10 ότι το ιστορικό το κάνει όποιος θεραπευτής έχει την 1η ατομική (όχι μόνο ψυχολόγος). Το ΠΟΥ δέχεται αιτήματα κυρίως από τη φόρμα στο who.int → Publications → Permissions· το πρόχειρο υπάρχει για το κείμενο.
 Λεπτομέρειες και πηγές: `docs/clinical/erotimatologia-adeies.md`.
 
 ---
@@ -14,7 +15,7 @@ Dear WHO Permissions team,
 
 I am the clinical lead of APEX-ARTISI ONLINE, a private online addiction-recovery programme in Greece ([website]). Members pay a fee for the programme; they are **not** charged separately for the questionnaire.
 
-We would like to use the AUDIT, unchanged and credited as a WHO instrument, in our assessment software. A psychologist would ask the questions at the first session, and the software would add up the score using the WHO zones. We plan to use the validated Greek version (Moussas et al., Annals of General Psychiatry 2009;8:11).
+We would like to use the AUDIT, unchanged and credited as a WHO instrument, in our assessment software. A member of our therapeutic team (psychologist or trained addiction counsellor) would ask the questions at the first session, and the software would add up the score using the WHO zones. We plan to use the validated Greek version (Moussas et al., Annals of General Psychiatry 2009;8:11).
 
 Could you confirm whether this use is permitted, and on what conditions?
 
@@ -30,7 +31,7 @@ Kind regards,
 
 Dear CCSA team,
 
-I am the clinical lead of APEX-ARTISI ONLINE, a private, fee-based online addiction-recovery programme in Greece. We would like to use the nine PGSI items (Ferris & Wynne, 2001), unchanged and credited, for members who report gambling. A psychologist would ask the items at the first session, and our software would add up the score using the standard categories.
+I am the clinical lead of APEX-ARTISI ONLINE, a private, fee-based online addiction-recovery programme in Greece. We would like to use the nine PGSI items (Ferris & Wynne, 2001), unchanged and credited, for members who report gambling. A member of our therapeutic team (psychologist or trained addiction counsellor) would ask the items at the first session, and our software would add up the score using the standard categories.
 
 1. Do you grant permission for this use, and on what terms?
 2. Is there an approved Greek translation? If not, may we produce one by forward and back translation, and what attribution do you require?
@@ -47,7 +48,7 @@ Kind regards,
 
 Dear Professor Skinner, dear Ms Booth,
 
-I am the clinical lead of APEX-ARTISI ONLINE, a private, fee-based online addiction-recovery programme in Greece. We would like to use the DAST-10, unchanged and credited, for members who report drug use other than alcohol. A psychologist would ask the questions at the first session, and our software would add up the score using the published bands.
+I am the clinical lead of APEX-ARTISI ONLINE, a private, fee-based online addiction-recovery programme in Greece. We would like to use the DAST-10, unchanged and credited, for members who report drug use other than alcohol. A member of our therapeutic team (psychologist or trained addiction counsellor) would ask the questions at the first session, and our software would add up the score using the published bands.
 
 1. Does our use need a commercial licence from CAMH? If so, what are the terms?
 2. Is there a Greek version? If not, may we translate it following the DAST Language/Cultural Adaptation Guide?

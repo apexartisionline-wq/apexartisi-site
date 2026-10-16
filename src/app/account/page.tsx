@@ -24,11 +24,15 @@ async function changeCode(formData: FormData) {
   const current = String(formData.get("current") ?? "");
   const next = String(formData.get("next") ?? "");
   const again = String(formData.get("again") ?? "");
-  if (!(await bcrypt.compare(current, user.passwordHash))) redirect("/account?e=current");
-  if (next.length < 8) redirect("/account?e=short");
-  if (next !== again) redirect("/account?e=match");
-  await prisma.user.update({ where: { id: user.id }, data: { passwordHash: await hashPassword(next) } });
-  redirect("/account?ok=1");
+  const first = user.mustChangeCode;
+  const q = first ? "&first=1" : "";
+  if (!(await bcrypt.compare(current, user.passwordHash))) redirect(`/account?e=current${q}`);
+  if (next.length < 8) redirect(`/account?e=short${q}`);
+  if (next !== again) redirect(`/account?e=match${q}`);
+  if (next === current) redirect(`/account?e=same${q}`);
+  await prisma.user.update({ where: { id: user.id }, data: { passwordHash: await hashPassword(next), mustChangeCode: false } });
+  // Πρώτη είσοδος με κωδικό από email (16/10): μετά την αλλαγή, κατευθείαν στο «Σήμερα».
+  redirect(first ? homeFor(user.role) : "/account?ok=1");
 }
 
 async function signOutAll() {
@@ -80,9 +84,10 @@ const ERRORS: Record<string, string> = {
   short: "Ο νέος κωδικός θέλει τουλάχιστον 8 χαρακτήρες.",
   match: "Οι δύο νέοι κωδικοί δεν είναι ίδιοι.",
   otp: "Ο 6ψήφιος κωδικός δεν ταιριάζει. Δοκίμασε ξανά.",
+  same: "Ο νέος κωδικός πρέπει να είναι διαφορετικός από αυτόν που σου στείλαμε.",
 };
 
-export default async function AccountPage({ searchParams }: { searchParams: Promise<{ ok?: string; e?: string; setup2fa?: string; ok2fa?: string; okp?: string; okc?: string }> }) {
+export default async function AccountPage({ searchParams }: { searchParams: Promise<{ ok?: string; e?: string; setup2fa?: string; ok2fa?: string; okp?: string; okc?: string; first?: string }> }) {
   const user = await requireRole("MEMBER", "THERAPIST", "ADMIN");
   const sp = await searchParams;
   const staff = user.role !== "MEMBER";
@@ -95,6 +100,11 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
       <main>
         <BackButton home={homeFor(user.role)} />
         <h1>Ο λογαριασμός μου</h1>
+        {user.mustChangeCode && (
+          <div className="notice" id="first-code">
+            <strong>Καλώς ήρθες.</strong> Ο κωδικός που σου στείλαμε είναι προσωρινός. Βάλε δικό σου κωδικό (τουλάχιστον 8 χαρακτήρες) στην «Αλλαγή κωδικού» παρακάτω, και μετά σε πάμε στο «Σήμερα».
+          </div>
+        )}
         <div className="card">
           <div>{user.name}</div>
           <div className="muted small">@{user.username} · {ROLE[user.role]}</div>

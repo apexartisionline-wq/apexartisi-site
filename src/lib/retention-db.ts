@@ -129,7 +129,7 @@ async function registryOf(db: Tx, memberId: string, run: boolean): Promise<[stri
       where: { id: memberId, role: "MEMBER" },
       data: {
         name: "Μέλος (ανωνυμοποιημένο)", username: `anon-${randomUUID()}`, passwordHash: await bcrypt.hash(randomBytes(24).toString("hex"), 10),
-        phone: null, memberCode: null, source: null, programStartDate: null, soberSince: null, selfMessage: null, selfMessageType: null,
+        phone: null, email: null, mustChangeCode: false, memberCode: null, source: null, programStartDate: null, soberSince: null, selfMessage: null, selfMessageType: null,
         telegramUserId: null, totpSecret: null, totpEnabled: false, notifyPrefs: {}, toursSeen: [], active: false,
       },
     });

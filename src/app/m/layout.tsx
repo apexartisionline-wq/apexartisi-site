@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { BackButton } from "@/components/BackButton";
 import { Nav } from "@/components/Nav";
 import { requireRole } from "@/lib/auth";
@@ -7,6 +8,8 @@ import { navLinks } from "@/lib/nav";
 
 export default async function MemberLayout({ children }: { children: React.ReactNode }) {
   const user = await requireRole("MEMBER");
+  // Ο κωδικός ήρθε με email (16/10): πριν από οτιδήποτε άλλο, το μέλος βάζει δικό του κωδικό.
+  if (user.mustChangeCode) redirect("/account?first=1");
   const [plan, monthly, closure] = await Promise.all([
     prisma.safetyPlan.findUnique({ where: { memberId: user.id }, select: { memberId: true } }),
     prisma.monthlyMessage.findFirst({ where: { memberId: user.id, sentAt: { not: null } }, select: { id: true } }),

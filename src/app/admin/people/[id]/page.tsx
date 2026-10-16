@@ -79,6 +79,7 @@ export default async function PersonPage({ params, searchParams }: { params: Pro
           <div className="field"><label>Ονοματεπώνυμο</label><input name="name" defaultValue={p.name} required /></div>
           <div className="field"><label>Όνομα χρήστη</label><input value={p.username} disabled /></div>
           <div className="field"><label>Κινητό λογαριασμού (για το κόκκινο κουμπί)</label><input name="phone" type="tel" defaultValue={p.phone ?? ""} /></div>
+          {isMember && <div className="field"><label>Email (καλωσόρισμα, νέος κωδικός)</label><input name="email" type="email" autoCapitalize="none" defaultValue={p.email ?? ""} /></div>}
           {isMember && <div className="field"><label>Κωδικός μέλους (για τα Google Forms)</label><input value={p.memberCode ?? "—"} disabled /></div>}
           {isMember ? (
             <>

@@ -8,6 +8,9 @@ import { generateCode, hashPassword, requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
 import { logAccess } from "@/lib/audit";
+import { headers } from "next/headers";
+import { appUrl, mailConfigured, sendMail } from "@/lib/mail";
+import { welcomeEmail } from "@/lib/welcome-email";
 
 // Κωδικός μέλους για τα Google Forms (ψευδώνυμο, όχι όνομα): A-XXXXX χωρίς μπερδέματα.
 function memberCode(): string {
@@ -15,7 +18,22 @@ function memberCode(): string {
   return "A-" + Array.from({ length: 5 }, () => a[Math.floor(Math.random() * a.length)]).join("");
 }
 
-export type CodeState = { code?: string; username?: string; error?: string } | null;
+// email: τι έγινε με το email καλωσορίσματος (16/10) — στάλθηκε, δεν υπάρχει ρύθμιση (δείχνουμε το κείμενο), απέτυχε, ή δεν δόθηκε email.
+export type CodeState = { code?: string; username?: string; error?: string; email?: { to: string; status: "sent" | "preview" | "failed"; subject: string; text: string; detail?: string } } | null;
+
+// Στέλνει το καλωσόρισμα (ή τον νέο κωδικό) στο email του μέλους· χωρίς ρύθμιση Gmail επιστρέφει το κείμενο για να σταλεί με το χέρι.
+async function emailCode(member: { name: string; username: string; email: string | null; role: string }, code: string, kind: "welcome" | "reset"): Promise<NonNullable<CodeState>["email"] | undefined> {
+  if (!member.email || member.role !== "MEMBER") return undefined;
+  const s = await getSettings();
+  const host = (await headers()).get("host");
+  const url = appUrl(host) + "/login";
+  const contact = process.env.GMAIL_USER || "την ομάδα";
+  const m = kind === "welcome"
+    ? welcomeEmail({ name: member.name, username: member.username, code, url, groups: s.groups, contactEmail: contact, appName: s.appName })
+    : { subject: `${s.appName} — νέος προσωπικός κωδικός`, text: `Γεια σου, ${member.name.split(" ")[0]}.\n\nΗ ομάδα σού έδωσε νέο κωδικό για το ${s.appName}.\nΔιεύθυνση: ${url}\nΌνομα χρήστη: ${member.username}\nΝέος κωδικός: ${code}\n\nΣτην πρώτη είσοδο θα σου ζητηθεί να βάλεις δικό σου κωδικό. Μην τον δώσεις σε κανέναν.\nΑν δεν ζήτησες εσύ νέο κωδικό, πες το μας αμέσως στο ${contact}.\n\nΗ ομάδα του ${s.appName}` };
+  const r = await sendMail(member.email, m.subject, m.text);
+  return { to: member.email, status: r.sent ? "sent" : r.reason === "not_configured" ? "preview" : "failed", subject: m.subject, text: m.text, detail: r.sent ? undefined : r.reason === "failed" ? r.detail : undefined };
+}
 
 const optionalDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).or(z.literal("")).transform((v) => v || null);
 
@@ -28,6 +46,7 @@ const personSchema = z.object({
   telegramUserId: z.string().trim().optional().transform((v) => v || null),
   therapistKind: z.enum(["BIOMATIC", "CLINICAL", "BOTH"]).or(z.literal("")).optional().transform((v) => v || null),
   phone: z.string().trim().max(30).optional().transform((v) => v || null),
+  email: z.string().trim().toLowerCase().email("Το email δεν είναι σωστό").or(z.literal("")).optional().transform((v) => v || null),
 });
 
 export async function createPerson(_: CodeState, formData: FormData): Promise<CodeState> {
@@ -49,6 +68,9 @@ export async function createPerson(_: CodeState, formData: FormData): Promise<Co
         therapistKind: d.role !== "MEMBER" ? d.therapistKind : null,
         memberCode: d.role === "MEMBER" ? memberCode() : null,
         phone: d.phone,
+        email: d.email,
+        // Ο κωδικός φεύγει με email (απόφαση 16/10) → αλλάζει υποχρεωτικά στην πρώτη είσοδο.
+        mustChangeCode: d.role === "MEMBER" && Boolean(d.email),
       },
     });
   } catch (e) {
@@ -58,20 +80,23 @@ export async function createPerson(_: CodeState, formData: FormData): Promise<Co
     throw e;
   }
   revalidatePath("/admin/people");
-  return { code, username: d.username };
+  const email = await emailCode({ name: d.name, username: d.username, email: d.email, role: d.role }, code, "welcome");
+  return { code, username: d.username, email };
 }
 
 export async function resetCode(_: CodeState, formData: FormData): Promise<CodeState> {
   const admin = await requireRole("ADMIN");
   const id = String(formData.get("id"));
   const code = generateCode();
+  const before = await prisma.user.findUniqueOrThrow({ where: { id }, select: { role: true, email: true } });
   const user = await prisma.user.update({
     where: { id },
-    data: { passwordHash: await hashPassword(code), failedLogins: 0, lockedUntil: null },
+    data: { passwordHash: await hashPassword(code), failedLogins: 0, lockedUntil: null, mustChangeCode: before.role === "MEMBER" && Boolean(before.email) },
   });
   await prisma.session.deleteMany({ where: { userId: id } });
   await logAccess(admin.id, id, "code_reset");
-  return { code, username: user.username };
+  const email = await emailCode({ name: user.name, username: user.username, email: user.email, role: user.role }, code, "reset");
+  return { code, username: user.username, email };
 }
 
 // Χάθηκε/άλλαξε το κινητό: η διαχείριση σβήνει την επαλήθευση από το κινητό·
@@ -94,6 +119,7 @@ const updateSchema = z.object({
   active: z.literal("on").optional(),
   therapistKind: z.enum(["BIOMATIC", "CLINICAL", "BOTH"]).or(z.literal("")).optional(),
   phone: z.string().trim().max(30).optional(),
+  email: z.string().trim().toLowerCase().email("Το email δεν είναι σωστό").or(z.literal("")).optional().transform((v) => v || null),
 });
 
 export async function updatePerson(formData: FormData) {
@@ -110,6 +136,7 @@ export async function updatePerson(formData: FormData) {
       ...(formData.has("telegramUserId") ? { telegramUserId: d.telegramUserId } : {}),
       ...(d.therapistKind !== undefined ? { therapistKind: d.therapistKind || null } : {}),
       ...(d.phone !== undefined ? { phone: d.phone || null } : {}),
+      ...(formData.has("email") ? { email: d.email } : {}),
     },
   });
   if (!active) await prisma.session.deleteMany({ where: { userId: user.id } });
