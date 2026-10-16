@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { requireMember } from "@/lib/intake";
 import { prisma } from "@/lib/db";
 import { currentStep, STEPS } from "@/lib/steps";
+import { memberStepStatus } from "@/lib/step-modes";
 import { formatDate, localParts } from "@/lib/time";
 
 const KIND = { PDF: "PDF", AUDIO: "Ήχος", VIDEO: "Βίντεο", IMAGE: "Εικόνα", LINK: "Βίντεο" } as const;
@@ -22,7 +23,7 @@ export default async function MemberLibrary({ searchParams }: { searchParams: Pr
   const user = await requireMember();
   const sp = await searchParams;
   const [mine, shared, step] = await Promise.all([
-    prisma.assignment.findMany({ where: { memberId: user.id }, orderBy: { createdAt: "desc" }, select: { id: true, title: true, step: true, createdAt: true, answeredAt: true } }),
+    prisma.assignment.findMany({ where: { memberId: user.id }, orderBy: { createdAt: "desc" }, select: { id: true, title: true, step: true, createdAt: true, answeredAt: true, mode: true, notebookAt: true, answerPdfAt: true } }),
     prisma.libraryItem.findMany({ where: { published: true }, orderBy: { createdAt: "desc" }, select: { id: true, kind: true, title: true, description: true } }),
     currentStep(user.id),
   ]);
@@ -46,12 +47,16 @@ export default async function MemberLibrary({ searchParams }: { searchParams: Pr
         <p className="muted">Δεν έχεις εργασίες ακόμα.</p>
       ) : (
         <div className="stack">
-          {mine.map((a) => (
+          {mine.map((a) => {
+            // Ίδιοι κανόνες κατάστασης με θεραπευτές και διαχείριση (step-modes.ts), με τα λόγια του μέλους.
+            const st = memberStepStatus(a);
+            return (
             <Link key={a.id} href={`/m/library/a/${a.id}`} className="card row spread">
               <span>{a.step && <span className="badge">Βήμα {a.step}</span>} <strong>{a.title}</strong><br /><span className="small muted">{formatDate(localParts(a.createdAt).date)}</span></span>
-              <span className="small">{a.answeredAt ? "✓ την έγραψα" : "να τη γράψω"}</span>
+              <span className={`small${st.done ? " muted" : ""}`}>{st.text}</span>
             </Link>
-          ))}
+            );
+          })}
         </div>
       )}
       <h2>Για όλους</h2>

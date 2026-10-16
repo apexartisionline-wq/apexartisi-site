@@ -192,6 +192,8 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
               <button className="primary" disabled={!groupOpen}>Μπες στην ομάδα</button>
             </form>
           </div>
+          {/* Η παρουσία στην ομάδα καταγράφεται από αυτό το κουμπί (16/10) — το μέλος να το ξέρει. Διατύπωση προς έγκριση. */}
+          {!attended && <p className="small muted" style={{ margin: "8px 0 0" }}>Μπες πάντα από εδώ, για να ξέρει η ομάδα σου ότι ήρθες.</p>}
         </section>
       )}
 

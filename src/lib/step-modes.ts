@@ -25,6 +25,13 @@ export function stepStatus(a: { mode: string; answeredAt: Date | null; notebookA
   return a.answeredAt ? "Το έγραψε" : "Δεν το έγραψε ακόμα";
 }
 
+/** Ίδια κατάσταση με το stepStatus, με τα λόγια του μέλους (β' πρόσωπο) — για τη «Βιβλιοθήκη» του. */
+export function memberStepStatus(a: { mode: string; answeredAt: Date | null; notebookAt: Date | null; answerPdfAt: Date | null }): { done: boolean; text: string } {
+  if (a.mode === "PDF_NOTEBOOK") return a.notebookAt ? { done: true, text: "✓ το έγραψες στο τετράδιο" } : a.answeredAt ? { done: true, text: "✓ έστειλες φωτογραφία" } : { done: false, text: "να το γράψεις στο τετράδιο" };
+  if (a.mode === "PDF_FILL") return a.answerPdfAt ? { done: true, text: "✓ το ανέβασες" } : a.answeredAt ? { done: true, text: "✓ έστειλες φωτογραφία" } : { done: false, text: "να το συμπληρώσεις" };
+  return a.answeredAt ? { done: true, text: "✓ το έγραψες" } : { done: false, text: "να το γράψεις" };
+}
+
 /** Όνομα αρχείου χωρίς επικίνδυνους χαρακτήρες (για Content-Disposition). */
 export function safeFileName(name: string, fallback: string): string {
   const n = name.replace(/[\\/:*?"<>|\r\n]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 120);

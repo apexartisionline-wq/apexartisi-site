@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isStepMode, looksLikePdf, needsPdf, safeFileName, stepStatus } from "./step-modes";
+import { isStepMode, looksLikePdf, needsPdf, memberStepStatus, safeFileName, stepStatus } from "./step-modes";
 
 describe("βήματα με τρεις τρόπους (16/10)", () => {
   it("τρόποι και PDF", () => {
@@ -22,5 +22,15 @@ describe("βήματα με τρεις τρόπους (16/10)", () => {
   it("όνομα αρχείου χωρίς επικίνδυνους χαρακτήρες", () => {
     expect(safeFileName('βήμα "1"/a', "x.pdf")).toBe("βήμα 1 a.pdf");
     expect(safeFileName("", "vima.pdf")).toBe("vima.pdf");
+  });
+});
+
+describe("memberStepStatus", () => {
+  const t = new Date("2026-10-16T10:00:00Z");
+  it("ίδιοι κανόνες με το stepStatus, με τα λόγια του μέλους", () => {
+    expect(memberStepStatus({ mode: "FORM", answeredAt: null, notebookAt: null, answerPdfAt: null })).toEqual({ done: false, text: "να το γράψεις" });
+    expect(memberStepStatus({ mode: "PDF_NOTEBOOK", answeredAt: t, notebookAt: t, answerPdfAt: null }).done).toBe(true);
+    expect(memberStepStatus({ mode: "PDF_FILL", answeredAt: null, notebookAt: null, answerPdfAt: null })).toEqual({ done: false, text: "να το συμπληρώσεις" });
+    expect(memberStepStatus({ mode: "PDF_FILL", answeredAt: null, notebookAt: null, answerPdfAt: t }).text).toBe("✓ το ανέβασες");
   });
 });
