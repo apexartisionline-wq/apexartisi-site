@@ -8,7 +8,7 @@ import { FormSteps } from "@/components/FormSteps";
 import { useSteps } from "@/components/NoteWorkspace";
 import { SaveBar } from "@/components/SaveBar";
 import { useNoteForm } from "./useNoteForm";
-import { DEFENSES, JOURNALING, MOOD, type NoteForm, noteFormSchema, PRESENTED, PROCESS, SELF_HELP, THEMES } from "@/lib/note-form";
+import { DEFENSES, JOURNALING, MOOD, NOTE_REQUIRED, type NoteForm, noteFormSchema, PRESENTED, PROCESS, SELF_HELP, THEMES } from "@/lib/note-form";
 
 type Props = {
   action: (formData: FormData) => void | Promise<void>;
@@ -82,7 +82,6 @@ export function NoteFormClient({ action, hidden, initial, themeForms, themeDetai
 
   // Ο έλεγχος γίνεται εδώ πριν φύγει: αν λείπει κάτι, το σημείωμα μένει όπως είναι και ανοίγει η σωστή καρτέλα.
   const formRef = useNoteForm();
-  const [warnedEmpty, setWarnedEmpty] = useState("");
   const [submitting, setSubmitting] = useState(false);
   // Αποθήκευση που δεν πέτυχε (16/10): η σελίδα δεν φεύγει· ό,τι γράφτηκε μένει, με μήνυμα (src/lib/save-failure.ts).
   const [stale, setStale] = useState(false);
@@ -139,14 +138,6 @@ export function NoteFormClient({ action, hidden, initial, themeForms, themeDetai
     }
     if (msg && goTo !== null) msg += ` Είναι στο βήμα «${NOTE_TABS[goTo]}» — σε πάω εκεί.`;
     if (msg && key) setFocusKey(key);
-    // Ήπια υπενθύμιση για κενά· με δεύτερο πάτημα αποθηκεύεται έτσι.
-    if (!msg && d.came !== false && !editing) {
-      const empty = ([["positives", "Τα θετικά"], ["suggested", "Τι προτείναμε"]] as const).filter(([k]) => !String(d[k] ?? "").trim()).map(([, l]) => `«${l}»`).join(", ");
-      if (empty && empty !== warnedEmpty) {
-        setWarnedEmpty(empty);
-        msg = `Δεν έγραψες ${empty}. Αν θέλεις να αποθηκευτεί έτσι, πάτα ξανά «Αποθήκευση».`;
-      }
-    }
     setProblem(msg);
     if (goTo !== null) setTab(goTo);
     if (msg) e.preventDefault();
@@ -211,11 +202,16 @@ export function NoteFormClient({ action, hidden, initial, themeForms, themeDetai
 
   // Ποιες καρτέλες έχουν κάτι γραμμένο (✓ στην καρτέλα).
   const has = (...ks: (keyof NoteForm)[]) => ks.some((k) => { const v = d[k]; return Array.isArray(v) ? v.length > 0 : v !== undefined && v !== "" && v !== false; });
+  // ✓ σε βήμα μόνο όταν είναι συμπληρωμένα τα υποχρεωτικά του (16/10: όλα τα βασικά πεδία υποχρεωτικά όταν «Ήρθε»).
+  const reqOk = (tabNo: Tab) => {
+    const full = { presented: [], brought: [], defenses: [], presentedText: "", broughtText: "", intervention: "", response: "", positives: "", agreed: "", ...d } as Parameters<(typeof NOTE_REQUIRED)[number]["ok"]>[0];
+    return NOTE_REQUIRED.filter((r) => TAB_OF[r.key as keyof NoteForm] === tabNo).every((r) => r.ok(full));
+  };
   const done: boolean[] = [
-    d.came !== undefined && (d.came === false ? has("absentText") : has("presented", "presentedText", "mood", "selfHelp", "process") && d.sober !== undefined),
-    d.came === false || has("brought", "broughtText", "intervention", "defenses", "response", "positives"),
-    d.came === false || has("suggested", "agreed", "openIssues", "handover"),
-    d.safeOk !== undefined,
+    d.came !== undefined && (d.came === false ? has("absentText") : reqOk(0) && d.sober !== undefined && (d.sober || Boolean(d.newSoberSince))),
+    d.came === false || reqOk(1),
+    d.came === false || reqOk(2),
+    d.safeOk !== undefined && (d.safeOk || Boolean(d.safetyText?.trim())),
   ];
   const absent = d.came === false;
   const doneKey = done.join(",");
@@ -237,9 +233,9 @@ export function NoteFormClient({ action, hidden, initial, themeForms, themeDetai
             <fieldset><legend>Τι έγινε / τι κάνουμε</legend>{text("absentText", "Τι έγινε / τι κάνουμε", "π.χ. ενημέρωσε το πρωί ότι δεν μπορεί· θα κλείσει νέα ώρα", 2)}</fieldset>
           ) : (
             <>
-              <fieldset><legend>Πώς παρουσιάστηκε</legend>{multi("presented", PRESENTED, "Πώς παρουσιάστηκε")}{text("presentedText", "Πώς παρουσιάστηκε, με λόγια", "π.χ. έντονη, συνεχής ροή λόγου", 1)}</fieldset>
-              <fieldset><legend>Διάθεση</legend>{single("mood", MOOD, "Διάθεση")}</fieldset>
-              <fieldset><legend>Πόσο βοηθά τον εαυτό του <span className="muted small">(φροντίδα εαυτού)</span></legend>{single("selfHelp", SELF_HELP, "Πόσο βοηθά τον εαυτό του")}</fieldset>
+              <fieldset data-q="presented"><legend>Πώς παρουσιάστηκε<span className="req"> · υποχρεωτικό</span></legend>{multi("presented", PRESENTED, "Πώς παρουσιάστηκε")}{text("presentedText", "Πώς παρουσιάστηκε, με λόγια", "π.χ. έντονη, συνεχής ροή λόγου", 1)}</fieldset>
+              <fieldset data-q="mood"><legend>Διάθεση<span className="req"> · υποχρεωτικό</span></legend>{single("mood", MOOD, "Διάθεση")}</fieldset>
+              <fieldset data-q="selfHelp"><legend>Πόσο βοηθά τον εαυτό του <span className="muted small">(φροντίδα εαυτού)</span><span className="req"> · υποχρεωτικό</span></legend>{single("selfHelp", SELF_HELP, "Πόσο βοηθά τον εαυτό του")}</fieldset>
               <fieldset><legend>Πώς νιώθει στη διαδικασία</legend>{single("process", PROCESS, "Πώς νιώθει στη διαδικασία")}</fieldset>
               <fieldset>
                 {pick2("Νηφαλιότητα από την προηγούμενη φορά;", [["Ναι", true], ["Όχι", false]], d.sober, (v) => set("sober", v as never), "sober")}
@@ -249,7 +245,7 @@ export function NoteFormClient({ action, hidden, initial, themeForms, themeDetai
                   </label>
                 )}
               </fieldset>
-              <fieldset><legend>Γράφει απογραφές; <span className="muted small">(ημερολόγιο ανάκαμψης)</span></legend>{single("journaling", JOURNALING, "Γράφει απογραφές")}</fieldset>
+              <fieldset data-q="journaling"><legend>Γράφει απογραφές; <span className="muted small">(ημερολόγιο ανάκαμψης)</span><span className="req"> · υποχρεωτικό</span></legend>{single("journaling", JOURNALING, "Γράφει απογραφές")}</fieldset>
             </>
           )}
         </div>
@@ -259,10 +255,10 @@ export function NoteFormClient({ action, hidden, initial, themeForms, themeDetai
         <div id="note-tab-1" role="tabpanel">
           {absent ? <p className="muted">«Δεν ήρθε»: το βήμα αυτό δεν συμπληρώνεται.</p> : (
             <>
-              <fieldset><legend>Τι έφερε</legend>{multi("brought", [...themeForms, ...THEMES], "Τι έφερε")}<p className="hint" style={{ margin: "6px 0 0" }}>Οι επιλογές είναι θέματα της δουλειάς, όχι διαγνωστικές κατηγορίες.</p><ThemeDetails items={themeDetails} intro="Η θεματική της εβδομάδας, για να τη δεις εδώ:" />{text("broughtText", "Τι έφερε, με λόγια", "Με δικά σου λόγια")}</fieldset>
-              <fieldset><legend>Σε τι επικεντρώθηκε η παρέμβαση</legend>{text("intervention", "Σε τι επικεντρώθηκε η παρέμβαση", "π.χ. να μείνει στο συναίσθημά του")}</fieldset>
-              <fieldset><legend>Ανταπόκριση και άμυνες</legend>{multi("defenses", DEFENSES, "Άμυνες")}{text("response", "Ανταπόκριση με λόγια", "π.χ. άκουσε, αλλά δεν πήρε την ανατροφοδότηση", 1)}</fieldset>
-              <fieldset><legend>Τα θετικά</legend>{text("positives", "Τα θετικά", "π.χ. επέλεξε να φύγει νωρίς", 1)}</fieldset>
+              <fieldset data-q="brought"><legend>Τι έφερε<span className="req"> · υποχρεωτικό</span></legend>{multi("brought", [...themeForms, ...THEMES], "Τι έφερε")}<p className="hint" style={{ margin: "6px 0 0" }}>Οι επιλογές είναι θέματα της δουλειάς, όχι διαγνωστικές κατηγορίες.</p><ThemeDetails items={themeDetails} intro="Η θεματική της εβδομάδας, για να τη δεις εδώ:" />{text("broughtText", "Τι έφερε, με λόγια", "Με δικά σου λόγια")}</fieldset>
+              <fieldset data-q="intervention"><legend>Σε τι επικεντρώθηκε η παρέμβαση<span className="req"> · υποχρεωτικό</span></legend>{text("intervention", "Σε τι επικεντρώθηκε η παρέμβαση", "π.χ. να μείνει στο συναίσθημά του")}</fieldset>
+              <fieldset data-q="response"><legend>Ανταπόκριση και άμυνες<span className="req"> · υποχρεωτικό</span></legend>{multi("defenses", DEFENSES, "Άμυνες")}{text("response", "Ανταπόκριση με λόγια", "π.χ. άκουσε, αλλά δεν πήρε την ανατροφοδότηση", 1)}</fieldset>
+              <fieldset data-q="positives"><legend>Τα θετικά<span className="req"> · υποχρεωτικό</span></legend>{text("positives", "Τα θετικά", "π.χ. επέλεξε να φύγει νωρίς", 1)}</fieldset>
               <fieldset><legend>Πώς ήταν να είμαι μαζί του σήμερα <span className="muted small">προαιρετικός αναστοχασμός</span></legend>{text("felt", "Πώς ήταν να είμαι μαζί του σήμερα", "Ως παρατήρηση για τη σχέση", 2)}</fieldset>
             </>
           )}
@@ -274,7 +270,7 @@ export function NoteFormClient({ action, hidden, initial, themeForms, themeDetai
           {absent ? <p className="muted">«Δεν ήρθε»: γράψε τι κάνουμε στην «Εικόνα σήμερα».</p> : (
             <>
               <fieldset><legend>Τι προτείναμε</legend>{text("suggested", "Τι προτείναμε", "Φαίνεται στην επόμενη ατομική", 1)}</fieldset>
-              <fieldset><legend>Τι συμφωνήθηκε ως επόμενο βήμα <span className="muted small">με το μέλος</span></legend>{text("agreed", "Τι συμφωνήθηκε ως επόμενο βήμα", "π.χ. να έρθει στην πρωινή ομάδα της Τρίτης", 1)}</fieldset>
+              <fieldset data-q="agreed"><legend>Τι συμφωνήθηκε ως επόμενο βήμα <span className="muted small">με το μέλος</span><span className="req"> · υποχρεωτικό</span></legend>{text("agreed", "Τι συμφωνήθηκε ως επόμενο βήμα", "π.χ. να έρθει στην πρωινή ομάδα της Τρίτης", 1)}</fieldset>
               <fieldset><legend>Τι έμεινε ανοιχτό</legend>{text("openIssues", "Τι έμεινε ανοιχτό", "π.χ. δεν προλάβαμε το θέμα με την αδερφή", 1)}</fieldset>
               <fieldset><legend>Τι χρειάζεται να ξέρει ο επόμενος θεραπευτής</legend>{text("handover", "Τι χρειάζεται να ξέρει ο επόμενος θεραπευτής", "Φαίνεται στο «Ανοιχτό από την προηγούμενη φορά» της επόμενης ατομικής", 2)}</fieldset>
               {(context?.goal || context?.assignment) && (
@@ -329,6 +325,7 @@ export function NoteFormClient({ action, hidden, initial, themeForms, themeDetai
       )}
       <p className="muted small form-foot">Όλα τα βήματα αποθηκεύονται μαζί, με όνομα και ώρα. Κάθε αλλαγή κρατά την προηγούμενη μορφή. Ctrl + Enter = Αποθήκευση.</p>
       <SaveBar
+        early={false}
         dirty={touched}
         problem={problem}
         savedAt={savedAt}

@@ -56,10 +56,25 @@ export const noteFormSchema = z
   .superRefine((d, ctx) => {
     if (!d.safeOk && !d.safetyText) ctx.addIssue({ code: "custom", path: ["safetyText"], message: "Γράψε τι ανησυχεί για την ασφάλεια και ποιος ενημερώθηκε." });
     if (d.came && !d.sober && !d.newSoberSince) ctx.addIssue({ code: "custom", path: ["newSoberSince"], message: "Βάλε τη νέα ημερομηνία νηφαλιότητας." });
-    if (d.came && !d.broughtText && !d.intervention && d.brought.length === 0) {
-      ctx.addIssue({ code: "custom", path: ["broughtText"], message: "Γράψε τουλάχιστον τι έφερε ή σε τι επικεντρώθηκε η παρέμβαση." });
-    }
+    // «Ήρθε»: όλα τα βασικά πεδία υποχρεωτικά (υπεύθυνη 16/10: «να μην μπορεί να αποθηκευτεί καμία ατομική αν δεν έχουν
+    // συμπληρωθεί όλα τα βασικά πεδία, να μην έχουμε εκκρεμότητες»). Με τη σειρά της φόρμας, για να πηγαίνει στο πρώτο που λείπει.
+    if (d.came) for (const r of NOTE_REQUIRED) if (!r.ok(d)) ctx.addIssue({ code: "custom", path: [r.key], message: `Συμπλήρωσε «${r.label}».` });
   });
+
+/** Τα βασικά πεδία που χρειάζονται όταν το μέλος «Ήρθε» (16/10). Προαιρετικά μένουν: «Πώς νιώθει στη διαδικασία»,
+ *  «Πώς ήταν να είμαι μαζί του», «Τι προτείναμε», «Τι έμεινε ανοιχτό», «Για τον επόμενο θεραπευτή», «Προβληματισμός». */
+type ReqNote = { presented: string[]; presentedText: string; mood?: string; selfHelp?: string; journaling?: string; brought: string[]; broughtText: string; intervention: string; defenses: string[]; response: string; positives: string; agreed: string };
+export const NOTE_REQUIRED: { key: string; label: string; ok: (d: ReqNote) => boolean }[] = [
+  { key: "presented", label: "Πώς παρουσιάστηκε", ok: (d) => d.presented.length > 0 || Boolean(d.presentedText) },
+  { key: "mood", label: "Διάθεση", ok: (d) => Boolean(d.mood) },
+  { key: "selfHelp", label: "Πόσο βοηθά τον εαυτό του", ok: (d) => Boolean(d.selfHelp) },
+  { key: "journaling", label: "Γράφει απογραφές;", ok: (d) => Boolean(d.journaling) },
+  { key: "brought", label: "Τι έφερε", ok: (d) => d.brought.length > 0 || Boolean(d.broughtText) },
+  { key: "intervention", label: "Σε τι επικεντρώθηκε η παρέμβαση", ok: (d) => Boolean(d.intervention) },
+  { key: "response", label: "Ανταπόκριση και άμυνες", ok: (d) => d.defenses.length > 0 || Boolean(d.response) },
+  { key: "positives", label: "Τα θετικά", ok: (d) => Boolean(d.positives) },
+  { key: "agreed", label: "Τι συμφωνήθηκε ως επόμενο βήμα", ok: (d) => Boolean(d.agreed) },
+];
 
 export type NoteForm = z.infer<typeof noteFormSchema>;
 

@@ -39,10 +39,22 @@ export const pairSideSchema = z
   .superRefine((d, ctx) => {
     if (!d.safeOk && !d.safetyText) ctx.addIssue({ code: "custom", path: ["safetyText"], message: "Γράψε τι ανησυχεί για την ασφάλεια και ποιος ενημερώθηκε." });
     if (d.came && !d.sober && !d.newSoberSince) ctx.addIssue({ code: "custom", path: ["newSoberSince"], message: "Βάλε τη νέα ημερομηνία νηφαλιότητας." });
-    if (d.came && !d.emergedText && !d.outcome && d.emerged.length === 0) {
-      ctx.addIssue({ code: "custom", path: ["emergedText"], message: "Γράψε τουλάχιστον τι εμφανίστηκε ή τι βγήκε από την κουβέντα." });
-    }
+    // «Ήρθε»: όλα τα βασικά πεδία υποχρεωτικά, όπως στην ατομική (υπεύθυνη 16/10). Με τη σειρά της φόρμας.
+    if (d.came) for (const r of PAIR_REQUIRED) if (!r.ok(d)) ctx.addIssue({ code: "custom", path: [r.key], message: `Συμπλήρωσε «${r.label}».` });
   });
+
+/** Τα βασικά πεδία του Therapair όταν το μέλος «Ήρθε» (16/10). Προαιρετικά: «Τι προτείναμε», «Προβληματισμός». */
+type ReqPair = { presented: string[]; presentedText: string; journaling?: string; connected?: string; acceptedHelp?: string; stance?: string; emerged: string[]; emergedText: string; outcome: string; positives: string };
+export const PAIR_REQUIRED: { key: string; label: string; ok: (d: ReqPair) => boolean }[] = [
+  { key: "presented", label: "Πώς παρουσιάστηκε", ok: (d) => d.presented.length > 0 || Boolean(d.presentedText) },
+  { key: "journaling", label: "Γράφει απογραφές;", ok: (d) => Boolean(d.journaling) },
+  { key: "connected", label: "Συνδέθηκε με το άλλο μέλος", ok: (d) => Boolean(d.connected) },
+  { key: "acceptedHelp", label: "Δέχτηκε βοήθεια", ok: (d) => Boolean(d.acceptedHelp) },
+  { key: "stance", label: "Στάση", ok: (d) => Boolean(d.stance) },
+  { key: "emerged", label: "Τι εμφανίστηκε", ok: (d) => d.emerged.length > 0 || Boolean(d.emergedText) },
+  { key: "outcome", label: "Τι βγήκε από την κουβέντα", ok: (d) => Boolean(d.outcome) },
+  { key: "positives", label: "Τα θετικά", ok: (d) => Boolean(d.positives) },
+];
 export type PairSide = z.infer<typeof pairSideSchema>;
 
 export const pairNoteSchema = z.object({ a: pairSideSchema, b: pairSideSchema });

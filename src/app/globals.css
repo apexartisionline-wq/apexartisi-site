@@ -771,7 +771,7 @@ details.fold[open] > summary::before { transform: rotate(90deg); }
 .step-head h3 { margin: 0; font-size: 1.25rem; letter-spacing: -0.01em; }
 .step-head .hint { margin: 4px 0 0; }
 @media (max-width: 600px) { .steps button .step-label { font-size: .76rem; } .step-dot { width: 32px; height: 32px; } .steps button + button::before { top: 22px; } }
-/* Μπάρα αποθήκευσης (συμπαγής, 14/10): Πίσω · κατάσταση · Αποθήκευση τώρα · Συνέχεια — μία γραμμή, ~56px.
+/* Μπάρα αποθήκευσης (συμπαγής, 14/10): Πίσω · κατάσταση · Συνέχεια — μία γραμμή, ~56px (χωρίς «Αποθήκευση τώρα» στα σημειωματάρια από 16/10).
    Μένει στο κάτω μέρος της οθόνης όσο το σημειωματάριο είναι μακρύ, αλλά η φόρμα έχει δικό της χώρο από κάτω
    (form-foot) και τα πεδία έχουν scroll-margin, ώστε τίποτα να μην κρύβεται ή να κόβεται πίσω της. */
 .savebar { padding: 8px var(--card-pad); gap: 8px 12px; flex-wrap: nowrap; margin-top: 10px; }
@@ -1110,3 +1110,5 @@ html:has(.savebar) { scroll-padding-bottom: 104px; }
 .mention-row select { max-width: 200px; flex: 0 0 auto; }
 .mention-row input { flex: 1; min-width: 0; }
 @media (max-width: 560px) { .mention-row { flex-wrap: wrap; } .mention-row select { max-width: none; width: 100%; } }
+/* Υποχρεωτικά βασικά πεδία του σημειώματος (16/10): διακριτική λέξη δίπλα στον τίτλο. */
+.req { font-size: .82em; font-weight: 500; color: var(--muted); }

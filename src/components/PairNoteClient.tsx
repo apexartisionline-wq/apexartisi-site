@@ -5,7 +5,7 @@ import { unstable_rethrow } from "next/navigation";
 import { saveFailure } from "@/lib/save-failure";
 import { ThemeDetails, type ThemeDetail } from "@/components/ThemeDetails";
 import { JOURNALING, PRESENTED } from "@/lib/note-form";
-import { ACCEPTED_HELP, CONNECTED, findOther, nameVariants, type PairSide, pairSideSchema, STANCE } from "@/lib/pair-note";
+import { ACCEPTED_HELP, CONNECTED, findOther, nameVariants, PAIR_REQUIRED, type PairSide, pairSideSchema, STANCE } from "@/lib/pair-note";
 import { vocative } from "@/lib/vocative";
 import { useNoteForm } from "./useNoteForm";
 import { SaveBar } from "@/components/SaveBar";
@@ -83,14 +83,6 @@ export function PairNoteClient({ action, slotId, members, initial, themeForms, t
 
   const formRef = useNoteForm();
   const [problem, setProblem] = useState("");
-  // Ήπια υπενθύμιση για κενά (δεν εμποδίζει: με δεύτερο πάτημα αποθηκεύεται έτσι).
-  const [warnedEmpty, setWarnedEmpty] = useState("");
-  const emptyHits = () =>
-    members.flatMap((m) =>
-      d[m.id].came === false
-        ? []
-        : ([["outcome", "Τι βγήκε από την κουβέντα"], ["positives", "Τα θετικά"]] as const).filter(([k]) => !String(d[m.id][k] ?? "").trim()).map(([, label]) => `«${label}» (${first(m)})`),
-    );
   // Πριν την αποθήκευση: αν βρεθεί το όνομα του άλλου στο κείμενο του ενός, το λέμε στον θεραπευτή
   // (με το δεύτερο πάτημα αλλάζει αυτόματα σε «το άλλο μέλος»).
   const [warned, setWarned] = useState("");
@@ -151,13 +143,6 @@ export function PairNoteClient({ action, slotId, members, initial, themeForms, t
         msg = `${hits}. Άλλαξέ το σε «το άλλο μέλος», ή πάτα ξανά «Αποθήκευση» και αλλάζει μόνο του.`;
       }
     }
-    if (!msg) {
-      const empty = emptyHits().join(", ");
-      if (empty && empty !== warnedEmpty) {
-        setWarnedEmpty(empty);
-        msg = `Δεν έγραψες ${empty}. Αν θέλεις να αποθηκευτεί έτσι, πάτα ξανά «Αποθήκευση».`;
-      }
-    }
     setProblem(msg);
     if (msg) e.preventDefault();
     else setSubmitting(true);
@@ -196,10 +181,11 @@ export function PairNoteClient({ action, slotId, members, initial, themeForms, t
   // Μία ερώτηση, δύο στήλες: μία για κάθε μέλος.
   // «Δεν ήρθε»: τα κλινικά πεδία αυτού του μέλους κρύβονται (μένουν τι έγινε, ασφάλεια, προβληματισμός).
   const clinical = (render: (m: Member) => React.ReactNode) => (m: Member) => (d[m.id].came === false ? <div className="muted small">Δεν ήρθε</div> : render(m));
-  const both = (render: (m: Member) => React.ReactNode) => (
+  // q: όνομα πεδίου, ώστε το μήνυμα «λείπει» να πηγαίνει στη στήλη του σωστού μέλους (data-q="πεδίο-μέλος").
+  const both = (render: (m: Member) => React.ReactNode, q?: string) => (
     <div className="pair-grid">
       {members.map((m) => (
-        <div key={m.id} className="pair-col">
+        <div key={m.id} className="pair-col" data-q={q ? `${q}-${m.id}` : undefined}>
           <div className="pair-name">{first(m)}</div>
           {render(m)}
         </div>
@@ -256,14 +242,20 @@ export function PairNoteClient({ action, slotId, members, initial, themeForms, t
   // Απλή συνάρτηση (όχι component), ώστε τα πεδία να μη χάνουν τον κέρσορα όσο γράφεις.
   // Ποια βήματα έχουν κάτι γραμμένο και για τα δύο μέλη (✓ στον δείκτη βημάτων).
   const hasAny = (m: Member, ...ks: (keyof PairSide)[]) => ks.some((k) => { const v = d[m.id][k]; return Array.isArray(v) ? v.length > 0 : v !== undefined && v !== "" && v !== false; });
+  // ✓ μόνο όταν είναι συμπληρωμένα τα υποχρεωτικά του βήματος και για τα δύο μέλη (16/10).
+  const reqOk = (m: Member, step: 0 | 1 | 2 | 3) => {
+    const full = { presented: [], emerged: [], presentedText: "", emergedText: "", outcome: "", positives: "", ...d[m.id] } as Parameters<(typeof PAIR_REQUIRED)[number]["ok"]>[0];
+    return PAIR_REQUIRED.filter((r) => STEP_OF[r.key] === step).every((r) => r.ok(full));
+  };
   const doneSteps: boolean[] = [
-    members.every((m) => d[m.id].came !== undefined && (d[m.id].came === false ? hasAny(m, "absentText") : hasAny(m, "presented", "presentedText") && d[m.id].sober !== undefined)),
-    members.every((m) => d[m.id].came === false || hasAny(m, "connected", "acceptedHelp", "stance", "emerged", "emergedText", "outcome", "positives")),
+    members.every((m) => d[m.id].came !== undefined && (d[m.id].came === false ? hasAny(m, "absentText") : reqOk(m, 0) && d[m.id].sober !== undefined && (d[m.id].sober || Boolean(d[m.id].newSoberSince)))),
+    members.every((m) => d[m.id].came === false || reqOk(m, 1)),
     members.every((m) => d[m.id].came === false || hasAny(m, "suggested")),
-    members.every((m) => d[m.id].safeOk !== undefined),
+    members.every((m) => d[m.id].safeOk !== undefined && (d[m.id].safeOk || Boolean(d[m.id].safetyText?.trim()))),
   ];
-  const sec = (title: string, done: boolean, children: React.ReactNode) => (
-    <details className="pair-sec" open key={title}>
+  const req = (t: string) => <>{t}<span className="req"> · υποχρεωτικό</span></>;
+  const sec = (title: React.ReactNode, done: boolean, children: React.ReactNode) => (
+    <details className="pair-sec" open>
       <summary>{title}{done && <span className="muted small"> ✓</span>}</summary>
       {children}
     </details>
@@ -296,7 +288,7 @@ export function PairNoteClient({ action, slotId, members, initial, themeForms, t
               )}
             </>
           ))}</fieldset>
-          {sec("Πώς παρουσιάστηκε", filled("presented"), <>{both(clinical((m) => <>{multi(m, "presented", PRESENTED)}{text(m, "presentedText", "Πώς παρουσιάστηκε", "με λόγια", 1)}</>))}</>)}
+          {sec(req("Πώς παρουσιάστηκε"), filled("presented"), <>{both(clinical((m) => <>{multi(m, "presented", PRESENTED)}{text(m, "presentedText", "Πώς παρουσιάστηκε", "με λόγια", 1)}</>), "presented")}</>)}
           <fieldset>
             <legend>Νηφαλιότητα από την προηγούμενη φορά</legend>
             {both(clinical((m) => (
@@ -310,18 +302,18 @@ export function PairNoteClient({ action, slotId, members, initial, themeForms, t
               </>
             )))}
           </fieldset>
-          {sec("Γράφει απογραφές;", filled("journaling"), <>{both(clinical((m) => journalChips(m)))}</>)}
+          {sec(req("Γράφει απογραφές;"), filled("journaling"), <>{both(clinical((m) => journalChips(m)), "journaling")}</>)}
         </div>
       )}
 
       {tab === 1 && (
         <div id="pair-tab-1" role="tabpanel">
-          {sec("Συνδέθηκε με το άλλο μέλος", filled("connected"), <>{both(clinical((m) => chips(m, "connected", CONNECTED)))}</>)}
-          {sec("Δέχτηκε βοήθεια", filled("acceptedHelp"), <>{both(clinical((m) => chips(m, "acceptedHelp", ACCEPTED_HELP)))}</>)}
-          {sec("Στάση", filled("stance"), <>{both(clinical((m) => chips(m, "stance", STANCE)))}</>)}
-          {sec("Τι εμφανίστηκε", filled("emergedText"), <><ThemeDetails items={themeDetails} intro="Η θεματική της εβδομάδας, για να τη δεις εδώ:" />{both(clinical((m) => <>{themeForms.length > 0 && multi(m, "emerged", themeForms)}{text(m, "emergedText", "Τι εμφανίστηκε", "με δικά σου λόγια", 3)}</>))}</>)}
-          {sec("Τι βγήκε από την κουβέντα", filled("outcome"), <>{both(clinical((m) => text(m, "outcome", "Τι βγήκε από την κουβέντα", "", 2)))}</>)}
-          {sec("Τα θετικά", filled("positives"), <>{both(clinical((m) => text(m, "positives", "Τα θετικά", "π.χ. στάθηκε δίπλα στο άλλο μέλος", 1)))}</>)}
+          {sec(req("Συνδέθηκε με το άλλο μέλος"), filled("connected"), <>{both(clinical((m) => chips(m, "connected", CONNECTED)), "connected")}</>)}
+          {sec(req("Δέχτηκε βοήθεια"), filled("acceptedHelp"), <>{both(clinical((m) => chips(m, "acceptedHelp", ACCEPTED_HELP)), "acceptedHelp")}</>)}
+          {sec(req("Στάση"), filled("stance"), <>{both(clinical((m) => chips(m, "stance", STANCE)), "stance")}</>)}
+          {sec(req("Τι εμφανίστηκε"), filled("emergedText"), <><ThemeDetails items={themeDetails} intro="Η θεματική της εβδομάδας, για να τη δεις εδώ:" />{both(clinical((m) => <>{themeForms.length > 0 && multi(m, "emerged", themeForms)}{text(m, "emergedText", "Τι εμφανίστηκε", "με δικά σου λόγια", 3)}</>), "emerged")}</>)}
+          {sec(req("Τι βγήκε από την κουβέντα"), filled("outcome"), <>{both(clinical((m) => text(m, "outcome", "Τι βγήκε από την κουβέντα", "", 2)), "outcome")}</>)}
+          {sec(req("Τα θετικά"), filled("positives"), <>{both(clinical((m) => text(m, "positives", "Τα θετικά", "π.χ. στάθηκε δίπλα στο άλλο μέλος", 1)), "positives")}</>)}
         </div>
       )}
 
@@ -368,6 +360,7 @@ export function PairNoteClient({ action, slotId, members, initial, themeForms, t
       )}
       <p className="muted small form-foot">Αποθηκεύεται με όνομα και ώρα· κάθε αλλαγή κρατά την προηγούμενη μορφή. Ctrl + Enter = Αποθήκευση.</p>
       <SaveBar
+        early={false}
         dirty={touched}
         problem={problem}
         savedAt={savedAt}

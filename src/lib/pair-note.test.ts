@@ -3,6 +3,8 @@ import { composePairNote, findOther, hideOther, nameVariants, pairFlags, pairSid
 import { vocative } from "./vocative";
 
 const other = nameVariants("Νίκος Δοκιμαστικός", vocative);
+// Όλα τα βασικά πεδία του Therapair (υποχρεωτικά όταν «Ήρθε», 16/10).
+const full = { presented: ["Ήρεμα"], journaling: "Ναι", connected: "Λίγο", acceptedHelp: "Ναι", stance: "Δεκτικότητα", emergedText: "θέμα", outcome: "κάτι", positives: "ήρθε" };
 
 describe("Therapair: ποτέ στοιχεία του άλλου", () => {
   it("το όνομα του άλλου γίνεται «το άλλο μέλος» (ολόκληρο, μικρό, κλητική)", () => {
@@ -28,7 +30,7 @@ describe("Therapair: ποτέ στοιχεία του άλλου", () => {
     expect(hideOther("η Λένα τον ρώτησε· όπως λένε, της Λένας", lena)).toBe("Το άλλο μέλος τον ρώτησε· όπως λένε, του άλλου μέλους");
   });
   it("το σημείωμα δεν έχει το όνομα του άλλου", () => {
-    const d = pairSideSchema.parse({ sober: true, safeOk: true, connected: "Λίγο", emergedText: "Ο Νίκος μίλησε για τον πατέρα του και εκείνη συγκινήθηκε", outcome: "Νιώθει λιγότερο μόνη" });
+    const d = pairSideSchema.parse({ ...full, sober: true, safeOk: true, connected: "Λίγο", emergedText: "Ο Νίκος μίλησε για τον πατέρα του και εκείνη συγκινήθηκε", outcome: "Νιώθει λιγότερο μόνη" });
     const t = composePairNote(d, other);
     expect(t).not.toContain("Νίκ");
     expect(t).toContain("Συνδέθηκε με το άλλο μέλος: Λίγο");
@@ -40,7 +42,16 @@ describe("Therapair: ποτέ στοιχεία του άλλου", () => {
     expect(pairSideSchema.safeParse({ outcome: "x", safeOk: true }).success).toBe(false);
     expect(pairSideSchema.safeParse({ outcome: "x", sober: true }).success).toBe(false);
   });
+  it("«Ήρθε»: κάθε βασικό πεδίο υποχρεωτικό, «Τι προτείναμε» και «Προβληματισμός» προαιρετικά", () => {
+    expect(pairSideSchema.safeParse({ ...full, sober: true, safeOk: true }).success).toBe(true);
+    for (const k of ["journaling", "connected", "acceptedHelp", "stance", "outcome", "positives"] as const) {
+      const r = pairSideSchema.safeParse({ ...full, [k]: undefined, sober: true, safeOk: true });
+      expect(r.error?.issues[0].path, k).toEqual([k]);
+    }
+    expect(pairSideSchema.safeParse({ ...full, presented: [], sober: true, safeOk: true }).success).toBe(false);
+    expect(pairSideSchema.safeParse({ ...full, emergedText: "", sober: true, safeOk: true }).success).toBe(false);
+  });
   it("ενημέρωση ομάδας όταν αλλάζει η ασφάλεια", () => {
-    expect(pairFlags(pairSideSchema.parse({ outcome: "x", sober: true, safeOk: false, safetyText: "ενημέρωσα" })).notify).toBe(true);
+    expect(pairFlags(pairSideSchema.parse({ ...full, outcome: "x", sober: true, safeOk: false, safetyText: "ενημέρωσα" })).notify).toBe(true);
   });
 });

@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { alertWorthy, composeNote, noteFlags, noteFormSchema, soberDays } from "./note-form";
 
-const base = { sober: true, safeOk: true, notify: false, intervention: "Να μείνει στο δικό της συναίσθημα" };
+// Όλα τα βασικά πεδία συμπληρωμένα (υποχρεωτικά όταν «Ήρθε», 16/10).
+const base = {
+  sober: true, safeOk: true, notify: false, intervention: "Να μείνει στο δικό της συναίσθημα",
+  presented: ["Ήρεμα"], mood: "Μέτρια", selfHelp: "Κάνει βήματα, με διακυμάνσεις", journaling: "Ναι",
+  broughtText: "τη δουλειά", response: "άκουσε", positives: "ήρθε στην ώρα του", agreed: "να έρθει στην ομάδα της Δευτέρας",
+};
 
 describe("noteFormSchema", () => {
   it("δέχεται ένα σύντομο σημείωμα", () => {
@@ -19,6 +24,24 @@ describe("noteFormSchema", () => {
   it("όχι νηφάλιος χωρίς νέα ημερομηνία: δεν αποθηκεύεται", () => {
     expect(noteFormSchema.safeParse({ ...base, sober: false }).success).toBe(false);
     expect(noteFormSchema.safeParse({ ...base, sober: false, newSoberSince: "2026-10-01" }).success).toBe(true);
+  });
+  it("«Ήρθε»: λείπει βασικό πεδίο → δεν αποθηκεύεται, με το πρώτο που λείπει", () => {
+    for (const k of ["presented", "mood", "selfHelp", "journaling", "intervention", "positives", "agreed"] as const) {
+      const r = noteFormSchema.safeParse({ ...base, [k]: k === "presented" ? [] : undefined });
+      expect(r.success, k).toBe(false);
+      expect(r.error?.issues[0].path, k).toEqual([k]);
+    }
+    // «Τι έφερε» και «Ανταπόκριση»: αρκεί επιλογή ή λόγια.
+    expect(noteFormSchema.safeParse({ ...base, broughtText: "", brought: ["Οικογένεια"] }).success).toBe(true);
+    expect(noteFormSchema.safeParse({ ...base, broughtText: "" }).success).toBe(false);
+    expect(noteFormSchema.safeParse({ ...base, response: "", defenses: ["Εκλογίκευση"] }).success).toBe(true);
+    expect(noteFormSchema.safeParse({ ...base, response: "" }).success).toBe(false);
+  });
+  it("προαιρετικά μένουν: προβληματισμός, τι προτείναμε, έμεινε ανοιχτό, επόμενος θεραπευτής, πώς ήταν", () => {
+    expect(noteFormSchema.safeParse({ ...base, concern: "", suggested: "", openIssues: "", handover: "", felt: "" }).success).toBe(true);
+  });
+  it("«Δεν ήρθε»: δεν ζητά τα κλινικά πεδία", () => {
+    expect(noteFormSchema.safeParse({ came: false, sober: true, safeOk: true, notify: false, absentText: "ενημέρωσε" }).success).toBe(true);
   });
   it("κενό σημείωμα: δεν αποθηκεύεται", () => {
     expect(noteFormSchema.safeParse({ sober: true, safeOk: true, notify: false }).success).toBe(false);
