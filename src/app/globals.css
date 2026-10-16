@@ -981,3 +981,109 @@ details.safety-fold > .side-body > .panel { border: 0; padding: 4px 0 0 !importa
 .person-meta { grid-area: next; display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--muted); font-size: .92rem; }
 .person-meta b { color: var(--text); font-weight: 600; }
 .person-user { color: var(--muted); font-weight: 500; font-size: .92rem; }
+
+/* ── Ατομική / Therapair, ανασχεδιασμός 16/10: χωρίς μόνιμη δεξιά στήλη. Από πάνω προς τα κάτω: «Πριν ξεκινήσεις» (ασφάλεια,
+   όλο το πλάτος) → «Συνέχεια φροντίδας» → τα 4 βήματα → σημειωματάριο σε όλο το πλάτος. Ίδια σειρά σε κάθε οθόνη. ── */
+.note-grid, .note-grid.has-steps { grid-template-columns: minmax(0, 1fr); grid-template-areas: "steps" "note"; }
+.note-grid:not(.has-steps) { grid-template-areas: "note"; }
+@media (min-width: 1000px) {
+  .note-grid, .note-grid.has-steps { grid-template-columns: minmax(0, 1fr); grid-template-areas: "steps" "note"; }
+  .note-grid:not(.has-steps) { grid-template-areas: "note"; }
+}
+#notebook-top { scroll-margin-top: 16px; }
+
+.before-start { margin: 0 0 18px; padding: 18px 22px; }
+.before-start.red { border-left: 4px solid var(--red); }
+.before-start.yellow { border-left: 4px solid var(--yellow); }
+.before-start .iconbox { width: 40px; height: 40px; }
+.before-start .iconbox.ok { background: var(--teal-quiet); color: var(--ok); }
+.bs-head { display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; }
+.bs-title { margin: 0; font-size: 1.25rem; line-height: 1.3; }
+.bs-who { font-weight: 600; color: var(--muted); }
+.bs-row { display: flex; align-items: center; gap: 12px 16px; flex-wrap: wrap; }
+.bs-main { flex: 1 1 260px; min-width: 0; }
+.bs-clear-text { margin: 2px 0 0; font-size: 1rem; }
+.bs-flags { list-style: none; padding: 0; margin: 14px 0 0; display: grid; gap: 8px; }
+.bs-flags li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 6px 14px; align-items: center; padding: 10px 14px; border-radius: var(--radius); background: var(--yellow-quiet); }
+.bs-flags li.red { background: var(--red-quiet); }
+.bs-level { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; font-size: .9rem; white-space: nowrap; color: var(--yellow-ink); }
+.bs-flags li.red .bs-level { color: var(--red-ink); }
+.bs-text { font-size: 1rem; line-height: 1.45; color: var(--text); }
+.bs-date { color: var(--muted); white-space: nowrap; }
+.bs-flags .btn { white-space: nowrap; background: var(--card); }
+.bs-next { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--card-line); }
+.bs-next h3 { margin: 0 0 6px; font-size: 1rem; }
+.bs-level-line { margin: 0 0 8px; }
+.bs-next .route-psy { margin: 0 0 8px; }
+@media (max-width: 700px) {
+  .before-start { padding: 16px; }
+  .bs-flags li { grid-template-columns: minmax(0, 1fr); }
+  .bs-flags .btn { justify-self: start; }
+  .bs-open { width: 100%; }
+}
+
+.care { margin: 0 0 22px; }
+.care-title { margin: 4px 0 12px; font-size: 1.25rem; }
+.care-grid { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); align-items: start; }
+@media (min-width: 900px) { .care-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .care-grid > .care-prev { grid-column: 1 / -1; } }
+@media (min-width: 1280px) { .care-grid { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr); } .care-grid > .care-prev { grid-column: auto; } }
+.care-card { margin: 0; padding: 18px 20px; min-width: 0; }
+.care-h { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 1.05rem; line-height: 1.3; }
+.care-h svg { color: var(--accent-strong); flex: none; }
+@media (prefers-color-scheme: dark) { .care-h svg { color: var(--accent); } }
+details.care-prev > summary.care-sum { list-style: none; cursor: pointer; display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; min-height: 32px; }
+details.care-prev > summary.care-sum::-webkit-details-marker { display: none; }
+details.care-prev > summary.care-sum::after { content: ""; width: 9px; height: 9px; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); transform: rotate(-135deg); align-self: center; margin-left: auto; }
+details.care-prev:not([open]) > summary.care-sum::after { transform: rotate(45deg); }
+details.care-prev > summary.care-sum:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; border-radius: var(--radius-sm); }
+.care-meta { color: var(--muted); font-size: .95rem; }
+.care-prev-safety { margin: 12px 0 0; }
+.care-dl { margin: 12px 0 0; display: grid; grid-template-columns: minmax(0, 1fr); }
+.care-dl dt { margin: 12px 0 2px; font-size: .85rem; font-weight: 700; color: var(--muted); }
+.care-dl dt:first-child { margin-top: 0; }
+.care-dl dd { margin: 0; line-height: 1.5; }
+/* Ετικέτα δίπλα στο κείμενο μόνο όταν η κάρτα πιάνει όλο το πλάτος (900–1279px)· αλλιώς από πάνω, για να μη στενεύει. */
+@media (min-width: 900px) and (max-width: 1279px) { .care:not(.stacked) .care-dl { grid-template-columns: 200px minmax(0, 1fr); gap: 10px 16px; } .care:not(.stacked) .care-dl dt { margin: 0; padding-top: 2px; } }
+.care-preview { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.care-full { margin-top: 12px; border-top: 1px solid var(--card-line); }
+.care-full > summary { cursor: pointer; display: flex; align-items: center; min-height: 44px; color: var(--accent-strong); font-weight: 650; }
+@media (prefers-color-scheme: dark) { .care-full > summary { color: var(--accent); } }
+.care-full[open] > summary { margin-bottom: 6px; }
+.care-foot { margin: 8px 0 0; }
+.care-label { margin: 14px 0 6px; font-size: .85rem; font-weight: 700; color: var(--muted); }
+.care-card .card { margin: 0; box-shadow: none; }
+.care-card .linkrow { margin: 0; }
+.care-empty { margin: 0; }
+.care-more { display: grid; gap: 10px; margin-top: 16px; grid-template-columns: minmax(0, 1fr); align-items: start; }
+@media (min-width: 900px) { .care-more { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.att-row { padding: 10px 0 0; }
+.att-row + .att-row { margin-top: 10px; border-top: 1px solid var(--card-line); }
+.att-name { font-size: 1rem; }
+.att-counts { list-style: none; padding: 0; margin: 6px 0 0; display: flex; flex-wrap: wrap; gap: 6px 18px; }
+.att-counts b { font-size: 1.25rem; margin-right: 4px; }
+.att-none { margin: 6px 0 0; color: var(--muted); }
+.att-sub, .att-note { margin: 4px 0 0; }
+
+/* Τα 4 βήματα σε μικρή οθόνη: μεγαλύτερα γράμματα από πριν, σε δύο γραμμές αν χρειάζεται. */
+@media (max-width: 600px) { .steps button .step-label { font-size: .82rem; line-height: 1.25; } }
+
+/* Η μπάρα αποθήκευσης είναι σταθερή στο κάτω μέρος: χώρος στο τέλος της σελίδας ώστε να μη σκεπάζει το τελευταίο πεδίο,
+   και η κύλιση προς ένα πεδίο (Tab, «λείπει απάντηση») σταματά πάνω από αυτήν. */
+main:has(.savebar) { padding-bottom: calc(132px + env(safe-area-inset-bottom)); }
+html:has(.savebar) { scroll-padding-bottom: 104px; }
+/* Therapair: δύο στήλες, μία ανά μέλος (στο κινητό η μία κάτω από την άλλη)· μέσα στη στήλη οι κάρτες στοιβάζονται. */
+.pair-care { margin-top: 8px; align-items: start; }
+.pair-col-name { margin: 0 0 10px; font-size: 1.3rem; }
+.care.stacked .care-grid, .care.stacked .care-more { grid-template-columns: minmax(0, 1fr); }
+.care.stacked .care-grid > .care-prev { grid-column: auto; }
+.care.stacked .care-dl { grid-template-columns: minmax(0, 1fr); gap: 0; }
+.care.stacked .care-dl dt { margin: 12px 0 2px; }
+.care.stacked .care-dl dt:first-child { margin-top: 0; }
+.pair-theme { margin: 0 0 8px; }
+.pair-care { grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 900px) { .pair-care { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px 24px; } }
+/* Το διάστημα το λέει κάθε γραμμή («Ατομικές — …», «Ομάδες — …»)· όχι τρίτη φορά δίπλα στον επιλογέα. */
+.care .ptab-when { display: none; }
+/* Μισό πλάτος (Therapair): επίπεδο + αιτία σε μία γραμμή, «Άνοιγμα σήματος» από κάτω. */
+.pair-care .bs-flags li { grid-template-columns: auto minmax(0, 1fr); }
+.pair-care .bs-flags .btn { grid-column: 1 / -1; justify-self: start; }

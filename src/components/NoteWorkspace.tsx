@@ -4,10 +4,10 @@ import { createContext, useContext, useState } from "react";
 import { FormSteps } from "./FormSteps";
 
 /**
- * Η οθόνη της ατομικής κατά το προσχέδιο της υπεύθυνης (14/10): τα 4 βήματα σε ΟΛΟ το πλάτος, πάνω από το σημειωματάριο
- * (αριστερά) και το «Πριν συνεχίσεις» (δεξιά). Το βήμα και ποια βήματα έχουν συμπληρωθεί τα κρατά αυτό το πλαίσιο· τα πεδία
- * μένουν στη φόρμα (NoteFormClient). Το πλαϊνό μένει ΕΞΩ από τη φόρμα (έχει δικές του φόρμες, π.χ. «Το αναλαμβάνω»).
- * Στο κινητό: πρώτα το πλαϊνό (η ασφάλεια διαβάζεται πρώτη), μετά τα βήματα, μετά το σημειωματάριο.
+ * Τα 4 βήματα σε ΟΛΟ το πλάτος, πάνω από το σημειωματάριο (14/10). Από 16/10 χωρίς δεξιά στήλη: η ασφάλεια («Πριν
+ * ξεκινήσεις») και η «Συνέχεια φροντίδας» μπαίνουν ΠΑΝΩ από αυτό το πλαίσιο, σε όλο το πλάτος, και το σημειωματάριο πιάνει
+ * όλο το πλάτος. Το βήμα και ποια βήματα έχουν συμπληρωθεί τα κρατά αυτό το πλαίσιο· τα πεδία μένουν στη φόρμα
+ * (NoteFormClient). «Στο σημειωματάριο ↓» της κεφαλίδας έρχεται εδώ (#notebook-top).
  */
 type Ctx = { steps: readonly string[]; tab: number; setTab: (n: number) => void; done: boolean[]; setDone: (d: boolean[]) => void };
 const StepCtx = createContext<Ctx | null>(null);
@@ -19,7 +19,7 @@ export function NoteWorkspace({ steps, enabled, children }: { steps: readonly st
   const setDone = (d: boolean[]) => setDoneState((cur) => (cur.length === d.length && cur.every((x, i) => x === d[i]) ? cur : d));
   return (
     <StepCtx.Provider value={enabled ? { steps, tab, setTab, done, setDone } : null}>
-      <div className={`cols note-grid${enabled ? " has-steps" : ""}`}>
+      <div id="notebook-top" className={`cols note-grid${enabled ? " has-steps" : ""}`}>
         {enabled && (
           <div className="ws-steps">
             <FormSteps steps={steps} active={tab} done={done} onChange={setTab} label="Βήματα σημειώματος" idPrefix="note-tab" />

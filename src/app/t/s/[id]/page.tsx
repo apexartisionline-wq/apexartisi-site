@@ -1,37 +1,32 @@
 import Link from "next/link";
 import { NoteText } from "@/components/NoteText";
 import { TourFor } from "@/components/TourFor";
-import { SinceLast } from "@/components/SinceLast";
 import { dec, enc } from "@/lib/crypto";
 import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
-import { GoalWeekCard } from "@/components/GoalWeek";
 import { Icon } from "@/components/Icon";
 import { goalWeek } from "@/lib/goals";
 import { JoinButton } from "@/components/JoinButton";
-import { MemberGlance, RoutePsy } from "@/components/MemberGlance";
 import { ClearDraft } from "@/components/ClearDraft";
 import { NOTE_TABS, NoteFormClient } from "@/components/NoteFormClient";
 import { NoteWorkspace } from "@/components/NoteWorkspace";
 import { PairNoteClient } from "@/components/PairNoteClient";
 import { NoteTags } from "@/components/NoteTags";
-import { SafetyZone } from "@/components/SafetyZone";
+import { BeforeStart } from "@/components/BeforeStart";
+import { CareContinuity } from "@/components/CareContinuity";
 import { memberSafety } from "@/lib/handover";
 import { type StaffOption } from "@/components/ActionRow";
-import { NoteSummary } from "@/components/NoteSummary";
-import { EmptyState, ErrorNote, PageHead, Panel, Pill } from "@/components/ui";
+import { EmptyState, ErrorNote, PageHead, Pill } from "@/components/ui";
 import { describeSources, PRESENCE_HINT, PRESENCE_LABEL, sessionPresence } from "@/lib/presence";
 import { ThemeWeek } from "@/components/ThemeWeek";
 import { latestAssessment, latestProfile } from "@/lib/assessment-db";
-import { isPsychologist, nameWithKind, seesJournalDetail } from "@/lib/access";
+import { isPsychologist, seesJournalDetail } from "@/lib/access";
 import { logAccess } from "@/lib/audit";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { notifyRole } from "@/lib/notify";
 import { RISK_CHANGE, USED_SINCE } from "@/lib/handover-rules";
-import { RISK_INFO, RISK_LEVELS } from "@/lib/intake-rules";
 import { sessionNumber } from "@/lib/member";
-import { memberNotes } from "@/lib/member-notes";
 import { composePairNote, nameVariants, type PairSide, pairFlags, pairSideSchema, scrubSide } from "@/lib/pair-note";
 import { historyOf, keepHistory } from "@/lib/history";
 import { vocative } from "@/lib/vocative";
@@ -352,8 +347,6 @@ export default async function SessionPage({
   );
 }
 
-const num = (n: number | null) => (n === null ? "—" : n.toLocaleString("el-GR"));
-
 type Slot = NonNullable<Awaited<ReturnType<typeof loadSlot>>>;
 
 // Ατομική (13/10): ενιαίος χώρος προετοιμασίας, σύνδεσης και καταγραφής — αριστερά το πλαίσιο του μέλους (σύντομο,
@@ -380,14 +373,7 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
   const initial: Partial<NoteForm> | null = x.note?.data ? (JSON.parse(dec(x.note.data)) as NoteForm) : null;
   // Παλιό σημείωμα (πριν από το δομημένο σημειωματάριο): φαίνεται ως κείμενο, δεν ανοίγει άδεια φόρμα από πάνω.
   const showForm = writable && (!x.note || (sp.edit === "1" && Boolean(initial)));
-  const risk = intake.level;
   const hm = (d: Date) => formatHour(localParts(d).hour, localParts(d).minute);
-  const n = (v: number | null) => (v === null ? "—" : String(v).replace(".", ","));
-  const h = g.prev?.handover;
-  const hasHandover = Boolean(h && (h.agreed || h.openIssues || h.handover));
-  // Για τον επόμενο θεραπευτή (εναλλαγή κλινικού/βιωματικού): η γραμμή ασφάλειας και ο προβληματισμός του προηγούμενου
-  // σημειώματος φαίνονται ξεχωριστά — είναι στο τέλος του κειμένου και κόβονται από την προεπισκόπηση.
-  const prevSafety = Boolean(g.prev && (g.prev.safety.safeOk === false || g.prev.safety.concern || g.prev.usedSince === "YES"));
   const endsAt = new Date(x.startsAt.getTime() + s.sessionMinutes * 60_000);
   const presence = sessionPresence({ startsAt: x.startsAt, endsAt, now, joinedAt: b.joinedAt, confirmedCame: b.confirmedCame });
   const pl = PRESENCE_LABEL[presence];
@@ -416,6 +402,7 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
           </span>
         }
       >
+        <a className="btn outline" href="#notebook-top">Στο σημειωματάριο ↓</a>
         <Link className="btn outline" href={`/t/members/${b.member.id}`}><Icon name="folder" size={18} /> Κλινικός φάκελος</Link>
         {!assessed && isPsychologist(viewer) && <Link className="btn outline" href={`/t/members/${b.member.id}/assessment`}>Αρχική αξιολόγηση ›</Link>}
         {x.date === today && canWrite(x, user) && (
@@ -431,6 +418,15 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
         <Pill tone={pl.tone === "accent" ? "" : pl.tone}>{pl.word}</Pill> <span title={pl.source}>{pl.source}</span>{presence === "absent_confirmed" && b.joinedAt && <> · το πάτημα «Μπες» του μέλους ({hm(b.joinedAt)}) διατηρείται στο ιστορικό</>}
         {" · "}<span className="conn conn-inline" title="Είναι η ώρα του πατήματος του κουμπιού «Μπες», όχι επιβεβαίωση συμμετοχής από το Zoom.">{joined ? `Συνδέθηκες στις ${hm(joined.at)}` : x.date === today ? "Δεν έχεις πατήσει «Μπες»" : "Καμία σύνδεση"}{b.joinedAt && <> · το μέλος πάτησε «Μπες» {hm(b.joinedAt)}</>}</span>
       </p>
+
+      {/* Ανασχεδιασμός 16/10: χωρίς δεξιά στήλη. Πρώτα η ασφάλεια σε όλο το πλάτος, μετά η συνέχεια φροντίδας, μετά τα
+          βήματα και το σημειωματάριο σε όλο το πλάτος (το κύριο σημείο της οθόνης). Ίδια σειρά σε κινητό. */}
+      <BeforeStart memberId={b.memberId} viewer={viewer} staff={staff} back={`/t/s/${x.id}`} flags={flags} intake={intake} nextClinical={nextClinical} />
+      <CareContinuity
+        g={g} memberId={b.memberId} viewer={viewer} intake={intake} journalDetail={seesJournalDetail(viewer)} today={today}
+        until={x.date < today ? x.date : today} untilAt={x.startsAt < now ? x.startsAt : now} past={x.date < today}
+        summary={ax?.data.summary ? { author: ax.author, text: ax.data.summary, canOpen: isPsychologist(viewer) } : null}
+      />
 
       <NoteWorkspace steps={NOTE_TABS} enabled={showForm}>
         <section className="panel note-panel">
@@ -480,99 +476,6 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
             </details>
           )}
         </section>
-        <aside className="stackv side" aria-label="Πριν συνεχίσεις">
-          <div className="side-head"><h2>Πριν συνεχίσεις</h2><p className="hint">Άνοιξε μόνο ό,τι χρειάζεσαι.{flags.length > 0 && " Η ασφάλεια ανοίγει μόνη της όταν υπάρχει ανοιχτό σήμα."}</p></div>
-          {/* Ασφάλεια ως αναδιπλούμενο κουτί, όπως στο προσχέδιο (14/10). Ανοίγει ΜΟΝΗ της όταν υπάρχει ανοιχτό σήμα ή εκκρεμεί
-              αξιολόγηση (τότε δεν κρύβεται ποτέ)· χωρίς σήματα μένει κλειστό με «Κανένα ανοιχτό σήμα» στον τίτλο. */}
-          <details className={`side-fold safety-fold${flags.length > 0 ? (flags.some((f) => f.level === "red") ? " red" : " yellow") : ""}`} data-tour="safety" open={flags.length > 0 || Boolean(intake.trigger)}>
-            <summary>
-              <span className="iconbox"><Icon name="shield" size={16} /></span>Ασφάλεια
-              <span className="fold-note">{flags.length === 0 ? "Κανένα ανοιχτό σήμα" : flags.some((f) => f.level === "red") ? "Σοβαρό σήμα" : `${flags.length} ${flags.length === 1 ? "σήμα" : "σήματα"}`}</span>
-            </summary>
-            <div className="side-body">
-              <SafetyZone memberId={b.memberId} viewer={viewer} staff={staff} back={`/t/s/${x.id}`} flags={flags} />
-              <RoutePsy intake={intake} viewer={viewer} nextClinical={nextClinical} />
-            </div>
-          </details>
-
-          <details className="side-fold" data-tour="open" id="open" open={Boolean(g.prev && (prevSafety || hasHandover))}>
-            <summary><span className="iconbox"><Icon name="doc" size={16} /></span>Ανοιχτό από την προηγούμενη φορά</summary>
-            <div className="side-body">
-              {g.prev ? (
-                <>
-                  {prevSafety && (
-                    <div className="attn yellow wm" style={{ marginBottom: 8 }} data-tour="prev-safety">
-                      <span className="iconbox yellow"><Icon name="alert" size={18} /></span>
-                      <div className="attn-body small">
-                        {g.prev.safety.safeOk === false && <div><strong>Ανησυχία για την ασφάλεια στο προηγούμενο σημείωμα:</strong> {g.prev.safety.safetyText || "βλ. προβληματισμό"}</div>}
-                        {g.prev.usedSince === "YES" && <div><strong>Χρήση από την προηγούμενη επαφή:</strong> ναι (κατά το προηγούμενο σημείωμα)</div>}
-                        {g.prev.safety.concern && <div><strong>Προβληματισμός προς την ομάδα:</strong> {g.prev.safety.concern}</div>}
-                      </div>
-                    </div>
-                  )}
-                  {hasHandover ? (
-                    <div className="stack wm">
-                      {h!.agreed && <div><span className="muted small">Συμφωνήθηκε ως επόμενο βήμα</span><div>{h!.agreed}</div></div>}
-                      {h!.openIssues && <div><span className="muted small">Έμεινε ανοιχτό</span><div>{h!.openIssues}</div></div>}
-                      {h!.handover && <div><span className="muted small">Για τον επόμενο θεραπευτή</span><div>{h!.handover}</div></div>}
-                      {h!.suggested && <div><span className="muted small">Τι προτείναμε</span><div>{h!.suggested}</div></div>}
-                    </div>
-                  ) : (
-                    <div className="wm">{g.prev.next ? <><span className="muted small">Τι προτείναμε</span><div>{g.prev.next}</div></> : <span className="muted">Δεν άφησε κάτι για την επόμενη ατομική.</span>}</div>
-                  )}
-                  <NoteSummary author={`${nameWithKind(g.prev.by, g.prev.byKind)}${g.prev.pair ? " · Therapair" : ""}`} at={g.prev.date} text={g.prev.text} href={`/t/s/${x.id}/prep#note`} label="Ολόκληρο, στην προετοιμασία" />
-                </>
-              ) : <EmptyState>Πρώτη ατομική: δεν υπάρχει προηγούμενο σημείωμα.</EmptyState>}
-            </div>
-          </details>
-
-          <details className="side-fold" data-tour="goal">
-            <summary><span className="iconbox"><Icon name="target" size={16} /></span>Στόχος εβδομάδας και εργασία</summary>
-            <div className="side-body">
-              <GoalWeekCard detail={seesJournalDetail(viewer)} memberId={b.memberId} date={today} />
-              {g.assignment ? (
-                <Link className="linkrow" href={`/t/members/${b.member.id}/assignments`}>
-                  <span className="iconbox"><Icon name="doc" /></span>
-                  <span className="grow"><div>{g.assignment.title}</div><div className="hint">{g.assignment.answered ? "Έχει απαντήσει" : g.assignment.length ? "Σε εξέλιξη" : "Δεν ξεκίνησε"}</div></span>
-                  <span className="arrow"><Icon name="chevron" /></span>
-                </Link>
-              ) : <p className="hint" style={{ margin: "8px 0 0" }}>Δεν έχει σταλεί εργασία.</p>}
-            </div>
-          </details>
-
-          <details className="side-fold" data-tour="glance">
-            <summary><span className="iconbox"><Icon name="list" size={16} /></span>Με μια ματιά</summary>
-            <div className="side-body">
-              {x.date < today && <p className="hint" style={{ margin: "0 0 8px" }}>όπως είναι σήμερα, όχι τότε</p>}
-              <MemberGlance g={g} intake={intake} viewer={viewer} nextClinical={nextClinical} compact memberId={b.memberId} />
-            </div>
-          </details>
-
-          {g.prev && (
-            <details className="side-fold" data-tour="since">
-              <summary><span className="iconbox"><Icon name="clock" size={16} /></span>Από την προηγούμενη ατομική ως σήμερα</summary>
-              <div className="side-body">
-                <SinceLast journalDetail={seesJournalDetail(viewer)} memberId={b.memberId} prev={g.prev} until={x.date < today ? x.date : today} untilAt={x.startsAt < now ? x.startsAt : now} compact />
-              </div>
-            </details>
-          )}
-
-          <details className="side-fold">
-            <summary><span className="iconbox"><Icon name="folder" size={16} /></span>Θεματική της εβδομάδας</summary>
-            <div className="side-body"><ThemeWeek forms={g.theme.forms} dailyText={g.theme.dailyText} compact /></div>
-          </details>
-
-          {ax?.data.summary && (
-            <details className="side-fold">
-              <summary><span className="iconbox"><Icon name="user" size={16} /></span>Σύνοψη από την αρχική αξιολόγηση</summary>
-              <div className="side-body">
-                <p className="muted small" style={{ margin: "0 0 6px" }}>{ax.author}</p>
-                <div className="body-text wm">{ax.data.summary}</div>
-                {isPsychologist(viewer) && <Link className="small" href={`/t/members/${b.memberId}/assessment`}>Όλη η αξιολόγηση ›</Link>}
-              </div>
-            </details>
-          )}
-        </aside>
       </NoteWorkspace>
       <TourFor id="session" userId={user.id} />
     </main>
@@ -592,8 +495,9 @@ async function PairSession({ x, user, sp }: { x: Slot; user: { id: string; role:
     sessionGlance(members[0].id, x).then((g) => ({ forms: g.forms, theme: g.theme, themeDetails: g.themeDetails })),
     Promise.all(members.map(async (m) => ({
       m,
-      prev: (await memberNotes(m.id, { before: x.startsAt, excludeSlot: x.id, take: 1 }))[0] ?? null,
       history: await historyOf("pair_note", { memberId: m.id, ref: x.id }),
+      // Σήματα ασφάλειας του καθενός (ίδιοι κανόνες με την ατομική) — για το «Πριν ξεκινήσεις» ανά μέλος (16/10).
+      flags: await memberSafety(m.id, now),
       // Εικόνα και για τα δύο μέλη (14/10): ίδιοι αριθμοί με την ατομική, ανά μέλος.
       g: await sessionGlance(m.id, x),
       intake: await currentRisk(m.id),
@@ -613,7 +517,7 @@ async function PairSession({ x, user, sp }: { x: Slot; user: { id: string; role:
         sub={<>{formatDate(x.date)} {formatSpan(x.startsAt, s.pairMinutes)}{x.therapist && ` · ${x.therapist.name}`}</>}
       >
         {writable && !showForm && <Link className="btn primary" data-tour="edit-note" href={`/t/s/${x.id}?edit=1`}>Άλλαξε το σημείωμα</Link>}
-        {showForm && <a className="btn outline" href="#notebook">Πήγαινε στο σημειωματάριο ↓</a>}
+        <a className="btn outline" href="#notebook-top">Στο σημειωματάριο ↓</a>
         {x.date === today && room && (joined
           ? <a className="btn primary" href={room} target="_blank" rel="noopener noreferrer"><Icon name="video" size={18} /> Άνοιγμα Zoom</a>
           : canWrite(x, user) && <JoinButton kind="SLOT" refId={x.id} roomUrl={room} next={`/t/s/${x.id}`} label="Μπες στο Therapair" icon="video" />)}
@@ -625,49 +529,27 @@ async function PairSession({ x, user, sp }: { x: Slot; user: { id: string; role:
         )}
       </PageHead>
 
-      <ThemeWeek forms={theme.forms} dailyText={theme.dailyText} compact />
-
-      <div className="pair-grid" style={{ marginTop: 12 }} data-tour="pair-members">
-        {perMember.map(({ m, prev, g, intake, nextClinical }) => (
-          <section key={m.id} className="pair-col">
-            <h2 style={{ marginTop: 0 }}>{m.name} <Link className="small" href={`/t/members/${m.id}`}>φάκελος ›</Link></h2>
-            <SafetyZone memberId={m.id} viewer={viewer} back={`/t/s/${x.id}`} />
-            <RoutePsy intake={intake} viewer={viewer} nextClinical={nextClinical} />
-            <details className="side-fold" data-tour="pair-glance">
-              <summary><span className="iconbox"><Icon name="list" size={16} /></span>Με μια ματιά</summary>
-              <div className="side-body"><MemberGlance g={g} intake={intake} viewer={viewer} compact memberId={m.id} /></div>
-            </details>
-            <details className="side-fold" open={Boolean(prev && (prev.safety.safeOk === false || prev.safety.concern || prev.usedSince === "YES"))}>
-              <summary><span className="iconbox"><Icon name="doc" size={16} /></span>Ανοιχτό από την προηγούμενη φορά</summary>
-              <div className="side-body">
-              <div style={{ marginTop: 4 }}>{prev ? (prev.next || <span className="muted">Δεν άφησε κάτι για την επόμενη ατομική.</span>) : <span className="muted">Πρώτη ατομική: δεν υπάρχει προηγούμενο σημείωμα.</span>}</div>
-              {prev && (prev.safety.safeOk === false || prev.safety.concern || prev.usedSince === "YES") && (
-                <div className="warn-text wm" style={{ marginTop: 6 }}>
-                  {prev.safety.safeOk === false && <div><strong>Ανησυχία για την ασφάλεια:</strong> {prev.safety.safetyText || "βλ. προβληματισμό"}</div>}
-                  {prev.usedSince === "YES" && <div><strong>Χρήση από την προηγούμενη επαφή:</strong> ναι</div>}
-                  {prev.safety.concern && <div><strong>Προβληματισμός:</strong> {prev.safety.concern}</div>}
-                </div>
-              )}
-              {prev && <div className="muted" style={{ marginTop: 4 }}>{nameWithKind(prev.therapist, prev.therapistKind)} · {formatDate(prev.date)} · <Link href={`/t/members/${m.id}/notes`}>όλα τα σημειώματα</Link></div>}
-              </div>
-            </details>
-            {prev && (
-              <details className="side-fold">
-                <summary><span className="iconbox"><Icon name="clock" size={16} /></span>Από την προηγούμενη ατομική ως σήμερα</summary>
-                <div className="side-body small">
-                  <SinceLast journalDetail={seesJournalDetail(viewer)} memberId={m.id} prev={{ date: prev.date, by: prev.therapist, text: prev.text, slotId: prev.slotId, pair: prev.pair }} until={x.date < today ? x.date : today} untilAt={x.startsAt < now ? x.startsAt : now} compact />
-                </div>
-              </details>
-            )}
-            <details className="side-fold">
-              <summary><span className="iconbox"><Icon name="target" size={16} /></span>Στόχος εβδομάδας</summary>
-              <div className="side-body"><GoalWeekCard detail={seesJournalDetail(viewer)} memberId={m.id} date={today} /></div>
-            </details>
+      {/* Ανασχεδιασμός 16/10: ίδια αρχή με την ατομική — για ΚΑΘΕ μέλος χωριστά «Πριν ξεκινήσεις» (ασφάλεια, όλα τα σήματα
+          ορατά) και «Συνέχεια φροντίδας» από τον ΔΙΚΟ του φάκελο (το προηγούμενο σημείωμα του ενός δεν δείχνει ποτέ τον άλλον). */}
+      <div className="pair-grid pair-care" data-tour="pair-members">
+        {perMember.map(({ m, g, intake, nextClinical, flags }) => (
+          <section key={m.id} className="pair-col" aria-label={m.name}>
+            <h2 className="pair-col-name">{m.name} <Link className="small" href={`/t/members/${m.id}`}>φάκελος ›</Link></h2>
+            <BeforeStart memberId={m.id} viewer={viewer} back={`/t/s/${x.id}`} flags={flags} intake={intake} nextClinical={nextClinical} who={first(m.name)} />
+            <CareContinuity
+              g={g} memberId={m.id} viewer={viewer} intake={intake} journalDetail={seesJournalDetail(viewer)} today={today}
+              until={x.date < today ? x.date : today} untilAt={x.startsAt < now ? x.startsAt : now} past={x.date < today}
+              showTheme={false} who={first(m.name)} stacked
+            />
           </section>
         ))}
       </div>
+      <details className="side-fold pair-theme">
+        <summary><span className="iconbox"><Icon name="folder" size={16} /></span>Θεματική της εβδομάδας (κοινή και για τους δύο)</summary>
+        <div className="side-body"><ThemeWeek forms={theme.forms} dailyText={theme.dailyText} compact /></div>
+      </details>
 
-      <section className="panel" style={{ marginTop: 24 }}>
+      <section className="panel" style={{ marginTop: 24 }} id="notebook-top">
       <div className="panel-head"><div><h2 data-tour="notebook" style={{ margin: 0 }}>Σημειωματάριο Therapair</h2><div className="hint">Τέσσερα βήματα · μία αποθήκευση, δύο σημειώματα</div></div></div>
       {sp.saved && <div className="notice">Αποθηκεύτηκε ✓ — ένα σημείωμα στον φάκελο του καθενός.</div>}
       {sp.saved && <ClearDraft k={`pair-draft:${x.id}`} />}
