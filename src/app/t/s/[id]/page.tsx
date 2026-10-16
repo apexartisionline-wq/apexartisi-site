@@ -19,7 +19,10 @@ import { type StaffOption } from "@/components/ActionRow";
 import { EmptyState, ErrorNote, PageHead, Pill } from "@/components/ui";
 import { describeSources, PRESENCE_HINT, PRESENCE_LABEL, sessionPresence } from "@/lib/presence";
 import { ThemeWeek } from "@/components/ThemeWeek";
-import { latestAssessment, latestProfile } from "@/lib/assessment-db";
+import { assessmentProfile, canWriteAssessmentFor, latestAssessment, latestProfile, saveAssessment } from "@/lib/assessment-db";
+import { assessmentSchema, missingForComplete } from "@/lib/assessment";
+import { AssessmentClient } from "@/components/AssessmentClient";
+import { FirstSessionWords } from "@/components/FirstSessionWords";
 import { isPsychologist, seesJournalDetail } from "@/lib/access";
 import { logAccess } from "@/lib/audit";
 import { requireRole } from "@/lib/auth";
@@ -117,6 +120,41 @@ async function raiseNoteAlert(memberId: string, kind: string, byId: string) {
   await prisma.teamAlert.create({ data: { memberId, source: "NOTE", kind, byId } });
   // Η διαχείριση ειδοποιείται με μήνυμα (απόφαση 14/10)· οι θεραπευτές το βλέπουν στο «Σήμερα».
   await notifyRole("ADMIN", { title: "Ενημέρωση ομάδας από σημείωμα", body: "Ανησυχία ή προβληματισμός — δες το «Σήμερα»", url: "/admin", tag: `alert-${memberId}` }).catch(() => undefined);
+}
+
+// 1η ατομική (υπεύθυνη 16/10): η αρχική αξιολόγηση (ιστορικό) ΜΕΣΑ στη σελίδα της ατομικής, στη θέση του σημειώματος.
+// «Αποθήκευση» = πρόχειρο της αξιολόγησης. «Ολοκλήρωση» = ολοκληρωμένη αξιολόγηση + σημείωμα της ατομικής (τα «λίγα λόγια»)
+// + επιβεβαίωση «Ήρθε»· έτσι η ατομική δεν μένει «χωρίς καταγραφή». Αν λείπει κάτι απαραίτητο, δεν κλείνει.
+async function saveFirstSession(formData: FormData) {
+  "use server";
+  const user = await requireRole("THERAPIST", "ADMIN");
+  const id = String(formData.get("slotId"));
+  const x = await loadSlot(id);
+  if (!x || !canWrite(x, user) || x.kind === "PAIR" || x.bookings.length !== 1) notFound();
+  const memberId = x.bookings[0].memberId;
+  if (!(await canWriteAssessmentFor(user, memberId))) notFound();
+  let raw: unknown = null;
+  try { raw = JSON.parse(String(formData.get("payload") ?? "")); } catch {}
+  const parsed = assessmentSchema.safeParse(raw);
+  if (!parsed.success) redirect(`/t/s/${id}?error=${encodeURIComponent("Κάτι δεν συμπληρώθηκε σωστά: " + (parsed.error.issues[0]?.path.join(" ") ?? ""))}#first`);
+  const finish = formData.get("complete") === "1";
+  const missing = finish ? missingForComplete(parsed.data) : [];
+  await saveAssessment(memberId, user, parsed.data, finish && missing.length === 0);
+  if (missing.length) redirect(`/t/s/${id}?missing=${encodeURIComponent(missing.join("|"))}#first`);
+  if (!finish) redirect(`/t/s/${id}?first=saved#first`);
+  const words = String(formData.get("words") ?? "").trim().slice(0, 3000);
+  const content = enc(`Αρχική αξιολόγηση (1η ατομική) — ολοκληρώθηκε.${words ? `\n\n${words}` : ""}`);
+  if (x.note) {
+    await prisma.$transaction([
+      prisma.sessionNoteVersion.create({ data: { noteId: x.note.id, content: x.note.content, riskChange: x.note.riskChange, usedSince: x.note.usedSince, nextStep: x.note.nextStep, data: x.note.data, editorId: user.id } }),
+      prisma.sessionNote.update({ where: { id: x.note.id }, data: { content } }),
+    ]);
+  } else {
+    await prisma.sessionNote.create({ data: { slotId: id, therapistId: user.id, content } });
+  }
+  await confirmPresence(id, memberId, true, user.id);
+  await logAccess(user.id, memberId, "first_session_save");
+  redirect(`/t/s/${id}?saved=first`);
 }
 
 async function saveIndividual(formData: FormData) {
@@ -218,7 +256,7 @@ export default async function SessionPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ saved?: string; error?: string; edit?: string }>;
+  searchParams: Promise<{ saved?: string; error?: string; edit?: string; absent?: string; missing?: string; first?: string }>;
 }) {
   const user = await requireRole("THERAPIST", "ADMIN");
   const [{ id }, sp] = await Promise.all([params, searchParams]);
@@ -351,7 +389,7 @@ type Slot = NonNullable<Awaited<ReturnType<typeof loadSlot>>>;
 
 // Ατομική (13/10): ενιαίος χώρος προετοιμασίας, σύνδεσης και καταγραφής — αριστερά το πλαίσιο του μέλους (σύντομο,
 // με ανάπτυξη για περισσότερα), δεξιά το σημειωματάριο σε καρτέλες.
-async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string; role: string }; sp: { saved?: string; error?: string; edit?: string } }) {
+async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string; role: string }; sp: { saved?: string; error?: string; edit?: string; absent?: string; missing?: string; first?: string } }) {
   const b = x.bookings[0];
   const now = new Date();
   const today = localParts(now).date;
@@ -373,6 +411,10 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
   const initial: Partial<NoteForm> | null = x.note?.data ? (JSON.parse(dec(x.note.data)) as NoteForm) : null;
   // Παλιό σημείωμα (πριν από το δομημένο σημειωματάριο): φαίνεται ως κείμενο, δεν ανοίγει άδεια φόρμα από πάνω.
   const showForm = writable && (!x.note || (sp.edit === "1" && Boolean(initial)));
+  // 1η ατομική: η αρχική αξιολόγηση δεν έχει ολοκληρωθεί → το ιστορικό μπαίνει στη θέση του σημειώματος (16/10).
+  // «Δεν ήρθε» (?absent=1) → το κανονικό σημειωματάριο για «Δεν ήρθε».
+  const firstSession = !assessed && !x.note && sp.absent !== "1" && canWrite(x, user)
+    && await canWriteAssessmentFor({ id: user.id, role: user.role, therapistKind: (user as { therapistKind?: string | null }).therapistKind ?? null }, b.memberId);
   const hm = (d: Date) => formatHour(localParts(d).hour, localParts(d).minute);
   const endsAt = new Date(x.startsAt.getTime() + s.sessionMinutes * 60_000);
   const presence = sessionPresence({ startsAt: x.startsAt, endsAt, now, joinedAt: b.joinedAt, confirmedCame: b.confirmedCame });
@@ -404,7 +446,7 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
       >
         <a className="btn outline" href="#notebook-top">Στο σημειωματάριο ↓</a>
         <Link className="btn outline" href={`/t/members/${b.member.id}`}><Icon name="folder" size={18} /> Κλινικός φάκελος</Link>
-        {!assessed && isPsychologist(viewer) && <Link className="btn outline" href={`/t/members/${b.member.id}/assessment`}>Αρχική αξιολόγηση ›</Link>}
+        {!assessed && !firstSession && isPsychologist(viewer) && <Link className="btn outline" href={`/t/members/${b.member.id}/assessment`}>Αρχική αξιολόγηση ›</Link>}
         {x.date === today && canWrite(x, user) && (
           room
             ? (joined
@@ -428,6 +470,41 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
         summary={ax?.data.summary ? { author: ax.author, text: ax.data.summary, canOpen: isPsychologist(viewer) } : null}
       />
 
+      {firstSession ? (
+        <section className="panel first-session" id="first">
+          <div id="notebook-top" />
+          <div className="panel-head">
+            <div>
+              <h2 data-tour="notebook" style={{ margin: 0 }}>1η ατομική — ξεκινάς με το ιστορικό</h2>
+              <div className="hint">Η σημερινή ατομική είναι η αρχική αξιολόγηση. Δεν γράφεις κανονικό σημείωμα: συμπληρώνεις το ιστορικό και, αν θέλεις, λίγα λόγια από κάτω. Με «Ολοκλήρωση» κλείνει και η ατομική.</div>
+            </div>
+            <Link className="btn outline sm" href={`/t/s/${x.id}?absent=1#notebook-top`}>Το μέλος δεν ήρθε</Link>
+          </div>
+          {sp.first === "saved" && <div className="notice">Αποθηκεύτηκε ως πρόχειρο ✓ Η ατομική κλείνει με «Ολοκλήρωση».</div>}
+          {sp.error && <ErrorNote>Δεν αποθηκεύτηκε: {sp.error}</ErrorNote>}
+          {sp.missing && (
+            <div className="error">
+              Αποθηκεύτηκε ως πρόχειρο· για να κλείσει η ατομική λείπουν:
+              <ul style={{ margin: "6px 0 0" }}>{sp.missing.split("|").map((m) => <li key={m}>{m}</li>)}</ul>
+            </div>
+          )}
+          {writable ? (
+            <AssessmentClient
+              action={saveFirstSession}
+              memberId={b.memberId}
+              initial={ax?.data ?? assessmentSchema.parse({})}
+              profile={await assessmentProfile(b.memberId)}
+              showAdminFields
+              complete={false}
+              hidden={{ slotId: x.id }}
+              extra={<FirstSessionWords slotId={x.id} />}
+              finishLabel="Ολοκλήρωση ιστορικού και ατομικής"
+            />
+          ) : (
+            <EmptyState>Το ιστορικό ανοίγει 15 λεπτά πριν από την ώρα της ατομικής ({formatTime(new Date(x.startsAt.getTime() - 15 * 60_000))}).</EmptyState>
+          )}
+        </section>
+      ) : (
       <NoteWorkspace steps={NOTE_TABS} enabled={showForm}>
         <section className="panel note-panel">
           {!showForm && (
@@ -439,8 +516,11 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
               {writable && x.note && initial && <Link className="btn primary" data-tour="edit-note" href={`/t/s/${x.id}?edit=1`}>Άλλαξε το σημείωμα</Link>}
             </div>
           )}
-          {sp.saved && <div className="notice">Αποθηκεύτηκε ✓ {x.note && <span className="muted small">· {x.note.therapist.name}, {formatWhen(x.note.updatedAt)}</span>}</div>}
+          {sp.saved === "first" ? <div className="notice">Η αρχική αξιολόγηση ολοκληρώθηκε ✓ Η ατομική καταγράφηκε («Ήρθε») και το σημείωμα μπήκε στον φάκελο.</div>
+            : sp.saved && <div className="notice">Αποθηκεύτηκε ✓ {x.note && <span className="muted small">· {x.note.therapist.name}, {formatWhen(x.note.updatedAt)}</span>}</div>}
           {sp.saved && <ClearDraft k={`note-draft:${x.id}`} />}
+          {sp.saved === "first" && <ClearDraft k={`first-words:${x.id}`} />}
+          {sp.absent === "1" && !assessed && !x.note && <div className="notice">«Δεν ήρθε» στην 1η ατομική: γράψε το σημείωμα «Δεν ήρθε». Το ιστορικό θα γίνει στην επόμενη ατομική. <Link href={`/t/s/${x.id}`}>Πίσω στο ιστορικό</Link></div>}
           {sp.error && <ErrorNote>Δεν αποθηκεύτηκε: {sp.error} Το κείμενό σου κρατήθηκε ως πρόχειρο σε αυτή την καρτέλα.</ErrorNote>}
           {showForm ? (
             <NoteFormClient
@@ -477,6 +557,7 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
           )}
         </section>
       </NoteWorkspace>
+      )}
       <TourFor id="session" userId={user.id} />
     </main>
   );

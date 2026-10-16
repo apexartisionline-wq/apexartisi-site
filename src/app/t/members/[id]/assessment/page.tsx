@@ -4,24 +4,19 @@ import { notFound, redirect } from "next/navigation";
 import { AssessmentClient } from "@/components/AssessmentClient";
 import { assessmentLines, assessmentSchema, gr, missingForComplete, stripAdminOnly } from "@/lib/assessment";
 import { dec } from "@/lib/crypto";
-import { canWriteAssessment, EC_WHEN, latestAssessment, latestProfile, saveAssessment } from "@/lib/assessment-db";
+import { assessmentProfile, canWriteAssessmentFor, latestAssessment, saveAssessment } from "@/lib/assessment-db";
 import { isPsychologist, seesSafetyDetail } from "@/lib/access";
 import { currentRisk } from "@/lib/risk-db";
 import { logAccess } from "@/lib/audit";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { formatWhen, localParts } from "@/lib/time";
-
-function age(birth: string): number {
-  const t = localParts(new Date()).date;
-  return Number(t.slice(0, 4)) - Number(birth.slice(0, 4)) - (t.slice(5) < birth.slice(5) ? 1 : 0);
-}
+import { formatWhen } from "@/lib/time";
 
 async function save(formData: FormData) {
   "use server";
   const user = await requireRole("THERAPIST", "ADMIN");
-  if (!canWriteAssessment(user)) notFound();
   const memberId = String(formData.get("memberId"));
+  if (!(await canWriteAssessmentFor(user, memberId))) notFound();
   const member = await prisma.user.findFirst({ where: { id: memberId, role: "MEMBER" }, select: { id: true } });
   if (!member) notFound();
   let raw: unknown = null;
@@ -45,7 +40,9 @@ export default async function AssessmentPage({ params, searchParams }: { params:
   if (!member) notFound();
   const latest = await latestAssessment(id);
   // Μόνο ψυχολόγος (ή η διαχείριση) βλέπει την αξιολόγηση (απόφαση 13/10, src/lib/access.ts)· οι υπόλοιποι μία γραμμή.
-  if (!isPsychologist(user)) {
+  // 16/10: και ο θεραπευτής της 1ης ατομικής, όσο δεν έχει ολοκληρωθεί (canWriteAssessmentFor).
+  const writer = await canWriteAssessmentFor(user, id);
+  if (!isPsychologist(user) && !writer) {
     // Αυξημένες/Υψηλές: «τα βλέπουν όλοι όλα» (απόφαση 14/10) — ανάγνωση χωρίς στοιχεία διαχείρισης, με υδατογράφημα.
     const risk = await currentRisk(id);
     if (latest && seesSafetyDetail(user, risk.level)) {
@@ -81,7 +78,6 @@ export default async function AssessmentPage({ params, searchParams }: { params:
   }
   await logAccess(user.id, id, "assessment_view");
   const admin = user.role === "ADMIN";
-  const canEdit = canWriteAssessment(user);
   const complete = Boolean(latest?.complete);
   const history = await prisma.assessment.findMany({ where: { memberId: id }, orderBy: { createdAt: "desc" }, select: { id: true, authorId: true, createdAt: true, complete: true } });
   const versions = history.length;
@@ -133,30 +129,12 @@ export default async function AssessmentPage({ params, searchParams }: { params:
     );
   }
 
-  // Εδώ φτάνει μόνο ψυχολόγος/διαχείριση (canEdit = ίδιος κανόνας με isPsychologist).
+  // Εδώ φτάνει ψυχολόγος/διαχείριση ή ο θεραπευτής της 1ης ατομικής (όσο είναι ανοιχτή).
   {
     const initial = latest ? (admin || !complete ? latest.data : stripAdminOnly(latest.data)) : assessmentSchema.parse({});
     // Τα στοιχεία του μέλους φαίνονται στον ψυχολόγο μόνο όσο η αξιολόγηση είναι ανοιχτή.
     let profile = null;
-    if (admin || !complete) {
-      const p = await latestProfile(id);
-      const rows: [string, string][] = p
-        ? ([
-            ["Ονοματεπώνυμο", p.data.fullName],
-            ["Πώς θέλει να το λέμε", p.data.preferredName],
-            ["Γέννηση", p.data.birthDate && `${gr(p.data.birthDate)} (${age(p.data.birthDate)} ετών)`],
-            ["Κινητό", p.data.mobile],
-            ["Email", p.data.email],
-            ["Διεύθυνση", p.data.address],
-            ["Ζει εκτός Ελλάδας", p.data.abroadCountry],
-            ["Έκτακτη ανάγκη", [p.data.ecName, p.data.ecRelation].filter(Boolean).join(" · ")],
-            ["Τηλέφωνο επαφής", p.data.ecPhone],
-            ["Πότε την καλούμε", p.data.ecWhen ? EC_WHEN[p.data.ecWhen] : ""],
-            ["Τι της λέμε", p.data.ecWhatToSay],
-          ] as [string, string][]).filter(([, v]) => v)
-        : [];
-      profile = { rows, at: p ? formatWhen(p.at) : "" };
-    }
+    if (admin || !complete) profile = await assessmentProfile(id);
     return (
       <main>
         {header}

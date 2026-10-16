@@ -26,6 +26,8 @@ const OLD_END: Record<string, string> = { Ολοκλήρωση: "Ολοκληρ�
 export const AS_PRESCRIBED = ["Ναι", "Όχι πάντα", "Όχι"] as const;
 export const TRAUMA = ["Ναι", "Όχι", "Δεν θέλω να πω"] as const;
 export const ABSTINENCE = ["Δέσμευση στην αποχή", "Όχι ακόμα"] as const;
+// Οικογενειακή κατάσταση (υπεύθυνη 16/10: «αν είναι παντρεμένος ή όχι ή ό,τι άλλο»)· προαιρετική, με ελεύθερο κείμενο.
+export const MARITAL = ["Παντρεμένος/η", "Σε σχέση / συμβίωση", "Ελεύθερος/η", "Διαζευγμένος/η ή σε διάσταση", "Χήρος/α", "Δεν θέλει να πει"] as const;
 const ABSTINENCE_LEGACY = ["Δεσμευμένος/η στην αποχή"] as const;
 
 // ⚠ ΔΟΚΙΜΗ: προσωρινά κείμενα. Σε πραγματικά μέλη μόνο με γραπτή άδεια και επίσημη ελληνική έκδοση
@@ -96,6 +98,8 @@ export const assessmentSchema = z.object({
   prisonRecent: yes,
   legalDetail: text(1000), // μόνο διαχείριση
   // 10. Οικογένεια
+  marital: pick(MARITAL).optional(),
+  familyNote: text(500), // «ό,τι άλλο» (π.χ. με ποιον μένει)
   children: yes,
   childConcern: yes,
   childConcernText: text(1000),
@@ -159,10 +163,10 @@ export function pgsiScore(a: (number | null)[]): Score | null {
   return { score, answered: xs.length, of: 9, band: HEAVY_USE, level: "plain" };
 }
 
-/** Ποια ερωτηματολόγια ανοίγουν: AUDIT για όλους, DAST-10 αν υπάρχει ουσία εκτός αλκοόλ, PGSI αν υπάρχει τζόγος. */
+/** Ποια ερωτηματολόγια ανοίγουν (από το ιστορικό χρήσης): AUDIT αν τσεκαριστεί αλκοόλ, DAST-10 αν υπάρχει ουσία εκτός αλκοόλ, PGSI αν υπάρχει τζόγος. */
 export function questionnaires(d: Pick<Assessment, "substances">) {
   return {
-    audit: true,
+    audit: d.substances.includes("alcohol"), // 16/10: ανοίγει μόνο όταν τσεκαριστεί αλκοόλ
     dast: d.substances.some((s) => s !== "alcohol" && s !== "gambling"),
     pgsi: d.substances.includes("gambling"),
   };
@@ -273,6 +277,7 @@ export function assessmentLines(d: Assessment, opts: { admin: boolean }): { titl
       ["Λεπτομέρειες (διαχείριση)", opts.admin ? d.legalDetail : undefined],
     ]),
     sec("Οικογένεια", [
+      ["Οικογενειακή κατάσταση", [d.marital, d.familyNote].filter(Boolean).join(" · ")],
       { q: "Παιδιά κάτω των 18", v: d.children },
       ...(d.children === true ? [{ q: "Ανησυχία για την ασφάλεια παιδιού", v: d.childConcern, extra: d.childConcernText } as Row] : []),
       { q: "Βία στο σπίτι", v: d.violence, extra: d.violenceText },

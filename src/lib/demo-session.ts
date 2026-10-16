@@ -42,7 +42,7 @@ export async function startDemoFirstSession(therapist: { id: string; therapistKi
   const { getSettings } = await import("./settings");
   const minutes = (await getSettings()).sessionMinutes;
   const open = await prisma.slot.findFirst({
-    where: { date: localParts(now).date, position: FIRST_POSITION, therapistId: therapist.id, kind: "INDIVIDUAL", note: null, startsAt: { gt: new Date(now.getTime() - minutes * 60_000) } },
+    where: { date: localParts(now).date, position: { in: [FIRST_POSITION, ...Array.from({ length: 30 }, (_, i) => 21 + i)] }, therapistId: therapist.id, kind: "INDIVIDUAL", note: null, startsAt: { gt: new Date(now.getTime() - minutes * 60_000) }, bookings: { some: { member: { username: { startsWith: "neo-" } } } } },
     orderBy: { startsAt: "desc" },
     select: { id: true, startsAt: true },
   });
@@ -79,7 +79,7 @@ async function bookDemo(therapist: { id: string; therapistKind: "BIOMATIC" | "CL
   const { getSettings } = await import("./settings");
   const minutes = (await getSettings()).sessionMinutes;
   const open = await prisma.slot.findFirst({
-    where: { date: p.date, position, therapistId: therapist.id, kind: "INDIVIDUAL", note: null, startsAt: { gt: new Date(now.getTime() - minutes * 60_000) }, bookings: { some: { memberId } } },
+    where: { date: p.date, position: { in: [position, ...Array.from({ length: 30 }, (_, i) => 21 + i)] }, therapistId: therapist.id, kind: "INDIVIDUAL", note: null, startsAt: { gt: new Date(now.getTime() - minutes * 60_000) }, bookings: { some: { memberId } } },
     orderBy: { startsAt: "desc" },
     select: { id: true, startsAt: true },
   });
@@ -88,9 +88,18 @@ async function bookDemo(therapist: { id: string; therapistKind: "BIOMATIC" | "CL
     if (open.startsAt > now) await prisma.slot.update({ where: { id: open.id }, data: { startsAt } });
     return open.id;
   }
+  // Ελεύθερη θέση της ώρας: ποτέ θέση άλλου θεραπευτή ή με άλλο μέλος (16/10: δύο θεραπευτές την ίδια ώρα έφτιαχναν
+  // κατά λάθος «Therapair» στην ίδια θέση). Η πρώτη δοκιμαστική είναι η 4η (Νίκος) / 5η (νέο μέλος)· αλλιώς από 21 και πάνω.
+  const candidates = [position, ...Array.from({ length: 30 }, (_, i) => 21 + i)];
+  const taken = await prisma.slot.findMany({ where: { date: p.date, hour: p.hour, position: { in: candidates } }, select: { position: true, therapistId: true, bookings: { select: { memberId: true } } } });
+  const free = candidates.find((pos) => {
+    const t = taken.find((x) => x.position === pos);
+    return !t || (t.therapistId === therapist.id && t.bookings.every((bk) => bk.memberId === memberId));
+  });
+  if (free === undefined) throw new Error("καμία ελεύθερη δοκιμαστική θέση");
   const slot = await prisma.slot.upsert({
-    where: { date_hour_position: { date: p.date, hour: p.hour, position } },
-    create: { date: p.date, hour: p.hour, position, kind: "INDIVIDUAL", startsAt, therapistId: therapist.id },
+    where: { date_hour_position: { date: p.date, hour: p.hour, position: free } },
+    create: { date: p.date, hour: p.hour, position: free, kind: "INDIVIDUAL", startsAt, therapistId: therapist.id },
     update: { kind: "INDIVIDUAL", startsAt, therapistId: therapist.id, pairApprovedAt: null },
   });
   const existing = await prisma.booking.findUnique({ where: { slotId_memberId: { slotId: slot.id, memberId } }, select: { id: true } });

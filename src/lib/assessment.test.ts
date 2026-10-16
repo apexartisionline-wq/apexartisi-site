@@ -29,7 +29,9 @@ describe("ποια ερωτηματολόγια ανοίγουν", () => {
   it("τζόγος → PGSI, ουσία εκτός αλκοόλ → DAST-10", () => {
     expect(questionnaires({ substances: ["alcohol"] })).toEqual({ audit: true, dast: false, pgsi: false });
     expect(questionnaires({ substances: ["alcohol", "gambling"] })).toEqual({ audit: true, dast: false, pgsi: true });
-    expect(questionnaires({ substances: ["cocaine"] })).toEqual({ audit: true, dast: true, pgsi: false });
+    expect(questionnaires({ substances: ["cocaine"] })).toEqual({ audit: false, dast: true, pgsi: false });
+    expect(questionnaires({ substances: ["gambling"] })).toEqual({ audit: false, dast: false, pgsi: true });
+    expect(questionnaires({ substances: [] })).toEqual({ audit: false, dast: false, pgsi: false });
   });
 });
 

@@ -1,6 +1,6 @@
 import "server-only";
 import { z } from "zod";
-import { type Assessment, ALERTS, type AlertKind, assessmentAlerts, assessmentSchema, keepAdminOnly, soberSinceFrom } from "./assessment";
+import { type Assessment, ALERTS, gr, type AlertKind, assessmentAlerts, assessmentSchema, keepAdminOnly, soberSinceFrom } from "./assessment";
 import { logAccess } from "./audit";
 import { notifyRole } from "./notify";
 import { dec, enc } from "./crypto";
@@ -23,6 +23,46 @@ export function canWriteAssessment(user: { role: string; therapistKind: string |
  * Αποθήκευση ως νέα έκδοση. Βγάζει ειδοποιήσεις για σοβαρά σημεία (μία φορά ανά είδος)
  * και, μόλις ολοκληρωθεί, περνά την ημερομηνία νηφαλιότητας στον φάκελο και σημειώνει το βήμα 02.
  */
+/**
+ * 16/10 (υπεύθυνη): την αρχική αξιολόγηση στην 1η ατομική τη γράφει ΟΠΟΙΟΣ θεραπευτής έχει την ατομική — όχι μόνο ψυχολόγος.
+ * Επιπλέον του ψυχολόγου/διαχείρισης: θεραπευτής με ατομική του μέλους, όσο η αξιολόγηση δεν έχει ολοκληρωθεί.
+ * Μετά την ολοκλήρωση ισχύει ξανά ο κανόνας ανάγνωσης του access.ts (ψυχολόγος· Αυξημένες/Υψηλές: όλοι).
+ */
+export async function canWriteAssessmentFor(user: { id: string; role: string; therapistKind: string | null }, memberId: string): Promise<boolean> {
+  if (canWriteAssessment(user)) return true;
+  if (user.role !== "THERAPIST") return false;
+  const done = await prisma.intakeCheck.findFirst({ where: { memberId, key: "assessment" }, select: { doneAt: true } });
+  if (done) return false;
+  return Boolean(await prisma.booking.findFirst({ where: { memberId, slot: { therapistId: user.id, kind: "INDIVIDUAL" } }, select: { id: true } }));
+}
+
+function age(birth: string): number {
+  const t = localParts(new Date()).date;
+  return Number(t.slice(0, 4)) - Number(birth.slice(0, 4)) - (t.slice(5) < birth.slice(5) ? 1 : 0);
+}
+
+/** Τα στοιχεία που έδωσε το μέλος, όπως τα βλέπει ο θεραπευτής μέσα στην (ανοιχτή) αρχική αξιολόγηση. */
+export async function assessmentProfile(memberId: string): Promise<{ rows: [string, string][]; at: string }> {
+  const p = await latestProfile(memberId);
+  const { formatWhen } = await import("./time");
+  const rows: [string, string][] = p
+    ? ([
+        ["Ονοματεπώνυμο", p.data.fullName],
+        ["Πώς θέλει να το λέμε", p.data.preferredName],
+        ["Γέννηση", p.data.birthDate && `${gr(p.data.birthDate)} (${age(p.data.birthDate)} ετών)`],
+        ["Κινητό", p.data.mobile],
+        ["Email", p.data.email],
+        ["Διεύθυνση", p.data.address],
+        ["Ζει εκτός Ελλάδας", p.data.abroadCountry],
+        ["Έκτακτη ανάγκη", [p.data.ecName, p.data.ecRelation].filter(Boolean).join(" · ")],
+        ["Τηλέφωνο επαφής", p.data.ecPhone],
+        ["Πότε την καλούμε", p.data.ecWhen ? EC_WHEN[p.data.ecWhen] : ""],
+        ["Τι της λέμε", p.data.ecWhatToSay],
+      ] as [string, string][]).filter(([, v]) => v)
+    : [];
+  return { rows, at: p ? formatWhen(p.at) : "" };
+}
+
 export async function saveAssessment(memberId: string, user: { id: string; role: string }, input: Assessment, complete: boolean) {
   const prev = await latestAssessment(memberId);
   // Όποιος δεν είναι διαχείριση δεν βλέπει τα πεδία της μετά την ολοκλήρωση: κρατιούνται από πριν.

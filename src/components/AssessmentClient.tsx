@@ -2,7 +2,7 @@
 
 import { type ReactNode, useState } from "react";
 import {
-  ABSTINENCE, AS_PRESCRIBED, type Assessment, assessmentWarnings, AUDIT_ITEMS, auditScore, DAST_ITEMS, dastScore, DIAGNOSES, PGSI_ITEMS,
+  ABSTINENCE, AS_PRESCRIBED, MARITAL, type Assessment, assessmentWarnings, AUDIT_ITEMS, auditScore, DAST_ITEMS, dastScore, DIAGNOSES, PGSI_ITEMS,
   PGSI_OPTIONS, pgsiScore, questionnaires, type Score, SUBSTANCE_LABEL, SUBSTANCES, type SubstanceKey, TRAUMA, TREATMENT_END,
   TREATMENT_WHERE, type YesNo,
 } from "@/lib/assessment";
@@ -15,6 +15,10 @@ type Props = {
   profile: ProfileView;
   showAdminFields: boolean;
   complete: boolean;
+  // Μέσα στη σελίδα της 1ης ατομικής (16/10): κρυφά πεδία (slotId), ένα πλαίσιο πριν τα κουμπιά και άλλη λέξη στην ολοκλήρωση.
+  hidden?: Record<string, string>;
+  extra?: ReactNode;
+  finishLabel?: string;
 };
 
 // Προτεινόμενες διατυπώσεις για τις δύσκολες ερωτήσεις (από τη δοκιμή με τη ματιά του μέλους).
@@ -28,10 +32,18 @@ const SAY = {
   violence: "«Ρωτάμε όλους, για την ασφάλεια όλων. Υπάρχει σήμερα στο σπίτι σου κάποιος που σε φοβίζει, ή στιγμές που φοβάσαι ότι θα χάσεις τον έλεγχο;»",
 };
 
+// «Τι να γράψουμε» (υπεύθυνη 16/10) — οδηγίες για τον θεραπευτή, όχι κλινική κρίση· διατύπωση προς έγκριση.
+const HINT = {
+  strengths: "Τι τον έχει κρατήσει ως τώρα: άνθρωποι, δουλειά, παιδιά, πίστη, ενδιαφέροντα, προηγούμενες περίοδοι αποχής, ικανότητες. Με τα λόγια του μέλους (π.χ. «είμαι πεισματάρης», «η κόρη μου»).",
+  fears: "Τι φοβάται από τη συνεργασία μαζί μας: να κριθεί, να εκτεθεί, να αποτύχει ξανά, να μην αντέξει την ομάδα, τον χρόνο ή το κόστος. Με τα λόγια του· δεν χρειάζεται να το λύσουμε τώρα, μόνο να το ξέρει η ομάδα.",
+  summary: "Το πρώτο που θα διαβάσει κάθε θεραπευτής. 5–8 γραμμές, χωρίς διάγνωση και χωρίς απόφαση καταλληλότητας: (1) τι τον φέρνει εδώ τώρα · (2) τι φαίνεται να συντηρεί τον εθισμό · (3) τι τον προστατεύει (δυνάμεις, άνθρωποι) · (4) τι χρειάζεται πρώτα από την ομάδα · (5) αν υπάρχει κάτι για την ασφάλεια, μία γραμμή.",
+};
+const hint = (t: string) => <div className="q small muted" style={{ marginTop: -6 }}>{t}</div>;
+
 // Η αρχική αξιολόγηση για τον ψυχολόγο: ενότητες που ανοίγουν με τη σειρά που γίνεται η κουβέντα
 // (πρώτα «Γιατί τώρα»), Ναι / Όχι / «Δεν απαντά ακόμα» με ένα πάτημα, ερωτηματολόγια που ανοίγουν μόνο
 // όταν χρειάζονται και αθροίζονται μόνα τους. Όλα στέλνονται ως JSON (payload)· ο server τα ελέγχει.
-export function AssessmentClient({ action, memberId, initial, profile, showAdminFields, complete }: Props) {
+export function AssessmentClient({ action, memberId, initial, profile, showAdminFields, complete, hidden, extra, finishLabel }: Props) {
   const [d, setD] = useState<Assessment>(initial);
   // Οι ενότητες ανοίγουν/κλείνουν μόνο από τον χρήστη (το αρχικό «ανοιχτό» βγαίνει από τα αποθηκευμένα, όχι από ό,τι γράφεται τώρα).
   const set = <K extends keyof Assessment>(k: K, v: Assessment[K]) => setD((x) => ({ ...x, [k]: v }));
@@ -113,6 +125,7 @@ export function AssessmentClient({ action, memberId, initial, profile, showAdmin
   return (
     <form action={action}>
       <input type="hidden" name="memberId" value={memberId} />
+      {hidden && Object.entries(hidden).map(([k, v]) => <input key={k} type="hidden" name={k} value={v} />)}
       <input type="hidden" name="payload" value={JSON.stringify(d)} />
 
       <div className="card small" style={{ background: "var(--soft)" }}>
@@ -172,6 +185,9 @@ export function AssessmentClient({ action, memberId, initial, profile, showAdmin
           </div>
         ))}
         <div className="q muted small">{SAY.forms}</div>
+        {d.substances.length === 0 && <div className="q muted small">Τσέκαρε πρώτα τι έχει χρησιμοποιήσει· ανοίγει μόνο του το κατάλληλο ερωτηματολόγιο (αλκοόλ → AUDIT · ουσία → DAST-10 · τζόγος → PGSI).</div>}
+        {(q.audit || d.audit.some((x) => x !== null && x !== undefined)) && (
+        <>
         <details className="sec" style={{ margin: "0 16px 12px" }}>
           <summary>AUDIT · αλκοόλ, στην περίοδο βαριάς χρήσης</summary>
           <div className="q">
@@ -187,6 +203,8 @@ export function AssessmentClient({ action, memberId, initial, profile, showAdmin
           </div>
         </details>
         {scoreRow("AUDIT", auditScore(d.audit))}
+        </>
+        )}
         {q.dast && (
           <>
             <details className="sec" style={{ margin: "12px 16px" }}>
@@ -309,6 +327,11 @@ export function AssessmentClient({ action, memberId, initial, profile, showAdmin
 
       <details className="sec">
         <summary>Οικογένεια {mark(done.family)}</summary>
+        <div className="q">
+          <div className="lab">Οικογενειακή κατάσταση</div>
+          {chipsOne(MARITAL, d.marital as (typeof MARITAL)[number] | undefined, (v) => set("marital", v))}
+        </div>
+        {line("familyNote", "Ό,τι άλλο (π.χ. με ποιον μένει)")}
         {yn("children", "Παιδιά κάτω των 18", {
           hint: SAY.children,
           sub: (
@@ -326,17 +349,21 @@ export function AssessmentClient({ action, memberId, initial, profile, showAdmin
       <details className="sec">
         <summary>Δυνάμεις και φόβοι {mark(done.strengths)}</summary>
         {txt("strengths", "Δυνάμεις")}
+        {hint(HINT.strengths)}
         {txt("fears", "Τι φοβάται από τη συνεργασία μαζί μας")}
+        {hint(HINT.fears)}
       </details>
 
       <details className="sec" open={!initial.summary}>
         <summary>Σύνοψη για την ομάδα {mark(done.summary)}</summary>
         {txt("summary", "5–8 γραμμές: τι φέρνει το μέλος εδώ · τι συντηρεί τον εθισμό · τι προστατεύει · τι χρειάζεται πρώτα", "Το πρώτο που θα διαβάσει κάθε θεραπευτής στον φάκελο", 6)}
+        {hint(HINT.summary)}
       </details>
 
+      {extra}
       <div className="sticky-save">
         <button type="submit" name="complete" value="0">Αποθήκευση</button>
-        {!complete && <button type="submit" name="complete" value="1" className="primary">Ολοκλήρωση</button>}
+        {!complete && <button type="submit" name="complete" value="1" className="primary">{finishLabel ?? "Ολοκλήρωση"}</button>}
       </div>
       <p className="muted small" style={{ paddingBottom: 70 }}>Κάθε αποθήκευση κρατιέται με όνομα και ώρα· οι παλιές μορφές δεν σβήνονται.</p>
     </form>
