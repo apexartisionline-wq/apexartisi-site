@@ -4,11 +4,13 @@ import { notFound, redirect } from "next/navigation";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { keepHistory } from "@/lib/history";
+import { MentionRows } from "@/components/MentionRows";
 import { ensureGroupSession, groupDays } from "@/lib/groups";
 import { getSettings } from "@/lib/settings";
 import { formatDate, formatWhen } from "@/lib/time";
 
-const MENTION_ROWS = 4;
+// «Προσοχή σε…»: ξεκινά με 4 γραμμές και προστίθενται κι άλλες (16/10)· ανώτατο όριο μόνο για ασφάλεια της φόρμας.
+const MENTION_MAX = 40;
 
 function parse(date: string, t: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{4}$/.test(t)) return null;
@@ -29,10 +31,11 @@ async function save(formData: FormData) {
   const g = await findGroup(date, time);
   if (!g || (user.role !== "ADMIN" && g.coordinatorId !== user.id)) notFound();
   const session = await ensureGroupSession(date, time);
-  const mentions = Array.from({ length: MENTION_ROWS }, (_, i) => ({
+  const allowed = new Set((await prisma.user.findMany({ where: { role: "MEMBER" }, select: { id: true } })).map((m) => m.id));
+  const mentions = Array.from({ length: MENTION_MAX }, (_, i) => ({
     memberId: String(formData.get(`m${i}`) ?? ""),
-    text: String(formData.get(`t${i}`) ?? "").trim(),
-  })).filter((m) => m.memberId && m.text);
+    text: String(formData.get(`t${i}`) ?? "").trim().slice(0, 1000),
+  })).filter((m) => m.memberId && m.text && allowed.has(m.memberId));
   const old = await prisma.groupSession.findUnique({ where: { id: session.id }, include: { mentions: true } });
   const hadNote = old && (old.noteById || old.mentions.length > 0);
   await prisma.$transaction([
@@ -158,15 +161,7 @@ export default async function GroupNotePage({
             <textarea id="atmosphere" name="atmosphere" defaultValue={dec(session?.atmosphere)} style={{ minHeight: 80 }} />
           </div>
           <label><strong>Προσοχή σε…</strong> — μία γραμμή για όποιο μέλος χρειάζεται (φαίνεται στον φάκελό του)</label>
-          {Array.from({ length: MENTION_ROWS }, (_, i) => (
-            <div className="row" key={i} style={{ marginBottom: 8, flexWrap: "nowrap" }}>
-              <select name={`m${i}`} defaultValue={mentions[i]?.memberId ?? ""} style={{ maxWidth: 200 }}>
-                <option value="">—</option>
-                {members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
-              </select>
-              <input name={`t${i}`} defaultValue={dec(mentions[i]?.text)} placeholder="π.χ. μίλησε για υποτροπή" />
-            </div>
-          ))}
+          <MentionRows members={members} initial={mentions.map((m) => ({ memberId: m.memberId, text: dec(m.text) }))} max={MENTION_MAX} />
           <button className="primary" type="submit">Αποθήκευση</button>
         </form>
       ) : session?.noteAt ? (

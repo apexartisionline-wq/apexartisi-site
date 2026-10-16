@@ -1105,3 +1105,8 @@ html:has(.savebar) { scroll-padding-bottom: 104px; }
 .step-pdf { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin: 8px 0; }
 .steps-members label { flex-wrap: nowrap; align-items: flex-start; }
 .steps-members label input { margin-top: 4px; flex: none; }
+/* «Προσοχή σε…» του σημειώματος ομάδας: μέλος + μία γραμμή, και «+ Προσθήκη μέλους» (16/10). */
+.mention-row { margin-bottom: 8px; flex-wrap: nowrap; }
+.mention-row select { max-width: 200px; flex: 0 0 auto; }
+.mention-row input { flex: 1; min-width: 0; }
+@media (max-width: 560px) { .mention-row { flex-wrap: wrap; } .mention-row select { max-width: none; width: 100%; } }
