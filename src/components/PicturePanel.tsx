@@ -1,7 +1,7 @@
 import Link from "next/link";
 import {
   describeGroupPicture, describeGroupScheduled, describeJournal, describeJournalAvg, describePct, describeScheduled, describeSessionSources, describeSessions,
-  SESSION_WORD, shortDate, type MemberPicture,
+  GROUP_MISS, SESSION_WORD, shortDate, type MemberPicture,
 } from "@/lib/picture";
 import { GROUP_LABEL } from "@/lib/group-presence";
 import { formatDate, formatTime, localParts } from "@/lib/time";
@@ -54,7 +54,7 @@ export function PicturePanel({ pic, journalHref, consistencyHref, compact, canOp
         <div className="pic-head"><b className="pic-big">{frac(g.present, g.passed)}</b><span><strong>Ομάδες</strong> <span className="hint">· παρουσίες / που πέρασαν</span></span></div>
         <p className="pic-line">{describeGroupScheduled(g)}</p>
         <p className="pic-line">{describeGroupPicture(g)}</p>
-        {describePct(g) && <p className="hint pic-sub">{describePct(g)}</p>}
+        {describePct(g) && <p className="hint pic-sub">{describePct(g, GROUP_MISS)} · παρουσία = «Μπες στην ομάδα»</p>}
         {!compact && g.items.length > 0 && (
           <details className="fold small">
             <summary>Κάθε ομάδα της περιόδου</summary>

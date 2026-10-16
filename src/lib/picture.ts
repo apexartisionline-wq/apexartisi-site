@@ -6,7 +6,7 @@
  *    (το σύνολο των συνεδριών: 8 ατομικές και 16 ομάδες). Πάντα με ημερομηνίες στην οθόνη.
  *  - Ατομικές: κάθε κράτηση σε ΜΙΑ κατάσταση (παρουσία με πηγή, «Δεν ήρθε», χωρίς καταγραφή = εκκρεμεί, σε εξέλιξη, επόμενη).
  *    Ακυρωμένες και μεταφερμένες: ΠΟΤΕ στα κλάσματα, μόνο ως πληροφορία.
- *  - Ομάδες: παρουσία ή χωρίς καταγραφή· «δεν έγινε» εκτός κλασμάτων· «πριν την ένταξη» δεν φαίνεται.
+ *  - Ομάδες: παρουσία ή «Δεν ήρθε» (από το «Μπες» του μέλους, 16/10 — πριν «χωρίς καταγραφή», ίδιος αριθμός)· «δεν έγινε» εκτός κλασμάτων· «πριν την ένταξη» δεν φαίνεται.
  *  - Ποσοστό: μόνο δίπλα σε πλήρες κείμενο και μόνο όταν πέρασε ≥ 1· οι «χωρίς καταγραφή» μετρούν στον παρονομαστή
  *    (κανόνας 13/10 — το λέει ρητά το κείμενο). Το φίλτρο «χαμηλότερη συμμετοχή» μετρά στις ατομικές μόνο τα «Δεν ήρθε».
  *  - Ημερολόγιο: παρονομαστής = μόνο οι μέρες που ΜΠΟΡΟΥΣΑΝ να έχουν εγγραφή (από την έναρξη, ως τη χθεσινή ή τη σημερινή
@@ -194,18 +194,18 @@ export function describeSessionSources(p: SessionPicture): string {
 }
 
 /** «60% (3 από 5 που πέρασαν · 1 χωρίς καταγραφή μετρά στον παρονομαστή)» — ή "" όταν δεν πέρασε καμία. */
-export function describePct(p: { pct: number | null; present: number; passed: number; noRecord: number }): string {
+export function describePct(p: { pct: number | null; present: number; passed: number; noRecord: number }, missWord = "χωρίς καταγραφή"): string {
   if (p.pct === null) return "";
-  const nr = p.noRecord ? ` · ${p.noRecord} χωρίς καταγραφή ${p.noRecord === 1 ? "μετρά" : "μετρούν"} στον παρονομαστή` : "";
+  const nr = p.noRecord ? ` · ${p.noRecord} ${missWord} ${p.noRecord === 1 ? "μετρά" : "μετρούν"} στον παρονομαστή` : "";
   return `${p.pct}% (${p.present} από ${p.passed} που ${p.passed === 1 ? "πέρασε" : "πέρασαν"}${nr})`;
 }
 
-/** «3 παρουσίες / 4 που πέρασαν · 1 χωρίς καταγραφή (εκκρεμεί) · 1 δεν έγινε · 1 επόμενη» */
+/** «3 παρουσίες / 4 που πέρασαν · 1 «Δεν ήρθε» (δεν πάτησε «Μπες») · 1 δεν έγινε · 1 επόμενη» */
 export function describeGroupPicture(p: GroupPicture): string {
   const parts: string[] = [];
   if (p.passed === 0) parts.push(p.scheduled > 0 ? "καμία δεν έχει περάσει ακόμα" : "καμία στο πρόγραμμα");
   else parts.push(`${one(p.present, "παρουσία", "παρουσίες")} / ${one(p.passed, "που πέρασε", "που πέρασαν")}`);
-  if (p.noRecord) parts.push(`${p.noRecord} χωρίς καταγραφή (εκκρεμεί)`);
+  if (p.noRecord) parts.push(`${p.noRecord} «Δεν ήρθε» (δεν πάτησε «Μπες»)`);
   if (p.notHeld) parts.push(`${p.notHeld} δεν ${p.notHeld === 1 ? "έγινε" : "έγιναν"}`);
   if (p.upcoming) parts.push(one(p.upcoming, "επόμενη", "επόμενες"));
   return parts.join(" · ");
@@ -223,6 +223,9 @@ export function describeGroupScheduled(p: GroupPicture): string {
 }
 
 /** «Καταχωρίσεις: 4 από 7 ημέρες (5/10–11/10)» */
+/** Η λέξη για ομάδα που έληξε χωρίς «Μπες» (16/10). */
+export const GROUP_MISS = "«Δεν ήρθε»";
+
 export const shortDate = (d: string) => `${+d.slice(8, 10)}/${+d.slice(5, 7)}`;
 
 export function describeJournal(j: JournalPicture, fmt: (d: string) => string = shortDate): string {
@@ -248,7 +251,7 @@ export function checkPicture(m: { sessions: SessionPicture; groups: GroupPicture
   if (s.scheduled !== s.items.length) bad.push("ατομικές: προγραμματισμένες ≠ γραμμές");
   if (s.cancelled !== s.cancelledItems.length || s.moved !== s.movedItems.length) bad.push("ατομικές: ακυρώσεις/μεταφορές ≠ γραμμές");
   if (s.pct !== pct(s.present, s.passed)) bad.push("ατομικές: ποσοστό ≠ παρουσίες / πέρασαν");
-  if (g.passed !== g.present + g.noRecord) bad.push("ομάδες: πέρασαν ≠ παρουσίες + χωρίς καταγραφή");
+  if (g.passed !== g.present + g.noRecord) bad.push("ομάδες: πέρασαν ≠ παρουσίες + «Δεν ήρθε»");
   if (g.scheduled !== g.passed + g.upcoming + g.notHeld) bad.push("ομάδες: στο πρόγραμμα ≠ πέρασαν + επόμενες + δεν έγιναν");
   if (g.items.some((r) => r.state === "before_join")) bad.push("ομάδες: γραμμή πριν την ένταξη");
   if (g.pct !== pct(g.present, g.passed)) bad.push("ομάδες: ποσοστό ≠ παρουσίες / πέρασαν");

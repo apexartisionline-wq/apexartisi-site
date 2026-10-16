@@ -45,7 +45,7 @@ export async function SinceLast({ memberId, prev, until, untilAt, compact = fals
               <strong>{describeGroups({ counted: cameN, passed: d.groups.length, noRecord: d.groups.length - cameN })}</strong>
               <span className="since-days">
                 {d.groups.map((g) => (
-                  <span key={`${g.date}${g.time}`} className={`daychip ${g.came ? "ok" : "no"}`} title={g.came ? "καταγράφηκε παρουσία" : "χωρίς καταγραφή παρουσίας"}>
+                  <span key={`${g.date}${g.time}`} className={`daychip ${g.came ? "ok" : "no"}`} title={g.came ? "παρουσία (πάτησε «Μπες»)" : "«Δεν ήρθε» — δεν πάτησε «Μπες»"}>
                     {formatDate(g.date)} {g.came ? "✓" : "—"}
                   </span>
                 ))}

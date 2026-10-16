@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  GROUP_MISS,
   checkPicture, describeGroupPicture, describeGroupScheduled, describeJournal, describeJournalAvg, describePct, describeScheduled,
   describeSessionSources, describeSessions, groupPicture, journalPicture, numbersIn, sessionPicture, type GroupItem, type JournalEntryNum, type SessionItem,
 } from "./picture";
@@ -34,8 +35,8 @@ describe("εικόνα εβδομάδας — παράδειγμα της ανα
   });
   it("ομάδες: 3 παρουσίες / 4 που πέρασαν · 1 χωρίς καταγραφή · 1 δεν έγινε", () => {
     expect(groups).toMatchObject({ scheduled: 5, passed: 4, present: 3, noRecord: 1, notHeld: 1, upcoming: 0, pct: 75 });
-    expect(describeGroupPicture(groups)).toBe("3 παρουσίες / 4 που πέρασαν · 1 χωρίς καταγραφή (εκκρεμεί) · 1 δεν έγινε");
-    expect(describePct(groups)).toBe("75% (3 από 4 που πέρασαν · 1 χωρίς καταγραφή μετρά στον παρονομαστή)");
+    expect(describeGroupPicture(groups)).toBe("3 παρουσίες / 4 που πέρασαν · 1 «Δεν ήρθε» (δεν πάτησε «Μπες») · 1 δεν έγινε");
+    expect(describePct(groups, GROUP_MISS)).toBe("75% (3 από 4 που πέρασαν · 1 «Δεν ήρθε» μετρά στον παρονομαστή)");
     expect(describeGroupScheduled(groups)).toBe("στο πρόγραμμα 5 (4 πέρασαν, 1 δεν έγινε)");
   });
   it("ημερολόγιο: 4 από 7 ημέρες, μέσοι όροι από 4 καταχωρίσεις", () => {
@@ -81,8 +82,8 @@ describe("εικόνα μήνα (κύκλος) — παράδειγμα της �
   it("ομάδες: στόχος 16, στο πρόγραμμα 13 (11 πέρασαν, 1 δεν έγινε, 1 επόμενη), 8 παρουσίες / 11, 3 χωρίς καταγραφή· «πριν την ένταξη» δεν φαίνεται", () => {
     expect(groups).toMatchObject({ target: 16, scheduled: 13, passed: 11, present: 8, noRecord: 3, notHeld: 1, upcoming: 1, pct: 73 });
     expect(describeGroupScheduled(groups)).toBe("Στόχος μήνα 16 · στο πρόγραμμα ως σήμερα 13 (11 πέρασαν, 1 δεν έγινε, 1 επόμενη)");
-    expect(describeGroupPicture(groups)).toBe("8 παρουσίες / 11 που πέρασαν · 3 χωρίς καταγραφή (εκκρεμεί) · 1 δεν έγινε · 1 επόμενη");
-    expect(describePct(groups)).toBe("73% (8 από 11 που πέρασαν · 3 χωρίς καταγραφή μετρούν στον παρονομαστή)");
+    expect(describeGroupPicture(groups)).toBe("8 παρουσίες / 11 που πέρασαν · 3 «Δεν ήρθε» (δεν πάτησε «Μπες») · 1 δεν έγινε · 1 επόμενη");
+    expect(describePct(groups, GROUP_MISS)).toBe("73% (8 από 11 που πέρασαν · 3 «Δεν ήρθε» μετρούν στον παρονομαστή)");
   });
   it("ημερολόγιο: 9 από 16 ημέρες (28/9–13/10) — η σημερινή δεν μετρά πριν την ώρα του ημερολογίου", () => {
     expect(describeJournal(journal)).toBe("Καταχωρίσεις: 9 από 16 ημέρες (28/9–13/10)");

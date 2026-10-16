@@ -4,7 +4,7 @@ import { PicturePanel } from "@/components/PicturePanel";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { keepHistory } from "@/lib/history";
-import { describeGroupPicture, describeJournal, describePct, describeSessions, pct, type MemberPicture } from "@/lib/picture";
+import { describeGroupPicture, describeJournal, describePct, describeSessions, GROUP_MISS, pct, type MemberPicture } from "@/lib/picture";
 import { periodQuery, picturesFor, type PeriodChoice } from "@/lib/picture-db";
 import { daysBetween, formatDate, localParts } from "@/lib/time";
 import styles from "./Consistency.module.css";
@@ -148,9 +148,9 @@ export async function Consistency({ choice, basePath, canEdit, sort = "groups", 
             <li><b>«Δεν ήρθε»</b> — σημείωμα «Δεν ήρθε». Υπερισχύει του πατήματος «Μπες», που μένει στο ιστορικό.</li>
             <li><b>χωρίς καταγραφή · εκκρεμεί</b> — έληξε η ώρα, ούτε πάτημα ούτε επιβεβαίωση. Μένει στον παρονομαστή (το ποσοστό το λέει ρητά), αλλά δεν είναι απουσία.</li>
             <li><b>ακυρώθηκε / μεταφέρθηκε</b> — δεν μετρά σε κανένα κλάσμα. Η μεταφερμένη μετρά στη νέα της ημερομηνία.</li>
-            <li><b>Ομάδες</b> — «παρουσία» (πάτησε «Μπες στην ομάδα» ή το σημείωσε η διαχείριση) ή «χωρίς καταγραφή». Δεν υπάρχει επιβεβαιωμένη απουσία ομάδας. Αν τελικά <b>δεν έγινε</b>, ο συντονιστής ή η διαχείριση το σημειώνει εκ των υστέρων και δεν μετράει για κανέναν. Αν δεν καταγράφηκε κανένα μέλος εκείνη τη μέρα, ίσως δεν κρατήθηκε παρουσία.</li>
+            <li><b>Ομάδες</b> — «παρουσία» (πάτησε «Μπες στην ομάδα» ή το σημείωσε η διαχείριση) ή «Δεν ήρθε» (δεν πάτησε «Μπες»). Δεν σημειώνεται με το χέρι: βγαίνει από το κουμπί σύνδεσης του μέλους (16/10)· η διαχείριση διορθώνει μόνο αν το πάτημα δεν καταγράφηκε. Αν τελικά <b>δεν έγινε</b>, ο συντονιστής ή η διαχείριση το σημειώνει εκ των υστέρων και δεν μετράει για κανέναν. Αν δεν καταγράφηκε κανένα μέλος εκείνη τη μέρα, ίσως δεν κρατήθηκε παρουσία.</li>
             <li><b>Ποσοστό</b> — μόνο δίπλα στο πλήρες κείμενο «Χ από Υ που πέρασαν» και μόνο όταν πέρασε τουλάχιστον μία.</li>
-            <li><b>Χαμηλότερη συμμετοχή</b> — ομάδες κάτω από {LOW_GROUPS}% ή τουλάχιστον ένα «Δεν ήρθε» στις ατομικές. Τα «χωρίς καταγραφή» δεν μπαίνουν στο φίλτρο. Είναι φίλτρο, όχι αξιολόγηση.</li>
+            <li><b>Χαμηλότερη συμμετοχή</b> — ομάδες κάτω από {LOW_GROUPS}% ή τουλάχιστον ένα «Δεν ήρθε» στις ατομικές. Τα «χωρίς καταγραφή» των ατομικών δεν μπαίνουν στο φίλτρο. Είναι φίλτρο, όχι αξιολόγηση.</li>
           </ul>
         </details>
       </section>
@@ -226,10 +226,10 @@ function Row({ r, today, canEdit, folder }: { r: { m: { id: string; name: string
 
         <div className={styles.detail}>
           <p className="hint" style={{ margin: 0 }}>
-            {period.label}{period.clippedFrom && ` · μετρά από ${formatDate(period.clippedFrom)} (έναρξη προγράμματος)`}. {g.pct !== null && <>Ομάδες: {describePct(g)}. </>}{s.pct !== null && <>Ατομικές: {describePct(s)}. </>}
+            {period.label}{period.clippedFrom && ` · μετρά από ${formatDate(period.clippedFrom)} (έναρξη προγράμματος)`}. {g.pct !== null && <>Ομάδες: {describePct(g, GROUP_MISS)}. </>}{s.pct !== null && <>Ατομικές: {describePct(s)}. </>}
             <Link href={folder}>Φάκελος ›</Link>
           </p>
-          {r.unrecorded > 0 && <p className="hint" style={{ margin: "4px 0 0" }}>{r.unrecorded} {r.unrecorded === 1 ? "ομάδα" : "ομάδες"} χωρίς καμία καταγραφή από κανένα μέλος· μένουν «χωρίς καταγραφή» (ίσως δεν κρατήθηκε παρουσία{canEdit ? "· η διαχείριση τη διορθώνει εδώ" : ""}).</p>}
+          {r.unrecorded > 0 && <p className="hint" style={{ margin: "4px 0 0" }}>{r.unrecorded} {r.unrecorded === 1 ? "ομάδα" : "ομάδες"} χωρίς «Μπες» από κανένα μέλος· μετρούν ως «Δεν ήρθε». Αν η ομάδα έγινε, ίσως τα μέλη μπήκαν χωρίς το κουμπί της εφαρμογής{canEdit ? " (η διαχείριση το διορθώνει εδώ)" : ""}· αν δεν έγινε, σημειώνεται «Δεν έγινε» στη σελίδα της ομάδας.</p>}
           <PicturePanel pic={r.pic} journalHref={`/t/members/${r.m.id}/journal`} />
           {canEdit && g.items.some((x) => x.state !== "not_held" && x.state !== "future") && (
             <>
@@ -243,7 +243,7 @@ function Row({ r, today, canEdit, folder }: { r: { m: { id: string; name: string
                         <input type="hidden" name="memberId" value={r.m.id} />
                         <input type="hidden" name="date" value={d.date} />
                         <button type="submit" className={`${styles.day} ${present ? styles.ok : styles.no}`} title={present ? "Πάτα για αφαίρεση παρουσίας" : "Πάτα για προσθήκη παρουσίας"}>
-                          <span>{short(d.date)} {d.time}</span> <b>{present ? "✓ παρουσία" : "χωρίς καταγραφή"}</b>
+                          <span>{short(d.date)} {d.time}</span> <b>{present ? "✓ παρουσία" : "«Δεν ήρθε»"}</b>
                           <span className={styles.fix}>{present ? "Αφαίρεση" : "Προσθήκη"}</span>
                         </button>
                       </form>

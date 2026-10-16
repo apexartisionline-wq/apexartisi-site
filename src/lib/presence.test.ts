@@ -46,7 +46,7 @@ describe("ομάδες ανά μέλος: πραγματικό πρόγραμμ�
     const r = memberGroups(occ, [{ date: "2026-10-06", joinedAt: t(17, 3, 6) }, { date: "2026-10-09", joinedAt: t(17, 1, 9) }], { now, joinDate: "2026-10-06" });
     expect(r.rows.map((x) => x.state)).toEqual(["before_join", "present", "no_record", "present", "future"]);
     expect(r).toMatchObject({ counted: 2, noRecord: 1, passed: 3, upcoming: 1 });
-    expect(describeGroups(r)).toBe("2 παρουσίες / 3 προγραμματισμένες που πέρασαν · 1 χωρίς καταγραφή");
+    expect(describeGroups(r)).toBe("2 παρουσίες / 3 προγραμματισμένες που πέρασαν · 1 «Δεν ήρθε»");
   });
   it("δεν δημιουργεί ομάδα από «συνήθη μέρα»: παρουσία σε μέρα χωρίς ομάδα στο πρόγραμμα δεν μετράει", () => {
     const r = memberGroups(occ, [{ date: "2026-10-10", joinedAt: t(17, 0, 10) }, { date: "2026-10-07", joinedAt: t(17, 0, 7) }], { now, joinDate: null });

@@ -1043,7 +1043,7 @@ details.care-prev > summary.care-sum:focus-visible { outline: 3px solid var(--ac
 .care-dl dt:first-child { margin-top: 0; }
 .care-dl dd { margin: 0; line-height: 1.5; }
 /* Ετικέτα δίπλα στο κείμενο μόνο όταν η κάρτα πιάνει όλο το πλάτος (900–1279px)· αλλιώς από πάνω, για να μη στενεύει. */
-@media (min-width: 900px) and (max-width: 1279px) { .care:not(.stacked) .care-dl { grid-template-columns: 200px minmax(0, 1fr); gap: 10px 16px; } .care:not(.stacked) .care-dl dt { margin: 0; padding-top: 2px; } }
+@media (min-width: 900px) { .care:not(.stacked) .care-dl { grid-template-columns: 220px minmax(0, 1fr); gap: 10px 16px; } .care:not(.stacked) .care-dl dt { margin: 0; padding-top: 2px; } }
 .care-preview { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .care-full { margin-top: 12px; border-top: 1px solid var(--card-line); }
 .care-full > summary { cursor: pointer; display: flex; align-items: center; min-height: 44px; color: var(--accent-strong); font-weight: 650; }
@@ -1087,3 +1087,11 @@ html:has(.savebar) { scroll-padding-bottom: 104px; }
 /* Μισό πλάτος (Therapair): επίπεδο + αιτία σε μία γραμμή, «Άνοιγμα σήματος» από κάτω. */
 .pair-care .bs-flags li { grid-template-columns: auto minmax(0, 1fr); }
 .pair-care .bs-flags .btn { grid-column: 1 / -1; justify-self: start; }
+/* «Προηγούμενη ατομική» με ΟΛΟ το σημείωμα (υπεύθυνη 16/10): πάντα σε όλο το πλάτος· οι άλλες δύο κάρτες από κάτω, δίπλα-δίπλα. */
+@media (min-width: 1280px) { .care-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 900px) { .care:not(.stacked) .care-grid > .care-prev { grid-column: 1 / -1; } }
+.care-key { background: var(--teal-quiet); border-radius: var(--radius); padding: 12px 14px; }
+.care-full { margin-top: 14px; border-top: 0; }
+.care-full-h { margin: 0 0 6px; font-size: .85rem; font-weight: 700; color: var(--muted); }
+.care-full .note-text { max-width: 80ch; line-height: 1.55; }
+.care-full .note-text > div + div { margin-top: 4px; }

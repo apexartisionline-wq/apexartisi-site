@@ -124,7 +124,7 @@ export default async function GroupNotePage({
         <div className="attn yellow" data-tour="not-held">
           <div className="attn-body">
             <strong>Η ομάδα δεν έγινε</strong> · {notHeldBy?.name ?? "—"}, {formatWhen(session.cancelledAt)}{session.cancelReason && <> · {session.cancelReason}</>}
-            <div className="hint">Δεν μετράει στον παρονομαστή κανενός μέλους (ούτε «χωρίς καταγραφή»). Οι ομάδες δεν ακυρώνονται εκ των προτέρων· αυτό είναι καταγραφή εκ των υστέρων.</div>
+            <div className="hint">Δεν μετράει στον παρονομαστή κανενός μέλους (ούτε «Δεν ήρθε»). Οι ομάδες δεν ακυρώνονται εκ των προτέρων· αυτό είναι καταγραφή εκ των υστέρων.</div>
             {canWrite && (
               <form action={notHeld} style={{ marginTop: 6 }}>
                 <input type="hidden" name="date" value={key.date} /><input type="hidden" name="time" value={key.time} /><input type="hidden" name="undo" value="1" />

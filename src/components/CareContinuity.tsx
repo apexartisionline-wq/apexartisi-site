@@ -19,10 +19,10 @@ type Intake = { level: string | null; trigger: unknown; label: string };
 /**
  * «Συνέχεια φροντίδας» (16/10, ανασχεδιασμός της ατομικής): ό,τι χρειάζεται ο θεραπευτής για τη συνέχεια, σε όλο το πλάτος
  * πάνω από το σημειωματάριο — όχι σε στενή στήλη. Τρεις κάρτες:
- *  1. «Προηγούμενη ατομική» (ανοιχτή): ημερομηνία, ποιος, η αρχή του ΠΡΑΓΜΑΤΙΚΟΥ κειμένου, τι συμφωνήθηκε, τι έμεινε ανοιχτό
- *     (τα πεδία συνέχειας του σημειώματος, ως έχουν — χωρίς AI, χωρίς ερμηνεία), και «Πλήρης σύνοψη» = ολόκληρο το σημείωμα
- *     εδώ, με υδατογράφημα. Για Therapair: μόνο το σημείωμα του ίδιου μέλους (memberNotes κρύβει τον άλλον).
- *  2. «Συνέπεια»: ατομικές και ομάδες ΧΩΡΙΣΤΑ, «Εβδομάδα» ή «Μήνας» (ποτέ μαζί), με το διάστημα σε κάθε μέτρηση· χωρίς
+ *  1. «Προηγούμενη ατομική» (ανοιχτή, όλο το πλάτος): ημερομηνία, ποιος, τι συμφωνήθηκε, τι έμεινε ανοιχτό (τα πεδία
+ *     συνέχειας, ως έχουν — χωρίς AI, χωρίς ερμηνεία) και από κάτω ΟΛΟ το σημείωμα με όλα τα πεδία (υπεύθυνη 16/10),
+ *     με υδατογράφημα. Για Therapair: μόνο το σημείωμα του ίδιου μέλους (memberNotes κρύβει τον άλλον).
+ *  2. «Συνέπεια»: ατομικές και ομάδες ΧΩΡΙΣΤΑ (στις ομάδες «Ήρθε / Δεν ήρθε» από το «Μπες» του μέλους, υπεύθυνη 16/10), «Εβδομάδα» ή «Μήνας» (ποτέ μαζί), με το διάστημα σε κάθε μέτρηση· χωρίς
  *     ποσοστά. Οι αριθμοί είναι αυτοί της κοινής εικόνας περιόδου (picture.ts) — ίδιοι με φάκελο και «Συνέπεια».
  *  3. «Στόχος εβδομάδας και εργασία».
  * Από κάτω «Περισσότερα για το μέλος», κλειστά: με μια ματιά (ημερολόγιο, νηφαλιότητα), από τότε ως σήμερα, θεματική,
@@ -106,7 +106,6 @@ function PrevSession({ g, memberId }: { g: Glance; memberId: string }) {
   }
   const h = p.handover;
   const prevSafety = p.safety.safeOk === false || Boolean(p.safety.concern) || p.usedSince === "YES";
-  const preview = p.text.replace(/\s+/g, " ").trim();
   // «Τι προτείναμε» (παλιό πεδίο) δεν παρουσιάζεται ως συμφωνία του μέλους (απόφαση 13/10): χωριστή γραμμή.
   const suggested = h.suggested || (!h.agreed ? p.next : "");
   return (
@@ -125,9 +124,9 @@ function PrevSession({ g, memberId }: { g: Glance; memberId: string }) {
           </div>
         </div>
       )}
-      <dl className="care-dl wm">
-        <dt>Από το σημείωμα</dt>
-        <dd>{preview ? <span className="care-preview">{preview}</span> : <span className="muted">Το σημείωμα δεν έχει κείμενο.</span>}</dd>
+      {/* Συνέχεια πρώτα (τονισμένη)· από κάτω ΟΛΟ το σημείωμα, όπως γράφτηκε (υπεύθυνη 16/10: «η σύνοψη θα έχει όλα τα
+          δεδομένα»). Τίποτα δεν παράγεται ή συμπεραίνεται — μόνο ό,τι καταγράφηκε, με υδατογράφημα. */}
+      <dl className="care-dl care-key wm">
         <dt>Συμφωνήθηκε ως επόμενο βήμα</dt>
         <dd>{h.agreed || <span className="muted">Δεν καταγράφηκε.</span>}</dd>
         <dt>Έμεινε ανοιχτό</dt>
@@ -135,10 +134,10 @@ function PrevSession({ g, memberId }: { g: Glance; memberId: string }) {
         {h.handover && <><dt>Για τον επόμενο θεραπευτή</dt><dd>{h.handover}</dd></>}
         {suggested && <><dt>Τι προτείναμε</dt><dd>{suggested}</dd></>}
       </dl>
-      <details className="care-full">
-        <summary>Πλήρης σύνοψη — όλο το σημείωμα</summary>
-        <NoteText text={p.text} />
-      </details>
+      <section className="care-full" aria-label="Όλο το προηγούμενο σημείωμα">
+        <h4 className="care-full-h">Όλο το σημείωμα</h4>
+        {p.text.trim() ? <NoteText text={p.text} /> : <p className="muted">Το σημείωμα δεν έχει κείμενο.</p>}
+      </section>
       <p className="hint care-foot"><Link href={`/t/members/${memberId}/notes`}>Όλα τα σημειώματα στον φάκελο ›</Link></p>
     </details>
   );
@@ -211,12 +210,12 @@ function GroupRow({ g, period }: { g: GroupPicture; period: string }) {
       ) : (
         <ul className="att-counts">
           <li><b>{g.present}</b> {g.present === 1 ? "παρουσία" : "παρουσίες"}</li>
-          <li><b>{g.noRecord}</b> χωρίς καταγραφή</li>
+          <li><b>{g.noRecord}</b> «Δεν ήρθε» <span className="hint">(δεν πάτησε «Μπες»)</span></li>
         </ul>
       )}
       <Sub parts={[
         g.passed > 0 && `από ${plural(g.passed, "που πέρασε", "που πέρασαν")}`,
-        g.passed > 0 && "στις ομάδες καταγράφεται μόνο η παρουσία",
+        g.passed > 0 && "στις ομάδες «Ήρθε / Δεν ήρθε» βγαίνει από το «Μπες στην ομάδα» του μέλους",
         g.notHeld > 0 && `${g.notHeld} δεν ${g.notHeld === 1 ? "έγινε" : "έγιναν"} (δεν μετρά)`,
         g.upcoming > 0 && plural(g.upcoming, "επόμενη", "επόμενες"),
         g.target !== null && `στόχος μήνα ${g.target}`,
