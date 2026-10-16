@@ -1,4 +1,6 @@
 import "server-only";
+import { randomBytes } from "node:crypto";
+import bcrypt from "bcryptjs";
 import { prisma } from "./db";
 import { cycleForDemoBooking, ensureDemoDay } from "./demo-day";
 import { localParts } from "./time";
@@ -19,6 +21,56 @@ export async function startDemoSession(therapist: { id: string; therapistKind: "
   if (!isDemoSite()) return null;
   const member = await prisma.user.findUnique({ where: { username: DEMO_MEMBER }, select: { id: true, active: true } });
   if (!member || !member.active) return null;
+  return bookDemo(therapist, member.id, DEMO_POSITION);
+}
+
+// 5η θέση: μόνο για τη «δοκιμαστική 1η ατομική», ώστε να μη μπλέκεται με την ατομική του Νίκου στην 4η.
+const FIRST_POSITION = 5;
+// Ψεύτικα ονόματα στο ύφος των άλλων ψεύτικων μελών (το «Σήμερα» τα κόβει σε «Όνομα Δ.»).
+const FIRST_NAMES = ["Στέλιος Δοκιμαστικός", "Άρτεμις Δοκιμαστική", "Χρήστος Δοκιμαστικός", "Ζωή Δοκιμαστική", "Αλέξης Δοκιμαστικός", "Ίρις Δοκιμαστική", "Πάνος Δοκιμαστικός", "Δάφνη Δοκιμαστική"];
+
+/**
+ * «Δοκιμαστική 1η ατομική (νέο μέλος)» (υπεύθυνη 16/10: «θέλω να το δω από την 1η ατομική»): φτιάχνει ένα ΚΑΙΝΟΥΡΓΙΟ
+ * ψεύτικο μέλος χωρίς ιστορικό — συναίνεση και συμφωνητικό έτοιμα (τα κάνει η διαχείριση πριν), η αρχική αξιολόγηση
+ * εκκρεμεί — και την πρώτη του ατομική σε 2 λεπτά με τον θεραπευτή που το πάτησε. Ψεύτικο μέλος χωρίς σύνδεση
+ * (τυχαίος κωδικός). Δεν σβήνει τίποτα: κάθε πάτημα = νέο μέλος, εκτός αν η προηγούμενη 1η ατομική δεν έχει τελειώσει.
+ * Μόνο στη δοκιμαστική εγκατάσταση.
+ */
+export async function startDemoFirstSession(therapist: { id: string; therapistKind: "BIOMATIC" | "CLINICAL" | "BOTH" | null }): Promise<string | null> {
+  if (!isDemoSite()) return null;
+  const now = new Date();
+  const { getSettings } = await import("./settings");
+  const minutes = (await getSettings()).sessionMinutes;
+  const open = await prisma.slot.findFirst({
+    where: { date: localParts(now).date, position: FIRST_POSITION, therapistId: therapist.id, kind: "INDIVIDUAL", note: null, startsAt: { gt: new Date(now.getTime() - minutes * 60_000) } },
+    orderBy: { startsAt: "desc" },
+    select: { id: true, startsAt: true },
+  });
+  if (open) {
+    if (open.startsAt > now) await prisma.slot.update({ where: { id: open.id }, data: { startsAt: new Date(now.getTime() + 2 * 60_000) } });
+    return open.id;
+  }
+  const admin = await prisma.user.findFirst({ where: { role: "ADMIN" }, orderBy: { createdAt: "asc" }, select: { id: true } });
+  const n = (await prisma.user.count({ where: { username: { startsWith: "neo-" } } })) + 1;
+  const stamp = now.getTime().toString(36);
+  const today = localParts(now).date;
+  const member = await prisma.user.create({
+    data: {
+      username: `neo-${stamp}`, name: FIRST_NAMES[(n - 1) % FIRST_NAMES.length], memberCode: `N-${stamp.toUpperCase()}`, role: "MEMBER", source: "APEX",
+      passwordHash: await bcrypt.hash(randomBytes(24).toString("hex"), 10), programStartDate: today,
+    },
+  });
+  await prisma.cycle.create({ data: { memberId: member.id, length: 8 } });
+  const by = admin?.id ?? therapist.id;
+  // Σ0 (ενημέρωση, συναίνεση, συμφωνητικό) γίνεται πριν την 1η ατομική· η αρχική αξιολόγηση μένει για την ατομική.
+  for (const key of ["online_consent", "agreement"]) await prisma.intakeCheck.create({ data: { memberId: member.id, key, doneById: by } });
+  for (const purpose of ["record", "journal", "forms", "telegram", "self_message", "emergency_contact", "confidentiality"]) {
+    await prisma.consent.create({ data: { memberId: member.id, purpose, choice: "YES", version: "δοκιμή", recordedById: purpose === "confidentiality" ? member.id : by } });
+  }
+  return bookDemo(therapist, member.id, FIRST_POSITION);
+}
+
+async function bookDemo(therapist: { id: string; therapistKind: "BIOMATIC" | "CLINICAL" | "BOTH" | null }, memberId: string, position: number): Promise<string> {
   const now = new Date();
   const p = localParts(now);
   const startsAt = new Date(now.getTime() + 2 * 60_000);
@@ -27,7 +79,7 @@ export async function startDemoSession(therapist: { id: string; therapistKind: "
   const { getSettings } = await import("./settings");
   const minutes = (await getSettings()).sessionMinutes;
   const open = await prisma.slot.findFirst({
-    where: { date: p.date, position: DEMO_POSITION, therapistId: therapist.id, kind: "INDIVIDUAL", note: null, startsAt: { gt: new Date(now.getTime() - minutes * 60_000) }, bookings: { some: { memberId: member.id } } },
+    where: { date: p.date, position, therapistId: therapist.id, kind: "INDIVIDUAL", note: null, startsAt: { gt: new Date(now.getTime() - minutes * 60_000) }, bookings: { some: { memberId } } },
     orderBy: { startsAt: "desc" },
     select: { id: true, startsAt: true },
   });
@@ -37,15 +89,15 @@ export async function startDemoSession(therapist: { id: string; therapistKind: "
     return open.id;
   }
   const slot = await prisma.slot.upsert({
-    where: { date_hour_position: { date: p.date, hour: p.hour, position: DEMO_POSITION } },
-    create: { date: p.date, hour: p.hour, position: DEMO_POSITION, kind: "INDIVIDUAL", startsAt, therapistId: therapist.id },
+    where: { date_hour_position: { date: p.date, hour: p.hour, position } },
+    create: { date: p.date, hour: p.hour, position, kind: "INDIVIDUAL", startsAt, therapistId: therapist.id },
     update: { kind: "INDIVIDUAL", startsAt, therapistId: therapist.id, pairApprovedAt: null },
   });
-  const existing = await prisma.booking.findUnique({ where: { slotId_memberId: { slotId: slot.id, memberId: member.id } }, select: { id: true } });
-  const cycleId = existing ? undefined : await cycleForDemoBooking(prisma, member.id);
+  const existing = await prisma.booking.findUnique({ where: { slotId_memberId: { slotId: slot.id, memberId } }, select: { id: true } });
+  const cycleId = existing ? undefined : await cycleForDemoBooking(prisma, memberId);
   await prisma.booking.upsert({
-    where: { slotId_memberId: { slotId: slot.id, memberId: member.id } },
-    create: { slotId: slot.id, memberId: member.id, cycleId, kind: therapist.therapistKind === "BIOMATIC" ? "BIOMATIC" : "CLINICAL" },
+    where: { slotId_memberId: { slotId: slot.id, memberId } },
+    create: { slotId: slot.id, memberId, cycleId, kind: therapist.therapistKind === "BIOMATIC" ? "BIOMATIC" : "CLINICAL" },
     update: {},
   });
   return slot.id;

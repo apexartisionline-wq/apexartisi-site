@@ -24,7 +24,7 @@ import { memberSafetyMany } from "@/lib/safety-batch";
 import { memberNotes } from "@/lib/member-notes";
 import { sessionPresence } from "@/lib/presence";
 import { getSettings } from "@/lib/settings";
-import { ensureDemoToday, isDemoSite, startDemoSession } from "@/lib/demo-session";
+import { ensureDemoToday, isDemoSite, startDemoFirstSession, startDemoSession } from "@/lib/demo-session";
 import { addDays, athensToUtc, formatDate, formatTime, localParts, toMinutes } from "@/lib/time";
 
 // Μόνο στη δοκιμαστική εγκατάσταση: φτιάχνει μια ατομική «τώρα» με ψεύτικο μέλος, για να δοκιμάσει κανείς τη σύνδεση.
@@ -32,6 +32,13 @@ async function demoStart() {
   "use server";
   const user = await requireRole("THERAPIST", "ADMIN");
   const id = await startDemoSession(user).catch((e) => { console.error("[demo]", e); return null; });
+  redirect(id ? `/t?demo=${id}` : "/t?demo=0");
+}
+// …και «Δοκιμαστική 1η ατομική»: νέο ψεύτικο μέλος χωρίς ιστορικό (16/10).
+async function demoFirst() {
+  "use server";
+  const user = await requireRole("THERAPIST", "ADMIN");
+  const id = await startDemoFirstSession(user).catch((e) => { console.error("[demo-first]", e); return null; });
   redirect(id ? `/t?demo=${id}` : "/t?demo=0");
 }
 
@@ -285,10 +292,11 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
               </p>
             </details>
             {isToday && isDemoSite() && (
-              <form action={demoStart} className="row" style={{ marginTop: 12, gap: 10 }}>
+              <div className="row" style={{ marginTop: 12, gap: 10 }}>
                 <span className="hint">Δοκιμαστικό περιβάλλον</span>
-                <DemoStartButton />
-              </form>
+                <form action={demoStart}><DemoStartButton /></form>
+                <form action={demoFirst}><DemoStartButton first /></form>
+              </div>
             )}
           </Panel>
 
