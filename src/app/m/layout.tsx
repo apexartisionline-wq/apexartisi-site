@@ -17,8 +17,12 @@ export default async function MemberLayout({ children }: { children: React.React
   return (
     <>
       <Nav links={navLinks("MEMBER", { hasPlan, hasMessages })} />
-      <BackButton home="/m" />
-      {children}
+      {/* Ίδιο φόντο, κάρτες και επικεφαλίδες με το περιβάλλον της ομάδας (16/10)· χωρίς το πλαϊνό μενού (έχει το λεκτικό
+          «apex/rtisi», που δεν φτάνει στο κινητό των μελών — μόνο το ουδέτερο «Apex»). */}
+      <div className="member-env">
+        <BackButton home="/m" />
+        {children}
+      </div>
       <div className="redbar">
         <Link href="/m/help" className="btn red big">Κόκκινο κουμπί</Link>
       </div>

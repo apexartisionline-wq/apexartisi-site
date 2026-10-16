@@ -13,21 +13,43 @@ const ICON: Record<string, string> = {
   "/t/messages": "chat",
   "/t/lexiko": "compass",
   "/account": "user",
+  // Διαχείριση (16/10: ίδιο περιβάλλον σε όλους τους ρόλους). Μόνο τα υπάρχοντα εικονίδια.
+  "/admin": "calendar",
+  "/admin/slots": "clock",
+  "/admin/bookings": "list",
+  "/admin/requests": "refresh",
+  "/admin/groups": "group",
+  "/admin/consistency": "chart",
+  "/admin/people": "user",
+  "/admin/content": "doc",
+  "/admin/announcements": "info",
+  "/admin/messages": "check",
+  "/admin/steps": "target",
+  "/admin/library": "folder",
+  "/admin/help": "alert",
+  "/admin/incidents": "shield",
+  "/admin/oncall": "phone",
+  "/admin/settings": "compass",
+  "/admin/audit": "eye",
+  "/admin/retention": "save",
 };
 
 /**
- * Πλαϊνό μενού του θεραπευτή σε υπολογιστή/tablet (≥ 1100px), κατά το προσχέδιο της υπεύθυνης (14/10, ξανά 15/10):
+ * Πλαϊνό μενού σε υπολογιστή/tablet (≥ 1100px) — του θεραπευτή και (16/10) της διαχείρισης, κατά το προσχέδιο της υπεύθυνης (14/10, ξανά 15/10):
  * λογότυπο πάνω, σελίδες με εικονίδιο, η τρέχουσα τονισμένη· κάτω «Ξενάγηση» (σε έντονο accent, απόφαση 9/10),
  * «Λογαριασμός», «Έξοδος». Σε μικρότερη οθόνη μένει το πάνω μενού με «Μενού».
  */
-export function SideNav({ links }: { links: { href: string; label: string }[] }) {
+export function SideNav({ links, home = "/t" }: { links: { href: string; label: string }[]; home?: string }) {
   const path = usePathname();
-  const active = (href: string) => (href === "/t" ? path === "/t" || path.startsWith("/t/s/") || path.startsWith("/t/group") || path.startsWith("/t/help") : path === href || path.startsWith(`${href}/`));
+  const active = (href: string) =>
+    href === "/t" ? path === "/t" || path.startsWith("/t/s/") || path.startsWith("/t/group") || path.startsWith("/t/help")
+    : href === "/admin" ? path === "/admin"
+    : path === href || path.startsWith(`${href}/`);
   const main = links.filter((l) => l.href !== "/account");
   const account = links.find((l) => l.href === "/account");
   return (
-    <aside className="sidenav" aria-label="Κύριο μενού">
-      <Link href="/t" className="sidenav-brand" aria-label="apex/rtisi online — Σήμερα">
+    <aside className={`sidenav${main.length > 10 ? " dense" : ""}`} aria-label="Κύριο μενού">
+      <Link href={home} className="sidenav-brand" aria-label="apex/rtisi online — Σήμερα">
         <picture>
           <source srcSet="/brand/apexrtisi-online-dark.svg" media="(prefers-color-scheme: dark)" />
           <img src="/brand/apexrtisi-online.svg" alt="apex/rtisi online" />

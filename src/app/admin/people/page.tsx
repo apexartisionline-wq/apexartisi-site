@@ -4,7 +4,8 @@ import { programDay } from "@/lib/program";
 import { localParts } from "@/lib/time";
 import { CreatePersonForm } from "./CodeForms";
 import { ndaOverview, NDA_STATE } from "@/lib/nda";
-import { Pill } from "@/components/ui";
+import { PageHead } from "@/components/ui";
+import { PeopleList, type PersonRow } from "@/components/PeopleList";
 
 const ROLE = { MEMBER: "Μέλος", THERAPIST: "Θεραπευτής", ADMIN: "Διαχείριση" } as const;
 
@@ -16,32 +17,34 @@ export default async function PeoplePage() {
     orderBy: [{ active: "desc" }, { role: "asc" }, { name: "asc" }],
     include: { cycles: { where: { closedAt: null }, include: { _count: { select: { bookings: true } } } } },
   });
+  const ndaPending = (id: string) => {
+    const r = ndaBy.get(id);
+    return nda.doc && r && r.state !== "signed" && r.state !== "exempt" ? `εχεμύθεια: ${NDA_STATE[r.state].text.toLowerCase()}` : null;
+  };
+  // Ίδια πληροφορία με τον παλιό πίνακα (όνομα, χρήστης, ρόλος, προέλευση, μέρα, κύκλος, ανενεργός, εχεμύθεια), σε κάρτες
+  // με αναζήτηση και φίλτρα όπως τα «Μέλη» (16/10: ίδιο περιβάλλον σε όλους τους ρόλους).
+  const rows: PersonRow[] = people.map((p) => {
+    const c = p.cycles[0];
+    return {
+      id: p.id,
+      name: p.name,
+      username: p.username,
+      role: p.role,
+      roleLabel: ROLE[p.role],
+      source: p.source === "AUTOGNOSIA_PLUS" ? "ΑΥΤΟΓΝΩΣΙΑ PLUS" : p.source === "APEX" ? "apex" : null,
+      day: p.role === "MEMBER" ? String(programDay(p.programStartDate, today) ?? "—") : null,
+      cycle: c ? `${c._count.bookings}/${c.length}` : null,
+      active: p.active,
+      nda: p.role !== "MEMBER" ? ndaPending(p.id) : null,
+    };
+  });
   return (
     <>
-      <h1>Άνθρωποι</h1>
+      <PageHead title="Άνθρωποι" sub={`${people.filter((p) => p.active).length} ενεργοί λογαριασμοί`} />
       <p className="hint">
         <Link href="/admin/nda">Έντυπο εχεμύθειας ›</Link> — {nda.doc ? `ισχύουσα έκδοση ${nda.doc.version}· ${nda.rows.filter((r) => r.state === "none" || r.state === "accepted").length} εκκρεμ${nda.rows.filter((r) => r.state === "none" || r.state === "accepted").length === 1 ? "εί" : "ούν"}` : "δεν έχει ανέβει ακόμα"}.
       </p>
-      <div className="card table-wrap">
-        <table>
-          <thead><tr><th>Όνομα</th><th>Ρόλος</th><th>Προέλευση</th><th>Μέρα</th><th>Κύκλος</th><th></th></tr></thead>
-          <tbody>
-            {people.map((p) => {
-              const c = p.cycles[0];
-              return (
-                <tr key={p.id} style={{ opacity: p.active ? 1 : 0.5 }}>
-                  <td><Link href={`/admin/people/${p.id}`}>{p.name}</Link> <span className="muted small">@{p.username}</span></td>
-                  <td>{ROLE[p.role]}</td>
-                  <td>{p.source === "AUTOGNOSIA_PLUS" ? "ΑΥΤΟΓΝΩΣΙΑ PLUS" : p.source === "APEX" ? "apex" : ""}</td>
-                  <td>{p.role === "MEMBER" ? programDay(p.programStartDate, today) ?? "—" : ""}</td>
-                  <td>{c ? `${c._count.bookings}/${c.length}` : ""}</td>
-                  <td>{!p.active && <span className="badge">ανενεργός</span>}{p.role !== "MEMBER" && nda.doc && ndaBy.get(p.id) && ndaBy.get(p.id)!.state !== "signed" && ndaBy.get(p.id)!.state !== "exempt" && <> <Pill tone="yellow">εχεμύθεια: {NDA_STATE[ndaBy.get(p.id)!.state].text.toLowerCase()}</Pill></>}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+      <PeopleList rows={rows} showNda={Boolean(nda.doc)} />
       <h2>Νέος άνθρωπος</h2>
       <CreatePersonForm />
     </>

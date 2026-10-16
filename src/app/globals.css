@@ -963,3 +963,21 @@ details.safety-fold > .side-body > .panel { border: 0; padding: 4px 0 0 !importa
   .member-open { align-self: center; }
   .member-open-text { display: inline; }
 }
+
+/* ── Ίδιο περιβάλλον σε όλους τους ρόλους (16/10): φόντο --canvas, λευκές κάρτες, ίδιες επικεφαλίδες. ── */
+.staff .card, .member-env .card, .staff .list, .member-env .list { background: var(--card); border-color: var(--card-line); }
+.staff .list > * + *, .member-env .list > * + * { border-top-color: var(--card-line); }
+.member-env { background: var(--canvas); min-height: calc(100vh - 70px); }
+.member-env h1 { font-size: var(--fs-h1); line-height: 1.15; letter-spacing: -0.02em; margin: 6px 0 16px; }
+/* Η διαχείριση έχει πολλές σελίδες: πυκνότερο πλαϊνό μενού για να χωρούν χωρίς πολύ κύλιση. */
+.sidenav.dense { padding-top: 22px; }
+.sidenav.dense .sidenav-brand { padding-bottom: 16px; }
+.sidenav.dense .sidenav-links { gap: 1px; }
+.sidenav.dense a { padding: 8px 14px; font-size: .97rem; gap: 12px; }
+.sidenav.dense a svg { width: 19px; height: 19px; }
+.member-env ~ .redbar { background: linear-gradient(transparent, var(--canvas) 30%); }
+/* «Άνθρωποι» της διαχείρισης: ίδια κάρτα με τα «Μέλη», με γραμμή στοιχείων αντί για σήμα. */
+.member-card.is-inactive { opacity: .6; }
+.person-meta { grid-area: next; display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--muted); font-size: .92rem; }
+.person-meta b { color: var(--text); font-weight: 600; }
+.person-user { color: var(--muted); font-weight: 500; font-size: .92rem; }

@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
+import { norm, useListQuery } from "./list-query";
 import { Icon } from "./Icon";
 
 /**
@@ -31,8 +32,6 @@ const FILTERS = [
 ] as const;
 type FilterKey = (typeof FILTERS)[number]["key"];
 
-// Αναζήτηση χωρίς τόνους και πεζά/κεφαλαία (ίδια λογική με τον «Οδηγό ομάδας»).
-const norm = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/ς/g, "σ").trim();
 
 const BADGE = {
   red: { cls: "red", icon: "alert", label: "Χρειάζεται προσοχή" },
@@ -41,28 +40,7 @@ const BADGE = {
 } as const;
 
 export function MembersList({ rows, initialQ, initialF }: { rows: MemberRow[]; initialQ: string; initialF: string }) {
-  const [q, setQ] = useState(initialQ);
-  const [f, setF] = useState<FilterKey>(FILTERS.some((x) => x.key === initialF) ? (initialF as FilterKey) : "all");
-
-  // Η αναζήτηση και το φίλτρο μένουν στη διεύθυνση: το «‹ Πίσω» από τον φάκελο γυρίζει στην ίδια εικόνα. Στο «Πίσω» η σελίδα
-  // έρχεται από την προσωρινή μνήμη του router με τις αρχικές τιμές της, γι' αυτό πρώτα διαβάζουμε τη διεύθυνση και μετά γράφουμε.
-  const [ready, setReady] = useState(false);
-  useEffect(() => {
-    const sp = new URLSearchParams(window.location.search);
-    const uq = sp.get("q"), uf = sp.get("f");
-    if (uq !== null) setQ(uq.slice(0, 80));
-    if (uf && FILTERS.some((x) => x.key === uf)) setF(uf as FilterKey);
-    setReady(true);
-  }, []);
-  useEffect(() => {
-    if (!ready) return;
-    const u = new URL(window.location.href);
-    if (q.trim()) u.searchParams.set("q", q.trim());
-    else u.searchParams.delete("q");
-    if (f !== "all") u.searchParams.set("f", f);
-    else u.searchParams.delete("f");
-    if (u.href !== window.location.href) window.history.replaceState(null, "", u);
-  }, [q, f, ready]);
+  const { q, setQ, f, setF } = useListQuery(FILTERS.map((x) => x.key), initialQ, initialF, "all");
 
   const byName = useMemo(() => {
     const nq = norm(q);

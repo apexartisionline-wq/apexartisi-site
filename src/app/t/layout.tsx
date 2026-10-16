@@ -15,11 +15,11 @@ export default async function TherapistLayout({ children }: { children: React.Re
   const wm = watermarksNotes(user);
   const when = watermarkWhen(new Date());
   const style = wm ? ({ "--wm-l": watermarkCss(user.name, when), "--wm-d": watermarkCss(user.name, when, true) } as React.CSSProperties) : undefined;
-  // Πλαϊνό μενού (προσχέδιο υπεύθυνης 14/10) για τους θεραπευτές σε μεγάλη οθόνη· η διαχείριση (πολλές σελίδες) κρατά το πάνω.
-  const side = user.role === "THERAPIST";
+  // Πλαϊνό μενού (προσχέδιο υπεύθυνης 14/10) σε μεγάλη οθόνη· από 16/10 και για τη διαχείριση (ίδιο περιβάλλον σε όλους
+  // τους ρόλους), με τα δικά της μενού.
   return (
-    <div className={side ? "has-side" : undefined}>
-      {side && <SideNav links={navLinks(user.role)} />}
+    <div className="has-side">
+      <SideNav links={navLinks(user.role)} home={user.role === "ADMIN" ? "/admin" : "/t"} />
       <Nav links={navLinks(user.role)} menu />
       <div className={wm ? "staff wm-scope" : "staff"} style={style}><BackButton home="/t" />{children}</div>
       {wm && <NoCopy name={user.name} />}
