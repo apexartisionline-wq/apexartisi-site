@@ -198,7 +198,7 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
   const attention: Attn[] = [];
   for (const id of memberIds) {
     const box = boxes.find((b) => b.id === id);
-    const f = (flags.get(id) ?? []).filter((x) => (x.level === "red" || x.key === "risk_review" || x.key === "no_contact") && !inBox.has(`${id}:${x.key}`));
+    const f = (flags.get(id) ?? []).filter((x) => (x.level === "red" || x.key === "risk_review" || x.key === "no_contact" || x.key === "craving" || x.key === "new_member") && !inBox.has(`${id}:${x.key}`));
     const issues: Issue[] = [
       ...(box ? box.items.map((a) => ({ text: a.text, at: a.createdAt, href: alertHref(id, a), by: `${a.sourceLabel}, ${a.by}`, red: !a.mild })) : []),
       // Η αφορμή «θέλει αξιολόγηση» φαίνεται ως ενέργεια· μόνο όταν είναι ΕΚΠΡΟΘΕΣΜΗ (απόφαση 14/10) γίνεται και κόκκινη γραμμή.
@@ -344,7 +344,7 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
             <details className="fold small" style={{ marginTop: 12 }}>
               <summary className="muted">Τι σημαίνουν οι ενδείξεις</summary>
               <p className="muted" style={{ margin: "6px 0 0" }}>
-                <strong>Σοβαρό σήμα</strong>: χρειάζεται ενέργεια. <strong>Να το δεις</strong>: για την επόμενη επαφή. Η ειδοποίηση των 24 ωρών είναι ειδοποίηση: όταν φύγει από εδώ, το θέμα δεν έχει λυθεί μόνο του — η ενέργεια μένει ανοιχτή μέχρι να ολοκληρωθεί, και τα σήματα μένουν στο «Ασφάλεια» του φακέλου όσο ισχύουν.
+                <strong>Σοβαρό σήμα</strong> (κόκκινο): κάτι που θέλει ενέργεια τώρα — πάτησε το κόκκινο κουμπί, έγραψε σκέψεις να κάνει κακό στον εαυτό του ή ότι έκανε χρήση, υψηλές ανάγκες ασφάλειας. <strong>Να το δεις</strong> (κίτρινο): για την επόμενη επαφή — μέρες χωρίς καμία επαφή μαζί μας, έντονες επιθυμίες στο ημερολόγιο, νέο μέλος στις πρώτες του μέρες, αυξημένες ανάγκες ασφάλειας. Η ειδοποίηση των 24 ωρών είναι ειδοποίηση: όταν φύγει από εδώ, το θέμα δεν έχει λυθεί μόνο του — η ενέργεια μένει ανοιχτή μέχρι να ολοκληρωθεί, και τα σήματα μένουν στο «Ασφάλεια» του φακέλου όσο ισχύουν.
                 «Το είδα», «Το ανέλαβα» και «Ολοκληρώθηκε» είναι διαφορετικά: η ανάγνωση δεν ολοκληρώνει την ενέργεια.
               </p>
             </details>

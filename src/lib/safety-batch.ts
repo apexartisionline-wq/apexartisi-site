@@ -2,7 +2,7 @@ import "server-only";
 import { ALERTS, assessmentAlerts, assessmentSchema } from "./assessment";
 import { dec } from "./crypto";
 import { prisma } from "./db";
-import { safetyFlags } from "./handover-rules";
+import { CRAVING_DAYS, CRAVING_HIGH, safetyFlags } from "./handover-rules";
 import { intakeStatus, latestChoices } from "./intake-rules";
 import { assessmentDeadline, needsReview, type Trigger } from "./risk";
 import { getSettings } from "./settings";
@@ -39,9 +39,9 @@ export async function memberSafetyMany(ids: string[], now = new Date()): Promise
 
   const [
     members, checks, consents, plans, help, singleNotes, pairNotes, attendance, presentBookings, dropouts, s, missed, lastJournal,
-    assessments, teamAlerts, flaggedJournal, lastReview, lastSelfHarm, lastUsed,
+    assessments, teamAlerts, flaggedJournal, lastReview, lastSelfHarm, lastUsed, strongCravings,
   ] = await Promise.all([
-    prisma.user.findMany({ where: { id: in_ }, select: { id: true, source: true } }),
+    prisma.user.findMany({ where: { id: in_ }, select: { id: true, source: true, programStartDate: true, createdAt: true } }),
     prisma.intakeCheck.findMany({ where: { memberId: in_ } }),
     prisma.consent.findMany({ where: { memberId: in_ }, select: { memberId: true, purpose: true, choice: true, recordedAt: true } }),
     prisma.safetyPlan.findMany({ where: { memberId: in_ }, select: { memberId: true, updatedAt: true } }),
@@ -71,9 +71,14 @@ export async function memberSafetyMany(ids: string[], now = new Date()): Promise
     prisma.riskReview.groupBy({ by: ["memberId"], where: { memberId: in_ }, _max: { createdAt: true } }),
     prisma.journalEntry.groupBy({ by: ["memberId"], where: { memberId: in_, selfHarm: { in: ["YES", "UNSURE"] } }, _max: { updatedAt: true } }),
     prisma.journalEntry.groupBy({ by: ["memberId"], where: { memberId: in_, used: true }, _max: { updatedAt: true } }),
+    // Έντονες επιθυμίες (17/10): λαχτάρα ≥ CRAVING_HIGH τις τελευταίες CRAVING_DAYS μέρες — μόνο αριθμοί, ποτέ το κείμενο.
+    prisma.journalEntry.findMany({
+      where: { memberId: in_, craving: { gte: CRAVING_HIGH }, date: { gte: localParts(new Date(now.getTime() - CRAVING_DAYS * 86_400_000)).date } },
+      select: { memberId: true, date: true, craving: true, updatedAt: true },
+    }),
   ]);
 
-  const checksBy = group(checks), consentsBy = group(consents), helpBy = group(help), missedBy = group(missed), alertsBy = group(teamAlerts), journalBy = group(flaggedJournal), presentBy = group(presentBookings);
+  const checksBy = group(checks), consentsBy = group(consents), helpBy = group(help), missedBy = group(missed), alertsBy = group(teamAlerts), journalBy = group(flaggedJournal), presentBy = group(presentBookings), cravingBy = group(strongCravings);
   const planBy = new Map(plans.map((p) => [p.memberId, p.updatedAt]));
   const attBy = new Map(attendance.map((a) => [a.memberId, a._max.joinedAt]));
   const dropBy = new Map(dropouts.map((d) => [d.memberId, d._count._all]));
@@ -158,7 +163,9 @@ export async function memberSafetyMany(ids: string[], now = new Date()): Promise
       openDropout: (dropBy.get(memberId) ?? 0) > 0,
       dropoutDays: s.dropoutDays,
       intakeComplete: status.complete,
-    });
+      cravings: (cravingBy.get(memberId) ?? []).map((c) => ({ date: c.date, craving: c.craving, at: c.updatedAt })),
+      programStart: member.programStartDate ? new Date(`${member.programStartDate}T00:00:00Z`) : member.createdAt,
+    }).map((f) => (f.key === "craving" || f.key === "new_member" ? { ...f, href: `/t/members/${memberId}` } : f));
     const ak = kindsBy.get(memberId);
     const fromAssessment: Flag[] = (ak?.kinds ?? []).map((k) => {
       const r = (alertsBy.get(memberId) ?? []).find((x) => x.kind === k);

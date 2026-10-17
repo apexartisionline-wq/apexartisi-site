@@ -47,10 +47,31 @@ describe("safetyFlags", () => {
   });
 
   it("σήμα «Χωρίς επαφή»: ίδιο με ή χωρίς ανοιχτό τηλεφώνημα, και μένει μετά την ολοκλήρωσή του", () => {
-    expect(safetyFlags({ ...base, lastContact: ago(5) }).map((x) => x.text)).toEqual(["Χωρίς επαφή 5 μέρες"]);
-    expect(safetyFlags({ ...base, lastContact: ago(5), openDropout: true }).map((x) => x.text)).toEqual(["Χωρίς επαφή 5 μέρες"]);
+    expect(safetyFlags({ ...base, lastContact: ago(5) }).map((x) => x.text)).toEqual(["5 μέρες χωρίς καμία επαφή μαζί μας (ούτε ομάδα, ούτε απογραφή, ούτε ατομική)"]);
+    expect(safetyFlags({ ...base, lastContact: ago(5), openDropout: true }).map((x) => x.text)).toEqual(["5 μέρες χωρίς καμία επαφή μαζί μας (ούτε ομάδα, ούτε απογραφή, ούτε ατομική)"]);
     // Η ενέργεια ολοκληρώθηκε (openDropout false) αλλά δεν υπήρξε νέα επαφή: το σήμα μένει.
-    expect(safetyFlags({ ...base, lastContact: ago(6), openDropout: false })[0].text).toBe("Χωρίς επαφή 6 μέρες");
+    expect(safetyFlags({ ...base, lastContact: ago(6), openDropout: false })[0].text).toBe("6 μέρες χωρίς καμία επαφή μαζί μας (ούτε ομάδα, ούτε απογραφή, ούτε ατομική)");
+  });
+
+  it("έντονες επιθυμίες (17/10): λαχτάρα ≥ 6 τις τελευταίες 7 μέρες — κίτρινο, με τον μεγαλύτερο αριθμό και πόσες μέρες", () => {
+    expect(safetyFlags({ ...base, cravings: [{ date: "2026-09-20", craving: 9, at: ago(12) }] })).toEqual([]);
+    expect(safetyFlags({ ...base, cravings: [{ date: "2026-10-01", craving: 5, at: ago(1) }] })).toEqual([]);
+    const one = safetyFlags({ ...base, cravings: [{ date: "2026-10-01", craving: 7, at: ago(1) }] });
+    expect(one).toHaveLength(1);
+    expect(one[0]).toMatchObject({ level: "yellow", key: "craving" });
+    expect(one[0].text).toBe("Έντονες επιθυμίες στο ημερολόγιο: λαχτάρα 7/10 στις 1/10 — ρώτα το στην επόμενη επαφή");
+    const two = safetyFlags({ ...base, cravings: [{ date: "2026-10-01", craving: 6, at: ago(1) }, { date: "2026-09-29", craving: 8, at: ago(3) }] });
+    expect(two[0].text).toBe("Έντονες επιθυμίες στο ημερολόγιο: λαχτάρα 8/10 στις 29/9 · 2 μέρες τις τελευταίες 7 — ρώτα το στην επόμενη επαφή");
+  });
+
+  it("νέο μέλος (17/10): κίτρινο τις πρώτες 14 μέρες από την έναρξη, μετά τίποτα", () => {
+    expect(safetyFlags({ ...base, programStart: ago(20) })).toEqual([]);
+    expect(safetyFlags({ ...base, programStart: ago(0) })[0].text).toContain("ξεκίνησε σήμερα");
+    const f = safetyFlags({ ...base, programStart: ago(3) });
+    expect(f[0]).toMatchObject({ level: "yellow", key: "new_member" });
+    expect(f[0].text).toBe("Νέο μέλος — ξεκίνησε πριν 3 μέρες: τις πρώτες 14 μέρες παραπάνω φροντίδα και παρακολούθηση");
+    expect(safetyFlags({ ...base, programStart: ago(13) })).toHaveLength(1);
+    expect(safetyFlags({ ...base, programStart: ago(15) })).toEqual([]);
     expect(safetyFlags({ ...base, lastContact: ago(1), openDropout: false })).toEqual([]);
   });
 
@@ -93,7 +114,7 @@ describe("safetyFlags", () => {
       helpRequests: [{ createdAt: ago(10) }],
       notes: [{ at: ago(2), riskChange: "UP", usedSince: "NO", slotId: "s" }],
     });
-    expect(f[0].text).toContain("Κόκκινο κουμπί");
+    expect(f[0].text).toContain("κόκκινο κουμπί");
   });
 
   it("αξιολόγηση αναγκών: αυξημένες = κίτρινο· παλιά αξιολόγηση δεν βγάζει σήμα (μόνο όταν υπάρχει λόγος)", () => {

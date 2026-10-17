@@ -27,7 +27,7 @@ export async function BeforeStart({ memberId, viewer, staff = [], back, flags, i
   const red = flags.some((f) => f.level === "red");
   const level = intake.level as keyof typeof RISK_LEVELS | null;
   const levelLine = !intake.trigger && level ? `${RISK_LEVELS[level]} — ${RISK_INFO[level].action}` : null;
-  // Σήμα χωρίς δικό του σύνδεσμο (π.χ. κόκκινο κουμπί, επίπεδο αναγκών, «Χωρίς επαφή»): η καρτέλα «Ασφάλεια» του φακέλου.
+  // Σήμα χωρίς δικό του σύνδεσμο (π.χ. κόκκινο κουμπί, επίπεδο αναγκών, «μέρες χωρίς επαφή»): η καρτέλα «Ασφάλεια» του φακέλου.
   const linkOf = (f: Flags[number]) => (f.href === "safety" ? `/t/members/${memberId}/safety` : f.href || `/t/members/${memberId}/risk`);
   // Το κουμπί λέει ΠΟΥ πηγαίνει (υπεύθυνη 16/10: «τι σημαίνει το Άνοιγμα σήματος; το πατάω και δεν ανοίγει» — το σήμα
   // «Χωρίς καταγραφή» έδειχνε την ίδια αυτή ατομική, οπότε ξαναφόρτωνε την ίδια σελίδα). Σήμα αυτής της ατομικής → κάτω στο
