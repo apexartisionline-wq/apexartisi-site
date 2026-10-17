@@ -17,32 +17,60 @@ type Viewer = { id: string; role: string; therapistKind: string | null };
 type Intake = { level: string | null; trigger: unknown; label: string };
 
 /**
- * «Συνέχεια φροντίδας» (16/10, ανασχεδιασμός της ατομικής): ό,τι χρειάζεται ο θεραπευτής για τη συνέχεια, σε όλο το πλάτος
- * πάνω από το σημειωματάριο — όχι σε στενή στήλη. Τρεις κάρτες:
- *  1. «Προηγούμενη ατομική» (ανοιχτή, όλο το πλάτος): ημερομηνία, ποιος, τι συμφωνήθηκε, τι έμεινε ανοιχτό (τα πεδία
- *     συνέχειας, ως έχουν — χωρίς AI, χωρίς ερμηνεία) και από κάτω ΟΛΟ το σημείωμα με όλα τα πεδία (υπεύθυνη 16/10),
- *     με υδατογράφημα. Για Therapair: μόνο το σημείωμα του ίδιου μέλους (memberNotes κρύβει τον άλλον).
- *  2. «Συνέπεια»: ατομικές και ομάδες ΧΩΡΙΣΤΑ (στις ομάδες «Ήρθε / Δεν ήρθε» από το «Μπες» του μέλους, υπεύθυνη 16/10), «Εβδομάδα» ή «Μήνας» (ποτέ μαζί), με το διάστημα σε κάθε μέτρηση· χωρίς
- *     ποσοστά. Οι αριθμοί είναι αυτοί της κοινής εικόνας περιόδου (picture.ts) — ίδιοι με φάκελο και «Συνέπεια».
- *  3. «Στόχος εβδομάδας και εργασία».
- * Από κάτω «Περισσότερα για το μέλος», κλειστά: με μια ματιά (ημερολόγιο, νηφαλιότητα), από τότε ως σήμερα, θεματική,
- * σύνοψη αρχικής αξιολόγησης.
+ * Συνέχεια φροντίδας (16/10, ανανεώθηκε 17/10 κατά τη σχεδιαστική κατεύθυνση της υπεύθυνης: «σε κάθε οθόνη να είναι σαφή
+ * τρία πράγματα — ποιο μέλος βλέπω, τι χρειάζεται να ξέρω τώρα, ποιο είναι το επόμενο βήμα»). Δύο κομμάτια:
+ *
+ *  1. PrevSessionCard — «Προηγούμενη ατομική» ως ΣΥΝΤΟΜΗ ΣΥΝΟΨΗ: ημερομηνία, ποιος, η γραμμή ασφάλειας αν υπήρξε, τι
+ *     συμφωνήθηκε ως επόμενο βήμα, τι έμεινε ανοιχτό (τα πεδία συνέχειας ως έχουν — χωρίς AI, χωρίς ερμηνεία). Το ΟΛΟ
+ *     σημείωμα μένει κλειστό και ανοίγει με σαφή επιλογή («Άνοιγμα ολόκληρου του σημειώματος»), με υδατογράφημα — ίδιοι
+ *     κανόνες πρόσβασης με πριν (το κείμενο έρχεται από το ίδιο sessionGlance). Για Therapair: μόνο το σημείωμα του
+ *     ίδιου μέλους (memberNotes κρύβει τον άλλον).
+ *  2. MoreAboutMember — «Περισσότερα για το μέλος», ΟΛΑ σε αναδιπλούμενες ενότητες, κλειστές, ώστε να μην ανταγωνίζονται
+ *     την ασφάλεια και το σημειωματάριο: Συνέπεια (ατομικές και ομάδες ΧΩΡΙΣΤΑ, «Εβδομάδα» ή «Μήνας», χωρίς ποσοστά —
+ *     αριθμοί από το picture.ts), στόχος εβδομάδας και εργασία, με μια ματιά (ημερολόγιο, νηφαλιότητα), από τότε ως
+ *     σήμερα, θεματική, σύνοψη αρχικής αξιολόγησης.
+ *
+ * Στη σελίδα της ατομικής η σειρά είναι: ασφάλεια → προηγούμενη σύνοψη → σημειωματάριο → περισσότερα (ίδια σε κινητό).
+ * Το Therapair (CareContinuity) βάζει τα δύο κομμάτια το ένα κάτω από το άλλο, ανά μέλος.
  */
-export function CareContinuity({ g, memberId, viewer, intake, journalDetail, today, until, untilAt, past, extra, showTheme = true, summary, who, stacked }: {
+export function CareContinuity({ g, memberId, viewer, intake, journalDetail, today, until, untilAt, past, extra, showTheme = true, summary, who, stacked }: CareProps) {
+  return (
+    <section className={`care${stacked ? " stacked" : ""}`} aria-label={who ? `Συνέχεια φροντίδας · ${who}` : "Συνέχεια φροντίδας"}>
+      <h2 className="care-title">Συνέχεια φροντίδας{who && <span className="bs-who"> · {who}</span>}</h2>
+      <PrevSessionCard g={g} memberId={memberId} />
+      <MoreAboutMember g={g} memberId={memberId} viewer={viewer} intake={intake} journalDetail={journalDetail} today={today} until={until} untilAt={untilAt} past={past} extra={extra} showTheme={showTheme} summary={summary} />
+    </section>
+  );
+}
+
+type CareProps = {
   g: Glance; memberId: string; viewer: Viewer; intake: Intake; journalDetail: boolean; today: string; until: string; untilAt: Date; past: boolean;
   extra?: React.ReactNode; showTheme?: boolean; summary?: { author: string; text: string; canOpen: boolean } | null;
   /** Therapair: το όνομα του μέλους στον τίτλο, και οι κάρτες η μία κάτω από την άλλη (μισό πλάτος ανά μέλος). */
   who?: string; stacked?: boolean;
-}) {
+};
+
+/** «Περισσότερα για το μέλος»: όλα κλειστά, με σαφείς τίτλους. */
+export function MoreAboutMember({ g, memberId, viewer, intake, journalDetail, today, until, untilAt, past, extra, showTheme = true, summary, title }: Omit<CareProps, "who" | "stacked"> & { title?: string }) {
   return (
-    <section className={`care${stacked ? " stacked" : ""}`} aria-label={who ? `Συνέχεια φροντίδας · ${who}` : "Συνέχεια φροντίδας"}>
-      <h2 className="care-title">Συνέχεια φροντίδας{who && <span className="bs-who"> · {who}</span>}</h2>
-      <div className="care-grid">
-        <PrevSession g={g} memberId={memberId} />
-        <Attendance pictures={g.pictures} past={past} memberId={memberId} />
-        <section className="panel care-card" data-tour="goal" aria-labelledby={`goal-${memberId}`}>
-          <h3 id={`goal-${memberId}`} className="care-h"><Icon name="target" size={18} /> Στόχος εβδομάδας και εργασία</h3>
-          <p className="care-label">Στόχος της εβδομάδας · τον γράφει το μέλος στο ημερολόγιο</p>
+    <section className="care-more" aria-label={title ?? "Περισσότερα για το μέλος"}>
+      {title && <h2 className="care-title">{title}</h2>}
+      <details className="side-fold" data-tour="attendance">
+        <summary><span className="iconbox"><Icon name="chart" size={16} /></span>Συνέπεια ατομικών και ομάδων</summary>
+        <div className="side-body">
+          {past && <p className="hint" style={{ margin: "0 0 8px" }}>όπως είναι σήμερα, όχι τότε</p>}
+          <PeriodTabs
+            weekLabel={g.pictures.week.period.label}
+            monthLabel={g.pictures.month.period.label}
+            week={<Counts pic={g.pictures.week} />}
+            month={<Counts pic={g.pictures.month} />}
+          />
+        </div>
+      </details>
+      <details className="side-fold" data-tour="goal">
+        <summary><span className="iconbox"><Icon name="target" size={16} /></span>Στόχος εβδομάδας και εργασία</summary>
+        <div className="side-body">
+          <p className="care-label" style={{ marginTop: 0 }}>Στόχος της εβδομάδας · τον γράφει το μέλος στο ημερολόγιο</p>
           <GoalWeekCard detail={journalDetail} memberId={memberId} date={today} />
           <p className="care-label">Τελευταία εργασία</p>
           {g.assignment ? (
@@ -52,54 +80,51 @@ export function CareContinuity({ g, memberId, viewer, intake, journalDetail, tod
               <span className="arrow"><Icon name="chevron" /></span>
             </Link>
           ) : <p className="hint care-empty">Δεν έχει σταλεί εργασία.</p>}
-        </section>
-      </div>
-
-      <div className="care-more" aria-label="Περισσότερα για το μέλος">
-        <details className="side-fold" data-tour="glance">
-          <summary><span className="iconbox"><Icon name="list" size={16} /></span>Με μια ματιά · ημερολόγιο και νηφαλιότητα</summary>
+        </div>
+      </details>
+      <details className="side-fold" data-tour="glance">
+        <summary><span className="iconbox"><Icon name="list" size={16} /></span>Με μια ματιά · ημερολόγιο και νηφαλιότητα</summary>
+        <div className="side-body">
+          {past && <p className="hint" style={{ margin: "0 0 8px" }}>όπως είναι σήμερα, όχι τότε</p>}
+          <MemberGlance g={g} intake={intake} viewer={viewer} compact memberId={memberId} />
+        </div>
+      </details>
+      {g.prev && (
+        <details className="side-fold" data-tour="since">
+          <summary><span className="iconbox"><Icon name="clock" size={16} /></span>Από την προηγούμενη ατομική ως σήμερα</summary>
           <div className="side-body">
-            {past && <p className="hint" style={{ margin: "0 0 8px" }}>όπως είναι σήμερα, όχι τότε</p>}
-            <MemberGlance g={g} intake={intake} viewer={viewer} compact memberId={memberId} />
+            <SinceLast journalDetail={journalDetail} memberId={memberId} prev={g.prev} until={until} untilAt={untilAt} compact />
           </div>
         </details>
-        {g.prev && (
-          <details className="side-fold" data-tour="since">
-            <summary><span className="iconbox"><Icon name="clock" size={16} /></span>Από την προηγούμενη ατομική ως σήμερα</summary>
-            <div className="side-body">
-              <SinceLast journalDetail={journalDetail} memberId={memberId} prev={g.prev} until={until} untilAt={untilAt} compact />
-            </div>
-          </details>
-        )}
-        {showTheme && (
-          <details className="side-fold">
-            <summary><span className="iconbox"><Icon name="folder" size={16} /></span>Θεματική της εβδομάδας</summary>
-            <div className="side-body"><ThemeWeek forms={g.theme.forms} dailyText={g.theme.dailyText} compact /></div>
-          </details>
-        )}
-        {summary && (
-          <details className="side-fold">
-            <summary><span className="iconbox"><Icon name="user" size={16} /></span>Σύνοψη από την αρχική αξιολόγηση</summary>
-            <div className="side-body">
-              <p className="muted small" style={{ margin: "0 0 6px" }}>{summary.author}</p>
-              <div className="body-text wm">{summary.text}</div>
-              {summary.canOpen && <Link className="small" href={`/t/members/${memberId}/assessment`}>Όλη η αξιολόγηση ›</Link>}
-            </div>
-          </details>
-        )}
-        {extra}
-      </div>
+      )}
+      {showTheme && (
+        <details className="side-fold">
+          <summary><span className="iconbox"><Icon name="folder" size={16} /></span>Θεματική της εβδομάδας</summary>
+          <div className="side-body"><ThemeWeek forms={g.theme.forms} dailyText={g.theme.dailyText} compact /></div>
+        </details>
+      )}
+      {summary && (
+        <details className="side-fold">
+          <summary><span className="iconbox"><Icon name="user" size={16} /></span>Σύνοψη από την αρχική αξιολόγηση</summary>
+          <div className="side-body">
+            <p className="muted small" style={{ margin: "0 0 6px" }}>{summary.author}</p>
+            <div className="body-text wm">{summary.text}</div>
+            {summary.canOpen && <Link className="small" href={`/t/members/${memberId}/assessment`}>Όλη η αξιολόγηση ›</Link>}
+          </div>
+        </details>
+      )}
+      {extra}
     </section>
   );
 }
 
-/** «Προηγούμενη ατομική»: μόνο ό,τι γράφτηκε στο σημείωμα. */
-function PrevSession({ g, memberId }: { g: Glance; memberId: string }) {
+/** «Προηγούμενη ατομική»: σύντομη σύνοψη από ό,τι γράφτηκε στο σημείωμα· το ολόκληρο κλειστό, ανοίγει με επιλογή. */
+export function PrevSessionCard({ g, memberId }: { g: Glance; memberId: string }) {
   const p = g.prev;
   if (!p) {
     return (
       <section className="panel care-card care-prev" data-tour="open" aria-labelledby={`prev-${memberId}`}>
-        <h3 id={`prev-${memberId}`} className="care-h"><Icon name="doc" size={18} /> Προηγούμενη ατομική</h3>
+        <h2 id={`prev-${memberId}`} className="care-h"><Icon name="doc" size={18} /> Προηγούμενη ατομική</h2>
         <EmptyState>Δεν υπάρχει προηγούμενη ατομική καταγεγραμμένη.</EmptyState>
       </section>
     );
@@ -109,11 +134,11 @@ function PrevSession({ g, memberId }: { g: Glance; memberId: string }) {
   // «Τι προτείναμε» (παλιό πεδίο) δεν παρουσιάζεται ως συμφωνία του μέλους (απόφαση 13/10): χωριστή γραμμή.
   const suggested = h.suggested || (!h.agreed ? p.next : "");
   return (
-    <details className="panel care-card care-prev" open data-tour="open">
-      <summary className="care-sum">
-        <h3 id={`prev-${memberId}`} className="care-h"><Icon name="doc" size={18} /> Προηγούμενη ατομική</h3>
+    <section className="panel care-card care-prev" data-tour="open" aria-labelledby={`prev-${memberId}`}>
+      <div className="care-sum">
+        <h2 id={`prev-${memberId}`} className="care-h"><Icon name="doc" size={18} /> Προηγούμενη ατομική</h2>
         <span className="care-meta">{formatDate(p.date)} · {nameWithKind(p.by, p.byKind)}{p.pair ? " · Therapair" : ""}</span>
-      </summary>
+      </div>
       {prevSafety && (
         <div className="attn yellow wm care-prev-safety" data-tour="prev-safety">
           <span className="iconbox yellow"><Icon name="alert" size={18} /></span>
@@ -124,8 +149,7 @@ function PrevSession({ g, memberId }: { g: Glance; memberId: string }) {
           </div>
         </div>
       )}
-      {/* Συνέχεια πρώτα (τονισμένη)· από κάτω ΟΛΟ το σημείωμα, όπως γράφτηκε (υπεύθυνη 16/10: «η σύνοψη θα έχει όλα τα
-          δεδομένα»). Τίποτα δεν παράγεται ή συμπεραίνεται — μόνο ό,τι καταγράφηκε, με υδατογράφημα. */}
+      {/* Η σύνοψη: μόνο ό,τι καταγράφηκε, με υδατογράφημα — τίποτα δεν παράγεται ή συμπεραίνεται. */}
       <dl className="care-dl care-key wm">
         <dt>Συμφωνήθηκε ως επόμενο βήμα</dt>
         <dd>{h.agreed || <span className="muted">Δεν καταγράφηκε.</span>}</dd>
@@ -134,31 +158,17 @@ function PrevSession({ g, memberId }: { g: Glance; memberId: string }) {
         {h.handover && <><dt>Για τον επόμενο θεραπευτή</dt><dd>{h.handover}</dd></>}
         {suggested && <><dt>Τι προτείναμε</dt><dd>{suggested}</dd></>}
       </dl>
-      <section className="care-full" aria-label="Όλο το προηγούμενο σημείωμα">
-        <h4 className="care-full-h">Όλο το σημείωμα</h4>
+      {/* Το ολόκληρο σημείωμα κλειστό (17/10): ανοίγει μόνο με επιλογή, ίδιο κείμενο και ίδιο υδατογράφημα με πριν. */}
+      <details className="care-full">
+        <summary>Άνοιγμα ολόκληρου του σημειώματος</summary>
         {p.text.trim() ? <NoteText text={p.text} /> : <p className="muted">Το σημείωμα δεν έχει κείμενο.</p>}
-      </section>
+      </details>
       <p className="hint care-foot"><Link href={`/t/members/${memberId}/notes`}>Όλα τα σημειώματα στον φάκελο ›</Link></p>
-    </details>
-  );
-}
-
-/** Ατομικές και ομάδες χωριστά, για ΜΙΑ περίοδο τη φορά (Εβδομάδα ή Μήνας). Χωρίς ποσοστά. */
-function Attendance({ pictures, past, memberId }: { pictures: { week: MemberPicture; month: MemberPicture }; past: boolean; memberId: string }) {
-  return (
-    <section className="panel care-card" aria-labelledby={`att-${memberId}`} data-tour="attendance">
-      <h3 id={`att-${memberId}`} className="care-h"><Icon name="chart" size={18} /> Συνέπεια ατομικών και ομάδων</h3>
-      {past && <p className="hint" style={{ margin: "0 0 8px" }}>όπως είναι σήμερα, όχι τότε</p>}
-      <PeriodTabs
-        weekLabel={pictures.week.period.label}
-        monthLabel={pictures.month.period.label}
-        week={<Counts pic={pictures.week} />}
-        month={<Counts pic={pictures.month} />}
-      />
     </section>
   );
 }
 
+/** Ατομικές και ομάδες χωριστά, για ΜΙΑ περίοδο τη φορά (Εβδομάδα ή Μήνας). Χωρίς ποσοστά. */
 function Counts({ pic }: { pic: MemberPicture }) {
   const { sessions: s, groups: g, period } = pic;
   return (

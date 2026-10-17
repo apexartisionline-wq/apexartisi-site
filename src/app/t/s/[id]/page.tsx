@@ -13,7 +13,7 @@ import { NoteWorkspace } from "@/components/NoteWorkspace";
 import { PairNoteClient } from "@/components/PairNoteClient";
 import { NoteTags } from "@/components/NoteTags";
 import { BeforeStart } from "@/components/BeforeStart";
-import { CareContinuity } from "@/components/CareContinuity";
+import { CareContinuity, MoreAboutMember, PrevSessionCard } from "@/components/CareContinuity";
 import { memberSafety } from "@/lib/handover";
 import { type StaffOption } from "@/components/ActionRow";
 import { EmptyState, ErrorNote, PageHead, Pill } from "@/components/ui";
@@ -512,14 +512,10 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
         {" · "}<span className="conn conn-inline" title="Είναι η ώρα του πατήματος του κουμπιού «Μπες», όχι επιβεβαίωση συμμετοχής από το Zoom.">{joined ? `Συνδέθηκες στις ${hm(joined.at)}` : x.date === today ? "Δεν έχεις πατήσει «Μπες»" : "Καμία σύνδεση"}{b.joinedAt && <> · το μέλος πάτησε «Μπες» {hm(b.joinedAt)}</>}</span>
       </p>
 
-      {/* Ανασχεδιασμός 16/10: χωρίς δεξιά στήλη. Πρώτα η ασφάλεια σε όλο το πλάτος, μετά η συνέχεια φροντίδας, μετά τα
-          βήματα και το σημειωματάριο σε όλο το πλάτος (το κύριο σημείο της οθόνης). Ίδια σειρά σε κινητό. */}
+      {/* Μία στήλη (16/10, κατεύθυνση 17/10): ασφάλεια → σύντομη σύνοψη της προηγούμενης ατομικής → βήματα και
+          σημειωματάριο (το κύριο σημείο) → «Περισσότερα για το μέλος» σε κλειστές ενότητες. Ίδια σειρά σε κινητό. */}
       <BeforeStart memberId={b.memberId} viewer={viewer} staff={staff} back={`/t/s/${x.id}`} flags={flags} intake={intake} nextClinical={nextClinical} />
-      <CareContinuity
-        g={g} memberId={b.memberId} viewer={viewer} intake={intake} journalDetail={seesJournalDetail(viewer)} today={today}
-        until={x.date < today ? x.date : today} untilAt={x.startsAt < now ? x.startsAt : now} past={x.date < today}
-        summary={ax?.data.summary ? { author: ax.author, text: ax.data.summary, canOpen: isPsychologist(viewer) } : null}
-      />
+      <PrevSessionCard g={g} memberId={b.memberId} />
 
       {firstSession ? (
         <section className="panel first-session" id="first">
@@ -649,6 +645,12 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
         </section>
       </NoteWorkspace>
       )}
+      <MoreAboutMember
+        g={g} memberId={b.memberId} viewer={viewer} intake={intake} journalDetail={seesJournalDetail(viewer)} today={today}
+        until={x.date < today ? x.date : today} untilAt={x.startsAt < now ? x.startsAt : now} past={x.date < today}
+        summary={ax?.data.summary ? { author: ax.author, text: ax.data.summary, canOpen: isPsychologist(viewer) } : null}
+        title="Περισσότερα για το μέλος"
+      />
       <TourFor id="session" userId={user.id} />
     </main>
   );
