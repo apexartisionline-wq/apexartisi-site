@@ -47,7 +47,7 @@ export async function SafetyZone({ memberId, variant = "panel", viewer, staff = 
       </div>
     );
   }
-  const actions = viewer ? (await loadMemberActions(memberId, "", flags)).filter((a) => a.state !== "done") : [];
+  const actions = viewer ? (await loadMemberActions(memberId, "", flags, { admin: viewer.role === "ADMIN" })).filter((a) => a.state !== "done") : [];
   const [first, ...more] = actions;
   // Πυκνή εμφάνιση: τα δύο πρώτα κόκκινα σήματα φαίνονται· τα υπόλοιπα ονομαστικά στην ανάπτυξη (όχι γενικό «+N»).
   const inline = red.slice(0, 2);

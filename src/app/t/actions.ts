@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { fresh } from "@/lib/fresh-url";
 import { redirect } from "next/navigation";
 import { logAccess } from "@/lib/audit";
 import { requireRole } from "@/lib/auth";
@@ -13,15 +14,17 @@ import { athensToUtc } from "@/lib/time";
 // Ανάληψη / ολοκλήρωση συγκεκριμένης ενέργειας (13/10).
 // Η θεραπευτική ευθύνη παραμένει συλλογική: η ανάληψη αφορά μόνο την ενέργεια. Η διαχείριση μπορεί να αναθέσει.
 // Τα σήματα δεν έχουν ανάληψη (διευκρινίσεις 13/10)· η παλιά «signal_followup» δεν αναλαμβάνεται πια.
-const KINDS = ["safety_assessment", "initial_assessment", "cycle_review"] as const;
-const MANUAL_DONE = new Set<string>();
+const KINDS = ["safety_assessment", "initial_assessment", "cycle_review", "step_read"] as const;
+// Ενέργειες που ολοκληρώνονται με κουμπί: «Το διάβασα» για βήμα/εργασία που ολοκλήρωσε το μέλος (17/10).
+const MANUAL_DONE = new Set<string>(["step_read"]);
 // Τα τηλεφωνήματα της διαχείρισης (χωρίς επαφή / ανάγκες ασφάλειας): ανάληψη, αποδέσμευση, ολοκλήρωση μόνο από τη διαχείριση.
 const adminCare = (kind: string) => ADMIN_CARE.has(kind);
 
 function back(formData: FormData): string {
   const b = String(formData.get("back") ?? "/t");
-  return /^\/(t|admin)(\/[A-Za-z0-9_\-/?=&]*)?$/.test(b) ? b : "/t";
+  return fresh(/^\/(t|admin)(\/[A-Za-z0-9_\-/?=&]*)?$/.test(b) ? b : "/t");
 }
+
 
 async function resolveClaimer(formData: FormData, user: { id: string; name: string; role: string }) {
   const assigneeId = String(formData.get("assigneeId") ?? "");

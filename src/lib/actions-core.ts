@@ -20,7 +20,8 @@ export type ActionKind =
   | "safety_assessment" // αξιολόγηση αναγκών ασφάλειας
   | "initial_assessment" // αρχική αξιολόγηση
   | "cycle_review" // ανασκόπηση κύκλου
-  | "admin_contact" // τηλεφωνική επικοινωνία από τη διαχείριση (χωρίς επαφή / ανάγκες ασφάλειας)
+  | "admin_contact" // ενέργεια μόνο της διαχείρισης: τηλεφωνική επικοινωνία (χωρίς επαφή / ανάγκες ασφάλειας), νέος κύκλος
+  | "step_read" // το μέλος ολοκλήρωσε βήμα/εργασία — να το διαβάσει ένας θεραπευτής (υπεύθυνη 17/10)
   | "signal_followup"; // παλιό (ως 13/10): μόνο για ιστορικό, δεν δημιουργείται πια
 
 export type ActionState = "unclaimed" | "claimed" | "done";
@@ -54,6 +55,7 @@ export type ActionView = {
   needsClinician: boolean; // ανάληψη μόνο από ψυχολόγο (ή διαχείριση, κατά το υπάρχον canWriteRisk)
   adminOnly: boolean; // ανάληψη / ολοκλήρωση μόνο από τη διαχείριση (οι θεραπευτές βλέπουν την κατάσταση)
   manualDone: boolean; // ολοκληρώνεται με κουμπί (αλλιώς προκύπτει από τη δουλειά που γίνεται)
+  doneLabel?: string; // λέξη του κουμπιού ολοκλήρωσης, αν δεν είναι «Ολοκληρώθηκε» (π.χ. «Το διάβασα»)
 };
 
 export type ItemRow = {
@@ -97,14 +99,22 @@ export const CARE_LABEL: Record<string, string> = {
   risk_24h: "Τηλεφωνική επικοινωνία από τη διαχείριση",
   risk_next_day: "Τηλεφωνική επικοινωνία από τη διαχείριση",
   risk_contact: "Τηλεφωνική επικοινωνία από τη διαχείριση",
+  new_cycle: "Νέος κύκλος: ενημέρωση του μέλους, συμφωνητικό και προεξόφληση",
 };
-/** Τα τηλεφωνήματα της διαχείρισης: τα αναλαμβάνει και τα ολοκληρώνει μόνο η διαχείριση (τα τηλέφωνα τα βλέπει μόνο αυτή). */
-export const ADMIN_CARE = new Set(["dropout", "risk_24h", "risk_next_day", "risk_contact"]);
+/**
+ * Ενέργειες μόνο της διαχείρισης: τα τηλεφωνήματα (τα τηλέφωνα τα βλέπει μόνο αυτή) και ο νέος κύκλος μετά το αυτόματο
+ * κλείσιμο (συμφωνητικό, προεξόφληση — υπεύθυνη 17/10). Οι θεραπευτές ΔΕΝ τις βλέπουν («ό,τι αφορά τη διαχείριση το βλέπει
+ * η διαχείριση»)· βλέπουν μόνο τα σήματα της ομάδας (π.χ. «Χ μέρες χωρίς καμία επαφή μαζί μας»).
+ */
+export const ADMIN_CARE = new Set(["dropout", "risk_24h", "risk_next_day", "risk_contact", "new_cycle"]);
+/** Από αυτά, τα τηλεφωνήματα: η ολοκλήρωσή τους δεν κλείνει το σήμα. */
+export const ADMIN_PHONE = new Set(["dropout", "risk_24h", "risk_next_day", "risk_contact"]);
 const CARE_WHY: Record<string, string> = {
   dropout: "αφορμή: χωρίς επαφή",
   risk_24h: "αφορμή: αυξημένες ανάγκες ασφάλειας",
   risk_next_day: "αφορμή: υψηλές ανάγκες ασφάλειας",
   risk_contact: "αφορμή: ανάγκες ασφάλειας",
+  new_cycle: "αφορμή: ο κύκλος ολοκληρώθηκε και αρχειοθετήθηκε",
 };
 export const CARE_WHO: Record<string, string> = {
   caring_24h: "η ομάδα",
@@ -113,6 +123,7 @@ export const CARE_WHO: Record<string, string> = {
   risk_24h: "η διαχείριση",
   risk_next_day: "η διαχείριση",
   risk_contact: "η διαχείριση",
+  new_cycle: "η διαχείριση",
 };
 
 function fromItem(base: Omit<ActionView, "state" | "claimedBy" | "claimedAt" | "doneBy" | "doneAt" | "doneNote" | "createdAt" | "dueAt">, createdAt: Date | null, row: ItemRow | undefined, ruleDueAt: Date | null = null): ActionView {
@@ -139,6 +150,7 @@ export type ActionInput = {
   care: CareRow[]; // ανοιχτά
   help: HelpRowIn[]; // ανοιχτά κόκκινα κουμπιά (χωρίς «μίλησαν»)
   items: ItemRow[];
+  stepsToRead?: { id: string; title: string; step: number | null; answeredAt: Date }[]; // βήματα/εργασίες που ολοκλήρωσε το μέλος και δεν τα διάβασε ακόμα κανείς
 };
 
 /** Ανοιχτές ενέργειες ενός μέλους. */
@@ -182,12 +194,22 @@ export function buildActions(i: ActionInput): ActionView[] {
       href: `/t/members/${i.memberId}/cycle`, ref, needsClinician: false, adminOnly: false, manualDone: false,
     }, i.cycleReviewDue.since ?? null, row("cycle_review", ref)));
   }
+  // Βήμα/εργασία που ολοκλήρωσε το μέλος (υπεύθυνη 17/10): «χρειάζεται να το αναλάβει κάποιος θεραπευτής για να το διαβάσει».
+  // Ένας θεραπευτής το αναλαμβάνει, το διαβάζει στον φάκελο («Εργασίες») και πατά «Το διάβασα».
+  for (const st of i.stepsToRead ?? []) {
+    const ref = `assignment:${st.id}`;
+    out.push(fromItem({
+      ...common, key: `step_read:${ref}`, kind: "step_read", source: "item",
+      title: st.step ? `Βήμα ${st.step} — το μέλος το ολοκλήρωσε, να το διαβάσει ένας θεραπευτής` : `Εργασία «${st.title}» — το μέλος την ολοκλήρωσε, να τη διαβάσει ένας θεραπευτής`,
+      ownerRule: "όποιος θεραπευτής το αναλάβει", href: `/t/members/${i.memberId}/assignments`, ref, needsClinician: false, adminOnly: false, manualDone: true, doneLabel: "Το διάβασα",
+    }, st.answeredAt, row("step_read", ref)));
+  }
   for (const c of i.care) {
     const admin = ADMIN_CARE.has(c.kind);
     out.push({
       ...common, key: `care:${c.id}`, kind: admin ? "admin_contact" : "care", source: "care",
       title: CARE_LABEL[c.kind] ?? c.kind, ownerRule: CARE_WHO[c.kind] ?? "η ομάδα",
-      detail: admin ? `${CARE_WHY[c.kind]} · η ολοκλήρωση δεν κλείνει το σήμα` : undefined,
+      detail: admin ? `${CARE_WHY[c.kind]}${ADMIN_PHONE.has(c.kind) ? " · η ολοκλήρωση δεν κλείνει το σήμα" : ""}` : undefined,
       createdAt: c.createdAt, dueAt: c.dueAt,
       state: c.doneAt ? "done" : c.claimedAt ? "claimed" : "unclaimed",
       claimedBy: c.claimedByName, claimedAt: c.claimedAt, doneBy: c.doneByName, doneAt: c.doneAt, doneNote: c.note,

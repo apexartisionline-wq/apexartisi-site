@@ -17,8 +17,8 @@ import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { alertBoxes } from "@/lib/assessment-db";
 import { buildActions, type ActionView } from "@/lib/actions-core";
-import { fetchCare, fetchItemRows, fetchOpenHelp } from "@/lib/actions";
-import { dueCycleReviews } from "@/lib/cycle-review";
+import { fetchCare, fetchItemRows, fetchOpenHelp, fetchStepsToRead } from "@/lib/actions";
+import { autoCloseCycles } from "@/lib/cycle-review";
 import { groupDays } from "@/lib/groups";
 import { memberSafetyMany } from "@/lib/safety-batch";
 import { memberNotes } from "@/lib/member-notes";
@@ -162,14 +162,16 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
   ]);
   const assessed = new Set(assessedRows.map((r) => r.memberId));
   const upcoming = new Set(upcomingRows.map((r) => r.memberId));
-  const [flagsAll, reviews, itemRows, careRows, helpRows] = await Promise.all([
+  const [flagsAll, reviews, itemRows, careRows, helpRows, stepRows] = await Promise.all([
     // Όλα τα μέλη μαζί, με λίγες ερωτήσεις (15/10): ανά μέλος το «Σήμερα» ξεπερνούσε το όριο των 10″ του Netlify.
     memberSafetyMany(memberIds, now),
-    dueCycleReviews(memberIds),
+    // Κύκλοι που ολοκληρώθηκαν κλείνουν μόνοι τους (17/10)· μένει υπενθύμιση μόνο αν κάτι δεν έκλεισε.
+    autoCloseCycles(memberIds, now),
     fetchItemRows(memberIds, now),
-    // Και τα τηλεφωνήματα της διαχείρισης: οι θεραπευτές βλέπουν την κατάσταση (χωρίς τηλέφωνο), δεν τα αναλαμβάνουν.
-    fetchCare(memberIds, { includeAdminKinds: true }),
+    // Ό,τι αφορά τη διαχείριση (τηλεφωνήματα, νέος κύκλος) το βλέπει μόνο η διαχείριση (υπεύθυνη 17/10)· οι θεραπευτές βλέπουν τα σήματα.
+    fetchCare(memberIds, { includeAdminKinds: user.role === "ADMIN" }),
     fetchOpenHelp(memberIds),
+    fetchStepsToRead(memberIds),
   ]);
   const flags = flagsAll;
   const cycleSince = new Map<string, Date>();
@@ -190,6 +192,7 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
       care: careRows.filter((c) => c.memberId === id && c.dueAt <= now),
       help: helpRows.filter((h) => h.memberId === id),
       items: itemRows.filter((r) => r.memberId === id),
+      stepsToRead: stepRows.filter((r) => r.memberId === id),
     }).filter((a) => a.state !== "done");
     actionsBy.set(id, list);
   }
@@ -345,7 +348,8 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
               <summary className="muted">Τι σημαίνουν οι ενδείξεις</summary>
               <p className="muted" style={{ margin: "6px 0 0" }}>
                 <strong>Σοβαρό σήμα</strong> (κόκκινο): κάτι που θέλει ενέργεια τώρα — πάτησε το κόκκινο κουμπί, έγραψε σκέψεις να κάνει κακό στον εαυτό του ή ότι έκανε χρήση, υψηλές ανάγκες ασφάλειας. <strong>Να το δεις</strong> (κίτρινο): για την επόμενη επαφή — μέρες χωρίς καμία επαφή μαζί μας, έντονες επιθυμίες στο ημερολόγιο, νέο μέλος στις πρώτες του μέρες, αυξημένες ανάγκες ασφάλειας. Η ειδοποίηση των 24 ωρών είναι ειδοποίηση: όταν φύγει από εδώ, το θέμα δεν έχει λυθεί μόνο του — η ενέργεια μένει ανοιχτή μέχρι να ολοκληρωθεί, και τα σήματα μένουν στο «Ασφάλεια» του φακέλου όσο ισχύουν.
-                «Το είδα», «Το ανέλαβα» και «Ολοκληρώθηκε» είναι διαφορετικά: η ανάγνωση δεν ολοκληρώνει την ενέργεια.
+                «Το είδα», «Το ανέλαβα» και «Ολοκληρώθηκε» είναι διαφορετικά: η ανάγνωση δεν ολοκληρώνει την ενέργεια. Όταν ένα μέλος ολοκληρώνει βήμα ή εργασία, βγαίνει εδώ «να το διαβάσει ένας θεραπευτής»: το αναλαμβάνει ένας, το διαβάζει στον φάκελο και πατά «Το διάβασα».
+                Ό,τι αφορά τη διαχείριση (τηλεφωνήματα, νέος κύκλος μετά το αυτόματο κλείσιμο) φαίνεται μόνο στη διαχείριση.
               </p>
             </details>
           </Panel>

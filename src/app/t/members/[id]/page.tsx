@@ -95,7 +95,7 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
   // Επόμενες ενέργειες: τι χρειάζεται, ποιος την αναλαμβάνει, πότε δημιουργήθηκε, κατάσταση, ποιος/πότε την ολοκλήρωσε.
   const flags = await memberSafety(id);
   const [openActions, doneRecently, staffRows] = await Promise.all([
-    loadMemberActions(id, member.name, flags, { now }).then((l) => l.filter((a) => a.state !== "done")),
+    loadMemberActions(id, member.name, flags, { now, admin: user.role === "ADMIN" }).then((l) => l.filter((a) => a.state !== "done")),
     recentlyDone(id, now),
     user.role === "ADMIN" ? prisma.user.findMany({ where: { role: { in: ["THERAPIST", "ADMIN"] }, active: true }, select: { id: true, name: true, therapistKind: true, role: true }, orderBy: { name: "asc" } }) : Promise.resolve([]),
   ]);

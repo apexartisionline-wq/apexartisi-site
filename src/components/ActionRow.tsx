@@ -48,7 +48,7 @@ export function ActionRow({ a, viewer, staff = [], back, showMember = false, com
         {a.adminOnly && !admin && <> · την αναλαμβάνει και την ολοκληρώνει η διαχείριση</>}
       </div>
       {!(a.adminOnly && !admin) && <div className="act-forms">
-        {(a.source === "help" || !a.manualDone) && <Link className="btn outline sm" href={a.href}>{a.source === "help" && a.state === "unclaimed" ? "Δες και ανάλαβε" : "Άνοιγμα"}</Link>}
+        {(a.source === "help" || !a.manualDone || a.source === "item") && <Link className="btn outline sm" href={a.href}>{a.source === "help" && a.state === "unclaimed" ? "Δες και ανάλαβε" : "Άνοιγμα"}</Link>}
         {mayClaim && (
           <form action={claimAction}>
             {hidden}
@@ -75,8 +75,8 @@ export function ActionRow({ a, viewer, staff = [], back, showMember = false, com
         {mayAct && a.state !== "done" && a.source !== "help" && a.manualDone && (
           <form action={completeAction}>
             {hidden}
-            <input name="note" placeholder="σύντομα: τι έγινε" aria-label="Τι έγινε" maxLength={500} />
-            <button type="submit" className="sm">Ολοκληρώθηκε</button>
+            <input name="note" placeholder={a.doneLabel ? "σύντομα, αν χρειάζεται" : "σύντομα: τι έγινε"} aria-label="Τι έγινε" maxLength={500} />
+            <button type="submit" className="sm">{a.doneLabel ?? "Ολοκληρώθηκε"}</button>
           </form>
         )}
       </div>}

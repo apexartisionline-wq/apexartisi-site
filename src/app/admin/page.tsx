@@ -12,9 +12,25 @@ import { prisma } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
 import { addDays, formatDate, formatHour, formatTime, localParts } from "@/lib/time";
 import { claimAction } from "@/app/t/actions";
+import { fresh } from "@/lib/fresh-url";
 import { expiringSoon, runRetentionDaily } from "@/lib/retention-db";
 import { nextSession, riskTriggerDue } from "@/lib/risk-db";
 import { kindWord } from "@/lib/access";
+import { autoCloseCycles } from "@/lib/cycle-review";
+
+// Νέος κύκλος μετά το αυτόματο κλείσιμο (17/10): η διαχείριση ενημερώνει το μέλος, συμφωνητικό και προεξόφληση — και το σημειώνει.
+async function newCycleDone(formData: FormData) {
+  "use server";
+  const admin = await requireRole("ADMIN");
+  const id = String(formData.get("id"));
+  const note = String(formData.get("note") ?? "").trim().slice(0, 500);
+  const old = await prisma.careTask.findUniqueOrThrow({ where: { id } });
+  if (old.kind !== "new_cycle" || old.doneAt) redirect(fresh("/admin"));
+  const now = new Date();
+  await prisma.careTask.update({ where: { id }, data: { doneAt: now, doneById: admin.id, note: enc(note), ...(old.claimedAt ? {} : { claimedById: admin.id, claimedByName: admin.name, claimedAt: now }) } });
+  await logAccess(admin.id, old.memberId, "new_cycle_done");
+  redirect(fresh("/admin"));
+}
 
 async function settle(formData: FormData) {
   "use server";
@@ -96,6 +112,12 @@ export default async function AdminToday({ searchParams }: { searchParams: Promi
     return { t, name: u?.name ?? "Μέλος", phone: p?.data.mobile || u?.phone || "" };
   }));
 
+  // Κύκλοι που ολοκληρώθηκαν: κλείνουν μόνοι τους (εφεδρεία του cron, 17/10) και ανοίγουν εκκρεμότητα «Νέος κύκλος» εδώ.
+  await autoCloseCycles(undefined, now).catch((e) => console.error("[cycle-auto-close]", e));
+  const newCycles = await prisma.careTask.findMany({ where: { kind: "new_cycle", doneAt: null }, orderBy: { createdAt: "asc" } }).then(async (rows) => {
+    const names = new Map((await prisma.user.findMany({ where: { id: { in: rows.map((r) => r.memberId) } }, select: { id: true, name: true } })).map((u) => [u.id, u.name]));
+    return rows.map((r) => ({ t: r, name: names.get(r.memberId) ?? "Μέλος" }));
+  });
   // Φάκελοι που λήγουν μέσα σε 30 μέρες (τήρηση δεδομένων, 16/10): διαγράφονται αυτόματα — εδώ για να προλάβει αναστολή.
   const expiring = await expiringSoon(now).catch(() => []);
   const todo = [
@@ -145,7 +167,7 @@ export default async function AdminToday({ searchParams }: { searchParams: Promi
 
       <section className="card">
         <strong>Εκκρεμότητες</strong>
-        {todo.length === 0 && unsettled.length === 0 && intakePending.length === 0 ? (
+        {todo.length === 0 && unsettled.length === 0 && intakePending.length === 0 && newCycles.length === 0 ? (
           <p className="muted">Τίποτα δεν περιμένει ✓</p>
         ) : (
           <ul>
@@ -154,6 +176,16 @@ export default async function AdminToday({ searchParams }: { searchParams: Promi
               <li key={`intake-${m.id}`}>
                 Έναρξη συνεργασίας: <Link href={`/t/members/${m.id}/start`}>{m.name}</Link>{" "}
                 <span className="small muted">(λείπουν {[...status.missingSteps.map((x) => x.doc), ...status.missingConsents.map((x) => x.doc)].join(", ")})</span>
+              </li>
+            ))}
+            {newCycles.map(({ t, name }) => (
+              <li key={`nc-${t.id}`} className="row" style={{ gap: 8, flexWrap: "wrap" }}>
+                <span>Έκλεισε ο κύκλος (αρχειοθετήθηκε αυτόματα {formatDate(localParts(t.createdAt).date)}): <Link href={`/admin/people/${t.memberId}`}>{name}</Link> — νέος κύκλος: ενημέρωση, συμφωνητικό, προεξόφληση</span>
+                <form action={newCycleDone} className="row" style={{ gap: 6 }}>
+                  <input type="hidden" name="id" value={t.id} />
+                  <input name="note" placeholder="σύντομα (προαιρετικό)" maxLength={500} style={{ minWidth: 160 }} />
+                  <button type="submit" style={{ padding: "4px 10px" }}>Έγινε</button>
+                </form>
               </li>
             ))}
             {unsettled.map((c) => (

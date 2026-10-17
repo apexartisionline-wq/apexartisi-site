@@ -1,5 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
+import { autoCloseCycles } from "@/lib/cycle-review";
 import { checkDropouts } from "@/lib/dropout";
 import { escalatePending, remindCareTasks } from "@/lib/help";
 import { sendQueuedPushes } from "@/lib/notify";
@@ -25,6 +26,8 @@ export async function POST(req: Request) {
     await remindCareTasks();
     // Εκπρόθεσμη αξιολόγηση αναγκών (απόφαση 14/10): μήνυμα στη διαχείριση, μία φορά την ημέρα ανά μέλος.
     await remindOverdueAssessments().catch((e) => console.error("[risk-overdue]", e));
+    // Κύκλοι που ολοκληρώθηκαν: κλείνουν και αρχειοθετούνται μόνοι τους, η διαχείριση παίρνει «Νέος κύκλος» (17/10).
+    await autoCloseCycles(undefined, new Date()).catch((e) => console.error("[cycle-auto-close]", e));
   }
   // Χρόνοι τήρησης (έγγραφο 13): αυτόματη εκκαθάριση μία φορά την ημέρα, νωρίς το πρωί (ώρα Ελλάδας ~04:00–05:00).
   if (new Date().getUTCHours() === 1 && new Date().getUTCMinutes() === 17) await runRetentionDaily().catch((e) => console.error("[retention]", e));

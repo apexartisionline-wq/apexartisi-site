@@ -11,6 +11,11 @@ import { cyclePeriod, cyclePeriodLabel } from "./member";
 import { getSettings } from "./settings";
 import { addDays, localParts, mondayOf } from "./time";
 import { cycleIsComplete, type CycleProgress } from "./cycle-rules";
+import { notifyRole } from "./notify";
+
+/** Συντάκτης των αυτόματων κλεισιμάτων κύκλου (17/10): δεν είναι λογαριασμός. */
+export const AUTO_AUTHOR = "system";
+export const AUTO_AUTHOR_LABEL = "αυτόματα — ο κύκλος ολοκληρώθηκε";
 
 
 type CycleRow = { id: string; length: number; startedAt: Date; closedAt: Date | null; bookings: { slot: { startsAt: Date; date: string } }[] };
@@ -116,7 +121,7 @@ export async function cycleReviews(memberId: string) {
   const rows = await prisma.cycleReview.findMany({ where: { memberId }, orderBy: { createdAt: "desc" }, take: 12 });
   const names = new Map((await prisma.user.findMany({ where: { id: { in: rows.map((r) => r.authorId) } }, select: { id: true, name: true } })).map((u) => [u.id, u.name]));
   const parse = (raw: string): CycleArchive => { if (!raw) return null; try { return JSON.parse(dec(raw)) as CycleArchive; } catch { return null; } };
-  return rows.map((r) => ({ id: r.id, cycleId: r.cycleId, goals: dec(r.goals), memberSays: dec(r.memberSays), note: dec(r.note), archive: parse(r.summary), at: r.createdAt, author: names.get(r.authorId) ?? "" }));
+  return rows.map((r) => ({ id: r.id, cycleId: r.cycleId, goals: dec(r.goals), memberSays: dec(r.memberSays), note: dec(r.note), archive: parse(r.summary), at: r.createdAt, author: r.authorId === AUTO_AUTHOR ? AUTO_AUTHOR_LABEL : (names.get(r.authorId) ?? ""), automatic: r.authorId === AUTO_AUTHOR }));
 }
 
 /**
@@ -130,6 +135,41 @@ export async function closeCycle(memberId: string, cycle: NonNullable<Awaited<Re
     prisma.cycleReview.create({ data: { memberId, cycleId: cycle.id, authorId, goals: enc(""), memberSays: enc(""), note: enc(note), summary: enc(snapshot) } }),
     prisma.cycle.updateMany({ where: { id: cycle.id, closedAt: null }, data: { closedAt: new Date() } }),
   ]);
+}
+
+/**
+ * Αυτόματο κλείσιμο (υπεύθυνη 17/10: «στο κλείσιμο κύκλου να κλείνει και να αρχειοθετείται αυτόματα στον φάκελο του κάθε μέλους,
+ * να ενημερώνεται η διαχείριση για να δρομολογείται ενημέρωση νέου κύκλου με συμφωνητικό και προεξόφληση»):
+ * για κάθε κύκλο που ολοκληρώθηκε (ατομικές ΚΑΙ ομάδες, ίδιος κανόνας με πριν) και δεν έχει αρχειοθετηθεί, γίνεται το ίδιο
+ * κλείσιμο που έκανε ο θεραπευτής (στιγμιότυπο σύνοψης στον φάκελο, χωρίς σημείωση, συντάκτης «αυτόματα»), ανοίγει ενέργεια
+ * της διαχείρισης «Νέος κύκλος: ενημέρωση, συμφωνητικό, προεξόφληση» (CareTask new_cycle, μία ανοιχτή ανά μέλος) και η διαχείριση
+ * ειδοποιείται. Τρέχει από το cron (κάθε 30′) και ως εφεδρεία όταν ανοίγει το «Σήμερα» ή η σελίδα κύκλου. Χωρίς memberIds: όλα
+ * τα ενεργά μέλη. Επιστρέφει όσους κύκλους έμειναν ακόμα ανοιχτοί (κανονικά κανέναν) για την υπενθύμιση.
+ */
+export async function autoCloseCycles(memberIds?: string[], now = new Date()): Promise<{ memberId: string; cycleId: string }[]> {
+  const ids = memberIds ?? (await prisma.user.findMany({ where: { role: "MEMBER", active: true }, select: { id: true } })).map((m) => m.id);
+  const due = await dueCycleReviews(ids, now);
+  const left: { memberId: string; cycleId: string }[] = [];
+  let closed = 0;
+  for (const d of due) {
+    try {
+      const cycle = await lastFinishedCycle(d.memberId, now);
+      if (!cycle || cycle.id !== d.cycleId) { left.push(d); continue; }
+      // Αν έκλεισε στο μεταξύ (π.χ. από άλλο αίτημα), δεν ξαναγράφεται.
+      if (await prisma.cycleReview.findFirst({ where: { cycleId: cycle.id }, select: { id: true } })) continue;
+      await closeCycle(d.memberId, cycle, AUTO_AUTHOR, "");
+      const open = await prisma.careTask.findFirst({ where: { memberId: d.memberId, kind: "new_cycle", doneAt: null }, select: { id: true } });
+      if (!open) await prisma.careTask.create({ data: { memberId: d.memberId, kind: "new_cycle", dueAt: now } });
+      closed++;
+    } catch (e) {
+      console.error("[cycle-auto-close]", d.memberId, e);
+      left.push(d);
+    }
+  }
+  if (closed > 0) {
+    await notifyRole("ADMIN", { title: `Έκλεισε κύκλος (${closed === 1 ? "1 μέλος" : `${closed} μέλη`}) — νέος κύκλος: συμφωνητικό και προεξόφληση`, url: "/admin", tag: "cycle" }).catch((e) => console.error("[cycle-auto-close notify]", e));
+  }
+  return left;
 }
 
 /** Παλιά μορφή (πριν 14/10): δύο γραμμές. Μένει για τα παλιά δεδομένα και τα tests. */

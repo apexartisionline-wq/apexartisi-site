@@ -59,7 +59,7 @@ export async function BeforeStart({ memberId, viewer, staff = [], back, flags, i
     );
   }
 
-  const actions = (await loadMemberActions(memberId, "", flags)).filter((a) => a.state !== "done");
+  const actions = (await loadMemberActions(memberId, "", flags, { admin: viewer.role === "ADMIN" })).filter((a) => a.state !== "done");
   return (
     <section className={`panel before-start ${red ? "red" : "yellow"}`} aria-labelledby={`bs-${memberId}`} data-tour="safety">
       <div className="bs-head">
