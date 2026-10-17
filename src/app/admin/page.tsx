@@ -101,7 +101,8 @@ export default async function AdminToday({ searchParams }: { searchParams: Promi
   const openClinician = await prisma.actionItem.findMany({ where: { doneAt: null, kind: { in: ["safety_assessment", "initial_assessment"] }, memberId: { in: activeMembers.map((m) => m.id) } }, select: { memberId: true, kind: true, claimedByName: true } });
   const psyRows = (await Promise.all(activeMembers.map(async (m) => {
     const trig = await riskTriggerDue(m.id, now);
-    const initial = !assessedIds.has(m.id);
+    // Η αρχική αξιολόγηση γίνεται από το πρωτόκολλο στην 1η ατομική, από όποιον θεραπευτή την έχει (16–17/10): δεν είναι εκκρεμότητα ψυχολόγου.
+    const initial = false as boolean;
     if (!trig && !initial) return null;
     const next = await nextSession(m.id, now);
     const claimed = openClinician.find((a) => a.memberId === m.id && a.kind === (trig ? "safety_assessment" : "initial_assessment"))?.claimedByName ?? null;

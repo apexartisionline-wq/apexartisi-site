@@ -209,7 +209,8 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
       // Η αφορμή «θέλει αξιολόγηση» φαίνεται ως ενέργεια· μόνο όταν είναι ΕΚΠΡΟΘΕΣΜΗ (απόφαση 14/10) γίνεται και κόκκινη γραμμή.
       ...f.filter((x) => x.key !== "risk_review" || x.level === "red").map((x) => ({ text: x.text, at: x.at, href: x.href, red: x.level === "red" })),
     ];
-    const acts = (actionsBy.get(id) ?? []).filter((a) => a.kind !== "cycle_review" && a.kind !== "care");
+    // Η αρχική αξιολόγηση δεν είναι «εκκρεμότητα» (υπεύθυνη 17/10): τη βάζει το πρωτόκολλο μέσα στην 1η ατομική, όποιος την έχει.
+    const acts = (actionsBy.get(id) ?? []).filter((a) => a.kind !== "cycle_review" && a.kind !== "care" && a.kind !== "initial_assessment");
     // Η αφορμή «θέλει αξιολόγηση» φαίνεται ως ενέργεια (με ανάληψη), όχι ως δεύτερη γραμμή σήματος.
     if (issues.length === 0 && acts.length === 0) continue;
     issues.sort((a, b) => Number(b.red) - Number(a.red) || (b.at?.getTime() ?? 0) - (a.at?.getTime() ?? 0));
