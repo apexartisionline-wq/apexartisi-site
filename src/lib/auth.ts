@@ -9,6 +9,7 @@ import { prisma } from "./db";
 import { verifyTotp } from "./totp";
 
 const COOKIE = "apex_session";
+import { THEME_COOKIE, themeOf } from "./theme";
 // Τα μέλη μένουν συνδεδεμένα στο κινητό (το κόκκινο κουμπί «δεν χρειάζεται κωδικό»)·
 // το προσωπικό, που βλέπει φακέλους, αποσυνδέεται πιο γρήγορα.
 const SESSION_HOURS: Record<Role, number> = { MEMBER: 180 * 24, THERAPIST: 12, ADMIN: 12 };
@@ -80,13 +81,16 @@ export async function login(username: string, code: string, ip = "unknown", otp 
   const token = randomBytes(32).toString("base64url");
   const expiresAt = new Date(Date.now() + SESSION_HOURS[user.role] * 3_600_000);
   await prisma.session.create({ data: { id: hashToken(token), userId: user.id, expiresAt } });
-  (await cookies()).set(COOKIE, token, {
+  const jar = await cookies();
+  jar.set(COOKIE, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
     expires: expiresAt,
   });
+  // Το θέμα του λογαριασμού (17/10): στο cookie, για να βγαίνει σωστά από τον server από την πρώτη σελίδα.
+  jar.set(THEME_COOKIE, themeOf(user.theme), { sameSite: "lax", path: "/", expires: new Date(Date.now() + 365 * 86_400_000) });
   return user;
 }
 

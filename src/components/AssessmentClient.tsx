@@ -6,6 +6,7 @@ import {
   PGSI_OPTIONS, pgsiScore, questionnaires, type Score, SUBSTANCE_LABEL, SUBSTANCES, type SubstanceKey, TRAUMA, TREATMENT_END,
   TREATMENT_WHERE, type YesNo,
 } from "@/lib/assessment";
+import { APEX_SCREEN, SCREEN_LABEL, SCREEN_LICENSED, SCREEN_OPTIONS, SCREEN_SAY, SCREEN_VERSION, type ScreenKey, screenScore } from "@/lib/screening";
 
 type ProfileView = { rows: [string, string][]; at: string } | null;
 type Props = {
@@ -108,6 +109,33 @@ export function AssessmentClient({ action, memberId, initial, profile, showAdmin
   const setPer = (s: SubstanceKey, patch: { problemAge?: number; lastUse?: string }) =>
     set("perSubstance", { ...d.perSubstance, [s]: { ...d.perSubstance[s], ...patch } });
 
+  // Προσωρινό ερωτηματολόγιο Apex για μία περίπτωση (κοινή κλίμακα 0–3)· κρατά την έκδοση των ερωτήσεων μαζί με τις απαντήσεις.
+  const setScreen = (k: ScreenKey, i: number, v: number | null) =>
+    setD((x) => {
+      const a = [...(x.screen?.[k] ?? [])];
+      while (a.length < 10) a.push(null);
+      a[i] = v;
+      return { ...x, screen: { ...(x.screen ?? { alcohol: [], drugs: [], gambling: [] }), [k]: a }, screenVersion: SCREEN_VERSION };
+    });
+  const screenBlock = (k: ScreenKey) => (
+    <>
+      <details className="sec" style={{ margin: "12px 16px" }} data-screen={k}>
+        <summary>{SCREEN_LABEL[k]} · ερωτηματολόγιο Apex (προσωρινό), στην περίοδο βαριάς χρήσης</summary>
+        <div className="q">
+          {say(SCREEN_SAY[k])}
+          {APEX_SCREEN[k].map((t, i) => (
+            <div key={i} className="qitem">
+              <div className="small" style={{ marginBottom: 6 }}>{i + 1}. {t}</div>
+              <div className="chips">
+                {SCREEN_OPTIONS.map(([v, l]) => <button key={l} type="button" className="chip" aria-pressed={d.screen?.[k]?.[i] === v} onClick={() => setScreen(k, i, d.screen?.[k]?.[i] === v ? null : v)}>{l}</button>)}
+              </div>
+            </div>
+          ))}
+        </div>
+      </details>
+      {scoreRow(`${SCREEN_LABEL[k]} (προσωρινό)`, screenScore(d.screen?.[k]))}
+    </>
+  );
   const answered = (v: YesNo) => v !== undefined;
   const done = {
     why: Boolean(d.whyNow || d.workOn),
@@ -185,27 +213,28 @@ export function AssessmentClient({ action, memberId, initial, profile, showAdmin
           </div>
         ))}
         <div className="q muted small">{SAY.forms}</div>
-        {d.substances.length === 0 && <div className="q muted small">Τσέκαρε πρώτα τι έχει χρησιμοποιήσει· ανοίγει μόνο του το κατάλληλο ερωτηματολόγιο (αλκοόλ → AUDIT · ουσία → DAST-10 · τζόγος → PGSI).</div>}
-        {(q.audit || d.audit.some((x) => x !== null && x !== undefined)) && (
-        <>
-        <details className="sec" style={{ margin: "0 16px 12px" }}>
-          <summary>AUDIT · αλκοόλ, στην περίοδο βαριάς χρήσης</summary>
-          <div className="q">
-            {say(SAY.audit)}
-            {AUDIT_ITEMS.map((it, i) => (
-              <div key={i} className="qitem">
-                <div className="small" style={{ marginBottom: 6 }}>{i + 1}. {it.q}</div>
-                <div className="chips">
-                  {it.options.map(([v, l]) => <button key={l} type="button" className="chip" aria-pressed={d.audit[i] === v} onClick={() => setArr("audit", i, d.audit[i] === v ? null : v, 10)}>{l}</button>)}
-                </div>
+        {d.substances.length === 0 && <div className="q muted small">Τσέκαρε πρώτα τι έχει χρησιμοποιήσει· ανοίγει μόνο του το κατάλληλο ερωτηματολόγιο (αλκοόλ · ουσίες · τζόγος).</div>}
+        {/* Ερωτηματολόγια (17/10): μέχρι την άδεια κάθε επίσημου εργαλείου, το προσωρινό του Apex με δική μας διατύπωση (screening.ts). */}
+        {q.audit && (SCREEN_LICENSED.alcohol ? (
+          <>
+            <details className="sec" style={{ margin: "0 16px 12px" }}>
+              <summary>AUDIT · αλκοόλ, στην περίοδο βαριάς χρήσης</summary>
+              <div className="q">
+                {say(SAY.audit)}
+                {AUDIT_ITEMS.map((it, i) => (
+                  <div key={i} className="qitem">
+                    <div className="small" style={{ marginBottom: 6 }}>{i + 1}. {it.q}</div>
+                    <div className="chips">
+                      {it.options.map(([v, l]) => <button key={l} type="button" className="chip" aria-pressed={d.audit[i] === v} onClick={() => setArr("audit", i, d.audit[i] === v ? null : v, 10)}>{l}</button>)}
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </details>
-        {scoreRow("AUDIT", auditScore(d.audit))}
-        </>
-        )}
-        {q.dast && (
+            </details>
+            {scoreRow("AUDIT", auditScore(d.audit))}
+          </>
+        ) : screenBlock("alcohol"))}
+        {q.dast && (SCREEN_LICENSED.drugs ? (
           <>
             <details className="sec" style={{ margin: "12px 16px" }}>
               <summary>DAST-10 · ουσίες, στην περίοδο βαριάς χρήσης</summary>
@@ -223,8 +252,8 @@ export function AssessmentClient({ action, memberId, initial, profile, showAdmin
             </details>
             {scoreRow("DAST-10", dastScore(d.dast))}
           </>
-        )}
-        {q.pgsi && (
+        ) : screenBlock("drugs"))}
+        {q.pgsi && (SCREEN_LICENSED.gambling ? (
           <>
             <details className="sec" style={{ margin: "12px 16px" }}>
               <summary>PGSI · τζόγος, στην περίοδο βαριάς χρήσης</summary>
@@ -242,8 +271,10 @@ export function AssessmentClient({ action, memberId, initial, profile, showAdmin
             </details>
             {scoreRow("PGSI", pgsiScore(d.pgsi))}
           </>
+        ) : screenBlock("gambling"))}
+        {(q.audit || q.dast || q.pgsi) && !(SCREEN_LICENSED.alcohol && SCREEN_LICENSED.drugs && SCREEN_LICENSED.gambling) && (
+          <div className="q muted small">Προσωρινά ερωτηματολόγια του Apex, με δική μας διατύπωση, μέχρι να έρθουν οι άδειες για τα επίσημα (AUDIT, DAST-10, PGSI). Ο αριθμός είναι ενδεικτικός, όχι σταθμισμένος.</div>
         )}
-        <div className="q muted small">Δοκιμή: τα κείμενα των ερωτηματολογίων είναι προσωρινά, μέχρι τις άδειες.</div>
         {yn("overdoseEver", "Υπερδοσολογία, έστω μία φορά", {
           sub: field("Πότε η τελευταία (έστω περίπου)", <input type="date" value={d.overdoseLast ?? ""} onChange={(e) => set("overdoseLast", e.target.value || undefined)} />),
         })}

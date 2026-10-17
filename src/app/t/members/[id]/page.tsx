@@ -12,6 +12,7 @@ import { logAccess } from "@/lib/audit";
 import { currentStep, lastStepWork } from "@/lib/steps";
 import { SafetyZone } from "@/components/SafetyZone";
 import { auditScore, dastScore, gr, pgsiScore, questionnaires } from "@/lib/assessment";
+import { SCREEN_LICENSED, screenScore } from "@/lib/screening";
 import { latestAssessment } from "@/lib/assessment-db";
 import { requireRole } from "@/lib/auth";
 import { soberDays } from "@/lib/note-form";
@@ -78,8 +79,12 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
   const h = last?.handover;
   const q = ax ? questionnaires(ax.data) : null;
   const scores = ax && q
-    ? [["AUDIT", auditScore(ax.data.audit)], ["DAST-10", q.dast ? dastScore(ax.data.dast) : null], ["PGSI", q.pgsi ? pgsiScore(ax.data.pgsi) : null]]
-        .filter((x): x is [string, NonNullable<ReturnType<typeof auditScore>>] => Boolean(x[1]))
+    ? ([["AUDIT", auditScore(ax.data.audit)], ["DAST-10", q.dast ? dastScore(ax.data.dast) : null], ["PGSI", q.pgsi ? pgsiScore(ax.data.pgsi) : null],
+        // Προσωρινά ερωτηματολόγια Apex (17/10), όσο δεν υπάρχει άδεια για το επίσημο.
+        ["Αλκοόλ (προσωρινό)", q.audit && !SCREEN_LICENSED.alcohol ? screenScore(ax.data.screen?.alcohol) : null],
+        ["Ουσίες (προσωρινό)", q.dast && !SCREEN_LICENSED.drugs ? screenScore(ax.data.screen?.drugs) : null],
+        ["Τζόγος (προσωρινό)", q.pgsi && !SCREEN_LICENSED.gambling ? screenScore(ax.data.screen?.gambling) : null]] as [string, { score: number } | null][])
+        .filter((x): x is [string, { score: number }] => Boolean(x[1]))
         .map(([n, sc]) => `${n} ${sc.score}`)
     : [];
   const assessment = intake.checks.find((c) => c.key === "assessment");

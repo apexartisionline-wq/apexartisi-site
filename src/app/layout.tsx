@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
+import { cookies } from "next/headers";
 import { getSettings } from "@/lib/settings";
+import { THEME_COOKIE, themeOf } from "@/lib/theme";
 import "./globals.css";
 
 export const dynamic = "force-dynamic";
@@ -18,13 +20,18 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 // viewportFit «cover»: στο iPhone η εφαρμογή γεμίζει την οθόνη και τα περιθώρια μπαίνουν από το CSS (safe-area).
-export const viewport: Viewport = {
-  themeColor: [{ media: "(prefers-color-scheme: light)", color: "#ffffff" }, { media: "(prefers-color-scheme: dark)", color: "#0c1620" }],
-  width: "device-width", initialScale: 1, viewportFit: "cover" };
+// Το χρώμα της μπάρας του κινητού ακολουθεί το θέμα του χρήστη (17/10), όχι τη συσκευή.
+export async function generateViewport(): Promise<Viewport> {
+  const theme = themeOf((await cookies()).get(THEME_COOKIE)?.value);
+  return { themeColor: theme === "dark" ? "#0c1620" : "#ffffff", width: "device-width", initialScale: 1, viewportFit: "cover" };
+}
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+// Θέμα (17/10): πάντα φωτεινό από προεπιλογή· σκούρο μόνο αν το διάλεξε ο χρήστης (cookie που μπαίνει στην είσοδο
+// και στον «Λογαριασμό»). Το data-theme το διαβάζει το globals.css (html[data-theme="dark"]).
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const theme = themeOf((await cookies()).get(THEME_COOKIE)?.value);
   return (
-    <html lang="el">
+    <html lang="el" data-theme={theme}>
       <body>{children}</body>
     </html>
   );

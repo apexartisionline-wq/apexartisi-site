@@ -10,6 +10,8 @@ import { getSettings } from "@/lib/settings";
 import { ndaStatus, NDA_STATE } from "@/lib/nda";
 import { PushToggle } from "@/components/PushToggle";
 import { vapidPublicKey } from "@/lib/push";
+import { cookies } from "next/headers";
+import { THEME_COOKIE, THEMES, themeOf } from "@/lib/theme";
 import { MEMBER_PREFS, type Prefs } from "@/lib/schedule";
 import { newSecret, qrFor, verifyTotp } from "@/lib/totp";
 import { memberConsents } from "@/lib/intake";
@@ -33,6 +35,16 @@ async function changeCode(formData: FormData) {
   await prisma.user.update({ where: { id: user.id }, data: { passwordHash: await hashPassword(next), mustChangeCode: false } });
   // Πρώτη είσοδος με κωδικό από email (16/10): μετά την αλλαγή, κατευθείαν στο «Σήμερα».
   redirect(first ? homeFor(user.role) : "/account?ok=1");
+}
+
+// Χρωματικό θέμα (17/10): κάθε ρόλος διαλέγει μόνος του· προεπιλογή πάντα το φωτεινό.
+async function setTheme(formData: FormData) {
+  "use server";
+  const user = await requireRole("MEMBER", "THERAPIST", "ADMIN");
+  const theme = themeOf(formData.get("theme"));
+  await prisma.user.update({ where: { id: user.id }, data: { theme } });
+  (await cookies()).set(THEME_COOKIE, theme, { sameSite: "lax", path: "/", expires: new Date(Date.now() + 365 * 86_400_000) });
+  redirect("/account?okt=1");
 }
 
 async function signOutAll() {
@@ -87,7 +99,7 @@ const ERRORS: Record<string, string> = {
   same: "Ο νέος κωδικός πρέπει να είναι διαφορετικός από αυτόν που σου στείλαμε.",
 };
 
-export default async function AccountPage({ searchParams }: { searchParams: Promise<{ ok?: string; e?: string; setup2fa?: string; ok2fa?: string; okp?: string; okc?: string; first?: string }> }) {
+export default async function AccountPage({ searchParams }: { searchParams: Promise<{ ok?: string; e?: string; setup2fa?: string; ok2fa?: string; okp?: string; okc?: string; first?: string; okt?: string }> }) {
   const user = await requireRole("MEMBER", "THERAPIST", "ADMIN");
   const sp = await searchParams;
   const staff = user.role !== "MEMBER";
@@ -109,6 +121,19 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
           <div>{user.name}</div>
           <div className="muted small">@{user.username} · {ROLE[user.role]}</div>
         </div>
+        <h2>Εμφάνιση</h2>
+        <form action={setTheme} className="card">
+          {sp.okt && <div className="notice">Αποθηκεύτηκε ✓</div>}
+          <div className="row" style={{ gap: 16, flexWrap: "wrap" }}>
+            {(Object.keys(THEMES) as (keyof typeof THEMES)[]).map((k) => (
+              <label key={k} className="row" style={{ gap: 6 }}>
+                <input type="radio" name="theme" value={k} defaultChecked={themeOf(user.theme) === k} style={{ width: "auto" }} /> {THEMES[k]}
+              </label>
+            ))}
+            <button type="submit" className="sm">Αποθήκευση</button>
+          </div>
+          <p className="small muted" style={{ margin: "6px 0 0" }}>Το φωτεινό είναι η προεπιλογή σε κάθε συσκευή. Η επιλογή σου μένει στον λογαριασμό σου.</p>
+        </form>
         <h2>Ειδοποιήσεις</h2>
         <div className="card stack">
           <PushToggle vapidKey={vapidPublicKey()} />

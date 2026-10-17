@@ -54,6 +54,8 @@ export const DAST_ITEMS = Array.from({ length: 10 }, (_, i) => `DAST-10 · ερ�
 export const PGSI_ITEMS = Array.from({ length: 9 }, (_, i) => `PGSI · ερώτηση ${i + 1} (το επίσημο κείμενο μπαίνει μετά την άδεια)`);
 export const PGSI_OPTIONS: [number, string][] = [[0, "ποτέ"], [1, "μερικές φορές"], [2, "τις περισσότερες φορές"], [3, "σχεδόν πάντα"]];
 
+import { SCREEN_LICENSED, SCREEN_OFFICIAL, type ScreenKey, screenScore, screenTitle } from "./screening";
+
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const text = (max: number) => z.string().trim().max(max).default("");
 const pick = <T extends readonly string[]>(opts: T) => z.enum(opts as unknown as [string, ...string[]]);
@@ -75,6 +77,13 @@ export const assessmentSchema = z.object({
   audit: z.array(z.number().int().min(0).max(4).nullable()).max(10).default([]),
   dast: z.array(z.boolean().nullable()).max(10).default([]),
   pgsi: z.array(z.number().int().min(0).max(3).nullable()).max(9).default([]),
+  // Προσωρινά ερωτηματολόγια Apex (17/10, src/lib/screening.ts): μέχρι τις άδειες των επίσημων· κρατούν την έκδοσή τους.
+  screen: z.object({
+    alcohol: z.array(z.number().int().min(0).max(3).nullable()).max(10).default([]),
+    drugs: z.array(z.number().int().min(0).max(3).nullable()).max(10).default([]),
+    gambling: z.array(z.number().int().min(0).max(3).nullable()).max(10).default([]),
+  }).default({ alcohol: [], drugs: [], gambling: [] }),
+  screenVersion: text(40),
   // 6. Προηγούμενες θεραπείες
   treatments: z.array(z.object({ where: pick(TREATMENT_WHERE), whereText: text(200), when: text(60), duration: text(60), ended: z.preprocess((v) => OLD_END[v as string] ?? v, pick(TREATMENT_END).optional()), helped: text(1000) })).max(20).default([]),
   longestAbstinence: text(100),
@@ -248,9 +257,7 @@ export function assessmentLines(d: Assessment, opts: { admin: boolean }): { titl
         const name = s === "other" && d.otherName ? d.otherName : SUBSTANCE_LABEL[s];
         return [name, [p.problemAge ? `έγινε πρόβλημα στα ${p.problemAge}` : "", p.lastUse ? `τελευταία φορά ${gr(p.lastUse)}` : ""].filter(Boolean).join(" · ") || "χωρίς ημερομηνίες"];
       }),
-      ["AUDIT", fmt(auditScore(d.audit))],
-      ["DAST-10", q.dast ? fmt(dastScore(d.dast)) : undefined],
-      ["PGSI", q.pgsi ? fmt(pgsiScore(d.pgsi)) : undefined],
+      ...screenLines(d, q),
       { q: "Υπερδοσολογία, έστω μία φορά", v: d.overdoseEver, extra: d.overdoseLast && `τελευταία ${gr(d.overdoseLast)}` },
       { q: "Στερητικά με σπασμούς, έστω μία φορά", v: d.seizuresEver },
       { q: "Μεθαδόνη / βουπρενορφίνη", v: d.ost },
@@ -287,6 +294,23 @@ export function assessmentLines(d: Assessment, opts: { admin: boolean }): { titl
       ["Τι φοβάται από τη συνεργασία", d.fears],
     ]),
   ].filter((s) => s.lines.length > 0);
+}
+
+/** Γραμμές ερωτηματολογίων στον φάκελο: το επίσημο αν έχει άδεια ή απαντήσεις, αλλιώς το προσωρινό του Apex (17/10). */
+export function screenLines(d: Assessment, q: ReturnType<typeof questionnaires>): [string, string | undefined][] {
+  const pairs: [ScreenKey, boolean, Score | null][] = [
+    ["alcohol", q.audit, auditScore(d.audit)],
+    ["drugs", q.dast, dastScore(d.dast)],
+    ["gambling", q.pgsi, pgsiScore(d.pgsi)],
+  ];
+  const out: [string, string | undefined][] = [];
+  for (const [k, open, official] of pairs) {
+    if (!open) continue;
+    if (SCREEN_LICENSED[k] || official) out.push([SCREEN_OFFICIAL[k], fmt(official)]);
+    const prov = screenScore(d.screen?.[k]);
+    if (prov && !SCREEN_LICENSED[k]) out.push([screenTitle(k), fmt(prov)]);
+  }
+  return out;
 }
 
 export function fmt(s: Score | null): string | undefined {
