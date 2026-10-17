@@ -23,6 +23,10 @@ import { assessmentProfile, canWriteAssessmentFor, latestAssessment, latestProfi
 import { assessmentSchema, missingForComplete } from "@/lib/assessment";
 import { AssessmentClient } from "@/components/AssessmentClient";
 import { FirstSessionWords } from "@/components/FirstSessionWords";
+import { StepWords } from "@/components/SecondSessionWords";
+import { SafetyPlanForm } from "@/components/SafetyPlanForm";
+import { getPlan, markPlanDiscussed, missingSections, planForStaff, savePlan } from "@/lib/safety";
+import { sessionOrderOf } from "@/lib/session-order-db";
 import { FirstSessionProtocol } from "@/components/FirstSessionProtocol";
 import { memberIntake } from "@/lib/intake";
 import { isPsychologist, seesJournalDetail } from "@/lib/access";
@@ -159,6 +163,40 @@ async function saveFirstSession(formData: FormData) {
   redirect(`/t/s/${id}?saved=first`);
 }
 
+// 2η ατομική (υπεύθυνη 17/10: «η δεύτερη συνεδρία είναι πλάνο υποστήριξης του μέλους και γίνεται από όλους»): «Το πλάνο μου
+// όταν δυσκολεύομαι» ΜΕΣΑ στη σελίδα της ατομικής, στη θέση του σημειώματος, από όποιον θεραπευτή έχει την ατομική.
+// «Αποθήκευση» = το πλάνο αποθηκεύεται (όπως από τον φάκελο, με ιστορικό). «Ολοκλήρωση» = και οι 7 ερωτήσεις
+// συμπληρωμένες + «συζητήθηκε με το μέλος» + σημείωμα της ατομικής (τα «λίγα λόγια») + «Ήρθε». Αν λείπει ερώτηση, δεν κλείνει.
+async function saveSecondSession(formData: FormData) {
+  "use server";
+  const user = await requireRole("THERAPIST", "ADMIN");
+  const id = String(formData.get("slotId"));
+  const x = await loadSlot(id);
+  if (!x || !canWrite(x, user) || x.kind === "PAIR" || x.bookings.length !== 1) notFound();
+  const memberId = x.bookings[0].memberId;
+  // Ο θεραπευτής γράφει μόνο ονόματα (τα τηλέφωνα μένουν όπως ήταν)· η διαχείριση και τηλέφωνα — ίδιος κανόνας με τον φάκελο.
+  await savePlan(memberId, formData, user.id, user.role !== "ADMIN");
+  await logAccess(user.id, memberId, "safety_plan_edit");
+  const finish = formData.get("complete") === "1";
+  if (!finish) redirect(`/t/s/${id}?plan=saved#plan`);
+  const missing = missingSections(await getPlan(memberId));
+  if (missing.length) redirect(`/t/s/${id}?missing=${encodeURIComponent(missing.join("|"))}#plan`);
+  await markPlanDiscussed(memberId, { id: user.id, name: user.name });
+  const words = String(formData.get("words") ?? "").trim().slice(0, 3000);
+  const content = enc(`Πλάνο υποστήριξης (2η ατομική) — γράφτηκε μαζί με το μέλος.${words ? `\n\n${words}` : ""}`);
+  if (x.note) {
+    await prisma.$transaction([
+      prisma.sessionNoteVersion.create({ data: { noteId: x.note.id, content: x.note.content, riskChange: x.note.riskChange, usedSince: x.note.usedSince, nextStep: x.note.nextStep, data: x.note.data, editorId: user.id } }),
+      prisma.sessionNote.update({ where: { id: x.note.id }, data: { content } }),
+    ]);
+  } else {
+    await prisma.sessionNote.create({ data: { slotId: id, therapistId: user.id, content } });
+  }
+  await confirmPresence(id, memberId, true, user.id);
+  await logAccess(user.id, memberId, "second_session_save");
+  redirect(`/t/s/${id}?saved=plan`);
+}
+
 async function saveIndividual(formData: FormData) {
   "use server";
   const user = await requireRole("THERAPIST", "ADMIN");
@@ -258,7 +296,7 @@ export default async function SessionPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ saved?: string; error?: string; edit?: string; absent?: string; missing?: string; first?: string }>;
+  searchParams: Promise<{ saved?: string; error?: string; edit?: string; absent?: string; missing?: string; first?: string; plan?: string; skip?: string }>;
 }) {
   const user = await requireRole("THERAPIST", "ADMIN");
   const [{ id }, sp] = await Promise.all([params, searchParams]);
@@ -391,11 +429,11 @@ type Slot = NonNullable<Awaited<ReturnType<typeof loadSlot>>>;
 
 // Ατομική (13/10): ενιαίος χώρος προετοιμασίας, σύνδεσης και καταγραφής — αριστερά το πλαίσιο του μέλους (σύντομο,
 // με ανάπτυξη για περισσότερα), δεξιά το σημειωματάριο σε καρτέλες.
-async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string; role: string }; sp: { saved?: string; error?: string; edit?: string; absent?: string; missing?: string; first?: string } }) {
+async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string; role: string }; sp: { saved?: string; error?: string; edit?: string; absent?: string; missing?: string; first?: string; plan?: string; skip?: string } }) {
   const b = x.bookings[0];
   const now = new Date();
   const today = localParts(now).date;
-  const [g, s, number, joined, intake, versions, assessed, ax, goal] = await Promise.all([
+  const [g, s, number, joined, intake, versions, assessed, ax, goal, order] = await Promise.all([
     sessionGlance(b.memberId, x),
     getSettings(),
     sessionNumber({ cycleId: b.cycleId, slot: x }),
@@ -405,6 +443,7 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
     prisma.intakeCheck.findFirst({ where: { memberId: b.memberId, key: "assessment" }, select: { doneAt: true } }),
     latestAssessment(b.memberId),
     goalWeek(b.memberId, today),
+    sessionOrderOf({ id: x.id, startsAt: x.startsAt, memberId: b.memberId }),
   ]);
   const editors = new Map((await prisma.user.findMany({ where: { id: { in: [...new Set(versions.map((v) => v.editorId))] } }, select: { id: true, name: true } })).map((u) => [u.id, u.name]));
   const room = roomUrl(s.rooms[x.position - 1]);
@@ -417,6 +456,9 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
   // «Δεν ήρθε» (?absent=1) → το κανονικό σημειωματάριο για «Δεν ήρθε».
   const firstSession = !assessed && !x.note && sp.absent !== "1" && canWrite(x, user)
     && await canWriteAssessmentFor({ id: user.id, role: user.role, therapistKind: (user as { therapistKind?: string | null }).therapistKind ?? null }, b.memberId);
+  // 2η ατομική (17/10): ιστορικό ολοκληρωμένο, πλάνο υποστήριξης δεν έχει γραφτεί → το πλάνο στη θέση του σημειώματος.
+  // «Δεν ήρθε» (?absent=1) ή «Κανονικό σημειωματάριο» (?skip=1) → το κανονικό σημειωματάριο· το πλάνο μένει για την επόμενη.
+  const secondSession = !firstSession && assessed && !order.planWritten && !x.note && sp.absent !== "1" && sp.skip !== "1" && canWrite(x, user);
   const hm = (d: Date) => formatHour(localParts(d).hour, localParts(d).minute);
   const endsAt = new Date(x.startsAt.getTime() + s.sessionMinutes * 60_000);
   const presence = sessionPresence({ startsAt: x.startsAt, endsAt, now, joinedAt: b.joinedAt, confirmedCame: b.confirmedCame });
@@ -429,6 +471,13 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
   const nextClinical = intake.trigger && !isPsychologist(viewer) ? await nextClinicalSession(b.memberId, now) : null;
   const flags = await memberSafety(b.memberId, now);
   // Κατάσταση της ώρας (όχι της παρουσίας): πριν / σε εξέλιξη / η ώρα πέρασε. Μια συνεδρία δεν «έγινε» επειδή πέρασε η ώρα της.
+  // Σ0 του πρωτοκόλλου (ενημέρωση/συναίνεση/συμφωνητικό/συγκαταθέσεις — όχι η ίδια η αξιολόγηση), για το πλαίσιο της 1ης/2ης ατομικής.
+  const s0 = (firstSession || secondSession) ? await (async () => {
+    const m = await prisma.user.findUnique({ where: { id: b.memberId }, select: { id: true, source: true } });
+    const st = m ? (await memberIntake(m)).status : null;
+    const missing = st ? [...st.missingSteps.filter((x) => x.key !== "assessment" && x.key !== "risk" && x.key !== "safety_plan").map((x) => x.label), ...st.missingConsents.map((x) => x.label)] : [];
+    return { complete: missing.length === 0, missing };
+  })() : { complete: true, missing: [] };
   const timeState = now < x.startsAt ? { word: "Επόμενη", tone: "grey" } : now < endsAt ? { word: "Σε εξέλιξη", tone: "live" } : { word: "Η ώρα της πέρασε", tone: "grey" };
 
   return (
@@ -458,7 +507,7 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
         )}
       </PageHead>
       <p className="hint session-sub">
-        {number && <>{number} · </>}{x.therapist && <>{x.therapist.name} · </>}
+        <strong>{order.label}</strong> · {number && <>{number} · </>}{x.therapist && <>{x.therapist.name} · </>}
         <Pill tone={pl.tone === "accent" ? "" : pl.tone}>{pl.word}</Pill> <span title={pl.source}>{pl.source}</span>{presence === "absent_confirmed" && b.joinedAt && <> · το πάτημα «Μπες» του μέλους ({hm(b.joinedAt)}) διατηρείται στο ιστορικό</>}
         {" · "}<span className="conn conn-inline" title="Είναι η ώρα του πατήματος του κουμπιού «Μπες», όχι επιβεβαίωση συμμετοχής από το Zoom.">{joined ? `Συνδέθηκες στις ${hm(joined.at)}` : x.date === today ? "Δεν έχεις πατήσει «Μπες»" : "Καμία σύνδεση"}{b.joinedAt && <> · το μέλος πάτησε «Μπες» {hm(b.joinedAt)}</>}</span>
       </p>
@@ -482,13 +531,7 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
             </div>
             <Link className="btn outline sm" href={`/t/s/${x.id}?absent=1#notebook-top`}>Το μέλος δεν ήρθε</Link>
           </div>
-          <FirstSessionProtocol s0={await (async () => {
-            const m = await prisma.user.findUnique({ where: { id: b.memberId }, select: { id: true, source: true } });
-            const st = m ? (await memberIntake(m)).status : null;
-            // Η Σ0 = ενημέρωση/συναίνεση/συμφωνητικό/συγκαταθέσεις (όχι η ίδια η αξιολόγηση, που γίνεται τώρα).
-            const missing = st ? [...st.missingSteps.filter((x) => x.key !== "assessment" && x.key !== "risk" && x.key !== "safety_plan").map((x) => x.label), ...st.missingConsents.map((x) => x.label)] : [];
-            return { complete: missing.length === 0, missing };
-          })()} />
+          <FirstSessionProtocol s0={s0} step="history" planWritten={order.planWritten} />
           {sp.first === "saved" && <div className="notice">Αποθηκεύτηκε ως πρόχειρο ✓ Η ατομική κλείνει με «Ολοκλήρωση».</div>}
           {sp.error && <ErrorNote>Δεν αποθηκεύτηκε: {sp.error}</ErrorNote>}
           {sp.missing && (
@@ -513,6 +556,41 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
             <EmptyState>Το ιστορικό ανοίγει 15 λεπτά πριν από την ώρα της ατομικής ({formatTime(new Date(x.startsAt.getTime() - 15 * 60_000))}).</EmptyState>
           )}
         </section>
+      ) : secondSession ? (
+        <section className="panel first-session" id="plan">
+          <div id="notebook-top" />
+          <div className="panel-head">
+            <div>
+              <h2 data-tour="notebook" style={{ margin: 0 }}>2η ατομική — το πλάνο υποστήριξης του μέλους</h2>
+              <div className="hint">Γράφετε μαζί το «Το πλάνο μου όταν δυσκολεύομαι», με τα λόγια του μέλους. Δεν γράφεις κανονικό σημείωμα: συμπληρώνεις τις 7 ερωτήσεις και, αν θέλεις, λίγα λόγια από κάτω. Με «Ολοκλήρωση» κλείνει και η ατομική.</div>
+            </div>
+            <div className="row" style={{ gap: 8 }}>
+              <Link className="btn outline sm" href={`/t/s/${x.id}?absent=1#notebook-top`}>Το μέλος δεν ήρθε</Link>
+              <Link className="btn outline sm" href={`/t/s/${x.id}?skip=1#notebook-top`} title="Αν σήμερα χρειάστηκε κάτι άλλο: το πλάνο μένει για την επόμενη ατομική">Κανονικό σημειωματάριο</Link>
+            </div>
+          </div>
+          <FirstSessionProtocol s0={s0} step="plan" assessed />
+          {sp.plan === "saved" && <div className="notice">Το πλάνο αποθηκεύτηκε ✓ Η ατομική κλείνει με «Ολοκλήρωση».</div>}
+          {sp.error && <ErrorNote>Δεν αποθηκεύτηκε: {sp.error}</ErrorNote>}
+          {sp.missing && (
+            <div className="error">
+              Το πλάνο αποθηκεύτηκε· για να κλείσει η ατομική λείπουν:
+              <ul style={{ margin: "6px 0 0" }}>{sp.missing.split("|").map((m) => <li key={m}>{m}</li>)}</ul>
+            </div>
+          )}
+          {writable ? (
+            <SafetyPlanForm
+              plan={await (async () => { const raw = await getPlan(b.memberId); return user.role === "ADMIN" ? raw : planForStaff(raw); })()}
+              action={saveSecondSession}
+              hidden={{ slotId: x.id }}
+              staff={user.role !== "ADMIN"}
+              extra={<StepWords storageKey={`plan-words:${x.id}`} hint="Γίνεται το σημείωμα της ατομικής μόλις πατήσεις «Ολοκλήρωση». Το ίδιο το πλάνο μπαίνει στην καρτέλα «Ασφάλεια» του φακέλου και στο «Το πλάνο μου» του μέλους." />}
+              finishLabel="Ολοκλήρωση πλάνου και ατομικής"
+            />
+          ) : (
+            <EmptyState>Το πλάνο ανοίγει 15 λεπτά πριν από την ώρα της ατομικής ({formatTime(new Date(x.startsAt.getTime() - 15 * 60_000))}).</EmptyState>
+          )}
+        </section>
       ) : (
       <NoteWorkspace steps={NOTE_TABS} enabled={showForm}>
         <section className="panel note-panel">
@@ -526,9 +604,13 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
             </div>
           )}
           {sp.saved === "first" ? <div className="notice">Η αρχική αξιολόγηση ολοκληρώθηκε ✓ Η ατομική καταγράφηκε («Ήρθε») και το σημείωμα μπήκε στον φάκελο.</div>
+            : sp.saved === "plan" ? <div className="notice">Το πλάνο υποστήριξης γράφτηκε ✓ Η ατομική καταγράφηκε («Ήρθε»), το πλάνο μπήκε στην «Ασφάλεια» του φακέλου και το σημείωμα στον φάκελο.</div>
             : sp.saved && <div className="notice">Αποθηκεύτηκε ✓ {x.note && <span className="muted small">· {x.note.therapist.name}, {formatWhen(x.note.updatedAt)}</span>}</div>}
           {sp.saved && <ClearDraft k={`note-draft:${x.id}`} />}
           {sp.saved === "first" && <ClearDraft k={`first-words:${x.id}`} />}
+          {sp.saved === "plan" && <ClearDraft k={`plan-words:${x.id}`} />}
+          {sp.absent === "1" && assessed && !order.planWritten && !x.note && <div className="notice">«Δεν ήρθε» στη 2η ατομική: γράψε το σημείωμα «Δεν ήρθε». Το πλάνο υποστήριξης θα γίνει στην επόμενη ατομική. <Link href={`/t/s/${x.id}`}>Πίσω στο πλάνο</Link></div>}
+          {sp.skip === "1" && assessed && !order.planWritten && !x.note && <div className="notice">Κανονικό σημειωματάριο: το πλάνο υποστήριξης μένει για την επόμενη ατομική. <Link href={`/t/s/${x.id}`}>Πίσω στο πλάνο</Link></div>}
           {sp.absent === "1" && !assessed && !x.note && <div className="notice">«Δεν ήρθε» στην 1η ατομική: γράψε το σημείωμα «Δεν ήρθε». Το ιστορικό θα γίνει στην επόμενη ατομική. <Link href={`/t/s/${x.id}`}>Πίσω στο ιστορικό</Link></div>}
           {sp.error && <ErrorNote>Δεν αποθηκεύτηκε: {sp.error} Το κείμενό σου κρατήθηκε ως πρόχειρο σε αυτή την καρτέλα.</ErrorNote>}
           {showForm ? (

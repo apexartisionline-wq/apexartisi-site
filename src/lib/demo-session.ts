@@ -4,6 +4,8 @@ import bcrypt from "bcryptjs";
 import { prisma } from "./db";
 import { cycleForDemoBooking, cleanupDemoDay, ensureDemoDay } from "./demo-day";
 import { localParts } from "./time";
+import { dec } from "./crypto";
+import { hasPlanContent, missingSections, type PlanData } from "./safety-plan";
 
 /** Δοκιμαστική εγκατάσταση (Netlify, ψεύτικα στοιχεία): εκεί υπάρχει DEMO_SEED=1. */
 export const isDemoSite = (): boolean => process.env.DEMO_SEED === "1";
@@ -70,6 +72,37 @@ export async function startDemoFirstSession(therapist: { id: string; therapistKi
   return bookDemo(therapist, member.id, FIRST_POSITION);
 }
 
+/**
+ * «Δοκιμαστική 2η ατομική (πλάνο υποστήριξης)» (17/10): το πιο πρόσφατο ψεύτικο μέλος της «Δοκιμαστικής 1ης ατομικής» που
+ * ολοκλήρωσε το ιστορικό αλλά δεν έχει ακόμα πλάνο υποστήριξης. Αν δεν υπάρχει, null (το κουμπί δεν φαίνεται).
+ */
+export async function demoSecondCandidate(): Promise<{ id: string; name: string } | null> {
+  if (!isDemoSite()) return null;
+  const neo = await prisma.user.findMany({ where: { username: { startsWith: "neo-" }, role: "MEMBER" }, select: { id: true, name: true }, orderBy: { createdAt: "desc" }, take: 20 });
+  if (neo.length === 0) return null;
+  const ids = neo.map((m) => m.id);
+  const [checks, plans] = await Promise.all([
+    prisma.intakeCheck.findMany({ where: { memberId: { in: ids }, key: "assessment" }, select: { memberId: true } }),
+    prisma.safetyPlan.findMany({ where: { memberId: { in: ids } }, select: { memberId: true, data: true } }),
+  ]);
+  const assessed = new Set(checks.map((c) => c.memberId));
+  for (const m of neo) {
+    if (!assessed.has(m.id)) continue;
+    const d = plans.find((p) => p.memberId === m.id)?.data as ({ enc?: string } & PlanData) | undefined;
+    let plan: PlanData | null = null;
+    try { plan = d ? (d.enc !== undefined ? (JSON.parse(dec(d.enc)) as PlanData) : d) : null; } catch { plan = null; }
+    if (!hasPlanContent(plan) || missingSections(plan).length > 0) return { id: m.id, name: m.name };
+  }
+  return null;
+}
+
+/** Η 2η ατομική του παραπάνω μέλους, σε 2 λεπτά, στην 5η θέση (όπως η 1η). */
+export async function startDemoSecondSession(therapist: { id: string; therapistKind: "BIOMATIC" | "CLINICAL" | "BOTH" | null }): Promise<string | null> {
+  const m = await demoSecondCandidate();
+  if (!m) return null;
+  return bookDemo(therapist, m.id, FIRST_POSITION);
+}
+
 async function bookDemo(therapist: { id: string; therapistKind: "BIOMATIC" | "CLINICAL" | "BOTH" | null }, memberId: string, position: number): Promise<string> {
   const now = new Date();
   const p = localParts(now);
@@ -91,10 +124,12 @@ async function bookDemo(therapist: { id: string; therapistKind: "BIOMATIC" | "CL
   // Ελεύθερη θέση της ώρας: ποτέ θέση άλλου θεραπευτή ή με άλλο μέλος (16/10: δύο θεραπευτές την ίδια ώρα έφτιαχναν
   // κατά λάθος «Therapair» στην ίδια θέση). Η πρώτη δοκιμαστική είναι η 4η (Νίκος) / 5η (νέο μέλος)· αλλιώς από 21 και πάνω.
   const candidates = [position, ...Array.from({ length: 30 }, (_, i) => 21 + i)];
-  const taken = await prisma.slot.findMany({ where: { date: p.date, hour: p.hour, position: { in: candidates } }, select: { position: true, therapistId: true, bookings: { select: { memberId: true } } } });
+  const taken = await prisma.slot.findMany({ where: { date: p.date, hour: p.hour, position: { in: candidates } }, select: { position: true, therapistId: true, bookings: { select: { memberId: true } }, note: { select: { id: true } } } });
+  // Θέση της ίδιας ώρας που έχει ήδη σημείωμα (π.χ. η 1η ατομική που μόλις ολοκληρώθηκε) δεν ξαναχρησιμοποιείται:
+  // η επόμενη δοκιμαστική (17/10: «2η ατομική») μπαίνει σε άλλη θέση, αλλιώς θα έδειχνε το παλιό σημείωμα.
   const free = candidates.find((pos) => {
     const t = taken.find((x) => x.position === pos);
-    return !t || (t.therapistId === therapist.id && t.bookings.every((bk) => bk.memberId === memberId));
+    return !t || (!t.note && t.therapistId === therapist.id && t.bookings.every((bk) => bk.memberId === memberId));
   });
   if (free === undefined) throw new Error("καμία ελεύθερη δοκιμαστική θέση");
   const slot = await prisma.slot.upsert({

@@ -79,16 +79,9 @@ export async function seedHistory(prisma: PrismaClient): Promise<string> {
     },
   });
 
-  // Πλάνο ασφάλειας και σύνοψη περίπτωσης για τον Νίκο.
+  // Πλάνο υποστήριξης και σύνοψη περίπτωσης για τον Νίκο (το πλάνο: ensureNikosPlan, τρέχει σε κάθε build).
   const nikos = u("nikos");
-  await prisma.safetyPlan.upsert({
-    where: { memberId: nikos.id },
-    create: {
-      memberId: nikos.id, updatedById: u("anna").id,
-      data: { enc: enc(JSON.stringify({ warningSigns: "Παρασκευή βράδυ, μοναξιά, παλιά παρέα", myCoping: "Περπάτημα, ντους, μουσική", helpers: "Αδερφή (ψεύτικο 6900000000)", reasons: "Η κόρη μου" })) },
-    },
-    update: {},
-  });
+  await ensureNikosPlan(prisma);
   await prisma.caseSummary.create({
     data: {
       memberId: nikos.id, authorId: u("anna").id,
@@ -105,10 +98,34 @@ export async function seedHistory(prisma: PrismaClient): Promise<string> {
   return "Έτοιμο: σημειώματα για nikos, eleni, giorgos · κόκκινο κουμπί (eleni) · σύνοψη (nikos).";
 }
 
+/**
+ * Το πλάνο υποστήριξης του Νίκου, ΠΛΗΡΕΣ (και οι 7 ερωτήσεις, 17/10): αλλιώς η επόμενη ατομική του θα άνοιγε με το
+ * «πλάνο υποστήριξης» (βήμα της 2ης ατομικής) αντί για το κανονικό σημειωματάριο. Ξαναγράφεται σε κάθε build
+ * (φρέσκα ψεύτικα δεδομένα), ανεξάρτητα από το αν το υπόλοιπο ιστορικό υπάρχει ήδη.
+ */
+export async function ensureNikosPlan(prisma: PrismaClient): Promise<void> {
+  const [nikos, anna] = await Promise.all([
+    prisma.user.findUnique({ where: { username: "nikos" }, select: { id: true } }),
+    prisma.user.findUnique({ where: { username: "anna" }, select: { id: true } }),
+  ]);
+  if (!nikos || !anna) return;
+  const nikosPlan = { enc: enc(JSON.stringify({
+    warningSigns: "Παρασκευή βράδυ, μοναξιά, παλιά παρέα", myCoping: "Περπάτημα, ντους, μουσική", distractions: "Στην αδερφή μου ή στο γήπεδο με τον Κώστα",
+    safeEnvironment: "Όχι αλκοόλ στο σπίτι· την Παρασκευή δεν περνάω από το μαγαζί", reasons: "Η κόρη μου",
+    helperList: [{ name: "Αδερφή", phone: "6900000000" }, { name: "Κώστας (φίλος)", phone: "" }],
+    discussed: [{ at: new Date(Date.now() - 20 * DAY).toISOString(), byId: anna.id, byName: "Άννα Π. (ψυχολόγος)" }],
+  })) };
+  await prisma.safetyPlan.upsert({
+    where: { memberId: nikos.id },
+    create: { memberId: nikos.id, updatedById: anna.id, data: nikosPlan },
+    update: { data: nikosPlan, updatedById: anna.id },
+  });
+}
+
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
   const prisma = new PrismaClient();
   seedHistory(prisma)
-    .then((msg) => console.log(`[demo-history] ${msg}`))
+    .then(async (msg) => { await ensureNikosPlan(prisma); console.log(`[demo-history] ${msg} · πλάνο Νίκου πλήρες.`); })
     .catch((e) => {
       console.error(e);
       process.exit(1);

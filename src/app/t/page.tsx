@@ -24,9 +24,10 @@ import { memberSafetyMany } from "@/lib/safety-batch";
 import { memberNotes } from "@/lib/member-notes";
 import { sessionPresence } from "@/lib/presence";
 import { getSettings } from "@/lib/settings";
-import { ensureDemoToday, isDemoSite, startDemoFirstSession, startDemoSession } from "@/lib/demo-session";
+import { demoSecondCandidate, ensureDemoToday, isDemoSite, startDemoFirstSession, startDemoSecondSession, startDemoSession } from "@/lib/demo-session";
 import { addDays, athensToUtc, formatDate, formatTime, localParts, toMinutes } from "@/lib/time";
 import { mottoFor } from "@/lib/mottos";
+import { sessionOrders } from "@/lib/session-order-db";
 import { vocative } from "@/lib/vocative";
 
 // Μόνο στη δοκιμαστική εγκατάσταση: φτιάχνει μια ατομική «τώρα» με ψεύτικο μέλος, για να δοκιμάσει κανείς τη σύνδεση.
@@ -44,6 +45,14 @@ async function demoFirst() {
   redirect(id ? `/t?demo=${id}` : "/t?demo=0");
 }
 
+// …και «Δοκιμαστική 2η ατομική»: το ίδιο ψεύτικο μέλος, μετά το ιστορικό, για το πλάνο υποστήριξης (17/10).
+async function demoSecond() {
+  "use server";
+  const user = await requireRole("THERAPIST", "ADMIN");
+  const id = await startDemoSecondSession(user).catch((e) => { console.error("[demo-second]", e); return null; });
+  redirect(id ? `/t?demo=${id}` : "/t?demo=0");
+}
+
 const KIND_LABEL: Record<string, string> = { CLINICAL: "ψυχολόγος", BIOMATIC: "βιωματικός θεραπευτής", BOTH: "ψυχολόγος και βιωματικός" };
 
 type Item = {
@@ -54,6 +63,7 @@ type Item = {
   icon: "user" | "group";
   title: string;
   sub?: string;
+  order?: string; // «2η ατομική · πλάνο υποστήριξης» (17/10, μόνο ατομική)
   href: string;
   memberHref?: string; // φάκελος (μόνο στην ατομική)
   memberId?: string;
@@ -85,7 +95,7 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
     }),
     prisma.slot.findMany({
       where: { therapistId: user.id, date: { gt: date, lte: addDays(date, 7) }, bookings: { some: {} } },
-      include: { bookings: { include: { member: { select: { name: true } } } } },
+      include: { bookings: { include: { member: { select: { id: true, name: true } } } } },
       orderBy: [{ date: "asc" }, { hour: "asc" }],
     }),
     groupDays(date, addDays(date, 7), s),
@@ -93,6 +103,12 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
     user.role === "ADMIN" ? prisma.user.findMany({ where: { role: { in: ["THERAPIST", "ADMIN"] }, active: true }, select: { id: true, name: true, therapistKind: true, role: true }, orderBy: { name: "asc" } }) : Promise.resolve([]),
     prisma.holiday.findUnique({ where: { date } }),
   ]);
+  // Αρίθμηση ατομικών και βήμα πρωτοκόλλου (17/10): «2η ατομική · πλάνο υποστήριξης» — μία φόρτωση για όλες τις ατομικές
+  // της ημέρας και της εβδομάδας (όχι Therapair). Κανόνας: src/lib/session-order.ts.
+  const orders = await sessionOrders(
+    [...slots, ...week].filter((x) => x.kind !== "PAIR" && x.bookings.length === 1).map((x) => ({ id: x.id, startsAt: x.startsAt, memberId: x.bookings[0].member.id })),
+  );
+  const orderLabel = (x: { id: string }) => orders.get(x.id)?.label;
   const staff: StaffOption[] = staffRows.map((u) => ({ id: u.id, name: u.name, clinician: u.role === "ADMIN" || u.therapistKind === "CLINICAL" || u.therapistKind === "BOTH", admin: u.role === "ADMIN" }));
   const viewer = { id: user.id, role: user.role, therapistKind: user.therapistKind };
   const myGroups = groups.filter((g) => g.coordinatorId === user.id);
@@ -118,7 +134,7 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
       const pair = x.kind === "PAIR";
       return {
         key: x.id, startsAt: x.startsAt, endsAt: new Date(x.startsAt.getTime() + (pair ? s.pairMinutes : s.sessionMinutes) * 60_000),
-        kind: (pair ? "Therapair" : "Ατομική") as "Ατομική" | "Therapair", icon: (pair ? "group" : "user") as "user" | "group", title: short(x),
+        kind: (pair ? "Therapair" : "Ατομική") as "Ατομική" | "Therapair", icon: (pair ? "group" : "user") as "user" | "group", title: short(x), order: pair ? undefined : orderLabel(x),
         href: `/t/s/${x.id}`, prepHref: `/t/s/${x.id}/prep`, memberHref: !pair && x.bookings[0] ? `/t/members/${x.bookings[0].member.id}` : undefined, memberId: !pair ? x.bookings[0]?.member.id : undefined,
         hasNote: pair ? x.pairNotes.length > 0 : Boolean(x.note), memberJoinedAt: !pair ? (x.bookings[0]?.joinedAt ?? null) : null, memberConfirmed: !pair ? (x.bookings[0]?.confirmedCame ?? null) : null,
         join: { kind: "SLOT" as const, ref: x.id, room: roomUrl(s.rooms[x.position - 1]), label: pair ? "Μπες στο Therapair" : "Μπες στην ατομική" },
@@ -268,7 +284,7 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
                         {!isNext && <Icon name="clock" size={18} />}
                         {formatTime(it.startsAt)} – {formatTime(it.endsAt)}
                       </div>
-                      <div className="sched-kind">{it.kind} · <Link href={it.href}>{it.title}</Link></div>
+                      <div className="sched-kind">{it.order ?? it.kind} · <Link href={it.href}>{it.title}</Link></div>
                       <div className="sched-status">
                         {!isNext && <Pill tone={st.tone === "solid" ? "" : st.tone}>{st.text}</Pill>}
                         {it.memberJoinedAt && <span>Το μέλος πάτησε «Μπες» {formatTime(it.memberJoinedAt)}</span>}
@@ -312,6 +328,7 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
                 <span className="hint">Δοκιμαστικό περιβάλλον</span>
                 <form action={demoStart}><DemoStartButton /></form>
                 <form action={demoFirst}><DemoStartButton first /></form>
+                {await (async () => { const c = await demoSecondCandidate(); return c ? <form action={demoSecond}><DemoStartButton second={c.name.split(" ")[0]} /></form> : null; })()}
               </div>
             )}
           </Panel>
@@ -331,7 +348,7 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
           <Panel title="Τις επόμενες 7 μέρες" id="week" tour="week">
             {[
               ...myGroups.filter((g) => g.date > date).map((g) => ({ key: `${g.date}${g.time}`, sort: `${g.date} ${g.time}`, date: g.date, when: `${formatDate(g.date)} ${g.time}`, sub: "Ομάδα · εσύ συντονίζεις", icon: "group" as const })),
-              ...week.map((x) => ({ key: x.id, href: `/t/s/${x.id}`, sort: `${x.date} ${formatTime(x.startsAt)}`, date: x.date, when: `${formatDate(x.date)} ${formatTime(x.startsAt)}`, sub: `${x.kind === "PAIR" ? "Therapair" : "Ατομική"} · ${names(x)}`, icon: (x.kind === "PAIR" ? "group" : "user") as "group" | "user" })),
+              ...week.map((x) => ({ key: x.id, href: `/t/s/${x.id}`, sort: `${x.date} ${formatTime(x.startsAt)}`, date: x.date, when: `${formatDate(x.date)} ${formatTime(x.startsAt)}`, sub: `${x.kind === "PAIR" ? "Therapair" : (orderLabel(x) ?? "Ατομική")} · ${names(x)}`, icon: (x.kind === "PAIR" ? "group" : "user") as "group" | "user" })),
             ]
               .sort((a, b) => a.sort.localeCompare(b.sort))
               .map((r) => (

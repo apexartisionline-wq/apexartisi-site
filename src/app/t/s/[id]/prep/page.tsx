@@ -17,6 +17,7 @@ import { logAccess } from "@/lib/audit";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { sessionNumber } from "@/lib/member";
+import { sessionOrderOf } from "@/lib/session-order-db";
 import { currentRisk, nextClinicalSession } from "@/lib/risk-db";
 import { sessionGlance } from "@/lib/session-glance";
 import { getSettings } from "@/lib/settings";
@@ -47,9 +48,10 @@ export default async function PrepPage({ params }: { params: Promise<{ id: strin
   const canJoin = x.date === today && Boolean(room) && mine;
   const viewer = { id: user.id, role: user.role, therapistKind: (user as { therapistKind?: string | null }).therapistKind ?? null };
   const members = [...x.bookings].sort((p, q) => p.member.name.localeCompare(q.member.name, "el"));
-  const [joined, number, perMember] = await Promise.all([
+  const [joined, number, order, perMember] = await Promise.all([
     prisma.staffJoin.findFirst({ where: { kind: "SLOT", ref: x.id, userId: user.id }, orderBy: { at: "asc" } }),
     !pair ? sessionNumber({ cycleId: members[0].cycleId, slot: x }) : Promise.resolve(null),
+    !pair ? sessionOrderOf({ id: x.id, startsAt: x.startsAt, memberId: members[0].memberId }) : Promise.resolve(null),
     Promise.all(members.map(async (b) => {
       const [g, intake, ax] = await Promise.all([sessionGlance(b.memberId, x), currentRisk(b.memberId), latestAssessment(b.memberId)]);
       const nextClinical = intake.trigger && !isPsychologist(viewer) ? await nextClinicalSession(b.memberId, now) : null;
@@ -69,7 +71,7 @@ export default async function PrepPage({ params }: { params: Promise<{ id: strin
       <PageHead
         crumbs={[{ href: "/t", label: "Σήμερα" }, { label: pair ? "Therapair" : "Ατομική" }, { label: "Προετοιμασία" }]}
         title={<>{pair && <><Pill>Therapair</Pill> </>}{members.map((b, i) => <span key={b.memberId}>{i > 0 && " & "}<Link href={`/t/members/${b.memberId}`} style={{ color: "inherit", textDecoration: "none" }}>{b.member.name}</Link></span>)}</>}
-        sub={<>Προετοιμασία · {formatDate(x.date)} {formatSpan(x.startsAt, minutes)}{number && ` · ${number}`}{x.therapist && ` · ${x.therapist.name}`}</>}
+        sub={<>Προετοιμασία · {formatDate(x.date)} {formatSpan(x.startsAt, minutes)}{order && <> · <strong>{order.label}</strong></>}{number && ` · ${number}`}{x.therapist && ` · ${x.therapist.name}`}</>}
       >
         {!pair && <Link className="btn outline" href={`/t/members/${members[0].memberId}`}><Icon name="folder" size={18} /> Φάκελος</Link>}
         <Link className="btn outline" href={`/t/s/${x.id}`}>Σελίδα της {pair ? "συνεδρίας" : "ατομικής"} (σημειωματάριο)</Link>

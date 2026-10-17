@@ -5,7 +5,9 @@ import s from "./SafetyPlanForm.module.css";
 // «Το πλάνο μου όταν δυσκολεύομαι» (Α): 7 ερωτήσεις, με τα λόγια του μέλους. Οι διατυπώσεις των ερωτήσεων
 // (safety-plan.ts) χρειάζονται έγκριση της θεραπευτικής ομάδας.
 // staff: ο θεραπευτής γράφει μόνο ονόματα και δεν βλέπει τηλέφωνα· τα τηλέφωνα που υπάρχουν κρατιούνται.
-export function SafetyPlanForm({ plan, action, hidden, staff = false }: { plan: PlanData | null; action: (fd: FormData) => Promise<void>; hidden?: Record<string, string>; staff?: boolean }) {
+// extra / finishLabel (2η ατομική, 17/10): προαιρετικό πλαίσιο από κάτω (π.χ. «λίγα λόγια») και δεύτερο κουμπί «Ολοκλήρωση…»
+// που στέλνει complete=1· το «Αποθήκευση» μένει πρόχειρο/ενδιάμεση αποθήκευση.
+export function SafetyPlanForm({ plan, action, hidden, staff = false, extra, finishLabel }: { plan: PlanData | null; action: (fd: FormData) => Promise<void>; hidden?: Record<string, string>; staff?: boolean; extra?: React.ReactNode; finishLabel?: string }) {
   const helpers = plan?.helperList ?? [];
   const ordinal = (i: number) => `${i + 1}ο πρόσωπο`;
   return (
@@ -44,7 +46,11 @@ export function SafetyPlanForm({ plan, action, hidden, staff = false }: { plan: 
           field(PLAN_FIELDS.find((f) => f.key === k)!, plan)
         ),
       )}
-      <button className="primary" type="submit">Αποθήκευση</button>
+      {extra}
+      <div className="row" style={{ gap: 10, flexWrap: "wrap" }}>
+        <button className={finishLabel ? "outline" : "primary"} type="submit">Αποθήκευση</button>
+        {finishLabel && <button className="primary" type="submit" name="complete" value="1">{finishLabel}</button>}
+      </div>
     </form>
   );
 }
