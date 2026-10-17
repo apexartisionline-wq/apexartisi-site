@@ -85,7 +85,22 @@ export async function cycleForDemoBooking(db: PrismaClient, memberId: string, le
  * Καλείται από το build (demo-today) και από το «Σήμερα» της δοκιμής, ώστε να υπάρχουν ραντεβού
  * και τις μέρες που δεν έγινε build (11/10).
  */
-export async function ensureDemoDay(db: PrismaClient, date: string): Promise<boolean> {
+/**
+ * Ψεύτικο ραντεβού της ημέρας που ΤΕΛΕΙΩΣΕ χωρίς σημείωμα σβήνεται (υπεύθυνη 17/10: «δεν θέλω να υπάρχει περιθώριο για
+ * εκκρεμότητες όπως το να γράφει σημείωμα μετά»). Τα ψεύτικα ραντεβού υπάρχουν μόνο για να γεμίζει το πρόγραμμα· δεν
+ * αφήνουν πίσω τους «Γράψε σημείωμα». Τρέχει κάθε φορά που ανοίγει το «Σήμερα» της δοκιμής (μία ερώτηση).
+ */
+export async function cleanupDemoDay(db: PrismaClient, date: string, now = new Date()): Promise<number> {
+  const rows = await db.slot.findMany({
+    where: { date, note: null, pairNotes: { none: {} }, startsAt: { lt: new Date(now.getTime() - 60 * 60_000) } },
+    select: { id: true, hour: true, position: true, therapist: { select: { username: true } }, bookings: { select: { member: { select: { username: true } } } } },
+  });
+  const ids = rows.filter((r) => isDemoDaySlot({ hour: r.hour, position: r.position, therapistUsername: r.therapist?.username ?? null, memberUsernames: r.bookings.map((b) => b.member.username) })).map((r) => r.id);
+  if (ids.length) await db.slot.deleteMany({ where: { id: { in: ids } } });
+  return ids.length;
+}
+
+export async function ensureDemoDay(db: PrismaClient, date: string, now = new Date()): Promise<boolean> {
   // Γρήγορος έλεγχος (15/10): τέσσερις ερωτήσεις μαζί για να δούμε αν η μέρα είναι ήδη έτοιμη — ίδιοι όροι με τον βρόχο
   // παρακάτω. Πριν, κάθε κρύο ξεκίνημα της δοκιμής έκανε ~30 ερωτήσεις μία-μία (~6″ με τη βάση στη Φρανκφούρτη) πριν
   // καν αρχίσει το «Σήμερα» του θεραπευτή, και μαζί με τα υπόλοιπα ξεπερνούσε το όριο των 10″ του Netlify.
@@ -97,6 +112,8 @@ export async function ensureDemoDay(db: PrismaClient, date: string): Promise<boo
   if (await db.holiday.findUnique({ where: { date }, select: { date: true } })) return false;
   let added = false;
   for (const p of DEMO_PLAN) {
+    // Μόνο ραντεβού που δεν έχουν ξεκινήσει ακόμα (17/10): ένα ψεύτικο ραντεβού στο παρελθόν θα φαινόταν «χωρίς σημείωμα».
+    if (athensToUtc(date, p.hour) <= now) continue;
     const therapist = await db.user.findUnique({ where: { username: p.therapist } });
     const members = await db.user.findMany({ where: { username: { in: p.members } } });
     if (!therapist || members.length !== p.members.length) continue;

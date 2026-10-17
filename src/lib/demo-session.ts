@@ -2,7 +2,7 @@ import "server-only";
 import { randomBytes } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { prisma } from "./db";
-import { cycleForDemoBooking, ensureDemoDay } from "./demo-day";
+import { cycleForDemoBooking, cleanupDemoDay, ensureDemoDay } from "./demo-day";
 import { localParts } from "./time";
 
 /** Δοκιμαστική εγκατάσταση (Netlify, ψεύτικα στοιχεία): εκεί υπάρχει DEMO_SEED=1. */
@@ -116,7 +116,10 @@ async function bookDemo(therapist: { id: string; therapistKind: "BIOMATIC" | "CL
 let ensuredFor = ""; // μία φορά ανά μέρα και διεργασία, για να μη βαραίνει κάθε άνοιγμα του «Σήμερα»
 export async function ensureDemoToday(): Promise<void> {
   if (!isDemoSite()) return;
-  const today = localParts(new Date()).date;
+  const now = new Date();
+  const today = localParts(now).date;
+  // Ψεύτικα ραντεβού που τελείωσαν χωρίς σημείωμα σβήνονται κάθε φορά (17/10) — δεν μένει «Γράψε σημείωμα» από ψεύτικα.
+  await cleanupDemoDay(prisma, today, now).catch(() => undefined);
   if (ensuredFor === today) return;
-  await ensureDemoDay(prisma, today).then(() => { ensuredFor = today; }).catch(() => undefined);
+  await ensureDemoDay(prisma, today, now).then(() => { ensuredFor = today; }).catch(() => undefined);
 }
