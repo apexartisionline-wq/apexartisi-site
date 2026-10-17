@@ -1151,3 +1151,15 @@ p.motto { margin: 0 0 16px; display: block; }
 .protocol li.warn { border-color: var(--yellow); }
 .protocol-no { font-weight: 700; color: var(--accent-strong); }
 .ok-text { color: var(--ok); font-weight: 600; }
+
+/* ── Πίνακας ομάδας (17/10): μία γραμμή ανά γεγονός, χωρίς κουμπιά ── */
+.board-row { display: grid; grid-template-columns: 10px minmax(0, 1fr); gap: 0 10px; align-items: start; padding: 8px 0; border-top: 1px dashed var(--card-line); }
+.board-row:first-child { border-top: 0; padding-top: 2px; }
+.board-dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 7px; background: var(--yellow); }
+.board-dot.red { background: var(--red); }
+.board-text { font-size: .95rem; line-height: 1.4; }
+.board-text a:first-child { font-weight: 700; color: inherit; text-decoration: none; }
+.board-text a:first-child:hover { text-decoration: underline; }
+.board-text a:not(:first-child) { color: inherit; text-decoration: underline; text-decoration-color: var(--card-line); text-underline-offset: 3px; }
+.board-row.red .board-text a:not(:first-child) { color: var(--red-ink); }
+.board-meta { font-size: var(--fs-help); color: var(--muted); margin-top: 1px; }

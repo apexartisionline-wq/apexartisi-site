@@ -220,7 +220,15 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
 
   // Εκκρεμότητες: σημειώματα που δεν γράφτηκαν, ανασκοπήσεις κύκλου, μηνύματα φροντίδας (με ανάληψη).
   const notesDue = items.filter((it) => it.endsAt <= now && !it.hasNote);
-  const todoActions = memberIds.flatMap((id) => (actionsBy.get(id) ?? []).filter((a) => a.kind === "cycle_review" || a.kind === "care"));
+  // Πίνακας ομάδας (υπεύθυνη 17/10: «ένας πίνακας κοινοποιήσεων πληροφοριών θεραπείας, ώστε όλοι οι θεραπευτές να έχουν
+  // κοινή εικόνα σε όσα χρειάζεται να ξέρουν άμεσα — υποτροπή, τρεις συνεχόμενες απουσίες, κόκκινο κουμπί»): μία γραμμή ανά
+  // γεγονός, τα σοβαρά πρώτα και μετά τα πιο πρόσφατα, ΧΩΡΙΣ κουμπιά ενεργειών (οι ενέργειες με ανάληψη πάνε στις «Εκκρεμότητες»).
+  const board = attention
+    .flatMap((a) => a.issues.map((i) => ({ memberId: a.id, memberName: memberName.get(a.id) ?? "Μέλος", ...i })))
+    .sort((a, b) => Number(b.red) - Number(a.red) || (b.at?.getTime() ?? 0) - (a.at?.getTime() ?? 0));
+  const boardMembers = new Set(board.map((b) => b.memberId)).size;
+  // Εκκρεμότητες: όλες οι ενέργειες με ανάληψη (αξιολόγηση αναγκών, βήμα προς ανάγνωση, κόκκινο κουμπί, κύκλος, φροντίδα).
+  const todoActions = memberIds.flatMap((id) => actionsBy.get(id) ?? []);
   const todoCount = notesDue.length + todoActions.length;
   const roleLabel = user.role === "ADMIN" ? "διαχείριση" : (KIND_LABEL[user.therapistKind ?? ""] ?? "θεραπευτής");
   // Αν το όνομα έχει ήδη τον ρόλο σε παρένθεση (ψεύτικα στοιχεία), δεν τον ξαναγράφουμε.
@@ -340,21 +348,28 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
         <div className="stackv">
           <Panel tour="see">
             <div className="panel-head">
-              <h2>Χρειάζεται προσοχή</h2>
-              <span className="hint">{attention.length === 0 ? "τίποτα ανοιχτό" : `${attention.length} ${attention.length === 1 ? "μέλος" : "μέλη"}`}</span>
+              <h2>Πίνακας ομάδας</h2>
+              <span className="hint">{board.length === 0 ? "τίποτα νέο" : `${board.length} ${board.length === 1 ? "γεγονός" : "γεγονότα"} · ${boardMembers} ${boardMembers === 1 ? "μέλος" : "μέλη"}`}</span>
             </div>
-            <div data-tour="alerts">
-              {attention.map((a) => (
-                <AttentionCard key={a.id} memberId={a.id} memberName={memberName.get(a.id) ?? "Μέλος"} issues={a.issues} actions={a.actions} viewer={viewer} staff={staff} back={isToday ? "/t" : `/t?date=${date}`} />
+            <p className="hint" style={{ margin: "-4px 0 8px" }}>Κοινή εικόνα για όλη την ομάδα: ό,τι χρειάζεται να ξέρουμε άμεσα, από όποιον κι αν το κατέγραψε.</p>
+            <div data-tour="alerts" className="board">
+              {board.map((b, k) => (
+                <div key={`${b.memberId}-${k}`} className={`board-row${b.red ? " red" : ""}`}>
+                  <span className={`board-dot ${b.red ? "red" : "yellow"}`} aria-label={b.red ? "Σοβαρό" : "Να το δεις"} />
+                  <div className="board-body">
+                    <div className="board-text"><Link href={`/t/members/${b.memberId}`}>{b.memberName}</Link> — {b.href ? <Link href={b.href}>{b.text}</Link> : b.text}</div>
+                    <div className="board-meta">{b.at ? formatDate(localParts(b.at).date) : ""}{b.by ? ` · ${b.by}` : ""}</div>
+                  </div>
+                </div>
               ))}
             </div>
-            {attention.length === 0 && <EmptyState>Κανένα ανοιχτό θέμα αυτή τη στιγμή.</EmptyState>}
+            {board.length === 0 && <EmptyState>Τίποτα νέο για την ομάδα αυτή τη στιγμή.</EmptyState>}
             <details className="fold small" style={{ marginTop: 12 }}>
-              <summary className="muted">Τι σημαίνουν οι ενδείξεις</summary>
+              <summary className="muted">Τι ανάβει εδώ</summary>
               <p className="muted" style={{ margin: "6px 0 0" }}>
-                <strong>Σοβαρό σήμα</strong> (κόκκινο): κάτι που θέλει ενέργεια τώρα — πάτησε το κόκκινο κουμπί, έγραψε σκέψεις να κάνει κακό στον εαυτό του ή ότι έκανε χρήση, υψηλές ανάγκες ασφάλειας. <strong>Να το δεις</strong> (κίτρινο): για την επόμενη επαφή — μέρες χωρίς καμία επαφή μαζί μας, έντονες επιθυμίες στο ημερολόγιο, νέο μέλος στις πρώτες του μέρες, αυξημένες ανάγκες ασφάλειας. Η ειδοποίηση των 24 ωρών είναι ειδοποίηση: όταν φύγει από εδώ, το θέμα δεν έχει λυθεί μόνο του — η ενέργεια μένει ανοιχτή μέχρι να ολοκληρωθεί, και τα σήματα μένουν στο «Ασφάλεια» του φακέλου όσο ισχύουν.
-                «Το είδα», «Το ανέλαβα» και «Ολοκληρώθηκε» είναι διαφορετικά: η ανάγνωση δεν ολοκληρώνει την ενέργεια. Όταν ένα μέλος ολοκληρώνει βήμα ή εργασία, βγαίνει εδώ «να το διαβάσει ένας θεραπευτής»: το αναλαμβάνει ένας, το διαβάζει στον φάκελο και πατά «Το διάβασα».
-                Ό,τι αφορά τη διαχείριση (τηλεφωνήματα, νέος κύκλος μετά το αυτόματο κλείσιμο) φαίνεται μόνο στη διαχείριση.
+                <strong>Κόκκινο</strong>: κάτι που θέλει ενέργεια τώρα — πάτησε το κόκκινο κουμπί, υποτροπή ή χρήση στο σημείωμα ή στο ημερολόγιο, σκέψεις να κάνει κακό στον εαυτό του, αυξήθηκαν ή είναι υψηλές οι ανάγκες ασφάλειας, δεν ήρθε μετά από σήμα ασφάλειας.
+                <strong> Κίτρινο</strong>: για την επόμενη επαφή — μέρες χωρίς καμία επαφή μαζί μας, έντονες επιθυμίες στο ημερολόγιο, νέο μέλος στις πρώτες του μέρες, αυξημένες ανάγκες ασφάλειας.
+                Ανάβει μόλις το γράψει όποιος από την ομάδα, και μένει όσο ισχύει· τα παλιά μένουν στο «Ασφάλεια» του φακέλου. Οι ενέργειες με ανάληψη είναι από κάτω, στις «Εκκρεμότητες».
               </p>
             </details>
           </Panel>
