@@ -17,6 +17,9 @@ import { expiringSoon, runRetentionDaily } from "@/lib/retention-db";
 import { nextSession, riskTriggerDue } from "@/lib/risk-db";
 import { kindWord } from "@/lib/access";
 import { autoCloseCycles } from "@/lib/cycle-review";
+import { mottoFor } from "@/lib/mottos";
+import { pendingNotesAll } from "@/lib/note-gate";
+import { vocative } from "@/lib/vocative";
 
 // Νέος κύκλος μετά το αυτόματο κλείσιμο (17/10): η διαχείριση ενημερώνει το μέλος, συμφωνητικό και προεξόφληση — και το σημειώνει.
 async function newCycleDone(formData: FormData) {
@@ -118,6 +121,8 @@ export default async function AdminToday({ searchParams }: { searchParams: Promi
     const names = new Map((await prisma.user.findMany({ where: { id: { in: rows.map((r) => r.memberId) } }, select: { id: true, name: true } })).map((u) => [u.id, u.name]));
     return rows.map((r) => ({ t: r, name: names.get(r.memberId) ?? "Μέλος" }));
   });
+  // Σημειώματα που εκκρεμούν (17/10): οι θεραπευτές κλειδώνονται μέχρι να τα γράψουν· η διαχείριση βλέπει ποιος και ποια.
+  const pendingNotes = await pendingNotesAll(now).catch((e) => (console.error("[note-gate]", e), []));
   // Φάκελοι που λήγουν μέσα σε 30 μέρες (τήρηση δεδομένων, 16/10): διαγράφονται αυτόματα — εδώ για να προλάβει αναστολή.
   const expiring = await expiringSoon(now).catch(() => []);
   const todo = [
@@ -130,7 +135,9 @@ export default async function AdminToday({ searchParams }: { searchParams: Promi
 
   return (
     <>
-      <h1>{formatDate(today)}</h1>
+      <h1>Καλώς ήρθες, {vocative(me.name.split(" ")[0])}</h1>
+      <p className="hint" style={{ margin: "-6px 0 4px" }}>{formatDate(today)} · διαχείριση</p>
+      <p className="motto">{mottoFor(today)}</p>
       <StaffMessagesLine userId={me.id} />
       <AlertBoxes boxes={await alertBoxes("ADMIN")} />
 
@@ -160,6 +167,18 @@ export default async function AdminToday({ searchParams }: { searchParams: Promi
                 {" · "}{claimed ? <span className="badge ok">ανέλαβε: {claimed}</span> : <span className="badge yellow">χωρίς ανάληψη</span>}
                 {" · "}επόμενη ατομική: {next ? <>{formatDate(next.date)} {formatTime(next.startsAt)}{next.therapist && ` · ${next.therapist}`}{next.kind && ` (${kindWord(next.kind)})`}{!nextIsPsy && <strong className="warn-text"> — όχι ψυχολόγος</strong>}</> : <strong className="warn-text">δεν έχει προγραμματιστεί</strong>}
               </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {pendingNotes.length > 0 && (
+        <section className="card" style={{ borderColor: "var(--yellow)" }}>
+          <strong>Σημειώματα που εκκρεμούν</strong>
+          <p className="muted small" style={{ margin: "4px 0 8px" }}>Συνεδρίες που τελείωσαν χωρίς σημείωμα (7 μέρες). Ο θεραπευτής δεν μπορεί να συνεχίσει στο Apex μέχρι να το γράψει.</p>
+          <ul>
+            {pendingNotes.map((pn) => (
+              <li key={pn.id}>{pn.therapistName}: <Link href={`/t/s/${pn.id}`}>{pn.kind === "PAIR" ? "Therapair" : "Ατομική"} · {pn.who} · {formatDate(localParts(pn.startsAt).date)} {formatTime(pn.startsAt)}</Link></li>
             ))}
           </ul>
         </section>

@@ -714,11 +714,10 @@ details.fold[open] > summary::before { transform: rotate(90deg); }
   .hide-sm { display: none; }
 }
 /* Πυκνή γραμμή ενέργειας μέσα σε κάρτες προσοχής: κείμενο αριστερά, κουμπιά δεξιά. */
-.act.compact { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; align-items: center; }
-.act.compact .act-title { grid-column: 1; font-size: .95rem; }
-.act.compact .act-meta { grid-column: 1; }
-.act.compact .act-forms { grid-column: 2; grid-row: 1 / span 2; margin: 0; justify-content: flex-end; }
-@media (max-width: 760px) { .act.compact { grid-template-columns: minmax(0, 1fr); } .act.compact .act-forms { grid-column: 1; grid-row: auto; margin-top: 8px; justify-content: flex-start; } }
+/* Πυκνή ενέργεια μέσα στην κάρτα «Χρειάζεται προσοχή» (17/10, από εικόνα της υπεύθυνης): τα κουμπιά ΚΑΤΩ από το κείμενο,
+   όχι δίπλα — στη στενή δεξιά στήλη το δίπλα άφηνε στο κείμενο μία λέξη ανά γραμμή. */
+.act.compact .act-title { font-size: .95rem; }
+.act.compact .act-forms { margin-top: 8px; justify-content: flex-start; }
 .attn-main { font-size: .95rem; }
 .panel-head h2.with-icon { display: flex; align-items: center; gap: 12px; }
 .panel-head h2.with-icon .iconbox { width: 38px; height: 38px; }
@@ -1120,3 +1119,35 @@ html:has(.savebar) { scroll-padding-bottom: 104px; }
 .first-words { padding: 12px 16px; }
 .first-words textarea { width: 100%; margin-top: 6px; }
 .first-session .sticky-save { background: var(--card); }
+
+/* ── Καλωσόρισμα και μότο της ημέρας (17/10) ── */
+.motto { display: inline-block; margin-top: 6px; font-style: italic; color: var(--accent-strong); font-weight: 500; }
+p.motto { margin: 0 0 16px; display: block; }
+
+/* ── «Χρειάζεται προσοχή», λιτή μορφή (17/10) ── */
+.attn.lean { display: block; padding: 10px 12px 10px 14px; border-left-width: 3px; }
+.attn.lean + .attn.lean { margin-top: 8px; }
+.attn-row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.attn.lean .attn-title { font-size: 1rem; }
+.attn-word { font-size: .78rem; font-weight: 700; letter-spacing: .02em; white-space: nowrap; }
+.attn-word.red { color: var(--red-ink); }
+.attn-word.yellow { color: var(--yellow-ink); }
+.attn.lean .attn-main { margin-top: 2px; font-weight: 500; font-size: .95rem; }
+.attn.lean .act { margin-top: 8px; padding-top: 8px; }
+.attn.lean .act-forms .btn, .attn.lean .act-forms button { min-height: 34px; padding: 4px 10px; font-size: .88rem; }
+
+/* ── Πύλη «Εκκρεμεί σημείωμα» (17/10) ── */
+.gate { position: fixed; inset: 0; z-index: 90; background: color-mix(in srgb, var(--canvas) 88%, transparent); backdrop-filter: blur(3px); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.gate-card { background: var(--card); border: 1px solid var(--card-line); border-top: 4px solid var(--yellow); border-radius: var(--radius-lg, 20px); padding: 22px 24px; max-width: 560px; width: 100%; }
+.gate-card h1 { margin: 0 0 8px; font-size: 1.5rem; }
+.gate-list { list-style: none; padding: 0; margin: 12px 0; display: grid; gap: 8px; }
+.gate-list li { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; border: 1px solid var(--card-line); border-radius: var(--radius); padding: 10px 12px; }
+
+/* ── Πρωτόκολλο στην 1η ατομική (17/10) ── */
+.protocol { list-style: none; padding: 0; margin: 0 0 14px; display: grid; gap: 6px; }
+.protocol li { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 10px; align-items: start; padding: 8px 10px; border: 1px solid var(--card-line); border-radius: var(--radius); font-size: .95rem; }
+.protocol li.now { border-color: var(--accent); background: var(--teal-quiet); }
+.protocol li.done { color: var(--muted); }
+.protocol li.warn { border-color: var(--yellow); }
+.protocol-no { font-weight: 700; color: var(--accent-strong); }
+.ok-text { color: var(--ok); font-weight: 600; }

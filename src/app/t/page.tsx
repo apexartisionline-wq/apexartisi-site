@@ -26,6 +26,8 @@ import { sessionPresence } from "@/lib/presence";
 import { getSettings } from "@/lib/settings";
 import { ensureDemoToday, isDemoSite, startDemoFirstSession, startDemoSession } from "@/lib/demo-session";
 import { addDays, athensToUtc, formatDate, formatTime, localParts, toMinutes } from "@/lib/time";
+import { mottoFor } from "@/lib/mottos";
+import { vocative } from "@/lib/vocative";
 
 // Μόνο στη δοκιμαστική εγκατάσταση: φτιάχνει μια ατομική «τώρα» με ψεύτικο μέλος, για να δοκιμάσει κανείς τη σύνδεση.
 async function demoStart() {
@@ -232,7 +234,8 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
     <main className="wide">
       <Announcements />
       <StaffMessagesLine userId={user.id} />
-      <PageHead title={isToday ? "Σήμερα" : formatDate(date)} sub={<>{isToday && `${formatDate(date)} · `}{who}</>}>
+      {/* Καλωσόρισμα με όνομα και μότο της ημέρας (υπεύθυνη 17/10)· σε άλλη μέρα, η ημερομηνία. */}
+      <PageHead title={isToday ? `Καλώς ήρθες, ${vocative(user.name.split(" ")[0])}` : formatDate(date)} sub={<>{formatDate(date)} · {who}{isToday && <><br /><span className="motto">{mottoFor(today)}</span></>}</>}>
         <DayPicker date={date} today={today} prev={addDays(date, -1)} next={addDays(date, 1)} prevWeek={addDays(date, -7)} nextWeek={addDays(date, 7)} base="/t" />
       </PageHead>
 
@@ -292,6 +295,7 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
               <p className="muted" style={{ margin: "6px 0 0" }}>
                 «Προετοιμασία» ανοίγει μία σελίδα διαβάσματος με το προηγούμενο σημείωμα ολόκληρο, χρονόμετρο και «Μπες» — για όποιον έχει χρόνο πριν. «Μπες» ανοίγει το Zoom σε νέα καρτέλα, καταγράφει την ώρα που το πάτησες και φέρνει εδώ τη σελίδα της συνεδρίας· αν το δωμάτιο δεν έχει οριστεί, το λέει και δεν ανοίγει τίποτα. «Το μέλος πάτησε «Μπες»» είναι η ώρα του πατήματος· δεν είναι επιβεβαίωση συμμετοχής από το Zoom.
                 Μια συνεδρία που πέρασε η ώρα της μένει «εκκρεμεί καταγραφή» μέχρι να υπάρξει «Μπες» ή σημείωμα· δεν θεωρείται απουσία. Το σημειωματάριο ανοίγει 15 λεπτά πριν.
+                <strong>Το σημείωμα δεν μένει για αργότερα:</strong> μόλις τελειώσει μια συνεδρία σου χωρίς σημείωμα, το Apex σε κρατά σε αυτήν μέχρι να το γράψεις («Ήρθε» ή «Δεν ήρθε»). Μόνο όσο τρέχει η επόμενη συνεδρία ή ομάδα σου περιμένει.
               </p>
             </details>
             {isToday && isDemoSite() && (

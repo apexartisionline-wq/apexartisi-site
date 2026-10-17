@@ -23,6 +23,8 @@ import { assessmentProfile, canWriteAssessmentFor, latestAssessment, latestProfi
 import { assessmentSchema, missingForComplete } from "@/lib/assessment";
 import { AssessmentClient } from "@/components/AssessmentClient";
 import { FirstSessionWords } from "@/components/FirstSessionWords";
+import { FirstSessionProtocol } from "@/components/FirstSessionProtocol";
+import { memberIntake } from "@/lib/intake";
 import { isPsychologist, seesJournalDetail } from "@/lib/access";
 import { logAccess } from "@/lib/audit";
 import { requireRole } from "@/lib/auth";
@@ -480,6 +482,13 @@ async function IndividualSession({ x, user, sp }: { x: Slot; user: { id: string;
             </div>
             <Link className="btn outline sm" href={`/t/s/${x.id}?absent=1#notebook-top`}>Το μέλος δεν ήρθε</Link>
           </div>
+          <FirstSessionProtocol s0={await (async () => {
+            const m = await prisma.user.findUnique({ where: { id: b.memberId }, select: { id: true, source: true } });
+            const st = m ? (await memberIntake(m)).status : null;
+            // Η Σ0 = ενημέρωση/συναίνεση/συμφωνητικό/συγκαταθέσεις (όχι η ίδια η αξιολόγηση, που γίνεται τώρα).
+            const missing = st ? [...st.missingSteps.filter((x) => x.key !== "assessment" && x.key !== "risk" && x.key !== "safety_plan").map((x) => x.label), ...st.missingConsents.map((x) => x.label)] : [];
+            return { complete: missing.length === 0, missing };
+          })()} />
           {sp.first === "saved" && <div className="notice">Αποθηκεύτηκε ως πρόχειρο ✓ Η ατομική κλείνει με «Ολοκλήρωση».</div>}
           {sp.error && <ErrorNote>Δεν αποθηκεύτηκε: {sp.error}</ErrorNote>}
           {sp.missing && (

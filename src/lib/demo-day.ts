@@ -26,6 +26,18 @@ const EXTRA_MEMBERS: [string, string, string][] = [
   ["lena", "Λένα Δοκιμαστική", "A-10008"],
 ];
 
+/** Τα ψεύτικα μέλη των ραντεβού της ημέρας (χωρίς σύνδεση). */
+export const DEMO_DAY_USERNAMES: string[] = EXTRA_MEMBERS.map((e) => e[0]);
+
+/**
+ * Είναι αυτή η θέση ένα από τα ψεύτικα ραντεβού της ημέρας; (ίδια ώρα, θέση, θεραπευτής και μέλη με το DEMO_PLAN.)
+ * Στη δοκιμή αυτά δεν κλειδώνουν την πύλη «Εκκρεμεί σημείωμα» ούτε μετρούν ως «σε εξέλιξη» (17/10) — αλλιώς κάθε θεραπευτής
+ * της δοκιμής θα κλειδωνόταν κάθε απόγευμα από ραντεβού που δεν έγιναν ποτέ.
+ */
+export function isDemoDaySlot(x: { hour: number; position: number; therapistUsername: string | null; memberUsernames: string[] }): boolean {
+  return DEMO_PLAN.some((p) => p.hour === x.hour && p.position === x.position && p.therapist === x.therapistUsername && p.members.length === x.memberUsernames.length && p.members.every((m) => x.memberUsernames.includes(m)));
+}
+
 async function ensureExtraMembers(db: PrismaClient, today: string): Promise<void> {
   const staff = await db.user.findFirst({ where: { username: "anna" }, select: { id: true } });
   for (const [username, name, memberCode] of EXTRA_MEMBERS) {
