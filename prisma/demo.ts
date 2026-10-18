@@ -14,15 +14,20 @@ async function main() {
   if (process.env.DEMO_SEED !== "1") return;
   const password = process.env.DEMO_PASSWORD;
   if (!password || password.length < 8) throw new Error("Χρειάζεται DEMO_PASSWORD (τουλάχιστον 8 χαρακτήρες).");
-  if (await prisma.user.findUnique({ where: { username: "eva" } })) {
+  // Σπαρμένη βάση = υπάρχουν και η «eva» και ο «nikos». Μετά από μηδενισμό (demo-wipe.ts, 18/10) μένει μόνο το προσωπικό:
+  // τότε ξαναμπαίνουν τα μέλη, οι θέσεις και οι κρατήσεις, με τους ΥΠΑΡΧΟΝΤΕΣ λογαριασμούς προσωπικού και χωρίς να αλλάξουν
+  // οι Ρυθμίσεις.
+  const evaExisting = await prisma.user.findUnique({ where: { username: "eva" } });
+  if (evaExisting && (await prisma.user.findUnique({ where: { username: "nikos" }, select: { id: true } }))) {
     console.log("[demo] Η βάση έχει ήδη στοιχεία· δεν προστίθεται τίποτα.");
     await ensureAssessmentChecks();
     await ensureDemoAccess(password);
     return;
   }
+  if (evaExisting) console.log("[demo] Βάση μετά από μηδενισμό: ξαναμπαίνουν τα ψεύτικα μέλη με το υπάρχον προσωπικό.");
   const passwordHash = await bcrypt.hash(password, 12);
 
-  const eva = await prisma.user.create({
+  const eva = evaExisting ?? await prisma.user.create({
     data: { username: "eva", name: "Εύα (δοκιμή)", role: "ADMIN", therapistKind: "BIOMATIC", passwordHash, ndaExempt: true }, // η υπεύθυνη δεν υπογράφει το έντυπο εχεμύθειας
   });
   const therapists: [string, string, TherapistKind][] = [
@@ -32,7 +37,8 @@ async function main() {
   ];
   const staff: User[] = [];
   for (const [username, name, therapistKind] of therapists) {
-    staff.push(await prisma.user.create({ data: { username, name, role: "THERAPIST", therapistKind, passwordHash, phone: "6900000000" } }));
+    const existing = await prisma.user.findUnique({ where: { username } });
+    staff.push(existing ?? await prisma.user.create({ data: { username, name, role: "THERAPIST", therapistKind, passwordHash, phone: "6900000000" } }));
   }
 
   const today = localParts(new Date()).date;
@@ -106,7 +112,9 @@ async function main() {
     rooms: ["", "", "", ""],
     groups: DEFAULT_SETTINGS.groups.map((g, i) => ({ ...g, rotation: [staff[i % staff.length].id] })),
   });
-  await prisma.setting.upsert({ where: { key: "app" }, create: { key: "app", value: settings }, update: { value: settings } });
+  // Μόνο σε ολότελα καινούργια βάση· μετά από μηδενισμό οι Ρυθμίσεις της υπεύθυνης (δωμάτια, ομάδες, ώρες) μένουν.
+  await prisma.setting.upsert({ where: { key: "app" }, create: { key: "app", value: settings }, update: {} });
+  await ensureDemoAccess(password);
 
   console.log(`[demo] Έτοιμο. Λογαριασμοί (κωδικός: DEMO_PASSWORD):
   Εύα: eva · θεραπευτές: anna, vasilis, dimitra · μέλη: nikos, eleni, giorgos, maria (νέο μέλος)`);
