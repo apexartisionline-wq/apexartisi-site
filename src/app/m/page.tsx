@@ -4,7 +4,8 @@ import { memberConsents, requireMember } from "@/lib/intake";
 import { prisma } from "@/lib/db";
 import { withMemberCode } from "@/lib/forms";
 import { ensureDemoToday } from "@/lib/demo-session";
-import { cycleInfo, isPublished, journalDate } from "@/lib/member";
+import { isPublished, journalDate } from "@/lib/member";
+import { sessionOrders } from "@/lib/session-order-db";
 import { memberPicture } from "@/lib/picture-db";
 import { extraGroupTimes, holidaysFrom } from "@/lib/groups";
 import { bookingWindow, canRequestChange, groupsOn, isAfter, joinableGroup, sessionJoinable, slotMinutes } from "@/lib/program";
@@ -23,8 +24,7 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
   const window = bookingWindow(now, s);
 
   await ensureDemoToday();
-  const [cycle, pic, contents, upcoming, journal, attended, requests, consents] = await Promise.all([
-    cycleInfo(user.id),
+  const [pic, contents, upcoming, journal, attended, requests, consents] = await Promise.all([
     // Η ίδια εικόνα του μήνα (κύκλου) που βλέπει η ομάδα (απόφαση 14/10, src/lib/picture.ts) — εδώ μόνο τα απλά νούμερα.
     memberPicture(user.id, { kind: "month", index: null }, now),
     prisma.content.findMany({ where: { date: today.date }, orderBy: { title: "asc" }, omit: { image: true } }),
@@ -45,8 +45,15 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
     memberConsents(user.id),
   ]);
 
-  // «Μήνας Χ μαζί μας» = ο κύκλος στον οποίο βρίσκεται· και ο στόχος της εβδομάδας με τα λόγια του.
-  const [monthNo, goal] = await Promise.all([prisma.cycle.count({ where: { memberId: user.id } }), weekGoal(user.id, localParts(now).date)]);
+  // Η πορεία του με θετικό πρόσημο (υπεύθυνη 20/10: όχι «Μήνας Χ» ούτε «Χ από 8» στην αρχική — θυμίζουν χρέωση και
+  // αντίστροφη μέτρηση και αγχώνουν): μόνο πόσες ατομικές έχει κάνει με παρουσία από την αρχή (ίδιος κανόνας παρουσίας με
+  // την ομάδα: η επιβεβαίωση του σημειώματος υπερισχύει, αλλιώς το δικό του «Μπες»). Ο στόχος της εβδομάδας με τα λόγια του.
+  // «6η ατομική» στις επόμενες (όχι «6 από 8»)· ίδιος κανόνας αρίθμησης με την ομάδα (session-order.ts).
+  const orders = await sessionOrders(upcoming.filter((b) => b.slot.kind === "INDIVIDUAL").map((b) => ({ id: b.slot.id, startsAt: b.slot.startsAt, memberId: user.id })));
+  const [doneSessions, goal] = await Promise.all([
+    prisma.booking.count({ where: { memberId: user.id, slot: { kind: "INDIVIDUAL", startsAt: { lt: now } }, OR: [{ confirmedCame: true }, { confirmedCame: null, joinedAt: { not: null } }] } }),
+    weekGoal(user.id, localParts(now).date),
+  ]);
   const unreadMessage =
     (await prisma.monthlyMessage.findFirst({ where: { memberId: user.id, sentAt: { not: null }, readAt: null }, select: { id: true } })) ??
     (await prisma.closure.findFirst({ where: { memberId: user.id, sentAt: { not: null }, readAt: null }, select: { id: true } }));
@@ -58,7 +65,6 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
   const groupOpen = joinableGroup(now, s, extraToday);
   const journalOpen = isAfter(now, s.journalTime);
   const pendingFor = new Set(requests.filter((r) => r.status === "PENDING").map((r) => r.bookingId));
-  const fresh = cycle && cycle.cycle.closedAt && cycle.booked >= cycle.length && cycle.done >= cycle.length;
 
   return (
     <main>
@@ -79,27 +85,24 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
         </Link>
       )}
 
-      <section className="card whereami" aria-label="Πού βρίσκομαι">
+      <section className="card whereami" aria-label="Η πορεία μου">
         <div>
-          <span className="muted small">Μαζί μας</span>
-          <strong>{monthNo ? `Μήνας ${monthNo}` : "—"}</strong>
+          <span className="muted small">Η πορεία σου</span>
+          <strong>{doneSessions === 0 ? "Ξεκινάς" : `${doneSessions} ${doneSessions === 1 ? "ατομική" : "ατομικές"}`}</strong>
+          <div className="hint">{doneSessions === 0 ? "Η πρώτη σου ατομική έρχεται." : doneSessions === 1 ? "Η πρώτη σου ατομική έγινε. Συνέχισε έτσι." : "με παρουσία, από την αρχή. Συνέχισε έτσι."}</div>
         </div>
-        <div>
-          <span className="muted small">Ατομικές του μήνα</span>
-          <strong>{pic.cycleId && pic.sessions.target ? `${pic.sessions.passed} από ${pic.sessions.target} πέρασαν` : "—"}</strong>
-          {pic.cycleId && pic.sessions.scheduled > 0 && (
-            <div className="hint">
-              {pic.sessions.present} με παρουσία
-              {pic.sessions.upcoming + pic.sessions.inProgress > 0 && ` · ${pic.sessions.upcoming + pic.sessions.inProgress} ${pic.sessions.upcoming + pic.sessions.inProgress === 1 ? "επόμενη" : "επόμενες"}`}
-            </div>
-          )}
-        </div>
+        {pic.sessions.upcoming + pic.sessions.inProgress > 0 && (
+          <div>
+            <span className="muted small">Επόμενα</span>
+            <strong>{pic.sessions.upcoming + pic.sessions.inProgress === 1 ? "1 ατομική" : `${pic.sessions.upcoming + pic.sessions.inProgress} ατομικές`}</strong>
+            <div className="hint">κλεισμένες — τις βλέπεις πιο κάτω</div>
+          </div>
+        )}
       </section>
       <Link href="/m/journal" className="card" style={{ display: "block", textDecoration: "none", color: "inherit" }}>
         <span className="muted small">Ο στόχος μου αυτή την εβδομάδα</span>
         <div style={{ fontSize: "1.1rem", marginTop: 2 }}>{goal ? `«${goal.text}»` : <span className="muted">Γράψε έναν μικρό στόχο για την εβδομάδα ›</span>}</div>
       </Link>
-      {fresh && <p className="muted small">Ο μήνας σου ολοκληρώθηκε — ο επόμενος ξεκινά με το επόμενο ραντεβού σου.</p>}
 
       {requests.filter((r) => r.status !== "PENDING").map((r) => (
         <div className="notice" key={r.id}>
@@ -118,7 +121,7 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
                 <strong>{b.slot.kind === "PAIR" ? "Το Therapair σου" : "Η ατομική σου"}</strong>
                 <div className="muted">
                   {formatDate(b.slot.date)} στις {formatHour(b.slot.hour)}
-                  {cycle?.numbers.get(b.id) && ` · ατομική ${cycle.numbers.get(b.id)} από ${cycle.length}`}
+                  {orders.get(b.slot.id) && ` · ${orders.get(b.slot.id)!.n}η ατομική`}
                 </div>
               </div>
               <form action={`/m/join/${b.id}`} method="post">

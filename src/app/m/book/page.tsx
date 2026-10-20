@@ -5,7 +5,7 @@ import { requireMember } from "@/lib/intake";
 import { bookHour, cancelBooking, openHours } from "@/lib/booking";
 import { prisma } from "@/lib/db";
 import { notifyRole } from "@/lib/notify";
-import { cycleInfo } from "@/lib/member";
+import { sessionOrders } from "@/lib/session-order-db";
 import { bookingWindow, slotMinutes } from "@/lib/program";
 import { getSettings } from "@/lib/settings";
 import { formatDate, formatHour, formatTime } from "@/lib/time";
@@ -56,15 +56,16 @@ export default async function BookPage({
   const now = new Date();
   const w = bookingWindow(now, s);
 
-  const [mine, hours, cycle] = await Promise.all([
+  const [mine, hours] = await Promise.all([
     prisma.booking.findMany({
       where: { memberId: user.id, slot: { date: { gte: w.weekStart, lte: w.weekEnd } } },
       include: { slot: true },
       orderBy: { slot: { startsAt: "asc" } },
     }),
     w.open ? openHours(w.weekStart, w.weekEnd, now) : Promise.resolve([]),
-    cycleInfo(user.id),
   ]);
+  // «6η ατομική» από την αρχή (όχι «6 από 8» — υπεύθυνη 20/10: το μέτρημα του πακέτου θυμίζει χρέωση). Ίδιος κανόνας με την ομάδα.
+  const orders = await sessionOrders(mine.filter((b) => b.slot.kind === "INDIVIDUAL").map((b) => ({ id: b.slot.id, startsAt: b.slot.startsAt, memberId: user.id })));
 
   // Μόνο ώρες με ελεύθερη θέση, όχι στις μέρες που έχει ήδη ραντεβού.
   const bookedDays = new Set(mine.map((b) => b.slot.date));
@@ -90,7 +91,7 @@ export default async function BookPage({
           <div key={b.id} className="row spread" style={{ marginTop: 8 }}>
             <span>
               {formatDate(b.slot.date)} στις {formatHour(b.slot.hour)} · {KINDS[b.slot.kind]}
-              {cycle?.numbers.get(b.id) && <span className="muted"> · ατομική {cycle.numbers.get(b.id)} από {cycle.length}</span>}
+              {orders.get(b.slot.id) && <span className="muted"> · {orders.get(b.slot.id)!.n}η ατομική</span>}
             </span>
             {w.open && b.slot.startsAt > now && (
               <form action={undo}>
