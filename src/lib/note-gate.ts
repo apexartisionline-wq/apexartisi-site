@@ -12,13 +12,13 @@ const FROM = athensToUtc(NOTE_GATE_FROM, 0, 0);
 const shortName = (name: string) => name.split(" ").map((w, i) => (i === 0 ? w : `${w[0]}.`)).join(" ");
 
 /** Συνεδρίες ενός θεραπευτή για την πύλη: τις τελευταίες NOTE_GATE_DAYS μέρες και ως το τέλος της σημερινής μέρας. */
-async function gateSlots(therapistIds: string[], now: Date): Promise<(GateSlot & { therapistId: string; therapistName: string })[]> {
+async function gateSlots(therapistIds: string[], now: Date): Promise<(GateSlot & { therapistId: string; therapistName: string; therapistSimple: boolean })[]> {
   const today = localParts(now).date;
   const rows = await prisma.slot.findMany({
     where: { therapistId: { in: therapistIds }, bookings: { some: {} }, date: { gte: addDays(today, -NOTE_GATE_DAYS), lte: today } },
     select: {
       id: true, kind: true, startsAt: true, therapistId: true, hour: true, position: true,
-      therapist: { select: { name: true, username: true } },
+      therapist: { select: { name: true, username: true, simpleHome: true } },
       note: { select: { id: true } },
       pairNotes: { select: { id: true } },
       bookings: { select: { member: { select: { name: true, username: true } } } },
@@ -33,6 +33,7 @@ async function gateSlots(therapistIds: string[], now: Date): Promise<(GateSlot &
     demo: isDemoDaySlot({ hour: r.hour, position: r.position, therapistUsername: r.therapist?.username ?? null, memberUsernames: r.bookings.map((b) => b.member.username) }),
     therapistId: r.therapistId ?? "",
     therapistName: r.therapist?.name ?? "",
+    therapistSimple: r.therapist?.simpleHome ?? false,
   }));
 }
 
@@ -49,7 +50,7 @@ export async function therapistNoteGate(user: { id: string; role: string; simple
 }
 
 /** Για τη διαχείριση: όλα τα σημειώματα που εκκρεμούν (7 μέρες), ανά θεραπευτή — χωρίς κλείδωμα. */
-export async function pendingNotesAll(now = new Date()): Promise<(PendingNote & { therapistId: string; therapistName: string })[]> {
+export async function pendingNotesAll(now = new Date()): Promise<(PendingNote & { therapistId: string; therapistName: string; therapistSimple: boolean })[]> {
   const s = await getSettings();
   // Και οι λογαριασμοί με «απλή αρχική» (επισκέπτες) μπαίνουν εδώ: η πύλη δεν τους κλειδώνει, αλλά η διαχείριση βλέπει
   // πάντα κάθε συνεδρία που τελείωσε χωρίς σημείωμα (έλεγχος 20/10: αλλιώς μια τέτοια συνεδρία δεν τη βλέπει κανείς).
@@ -57,10 +58,10 @@ export async function pendingNotesAll(now = new Date()): Promise<(PendingNote & 
   const slots = await gateSlots(staff.map((u) => u.id), now);
   const byT = new Map<string, typeof slots>();
   for (const sl of slots) { const l = byT.get(sl.therapistId) ?? []; l.push(sl); byT.set(sl.therapistId, l); }
-  const out: (PendingNote & { therapistId: string; therapistName: string })[] = [];
+  const out: (PendingNote & { therapistId: string; therapistName: string; therapistSimple: boolean })[] = [];
   for (const [therapistId, list] of byT) {
     const g = noteGate({ now, slots: list, groups: [], sessionMinutes: s.sessionMinutes, pairMinutes: s.pairMinutes, joinBeforeMinutes: s.sessionJoinBeforeMinutes, excludeDemo: isDemoSite(), from: FROM });
-    for (const p of g.pending) out.push({ ...p, therapistId, therapistName: list[0]?.therapistName ?? "" });
+    for (const p of g.pending) out.push({ ...p, therapistId, therapistName: list[0]?.therapistName ?? "", therapistSimple: list[0]?.therapistSimple ?? false });
   }
   return out.sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
 }

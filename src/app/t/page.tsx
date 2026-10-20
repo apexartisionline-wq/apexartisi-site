@@ -332,12 +332,13 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
                 <strong>Το σημείωμα δεν μένει για αργότερα:</strong> μόλις τελειώσει μια συνεδρία σου χωρίς σημείωμα, το Apex σε κρατά σε αυτήν μέχρι να το γράψεις («Ήρθε» ή «Δεν ήρθε»). Μόνο όσο τρέχει η επόμενη συνεδρία ή ομάδα σου περιμένει.
               </p>
             </details>}
-            {isToday && isDemoSite() && (
+            {/* Ο επισκέπτης (απλή αρχική) δεν έχει κουμπιά δοκιμής: έχει έτοιμο πρόγραμμα παρουσίασης (ensureGuestSchedule). */}
+            {isToday && isDemoSite() && !simple && (
               <div className="row" style={{ marginTop: 12, gap: 10 }}>
                 <span className="hint">Δοκιμαστικό περιβάλλον</span>
                 <form action={demoStart}><DemoStartButton /></form>
-                {!simple && <form action={demoFirst}><DemoStartButton first /></form>}
-                {!simple && await (async () => { const c = await demoSecondCandidate(); return c ? <form action={demoSecond}><DemoStartButton second={c.name.split(" ")[0]} /></form> : null; })()}
+                <form action={demoFirst}><DemoStartButton first /></form>
+                {await (async () => { const c = await demoSecondCandidate(); return c ? <form action={demoSecond}><DemoStartButton second={c.name.split(" ")[0]} /></form> : null; })()}
               </div>
             )}
           </Panel>

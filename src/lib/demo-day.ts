@@ -1,6 +1,7 @@
 import type { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { randomBytes } from "node:crypto";
+import { PURPOSES } from "./intake-rules";
 import { addDays, athensToUtc, localParts } from "./time";
 
 /**
@@ -56,7 +57,32 @@ async function ensureExtraMembers(db: PrismaClient, today: string, list: [string
     // Έναρξη ολοκληρωμένη (όπως τα άλλα ψεύτικα μέλη με ιστορικό), αλλιώς φαίνονται κλειδωμένα στην έναρξη.
     // Τα μέλη του επισκέπτη μένουν χωρίς «αρχική αξιολόγηση», για να δείχνει η 1η ατομική τους το ιστορικό (Σ1).
     for (const key of assessed ? ["online_consent", "agreement", "assessment"] : ["online_consent", "agreement"]) await db.intakeCheck.create({ data: { memberId: m.id, key, doneById: staff?.id ?? m.id } });
+    // Τα μέλη του επισκέπτη έχουν και τις συγκαταθέσεις (όπως τα ψεύτικα μέλη με ιστορικό), ώστε το Σ0 της 1ης ατομικής να είναι «ολοκληρώθηκε».
+    if (!assessed) await ensureConsents(db, m.id, staff?.id ?? m.id);
   }
+}
+
+/** Συγκαταθέσεις «ΝΑΙ» σε όλους τους σκοπούς για ένα ψεύτικο μέλος (όσες λείπουν). Έκδοση «δοκιμή», όπως στο seed. */
+async function ensureConsents(db: PrismaClient, memberId: string, staffId: string): Promise<void> {
+  const have = new Set((await db.consent.findMany({ where: { memberId }, select: { purpose: true } })).map((c) => c.purpose));
+  for (const p of PURPOSES) {
+    if (have.has(p.key)) continue;
+    await db.consent.create({ data: { memberId, purpose: p.key, choice: "YES", version: "δοκιμή", recordedById: p.byMember ? memberId : staffId } });
+  }
+}
+
+/**
+ * Ραντεβού επισκεπτών (απλή αρχική) που τελείωσαν πριν από > 1 ώρα χωρίς σημείωμα σβήνονται — όπως τα ψεύτικα της ημέρας.
+ * Τρέχει και όταν ανοίγει το «Σήμερα» οποιουδήποτε στη δοκιμή (ensureDemoToday), ώστε να μη μένει «Χωρίς καταγραφή» στο μέλος
+ * από ραντεβού παρουσίασης. Μόνο λογαριασμοί με simpleHome· κανενός άλλου θεραπευτή.
+ */
+export async function cleanupGuestSlots(db: PrismaClient, now = new Date()): Promise<number> {
+  const old = await db.slot.findMany({
+    where: { therapist: { simpleHome: true }, note: null, pairNotes: { none: {} }, startsAt: { lt: new Date(now.getTime() - 100 * 60_000) } },
+    select: { id: true },
+  });
+  if (old.length) await db.slot.deleteMany({ where: { id: { in: old.map((o) => o.id) } } });
+  return old.length;
 }
 
 /** Ελεύθερη θέση (δωμάτιο) για μια ώρα: το 4ο δωμάτιο ή, αν είναι πιασμένο, μία από τις 21+ (όπως το bookDemo). */
@@ -72,7 +98,7 @@ const roundUp5 = (d: Date) => new Date(Math.ceil(d.getTime() / 300_000) * 300_00
  * Πρόγραμμα παρουσίασης για τον επισκέπτη (υπεύθυνη 20/10: «βάλε στο πρόγραμμα στο προφίλ του Πάνου ραντεβού, να δείχνουμε
  * τα κουμπιά σύνδεσης, την προετοιμασία, όλο αυτό το μοντέλο»). Τρέχει κάθε φορά που ανοίγει το «Σήμερα» ένας θεραπευτής
  * με «απλή αρχική», μόνο στη δοκιμή, και κρατά:
- *  - σήμερα: ΔΥΟ ραντεβού μπροστά του όποια ώρα κι αν μπει (το πρώτο σε ~20′, το επόμενο μία ώρα μετά) — πρώτα με μέλος που
+ *  - σήμερα: ΔΥΟ ραντεβού μπροστά του όποια ώρα κι αν μπει (το πρώτο σε ~10′, το επόμενο μία ώρα μετά) — πρώτα με μέλος που
  *    έχει ιστορικό (Νίκος: σημειώματα, πλάνο → κανονικό σημειωματάριο), μετά με δικό του νέο μέλος (1η ατομική → ιστορικό)·
  *  - επόμενες μέρες: ατομικές στις 11:00/14:00 και ένα Therapair, ώστε το «Τις επόμενες 7 μέρες» να έχει περιεχόμενο·
  *  - καθάρισμα: δικά του ραντεβού που τελείωσαν πριν από ώρα χωρίς σημείωμα σβήνονται (όπως τα ψεύτικα της ημέρας).
@@ -90,10 +116,12 @@ export async function ensureGuestSchedule(db: PrismaClient, therapist: { id: str
     const done = new Set((await db.assessment.findMany({ where: { memberId: { in: guestIds }, complete: true }, select: { memberId: true } })).map((a) => a.memberId));
     const stale = guestIds.filter((id) => !done.has(id));
     if (stale.length) await db.intakeCheck.deleteMany({ where: { memberId: { in: stale }, key: "assessment" } });
+    // Συγκαταθέσεις σε μέλη που φτιάχτηκαν από παλιότερη έκδοση χωρίς αυτές (για καθαρό Σ0).
+    const staff = await db.user.findFirst({ where: { username: "anna" }, select: { id: true } });
+    for (const id of guestIds) await ensureConsents(db, id, staff?.id ?? id);
   }
   // 1. Καθάρισμα: ό,τι τελείωσε πριν από > 1 ώρα χωρίς σημείωμα (ατομική 40′ → έναρξη πριν > 100′).
-  const old = await db.slot.findMany({ where: { therapistId: therapist.id, note: null, pairNotes: { none: {} }, startsAt: { lt: new Date(now.getTime() - 100 * 60_000) } }, select: { id: true } });
-  if (old.length) await db.slot.deleteMany({ where: { id: { in: old.map((o) => o.id) } } });
+  await cleanupGuestSlots(db, now);
   const book = async (date: string, startsAt: Date, usernames: string[]) => {
     const ids = usernames.map((u) => byName.get(u)).filter((x): x is string => Boolean(x));
     if (ids.length !== usernames.length) return false;
@@ -104,9 +132,9 @@ export async function ensureGuestSchedule(db: PrismaClient, therapist: { id: str
     for (const memberId of ids) await db.booking.create({ data: { slotId: slot.id, memberId, cycleId: await cycleForDemoBooking(db, memberId), kind } });
     return true;
   };
-  // 2. Σήμερα: δύο ραντεβού μπροστά του.
+  // 2. Σήμερα: δύο ραντεβού μπροστά του. Το πρώτο σε ~10′, ώστε «Μπες» και σημειωματάριο (ανοίγει 15′ πριν) να δουλεύουν αμέσως.
   const upcoming = await db.slot.findMany({ where: { therapistId: therapist.id, date: today, startsAt: { gt: now }, bookings: { some: {} } }, orderBy: { startsAt: "asc" }, select: { startsAt: true } });
-  let t = roundUp5(new Date(now.getTime() + 20 * 60_000));
+  let t = roundUp5(new Date(now.getTime() + 10 * 60_000));
   const last = upcoming[upcoming.length - 1];
   if (last && last.startsAt.getTime() + 60 * 60_000 > t.getTime()) t = roundUp5(new Date(last.startsAt.getTime() + 60 * 60_000));
   const todayOrder = ["nikos", "stathis", "eleni", "rania", "giorgos", "thanasis", "fotini"];
@@ -133,7 +161,7 @@ export async function ensureGuestSchedule(db: PrismaClient, therapist: { id: str
 async function demoDayReady(db: PrismaClient, date: string): Promise<boolean> {
   const usernames = [...new Set(["eva", ...EXTRA_MEMBERS.map((e) => e[0]), ...DEMO_PLAN.flatMap((p) => [p.therapist, ...p.members])])];
   const [users, holiday, slots] = await Promise.all([
-    db.user.findMany({ where: { username: { in: usernames }, active: true }, select: { id: true, username: true } }),
+    db.user.findMany({ where: { username: { in: usernames } }, select: { id: true, username: true, active: true } }),
     db.holiday.findUnique({ where: { date }, select: { date: true } }),
     db.slot.findMany({ where: { date }, select: { hour: true, position: true, _count: { select: { bookings: true } } } }),
   ]);
@@ -145,7 +173,8 @@ async function demoDayReady(db: PrismaClient, date: string): Promise<boolean> {
   const booked = new Set((await db.booking.findMany({ where: { memberId: { in: memberIds }, slot: { date } }, select: { memberId: true } })).map((b) => b.memberId));
   return DEMO_PLAN.every((p) => {
     const members = p.members.map((m) => id.get(m)).filter((x): x is string => Boolean(x));
-    if (!id.has(p.therapist) || members.length !== p.members.length) return true;
+    // Ίδιος όρος με το ensureDemoDay: θεραπευτής που δεν υπάρχει ή είναι ανενεργός → η θέση παραλείπεται.
+    if (!users.find((u) => u.username === p.therapist && u.active) || members.length !== p.members.length) return true;
     if (slots.some((x) => x.hour === p.hour && x.position === p.position && x._count.bookings > 0)) return true;
     return members.some((m) => booked.has(m));
   });

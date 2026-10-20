@@ -176,10 +176,10 @@ export default async function AdminToday({ searchParams }: { searchParams: Promi
       {pendingNotes.length > 0 && (
         <section className="card" style={{ borderColor: "var(--yellow)" }}>
           <strong>Σημειώματα που εκκρεμούν</strong>
-          <p className="muted small" style={{ margin: "4px 0 8px" }}>Συνεδρίες που τελείωσαν χωρίς σημείωμα (7 μέρες). Ο θεραπευτής δεν μπορεί να συνεχίσει στο Apex μέχρι να το γράψει.</p>
+          <p className="muted small" style={{ margin: "4px 0 8px" }}>Συνεδρίες που τελείωσαν χωρίς σημείωμα (7 μέρες). Ο θεραπευτής δεν μπορεί να συνεχίσει στο Apex μέχρι να το γράψει — εκτός από λογαριασμό με «απλή αρχική» (επισκέπτης), που δεν κλειδώνεται.</p>
           <ul>
             {pendingNotes.map((pn) => (
-              <li key={pn.id}>{pn.therapistName}: <Link href={`/t/s/${pn.id}`}>{pn.kind === "PAIR" ? "Therapair" : "Ατομική"} · {pn.who} · {formatDate(localParts(pn.startsAt).date)} {formatTime(pn.startsAt)}</Link></li>
+              <li key={pn.id}>{pn.therapistName}: <Link href={`/t/s/${pn.id}`}>{pn.kind === "PAIR" ? "Therapair" : "Ατομική"} · {pn.who} · {formatDate(localParts(pn.startsAt).date)} {formatTime(pn.startsAt)}</Link>{pn.therapistSimple && <span className="hint"> · απλή αρχική: δεν κλειδώνεται</span>}</li>
             ))}
           </ul>
         </section>

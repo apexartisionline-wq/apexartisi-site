@@ -2,7 +2,7 @@ import "server-only";
 import { randomBytes } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { prisma } from "./db";
-import { cycleForDemoBooking, cleanupDemoDay, ensureDemoDay } from "./demo-day";
+import { cleanupDemoDay, cleanupGuestSlots, cycleForDemoBooking, ensureDemoDay } from "./demo-day";
 import { localParts } from "./time";
 import { dec } from "./crypto";
 import { hasPlanContent, missingSections, type PlanData } from "./safety-plan";
@@ -155,6 +155,8 @@ export async function ensureDemoToday(): Promise<void> {
   const today = localParts(now).date;
   // Ψεύτικα ραντεβού που τελείωσαν χωρίς σημείωμα σβήνονται κάθε φορά (17/10) — δεν μένει «Γράψε σημείωμα» από ψεύτικα.
   await cleanupDemoDay(prisma, today, now).catch(() => undefined);
+  // Και τα ραντεβού παρουσίασης του επισκέπτη (20/10) που τελείωσαν χωρίς σημείωμα.
+  await cleanupGuestSlots(prisma, now).catch(() => undefined);
   if (ensuredFor === today) return;
   await ensureDemoDay(prisma, today, now).then(() => { ensuredFor = today; }).catch(() => undefined);
 }
