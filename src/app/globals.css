@@ -585,6 +585,8 @@ html[data-theme="dark"] .btn.outline, html[data-theme="dark"] button.outline { c
 .sched-kind a { color: inherit; text-decoration: none; }
 .sched-kind a:hover { text-decoration: underline; }
 .sched-status { color: var(--muted); font-size: var(--fs-help); margin-top: 4px; display: flex; gap: 6px 10px; align-items: center; flex-wrap: wrap; }
+/* Στο κινητό το σήμα κατάστασης («Παρουσία από σύνδεση · εκκρεμεί σημείωμα») αναδιπλώνεται αντί να βγαίνει έξω από την οθόνη (20/10). */
+.sched-status .pill { white-space: normal; max-width: 100%; }
 .sched-actions { display: flex; flex-direction: column; gap: 8px; align-items: stretch; }
 .sched-actions .btn, .sched-actions button { width: 100%; }
 .sched-item:not(.next) .sched-actions { min-width: 170px; }

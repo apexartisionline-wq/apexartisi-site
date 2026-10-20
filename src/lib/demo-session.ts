@@ -11,7 +11,7 @@ import { hasPlanContent, missingSections, type PlanData } from "./safety-plan";
 export const isDemoSite = (): boolean => process.env.DEMO_SEED === "1";
 
 const DEMO_MEMBER = "nikos";
-const DEMO_POSITION = 4; // 4ο δωμάτιο: δεν το χρησιμοποιούν τα ψεύτικα ραντεβού της ημέρας (1–3)
+const DEMO_POSITION = 4; // 4ο δωμάτιο: τα ψεύτικα ραντεβού της ημέρας είναι στα 1–3 (και του επισκέπτη «panos» στο 4, 11:00/14:00 — γι' αυτό το bookDemo ελέγχει αν η θέση είναι πιασμένη και πάει σε 21+)
 
 /**
  * «Δοκιμαστική ατομική τώρα» (11/10): για να δει όποιος μπαίνει στη δοκιμή πώς συνδέεται και τι

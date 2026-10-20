@@ -35,6 +35,7 @@ export default async function PeoplePage() {
       day: p.role === "MEMBER" ? String(programDay(p.programStartDate, today) ?? "—") : null,
       cycle: c ? `${c._count.bookings}/${c.length}` : null,
       active: p.active,
+      simple: p.simpleHome,
       nda: p.role !== "MEMBER" ? ndaPending(p.id) : null,
     };
   });

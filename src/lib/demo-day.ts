@@ -16,6 +16,10 @@ export const DEMO_PLAN: { hour: number; therapist: string; position: number; mem
   { hour: 13, therapist: "anna", position: 1, members: ["eleni"] },
   { hour: 14, therapist: "vasilis", position: 2, members: ["giorgos"] },
   { hour: 15, therapist: "dimitra", position: 3, members: ["petros", "lena"] },
+  // Επισκέπτης «panos» (20/10, απλή αρχική): δύο ραντεβού στο 4ο δωμάτιο με δικά του ψεύτικα μέλη, για να έχει πρόγραμμα.
+  // Αν ο λογαριασμός δεν υπάρχει, παραλείπονται. Η δοκιμαστική ατομική με τον Νίκο (θέση 4) πάει σε άλλη θέση όταν συμπέσει η ώρα.
+  { hour: 11, therapist: "panos", position: 4, members: ["stathis"] },
+  { hour: 14, therapist: "panos", position: 4, members: ["rania"] },
 ];
 
 /** Επιπλέον ψεύτικα μέλη μόνο για τα ραντεβού της ημέρας (χωρίς σύνδεση: τυχαίος κωδικός). */
@@ -24,6 +28,8 @@ const EXTRA_MEMBERS: [string, string, string][] = [
   ["sofia", "Σοφία Δοκιμαστική", "A-10006"],
   ["petros", "Πέτρος Δοκιμαστικός", "A-10007"],
   ["lena", "Λένα Δοκιμαστική", "A-10008"],
+  ["stathis", "Στάθης Δοκιμαστικός", "A-10009"],
+  ["rania", "Ράνια Δοκιμαστική", "A-10010"],
 ];
 
 /** Τα ψεύτικα μέλη των ραντεβού της ημέρας (χωρίς σύνδεση). */
@@ -54,7 +60,7 @@ async function ensureExtraMembers(db: PrismaClient, today: string): Promise<void
 async function demoDayReady(db: PrismaClient, date: string): Promise<boolean> {
   const usernames = [...new Set(["eva", ...EXTRA_MEMBERS.map((e) => e[0]), ...DEMO_PLAN.flatMap((p) => [p.therapist, ...p.members])])];
   const [users, holiday, slots] = await Promise.all([
-    db.user.findMany({ where: { username: { in: usernames } }, select: { id: true, username: true } }),
+    db.user.findMany({ where: { username: { in: usernames }, active: true }, select: { id: true, username: true } }),
     db.holiday.findUnique({ where: { date }, select: { date: true } }),
     db.slot.findMany({ where: { date }, select: { hour: true, position: true, _count: { select: { bookings: true } } } }),
   ]);
@@ -114,7 +120,8 @@ export async function ensureDemoDay(db: PrismaClient, date: string, now = new Da
   for (const p of DEMO_PLAN) {
     // Μόνο ραντεβού που δεν έχουν ξεκινήσει ακόμα (17/10): ένα ψεύτικο ραντεβού στο παρελθόν θα φαινόταν «χωρίς σημείωμα».
     if (athensToUtc(date, p.hour) <= now) continue;
-    const therapist = await db.user.findUnique({ where: { username: p.therapist } });
+    // Μόνο ενεργός θεραπευτής (20/10): απενεργοποιημένος λογαριασμός (π.χ. επισκέπτης μετά την παρουσίαση) δεν παίρνει ραντεβού.
+    const therapist = await db.user.findFirst({ where: { username: p.therapist, active: true } });
     const members = await db.user.findMany({ where: { username: { in: p.members } } });
     if (!therapist || members.length !== p.members.length) continue;
     const existing = await db.slot.findFirst({ where: { date, hour: p.hour, position: p.position }, include: { _count: { select: { bookings: true } } } });

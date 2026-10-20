@@ -107,6 +107,12 @@ export default async function PersonPage({ params, searchParams }: { params: Pro
                 </select>
               </div>
               <div className="field"><label>Telegram user ID</label><input name="telegramUserId" defaultValue={p.telegramUserId ?? ""} /></div>
+              {/* Απλή αρχική (20/10): για επισκέπτη ή νέο συνεργάτη που βλέπει το Apex πρώτη φορά. Μόνο πόσα δείχνει το «Σήμερα». */}
+              <label className="row" style={{ gap: 8, alignItems: "flex-start" }}>
+                <input type="hidden" name="simpleHomeShown" value="1" />
+                <input type="checkbox" name="simpleHome" defaultChecked={p.simpleHome} style={{ width: "auto", marginTop: 4 }} />
+                <span>Απλή αρχική — μόνο για επισκέπτη ή παρουσίαση<br /><span className="hint">Στο «Σήμερα» μόνο το πρόγραμμα, ως 2 γραμμές στον πίνακα ομάδας και το μενού — χωρίς «Εκκρεμότητες» και χωρίς πύλη «Εκκρεμεί σημείωμα». Όχι για θεραπευτή με πραγματικά μέλη: ό,τι μείνει χωρίς σημείωμα το βλέπει μόνο η διαχείριση. Τα δικαιώματα δεν αλλάζουν· η αλλαγή καταγράφεται.</span></span>
+              </label>
             </>
           )}
           <label className="row" style={{ gap: 8 }}>

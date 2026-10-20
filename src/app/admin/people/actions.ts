@@ -118,6 +118,9 @@ const updateSchema = z.object({
   telegramUserId: z.string().trim().optional().transform((v) => v || null),
   active: z.literal("on").optional(),
   therapistKind: z.enum(["BIOMATIC", "CLINICAL", "BOTH"]).or(z.literal("")).optional(),
+  // Απλή αρχική (20/10): το πλαίσιο υπάρχει μόνο στη φόρμα προσωπικού (simpleHomeShown)· αλλιώς δεν αγγίζεται.
+  simpleHome: z.literal("on").optional(),
+  simpleHomeShown: z.literal("1").optional(),
   phone: z.string().trim().max(30).optional(),
   email: z.string().trim().toLowerCase().email("Το email δεν είναι σωστό").or(z.literal("")).optional().transform((v) => v || null),
 });
@@ -126,6 +129,8 @@ export async function updatePerson(formData: FormData) {
   const admin = await requireRole("ADMIN");
   const d = updateSchema.parse(Object.fromEntries(formData));
   const active = d.id === admin.id ? true : d.active === "on";
+  // Απλή αρχική (20/10): επειδή αφαιρεί την πύλη «Εκκρεμεί σημείωμα», κάθε αλλαγή της γράφεται στο αρχείο πρόσβασης.
+  const before = d.simpleHomeShown ? await prisma.user.findUnique({ where: { id: d.id }, select: { simpleHome: true } }) : null;
   const user = await prisma.user.update({
     where: { id: d.id },
     data: {
@@ -135,11 +140,13 @@ export async function updatePerson(formData: FormData) {
       ...(d.programStartDate !== undefined ? { programStartDate: d.programStartDate } : {}),
       ...(formData.has("telegramUserId") ? { telegramUserId: d.telegramUserId } : {}),
       ...(d.therapistKind !== undefined ? { therapistKind: d.therapistKind || null } : {}),
+      ...(d.simpleHomeShown ? { simpleHome: d.simpleHome === "on" } : {}),
       ...(d.phone !== undefined ? { phone: d.phone || null } : {}),
       ...(formData.has("email") ? { email: d.email } : {}),
     },
   });
   if (!active) await prisma.session.deleteMany({ where: { userId: user.id } });
+  if (before && before.simpleHome !== user.simpleHome) await logAccess(admin.id, user.id, user.simpleHome ? "simple_home_on" : "simple_home_off");
   redirect(`/admin/people/${d.id}?ok=1`);
 }
 

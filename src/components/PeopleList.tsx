@@ -20,6 +20,7 @@ export type PersonRow = {
   day: string | null;
   cycle: string | null;
   active: boolean;
+  simple?: boolean; // απλή αρχική (επισκέπτης, 20/10)
   nda: string | null;
 };
 
@@ -78,6 +79,7 @@ export function PeopleList({ rows, showNda, initialQ = "", initialF = "all" }: {
                   <span className="member-badges">
                     <span className="pill quiet"><Icon name={ROLE_ICON[r.role]} size={14} />{r.roleLabel}</span>
                     {!r.active && <span className="pill quiet">ανενεργός</span>}
+                    {r.simple && <span className="pill quiet">απλή αρχική</span>}
                     {r.nda && <span className="pill yellow"><Icon name="info" size={14} />{r.nda}</span>}
                   </span>
                 </div>

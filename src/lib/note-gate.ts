@@ -37,8 +37,10 @@ async function gateSlots(therapistIds: string[], now: Date): Promise<(GateSlot &
 }
 
 /** Η πύλη για έναν θεραπευτή: ποιες συνεδρίες εκκρεμούν και αν κλειδώνει τώρα. */
-export async function therapistNoteGate(user: { id: string; role: string }, now = new Date()): Promise<{ pending: PendingNote[]; blocked: boolean }> {
-  if (user.role !== "THERAPIST") return { pending: [], blocked: false };
+export async function therapistNoteGate(user: { id: string; role: string; simpleHome?: boolean }, now = new Date()): Promise<{ pending: PendingNote[]; blocked: boolean }> {
+  // Απλή αρχική (επισκέπτης, 20/10): χωρίς πύλη — ο λογαριασμός δείχνει την εφαρμογή, δεν παρακολουθεί μέλη. Ό,τι αφήσει
+  // χωρίς σημείωμα το βλέπει η διαχείριση στα «Σημειώματα που εκκρεμούν» (pendingNotesAll)· η αλλαγή της ρύθμισης καταγράφεται.
+  if (user.role !== "THERAPIST" || user.simpleHome) return { pending: [], blocked: false };
   const s = await getSettings();
   const today = localParts(now).date;
   const [slots, occ] = await Promise.all([gateSlots([user.id], now), groupOccurrences(today, today, s, now)]);
@@ -49,6 +51,8 @@ export async function therapistNoteGate(user: { id: string; role: string }, now 
 /** Για τη διαχείριση: όλα τα σημειώματα που εκκρεμούν (7 μέρες), ανά θεραπευτή — χωρίς κλείδωμα. */
 export async function pendingNotesAll(now = new Date()): Promise<(PendingNote & { therapistId: string; therapistName: string })[]> {
   const s = await getSettings();
+  // Και οι λογαριασμοί με «απλή αρχική» (επισκέπτες) μπαίνουν εδώ: η πύλη δεν τους κλειδώνει, αλλά η διαχείριση βλέπει
+  // πάντα κάθε συνεδρία που τελείωσε χωρίς σημείωμα (έλεγχος 20/10: αλλιώς μια τέτοια συνεδρία δεν τη βλέπει κανείς).
   const staff = await prisma.user.findMany({ where: { role: { in: ["THERAPIST", "ADMIN"] }, active: true }, select: { id: true } });
   const slots = await gateSlots(staff.map((u) => u.id), now);
   const byT = new Map<string, typeof slots>();

@@ -4,6 +4,7 @@
 //   DEMO_SEED=1 DEMO_PASSWORD=... npx tsx prisma/demo.ts
 import { PrismaClient, type TherapistKind, type User } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { randomBytes } from "node:crypto";
 import { DEFAULT_SETTINGS, settingsSchema } from "../src/lib/settings";
 import { addDays, athensToUtc, localParts, weekdayOf } from "../src/lib/time";
 
@@ -21,6 +22,7 @@ async function main() {
   if (evaExisting && (await prisma.user.findUnique({ where: { username: "nikos" }, select: { id: true } }))) {
     console.log("[demo] Η βάση έχει ήδη στοιχεία· δεν προστίθεται τίποτα.");
     await ensureAssessmentChecks();
+    await ensureGuest();
     await ensureDemoAccess(password);
     return;
   }
@@ -114,6 +116,7 @@ async function main() {
   });
   // Μόνο σε ολότελα καινούργια βάση· μετά από μηδενισμό οι Ρυθμίσεις της υπεύθυνης (δωμάτια, ομάδες, ώρες) μένουν.
   await prisma.setting.upsert({ where: { key: "app" }, create: { key: "app", value: settings }, update: {} });
+  await ensureGuest();
   await ensureDemoAccess(password);
 
   console.log(`[demo] Έτοιμο. Λογαριασμοί (κωδικός: DEMO_PASSWORD):
@@ -137,6 +140,23 @@ async function ensureAssessmentChecks() {
     });
   }
   console.log(`[demo] Αρχική αξιολόγηση σημειωμένη για ${withRecord.length} μέλη με ιστορικό.`);
+}
+
+/**
+ * Λογαριασμός επισκέπτη για παρουσίαση (υπεύθυνη 20/10: «θέλω να δείξω την εφαρμογή σε έναν συνεργάτη μου, τον Πάνο …
+ * φτιάξε εσύ κωδικό … να βγάλεις την πάρα πολύ πληροφορία»): θεραπευτής «panos» με «απλή αρχική» (User.simpleHome).
+ * Φτιάχνεται ΜΟΝΟ αν δεν υπάρχει, με άγνωστο τυχαίο κωδικό: τον κωδικό τον δίνει η διαχείριση με «Νέος κωδικός»
+ * («Άνθρωποι» → Πάνος), όπως σε κάθε λογαριασμό προσωπικού — δεν μπαίνει κωδικός στον κώδικα ούτε σε συνομιλία.
+ * Δεν είναι στους DEMO_USERNAMES: ο κωδικός του δεν ξαναμπαίνει σε κάθε build και η απενεργοποίηση («Ενεργός λογαριασμός»)
+ * από τη διαχείριση μένει (και τότε δεν παίρνει ψεύτικα ραντεβού). Τύπο (ψυχολόγος/βιωματικός) και όνομα τα αλλάζει η διαχείριση. Το έντυπο εχεμύθειας ισχύει όπως
+ * για κάθε λογαριασμό προσωπικού.
+ */
+async function ensureGuest() {
+  if (await prisma.user.findUnique({ where: { username: "panos" }, select: { id: true } })) return;
+  const passwordHash = await bcrypt.hash(randomBytes(24).toString("hex"), 12);
+  // Βιωματικός = τα λιγότερα δικαιώματα θεραπευτή (όχι περιεχόμενο αξιολογήσεων, όχι «Έκτακτη ανάγκη»)· η διαχείριση το αλλάζει αν χρειαστεί.
+  await prisma.user.create({ data: { username: "panos", name: "Πάνος", role: "THERAPIST", therapistKind: "BIOMATIC", passwordHash, simpleHome: true } });
+  console.log("[demo] Λογαριασμός επισκέπτη «panos» (απλή αρχική): κωδικό δίνει η διαχείριση με «Νέος κωδικός».");
 }
 
 /**

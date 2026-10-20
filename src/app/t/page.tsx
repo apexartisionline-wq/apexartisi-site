@@ -79,6 +79,11 @@ type Item = {
 // Αριστερά (~60%) το πρόγραμμα με την επόμενη συνεδρία ως πρώτο σημείο αναφοράς, δεξιά (~40%) «Χρειάζεται προσοχή» και «Εκκρεμότητες».
 export default async function TherapistDay({ searchParams }: { searchParams: Promise<{ date?: string; demo?: string }> }) {
   const user = await requireRole("THERAPIST", "ADMIN");
+  // Απλή αρχική (υπεύθυνη 20/10, για επισκέπτη/νέο συνεργάτη: «για κάποιον που μπαίνει πρώτη φορά θα μπερδευτεί — κράτα
+  // μόνο το πρόγραμμα, κανά 2 μηνύματα στον πίνακα και τα απαραίτητα για τις υπόλοιπες καρτέλες»): χωρίς «Εκκρεμότητες»,
+  // «Συνέχεια από την ομάδα», επεξηγήσεις και τα δύο επιπλέον κουμπιά δοκιμής· ο «Πίνακας ομάδας» ως 2 γραμμές. Μόνο πόσα
+  // δείχνει η σελίδα — τι επιτρέπεται να δει ο λογαριασμός δεν αλλάζει (access.ts). Το ορίζει η διαχείριση («Άνθρωποι»).
+  const simple = user.simpleHome;
   const sp = await searchParams;
   const now = new Date();
   const today = localParts(now).date;
@@ -255,8 +260,9 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
   const nextNote = next?.memberId ? (await memberNotes(next.memberId, { before: next.startsAt, take: 1 }))[0] ?? null : null;
   const nextIsSession = Boolean(next?.memberId);
 
+  const boardRows = simple ? board.slice(0, 2) : board;
   return (
-    <main className="wide">
+    <main className={simple ? "wide simple-home" : "wide"}>
       <Announcements />
       <StaffMessagesLine userId={user.id} />
       {/* Καλωσόρισμα με όνομα και μότο της ημέρας (υπεύθυνη 17/10)· σε άλλη μέρα, η ημερομηνία. */}
@@ -315,25 +321,25 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
               })}
               {items.length === 0 && <EmptyState>Δεν έχεις ομάδα ή ατομική {isToday ? "σήμερα" : "αυτή τη μέρα"}.</EmptyState>}
             </div>
-            <details className="fold small" style={{ marginTop: 14 }} data-tour="legend">
+            {!simple && <details className="fold small" style={{ marginTop: 14 }} data-tour="legend">
               <summary className="muted">Πώς δουλεύουν τα κουμπιά και οι ενδείξεις</summary>
               <p className="muted" style={{ margin: "6px 0 0" }}>
                 «Προετοιμασία» ανοίγει μία σελίδα διαβάσματος με το προηγούμενο σημείωμα ολόκληρο, χρονόμετρο και «Μπες» — για όποιον έχει χρόνο πριν. «Μπες» ανοίγει το Zoom σε νέα καρτέλα, καταγράφει την ώρα που το πάτησες και φέρνει εδώ τη σελίδα της συνεδρίας· αν το δωμάτιο δεν έχει οριστεί, το λέει και δεν ανοίγει τίποτα. «Το μέλος πάτησε «Μπες»» είναι η ώρα του πατήματος· δεν είναι επιβεβαίωση συμμετοχής από το Zoom.
                 Μια συνεδρία που πέρασε η ώρα της μένει «εκκρεμεί καταγραφή» μέχρι να υπάρξει «Μπες» ή σημείωμα· δεν θεωρείται απουσία. Το σημειωματάριο ανοίγει 15 λεπτά πριν.
                 <strong>Το σημείωμα δεν μένει για αργότερα:</strong> μόλις τελειώσει μια συνεδρία σου χωρίς σημείωμα, το Apex σε κρατά σε αυτήν μέχρι να το γράψεις («Ήρθε» ή «Δεν ήρθε»). Μόνο όσο τρέχει η επόμενη συνεδρία ή ομάδα σου περιμένει.
               </p>
-            </details>
+            </details>}
             {isToday && isDemoSite() && (
               <div className="row" style={{ marginTop: 12, gap: 10 }}>
                 <span className="hint">Δοκιμαστικό περιβάλλον</span>
                 <form action={demoStart}><DemoStartButton /></form>
-                <form action={demoFirst}><DemoStartButton first /></form>
-                {await (async () => { const c = await demoSecondCandidate(); return c ? <form action={demoSecond}><DemoStartButton second={c.name.split(" ")[0]} /></form> : null; })()}
+                {!simple && <form action={demoFirst}><DemoStartButton first /></form>}
+                {!simple && await (async () => { const c = await demoSecondCandidate(); return c ? <form action={demoSecond}><DemoStartButton second={c.name.split(" ")[0]} /></form> : null; })()}
               </div>
             )}
           </Panel>
 
-          {isToday && nextIsSession && next && (
+          {isToday && nextIsSession && next && !simple && (
             <Panel title="Συνέχεια από την ομάδα">
               <p className="hint" style={{ margin: "0 0 10px" }}>Πριν από την επόμενη ατομική ({next.title}): δες το τελευταίο σημείωμα και τις ανοιχτές συμφωνίες.</p>
               {nextNote ? (
@@ -366,11 +372,11 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
           <Panel tour="see">
             <div className="panel-head">
               <h2>Πίνακας ομάδας</h2>
-              <span className="hint">{board.length === 0 ? "τίποτα νέο" : `${board.length} ${board.length === 1 ? "γεγονός" : "γεγονότα"} · ${boardMembers} ${boardMembers === 1 ? "μέλος" : "μέλη"}`}</span>
+              <span className="hint">{board.length === 0 ? "τίποτα νέο" : simple && board.length > boardRows.length ? `${boardRows.length} από ${board.length} γεγονότα (τα σοβαρά πρώτα)` : `${board.length} ${board.length === 1 ? "γεγονός" : "γεγονότα"} · ${boardMembers} ${boardMembers === 1 ? "μέλος" : "μέλη"}`}</span>
             </div>
             <p className="hint" style={{ margin: "-4px 0 8px" }}>Κοινή εικόνα για όλη την ομάδα: ό,τι χρειάζεται να ξέρουμε άμεσα, από όποιον κι αν το κατέγραψε.</p>
             <div data-tour="alerts" className="board">
-              {board.map((b, k) => (
+              {boardRows.map((b, k) => (
                 <div key={`${b.memberId}-${k}`} className={`board-row${b.red ? " red" : ""}`}>
                   <span className={`board-dot ${b.red ? "red" : "yellow"}`} aria-label={b.red ? "Σοβαρό" : "Να το δεις"} />
                   <div className="board-body">
@@ -386,12 +392,12 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
               <p className="muted" style={{ margin: "6px 0 0" }}>
                 <strong>Κόκκινο</strong>: κάτι που θέλει ενέργεια τώρα — πάτησε το κόκκινο κουμπί, υποτροπή ή χρήση στο σημείωμα ή στο ημερολόγιο, σκέψεις να κάνει κακό στον εαυτό του, αυξήθηκαν ή είναι υψηλές οι ανάγκες ασφάλειας, δεν ήρθε μετά από σήμα ασφάλειας.
                 <strong> Κίτρινο</strong>: για την επόμενη επαφή — μέρες χωρίς καμία επαφή μαζί μας, έντονες επιθυμίες στο ημερολόγιο, νέο μέλος στις πρώτες του μέρες, αυξημένες ανάγκες ασφάλειας.
-                Ανάβει μόλις το γράψει όποιος από την ομάδα, και μένει όσο ισχύει· τα παλιά μένουν στο «Ασφάλεια» του φακέλου. Οι ενέργειες με ανάληψη είναι από κάτω, στις «Εκκρεμότητες».
+                Ανάβει μόλις το γράψει όποιος από την ομάδα, και μένει όσο ισχύει· τα παλιά μένουν στο «Ασφάλεια» του φακέλου.{!simple && <> Οι ενέργειες με ανάληψη είναι από κάτω, στις «Εκκρεμότητες».</>}
               </p>
             </details>
           </Panel>
 
-          <Panel title="Εκκρεμότητες">
+          {!simple && <Panel title="Εκκρεμότητες">
             <div className="hint" style={{ marginTop: -6, marginBottom: 8 }}>{todoCount === 0 ? "καμία" : `${todoCount}`}</div>
             {notesDue.map((it) => (
               <Link key={`n${it.key}`} className="todo" href={it.href}>
@@ -402,7 +408,7 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
             ))}
             {todoActions.map((a) => <ActionRow key={a.key} a={a} viewer={viewer} staff={staff} back={isToday ? "/t" : `/t?date=${date}`} showMember />)}
             {todoCount === 0 && <EmptyState>Καμία εκκρεμότητα.</EmptyState>}
-          </Panel>
+          </Panel>}
         </div>
       </div>
       <TourFor id="today" userId={user.id} />
