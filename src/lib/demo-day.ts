@@ -1,7 +1,7 @@
 import type { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { randomBytes } from "node:crypto";
-import { addDays, athensToUtc } from "./time";
+import { addDays, athensToUtc, localParts } from "./time";
 
 /**
  * Ψεύτικα ραντεβού της ημέρας για τη δοκιμαστική εγκατάσταση (χωρίς "server-only", για να το τρέχει
@@ -16,11 +16,8 @@ export const DEMO_PLAN: { hour: number; therapist: string; position: number; mem
   { hour: 13, therapist: "anna", position: 1, members: ["eleni"] },
   { hour: 14, therapist: "vasilis", position: 2, members: ["giorgos"] },
   { hour: 15, therapist: "dimitra", position: 3, members: ["petros", "lena"] },
-  // Επισκέπτης «panos» (20/10, απλή αρχική): δύο ραντεβού στο 4ο δωμάτιο με δικά του ψεύτικα μέλη, για να έχει πρόγραμμα.
-  // Αν ο λογαριασμός δεν υπάρχει, παραλείπονται. Η δοκιμαστική ατομική με τον Νίκο (θέση 4) πάει σε άλλη θέση όταν συμπέσει η ώρα.
-  { hour: 11, therapist: "panos", position: 4, members: ["stathis"] },
-  { hour: 14, therapist: "panos", position: 4, members: ["rania"] },
 ];
+// Ο επισκέπτης (απλή αρχική, 20/10) δεν είναι εδώ: το πρόγραμμά του το κρατά το ensureGuestSchedule, σε σχέση με την ώρα που μπαίνει.
 
 /** Επιπλέον ψεύτικα μέλη μόνο για τα ραντεβού της ημέρας (χωρίς σύνδεση: τυχαίος κωδικός). */
 const EXTRA_MEMBERS: [string, string, string][] = [
@@ -28,12 +25,17 @@ const EXTRA_MEMBERS: [string, string, string][] = [
   ["sofia", "Σοφία Δοκιμαστική", "A-10006"],
   ["petros", "Πέτρος Δοκιμαστικός", "A-10007"],
   ["lena", "Λένα Δοκιμαστική", "A-10008"],
+];
+/** Ψεύτικα μέλη μόνο για το πρόγραμμα του επισκέπτη (20/10): χωρίς αρχική αξιολόγηση, ώστε η 1η ατομική τους να δείχνει το ιστορικό. */
+export const GUEST_MEMBERS: [string, string, string][] = [
   ["stathis", "Στάθης Δοκιμαστικός", "A-10009"],
   ["rania", "Ράνια Δοκιμαστική", "A-10010"],
+  ["thanasis", "Θανάσης Δοκιμαστικός", "A-10011"],
+  ["fotini", "Φωτεινή Δοκιμαστική", "A-10012"],
 ];
 
-/** Τα ψεύτικα μέλη των ραντεβού της ημέρας (χωρίς σύνδεση). */
-export const DEMO_DAY_USERNAMES: string[] = EXTRA_MEMBERS.map((e) => e[0]);
+/** Τα ψεύτικα μέλη των ραντεβού της ημέρας και του επισκέπτη (χωρίς σύνδεση). */
+export const DEMO_DAY_USERNAMES: string[] = [...EXTRA_MEMBERS, ...GUEST_MEMBERS].map((e) => e[0]);
 
 /**
  * Είναι αυτή η θέση ένα από τα ψεύτικα ραντεβού της ημέρας; (ίδια ώρα, θέση, θεραπευτής και μέλη με το DEMO_PLAN.)
@@ -44,15 +46,86 @@ export function isDemoDaySlot(x: { hour: number; position: number; therapistUser
   return DEMO_PLAN.some((p) => p.hour === x.hour && p.position === x.position && p.therapist === x.therapistUsername && p.members.length === x.memberUsernames.length && p.members.every((m) => x.memberUsernames.includes(m)));
 }
 
-async function ensureExtraMembers(db: PrismaClient, today: string): Promise<void> {
+async function ensureExtraMembers(db: PrismaClient, today: string, list: [string, string, string][] = EXTRA_MEMBERS, assessed = true): Promise<void> {
   const staff = await db.user.findFirst({ where: { username: "anna" }, select: { id: true } });
-  for (const [username, name, memberCode] of EXTRA_MEMBERS) {
+  for (const [username, name, memberCode] of list) {
     if (await db.user.findUnique({ where: { username }, select: { id: true } })) continue;
     const passwordHash = await bcrypt.hash(randomBytes(24).toString("hex"), 10);
     const m = await db.user.create({ data: { username, name, memberCode, role: "MEMBER", source: "APEX", passwordHash, programStartDate: addDays(today, -20) } });
     await db.cycle.create({ data: { memberId: m.id, length: 8 } });
     // Έναρξη ολοκληρωμένη (όπως τα άλλα ψεύτικα μέλη με ιστορικό), αλλιώς φαίνονται κλειδωμένα στην έναρξη.
-    for (const key of ["online_consent", "agreement", "assessment"]) await db.intakeCheck.create({ data: { memberId: m.id, key, doneById: staff?.id ?? m.id } });
+    // Τα μέλη του επισκέπτη μένουν χωρίς «αρχική αξιολόγηση», για να δείχνει η 1η ατομική τους το ιστορικό (Σ1).
+    for (const key of assessed ? ["online_consent", "agreement", "assessment"] : ["online_consent", "agreement"]) await db.intakeCheck.create({ data: { memberId: m.id, key, doneById: staff?.id ?? m.id } });
+  }
+}
+
+/** Ελεύθερη θέση (δωμάτιο) για μια ώρα: το 4ο δωμάτιο ή, αν είναι πιασμένο, μία από τις 21+ (όπως το bookDemo). */
+async function freePosition(db: PrismaClient, date: string, hour: number): Promise<number> {
+  const candidates = [4, ...Array.from({ length: 30 }, (_, i) => 21 + i)];
+  const taken = new Set((await db.slot.findMany({ where: { date, hour, position: { in: candidates } }, select: { position: true } })).map((x) => x.position));
+  return candidates.find((p) => !taken.has(p)) ?? 60;
+}
+
+const roundUp5 = (d: Date) => new Date(Math.ceil(d.getTime() / 300_000) * 300_000);
+
+/**
+ * Πρόγραμμα παρουσίασης για τον επισκέπτη (υπεύθυνη 20/10: «βάλε στο πρόγραμμα στο προφίλ του Πάνου ραντεβού, να δείχνουμε
+ * τα κουμπιά σύνδεσης, την προετοιμασία, όλο αυτό το μοντέλο»). Τρέχει κάθε φορά που ανοίγει το «Σήμερα» ένας θεραπευτής
+ * με «απλή αρχική», μόνο στη δοκιμή, και κρατά:
+ *  - σήμερα: ΔΥΟ ραντεβού μπροστά του όποια ώρα κι αν μπει (το πρώτο σε ~20′, το επόμενο μία ώρα μετά) — πρώτα με μέλος που
+ *    έχει ιστορικό (Νίκος: σημειώματα, πλάνο → κανονικό σημειωματάριο), μετά με δικό του νέο μέλος (1η ατομική → ιστορικό)·
+ *  - επόμενες μέρες: ατομικές στις 11:00/14:00 και ένα Therapair, ώστε το «Τις επόμενες 7 μέρες» να έχει περιεχόμενο·
+ *  - καθάρισμα: δικά του ραντεβού που τελείωσαν πριν από ώρα χωρίς σημείωμα σβήνονται (όπως τα ψεύτικα της ημέρας).
+ * Μέλη: τα ψεύτικα με ιστορικό (nikos, eleni, giorgos) και τα GUEST_MEMBERS. Δεν αγγίζει τίποτα άλλου θεραπευτή.
+ */
+export async function ensureGuestSchedule(db: PrismaClient, therapist: { id: string; therapistKind: "BIOMATIC" | "CLINICAL" | "BOTH" | null }, now = new Date()): Promise<void> {
+  const today = localParts(now).date;
+  await ensureExtraMembers(db, today, GUEST_MEMBERS, false);
+  const kind = therapist.therapistKind === "BIOMATIC" ? "BIOMATIC" : "CLINICAL";
+  const byName = new Map((await db.user.findMany({ where: { username: { in: ["nikos", "eleni", "giorgos", ...GUEST_MEMBERS.map((g) => g[0])] }, role: "MEMBER", active: true }, select: { id: true, username: true } })).map((u) => [u.username, u.id]));
+  // Τα μέλη του επισκέπτη ξεκινούν από την 1η ατομική (ιστορικό): αν κάποιο σημειώθηκε «αξιολόγηση: έγινε» χωρίς πραγματική
+  // ολοκληρωμένη αξιολόγηση (παλιότερο seed), το σημάδι φεύγει — μόνο για αυτά τα ψεύτικα μέλη.
+  const guestIds = GUEST_MEMBERS.map((g) => byName.get(g[0])).filter((x): x is string => Boolean(x));
+  if (guestIds.length) {
+    const done = new Set((await db.assessment.findMany({ where: { memberId: { in: guestIds }, complete: true }, select: { memberId: true } })).map((a) => a.memberId));
+    const stale = guestIds.filter((id) => !done.has(id));
+    if (stale.length) await db.intakeCheck.deleteMany({ where: { memberId: { in: stale }, key: "assessment" } });
+  }
+  // 1. Καθάρισμα: ό,τι τελείωσε πριν από > 1 ώρα χωρίς σημείωμα (ατομική 40′ → έναρξη πριν > 100′).
+  const old = await db.slot.findMany({ where: { therapistId: therapist.id, note: null, pairNotes: { none: {} }, startsAt: { lt: new Date(now.getTime() - 100 * 60_000) } }, select: { id: true } });
+  if (old.length) await db.slot.deleteMany({ where: { id: { in: old.map((o) => o.id) } } });
+  const book = async (date: string, startsAt: Date, usernames: string[]) => {
+    const ids = usernames.map((u) => byName.get(u)).filter((x): x is string => Boolean(x));
+    if (ids.length !== usernames.length) return false;
+    if (await db.booking.findFirst({ where: { memberId: { in: ids }, slot: { date, therapistId: therapist.id } }, select: { id: true } })) return false;
+    const hour = localParts(startsAt).hour;
+    const pair = ids.length === 2;
+    const slot = await db.slot.create({ data: { date, hour, position: await freePosition(db, date, hour), therapistId: therapist.id, startsAt, kind: pair ? "PAIR" : "INDIVIDUAL", pairApprovedAt: pair ? now : null } });
+    for (const memberId of ids) await db.booking.create({ data: { slotId: slot.id, memberId, cycleId: await cycleForDemoBooking(db, memberId), kind } });
+    return true;
+  };
+  // 2. Σήμερα: δύο ραντεβού μπροστά του.
+  const upcoming = await db.slot.findMany({ where: { therapistId: therapist.id, date: today, startsAt: { gt: now }, bookings: { some: {} } }, orderBy: { startsAt: "asc" }, select: { startsAt: true } });
+  let t = roundUp5(new Date(now.getTime() + 20 * 60_000));
+  const last = upcoming[upcoming.length - 1];
+  if (last && last.startsAt.getTime() + 60 * 60_000 > t.getTime()) t = roundUp5(new Date(last.startsAt.getTime() + 60 * 60_000));
+  const todayOrder = ["nikos", "stathis", "eleni", "rania", "giorgos", "thanasis", "fotini"];
+  for (let need = 2 - upcoming.length; need > 0 && localParts(t).date === today; ) {
+    const u = todayOrder.shift();
+    if (!u) break;
+    if (await book(today, t, [u])) { need--; t = new Date(t.getTime() + 60 * 60_000); }
+  }
+  // 3. Επόμενες μέρες (σταθερές ώρες, αν δεν έχει ήδη κάτι εκείνη την ώρα).
+  const week: { day: number; hour: number; members: string[] }[] = [
+    { day: 1, hour: 11, members: ["eleni"] }, { day: 1, hour: 14, members: ["stathis"] },
+    { day: 2, hour: 11, members: ["giorgos"] }, { day: 2, hour: 16, members: ["thanasis", "fotini"] },
+    { day: 4, hour: 11, members: ["nikos"] }, { day: 4, hour: 14, members: ["rania"] },
+  ];
+  for (const w of week) {
+    const date = addDays(today, w.day);
+    if (await db.holiday.findUnique({ where: { date }, select: { date: true } })) continue;
+    if (await db.slot.findFirst({ where: { therapistId: therapist.id, date, hour: w.hour, bookings: { some: {} } }, select: { id: true } })) continue;
+    await book(date, athensToUtc(date, w.hour), w.members);
   }
 }
 

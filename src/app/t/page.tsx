@@ -25,6 +25,7 @@ import { memberNotes } from "@/lib/member-notes";
 import { sessionPresence } from "@/lib/presence";
 import { getSettings } from "@/lib/settings";
 import { demoSecondCandidate, ensureDemoToday, isDemoSite, startDemoFirstSession, startDemoSecondSession, startDemoSession } from "@/lib/demo-session";
+import { ensureGuestSchedule } from "@/lib/demo-day";
 import { addDays, athensToUtc, formatDate, formatTime, localParts, toMinutes } from "@/lib/time";
 import { mottoFor } from "@/lib/mottos";
 import { sessionOrders } from "@/lib/session-order-db";
@@ -90,6 +91,8 @@ export default async function TherapistDay({ searchParams }: { searchParams: Pro
   const date = sp.date && /^\d{4}-\d{2}-\d{2}$/.test(sp.date) ? sp.date : today;
   const s = await getSettings();
   if (date === today) await ensureDemoToday();
+  // Πρόγραμμα παρουσίασης για τον επισκέπτη (20/10): πάντα δύο ραντεβού μπροστά του και ραντεβού τις επόμενες μέρες (μόνο δοκιμή).
+  if (date === today && isDemoSite() && simple && user.role === "THERAPIST") await ensureGuestSchedule(prisma, user, now).catch((e) => console.error("[guest-schedule]", e));
 
   const [boxes, slots, week, groups, members, staffRows, holiday] = await Promise.all([
     alertBoxes(user.role),
