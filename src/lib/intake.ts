@@ -28,6 +28,18 @@ export async function memberIntake(member: Pick<User, "id" | "source">) {
  * Μέλος με ολοκληρωμένη έναρξη συνεργασίας. Μέχρι τότε βλέπει μόνο τη σελίδα έναρξης,
  * το κόκκινο κουμπί, το πλάνο του και τον λογαριασμό του.
  */
+/** Τι δείχνει το μενού του μέλους (layout /m και «Λογαριασμός» — μία πηγή, 20/10): πλάνο, μηνύματα, εκκρεμής έναρξη. */
+export async function memberNavOpts(user: Pick<User, "id" | "source">): Promise<{ hasPlan: boolean; hasMessages: boolean; intakePending: boolean }> {
+  const [plan, monthly, closure, s, intake] = await Promise.all([
+    prisma.safetyPlan.findUnique({ where: { memberId: user.id }, select: { memberId: true } }),
+    prisma.monthlyMessage.findFirst({ where: { memberId: user.id, sentAt: { not: null } }, select: { id: true } }),
+    prisma.closure.findFirst({ where: { memberId: user.id, sentAt: { not: null } }, select: { id: true } }),
+    getSettings(),
+    memberIntake(user),
+  ]);
+  return { hasPlan: Boolean(plan), hasMessages: Boolean(monthly || closure), intakePending: s.requireIntake && !intake.status.complete };
+}
+
 export async function requireMember(): Promise<User> {
   const user = await requireRole("MEMBER");
   const s = await getSettings();

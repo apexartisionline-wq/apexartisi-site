@@ -1,6 +1,6 @@
 import Link from "next/link";
 import bcrypt from "bcryptjs";
-import { redirect } from "next/navigation";
+import { RedirectType, redirect } from "next/navigation";
 import { BackButton } from "@/components/BackButton";
 import { Nav } from "@/components/Nav";
 import { hashPassword, logoutEverywhere, requireRole, homeFor } from "@/lib/auth";
@@ -9,12 +9,13 @@ import { navLinks } from "@/lib/nav";
 import { getSettings } from "@/lib/settings";
 import { ndaStatus, NDA_STATE } from "@/lib/nda";
 import { PushToggle } from "@/components/PushToggle";
+import { ErrorNote, PageHead } from "@/components/ui";
 import { vapidPublicKey } from "@/lib/push";
 import { cookies } from "next/headers";
 import { THEME_COOKIE, THEMES, themeOf } from "@/lib/theme";
 import { MEMBER_PREFS, type Prefs } from "@/lib/schedule";
 import { newSecret, qrFor, verifyTotp } from "@/lib/totp";
-import { memberConsents } from "@/lib/intake";
+import { memberConsents, memberNavOpts } from "@/lib/intake";
 import { CHOICE_LABEL, PURPOSES } from "@/lib/intake-rules";
 
 const ROLE = { MEMBER: "Μέλος", THERAPIST: "Θεραπευτής", ADMIN: "Διαχείριση" } as const;
@@ -44,7 +45,7 @@ async function setTheme(formData: FormData) {
   const theme = themeOf(formData.get("theme"));
   await prisma.user.update({ where: { id: user.id }, data: { theme } });
   (await cookies()).set(THEME_COOKIE, theme, { sameSite: "lax", path: "/", expires: new Date(Date.now() + 365 * 86_400_000) });
-  redirect("/account?okt=1");
+  redirect("/account?okt=1", RedirectType.replace);
 }
 
 async function signOutAll() {
@@ -60,7 +61,7 @@ async function savePrefs(formData: FormData) {
   const prefs: Prefs = {};
   for (const p of MEMBER_PREFS) prefs[p.key] = formData.get(p.key) === "on";
   await prisma.user.update({ where: { id: user.id }, data: { notifyPrefs: prefs } });
-  redirect("/account?okp=1");
+  redirect("/account?okp=1", RedirectType.replace);
 }
 
 // Ανάκληση προαιρετικής συγκατάθεσης από το ίδιο το μέλος (01β, Μέρος Δ).
@@ -72,7 +73,7 @@ async function withdraw(formData: FormData) {
   const s = await getSettings();
   await prisma.consent.create({ data: { memberId: user.id, purpose: purpose.key, choice: "NO", version: s.consentVersion, recordedById: user.id } });
   if (purpose.key === "self_message") await prisma.user.update({ where: { id: user.id }, data: { selfMessage: null, selfMessageType: null } });
-  redirect("/account?okc=1");
+  redirect("/account?okc=1", RedirectType.replace);
 }
 
 async function start2fa() {
@@ -99,28 +100,30 @@ const ERRORS: Record<string, string> = {
   same: "Ο νέος κωδικός πρέπει να είναι διαφορετικός από αυτόν που σου στείλαμε.",
 };
 
-export default async function AccountPage({ searchParams }: { searchParams: Promise<{ ok?: string; e?: string; setup2fa?: string; ok2fa?: string; okp?: string; okc?: string; first?: string; okt?: string }> }) {
+export default async function AccountPage({ searchParams }: { searchParams: Promise<{ ok?: string; e?: string; setup2fa?: string; ok2fa?: string; okp?: string; okc?: string; first?: string; okt?: string; w?: string }> }) {
   const user = await requireRole("MEMBER", "THERAPIST", "ADMIN");
   const sp = await searchParams;
   const staff = user.role !== "MEMBER";
   const s = await getSettings();
   const consents = staff ? {} : await memberConsents(user.id);
   const qr = staff && !user.totpEnabled && user.totpSecret ? await qrFor(user.totpSecret, user.username, s.appName) : null;
+  // Ίδιο μενού με τις σελίδες του μέλους (layout /m): «Το πλάνο μου», «Από την ομάδα», και μειωμένο όσο εκκρεμεί η έναρξη.
+  const navOpts = staff ? { hasPlan: false, hasMessages: false, intakePending: false } : await memberNavOpts(user);
+  // Ανάκληση συγκατάθεσης με επιβεβαίωση (20/10): ?w=<σκοπός>.
+  const withdrawing = !staff && sp.w ? PURPOSES.find((p) => p.key === sp.w && !p.required && consents[p.key] === "YES" && p.choices.includes("NO")) : undefined;
   return (
     <>
-      <Nav menu={user.role !== "MEMBER"} links={navLinks(user.role, { hasPlan: user.role === "MEMBER" && Boolean(await prisma.safetyPlan.findUnique({ where: { memberId: user.id }, select: { memberId: true } })) })} />
+      <Nav menu={staff} compact={!staff} links={navLinks(user.role, navOpts)} />
+      {/* Ίδιο περιβάλλον με την υπόλοιπη εφαρμογή του ρόλου (20/10): φόντο --canvas και λευκές κάρτες, όπως στο «Σήμερα». */}
+      <div className={staff ? "staff" : "member-env"}>
       <main>
-        <BackButton home={homeFor(user.role)} />
-        <h1>Ο λογαριασμός μου</h1>
+        <BackButton home={!staff && navOpts.intakePending ? "/m/start" : homeFor(user.role)} />
+        <PageHead title="Ο λογαριασμός μου" sub={<>{user.name} · @{user.username} · {ROLE[user.role]}</>} />
         {user.mustChangeCode && (
           <div className="notice" id="first-code">
             <strong>Καλώς ήρθες.</strong> Ο κωδικός που σου στείλαμε είναι προσωρινός. Βάλε δικό σου κωδικό (τουλάχιστον 8 χαρακτήρες) στην «Αλλαγή κωδικού» παρακάτω, και μετά σε πάμε στο «Σήμερα».
           </div>
         )}
-        <div className="card">
-          <div>{user.name}</div>
-          <div className="muted small">@{user.username} · {ROLE[user.role]}</div>
-        </div>
         <h2>Εμφάνιση</h2>
         <form action={setTheme} className="card">
           {sp.okt && <div className="notice">Αποθηκεύτηκε ✓</div>}
@@ -186,7 +189,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
         )}
         <h2>Αλλαγή κωδικού</h2>
         {sp.ok && <div className="notice">Ο κωδικός άλλαξε ✓</div>}
-        {sp.e && ERRORS[sp.e] && <div className="error">{ERRORS[sp.e]}</div>}
+        {sp.e && ERRORS[sp.e] && <ErrorNote>{ERRORS[sp.e]}</ErrorNote>}
         <form action={changeCode} className="card">
           <div className="field"><label htmlFor="current">Τωρινός κωδικός</label><input id="current" name="current" type="password" autoComplete="current-password" required /></div>
           <div className="field"><label htmlFor="next">Νέος κωδικός (τουλάχιστον 8 χαρακτήρες)</label><input id="next" name="next" type="password" autoComplete="new-password" minLength={8} required /></div>
@@ -199,28 +202,52 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
             <div className="card stack">
               {sp.okc && <div className="notice">Η συγκατάθεση ανακλήθηκε ✓</div>}
               {PURPOSES.filter((p) => consents[p.key]).map((p) => (
-                <div key={p.key} className="row spread">
-                  <span>{p.label}: <strong>{CHOICE_LABEL[consents[p.key]]}</strong></span>
+                <div key={p.key} className="m-row">
+                  <span className="grow">{p.label}: <strong>{CHOICE_LABEL[consents[p.key]]}</strong></span>
                   {!p.required && consents[p.key] === "YES" && p.choices.includes("NO") && (
-                    <form action={withdraw}>
-                      <input type="hidden" name="purpose" value={p.key} />
-                      <button type="submit" style={{ padding: "4px 8px" }}>Ανάκληση</button>
-                    </form>
+                    <Link className="btn outline sm" href={`/account?w=${p.key}#consents`}>Ανάκληση</Link>
                   )}
                 </div>
               ))}
+              {withdrawing && (
+                <div className="notice" id="consents" style={{ marginBottom: 0 }}>
+                  <p style={{ margin: "0 0 8px" }}><strong>Να ανακληθεί η συγκατάθεση «{withdrawing.label}»;</strong> Ισχύει από τώρα και μετά· για να την ξαναδώσεις, μίλα με την ομάδα.</p>
+                  <div className="row">
+                    <form action={withdraw}>
+                      <input type="hidden" name="purpose" value={withdrawing.key} />
+                      <button type="submit" className="red">Ναι, ανάκληση</button>
+                    </form>
+                    <Link className="btn" href="/account">Όχι, πίσω</Link>
+                  </div>
+                </div>
+              )}
               <p className="muted small">
-                Για να πεις «ναι» σε κάτι που είχες πει «όχι», ή για τα απαραίτητα, μίλα με την ομάδα. Η ανάκληση ισχύει από τώρα και μετά.
+                Για να πεις «ναι» σε κάτι που είχες πει «όχι», ή για τα απαραίτητα, μίλα με την ομάδα σου. Η ανάκληση ισχύει από τώρα και μετά.
               </p>
             </div>
           </>
         )}
+        {!staff && (
+          <>
+            <h2>Τα στοιχεία μου</h2>
+            <Link className="linkrow panel" href="/m/profile">
+              <span className="grow"><div style={{ fontWeight: 600 }}>Διεύθυνση και επαφή έκτακτης ανάγκης</div><div className="hint">Τα βλέπει μόνο η διαχείριση. Μπορείς να τα αλλάξεις όποτε θέλεις.</div></span>
+              <span className="arrow">›</span>
+            </Link>
+          </>
+        )}
         <h2>Συσκευές</h2>
-        <form action={signOutAll} className="card row spread">
-          <span>Αν έχασες το κινητό σου ή το έδωσες σε άλλον, βγες από όλες τις συσκευές.</span>
+        <form action={signOutAll} className="card m-row">
+          <span className="grow">Αν έχασες το κινητό σου ή το έδωσες σε άλλον, βγες από όλες τις συσκευές.</span>
           <button type="submit">Έξοδος από όλες τις συσκευές</button>
         </form>
       </main>
+      </div>
+      {!staff && (
+        <div className="redbar">
+          <Link href="/m/help" className="btn red big">Κόκκινο κουμπί</Link>
+        </div>
+      )}
     </>
   );
 }

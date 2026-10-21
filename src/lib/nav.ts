@@ -1,7 +1,7 @@
 import type { Role } from "@prisma/client";
 
 // Κάθε ρόλος βλέπει μόνο τα δικά του μενού.
-export function navLinks(role: Role, opts: { hasPlan?: boolean; hasMessages?: boolean } = {}): { href: string; label: string }[] {
+export function navLinks(role: Role, opts: { hasPlan?: boolean; hasMessages?: boolean; intakePending?: boolean } = {}): { href: string; label: string }[] {
   if (role === "ADMIN")
     return [
       { href: "/admin", label: "Σήμερα" },
@@ -36,6 +36,8 @@ export function navLinks(role: Role, opts: { hasPlan?: boolean; hasMessages?: bo
       { href: "/t/lexiko", label: "Οδηγός ομάδας" },
       { href: "/account", label: "Λογαριασμός" },
     ];
+  // Μέλος σε έναρξη συνεργασίας (20/10): όλες οι σελίδες στέλνουν στο /m/start, άρα το μενού δείχνει μόνο ό,τι ανοίγει.
+  if (opts.intakePending) return [{ href: "/m/start", label: "Σήμερα" }, { href: "/account", label: "Λογαριασμός" }];
   return [
     { href: "/m", label: "Σήμερα" },
     { href: "/m/book", label: "Ραντεβού" },

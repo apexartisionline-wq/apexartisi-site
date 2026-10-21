@@ -17,4 +17,5 @@
 .personRow { display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 8px 10px; align-items: center; margin-bottom: 8px; }
 .personRow .two { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; }
 .personRow .num { margin-top: 0; }
-@media (prefers-color-scheme: dark) { .num { color: var(--accent); } }
+/* Σκούρο μόνο με επιλογή του χρήστη (17/10): html[data-theme="dark"], όχι η ρύθμιση της συσκευής. */
+:global(html[data-theme="dark"]) .num { color: var(--accent); }

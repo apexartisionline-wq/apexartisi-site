@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { Icon } from "@/components/Icon";
+import { PageHead, Panel } from "@/components/ui";
 import { dec, enc } from "@/lib/crypto";
-import { redirect } from "next/navigation";
+import { RedirectType, redirect } from "next/navigation";
 import { z } from "zod";
 import { hasConsent, requireMember } from "@/lib/intake";
 import { prisma } from "@/lib/db";
@@ -60,7 +62,7 @@ async function save(formData: FormData) {
       await notifyRole("ADMIN", { title: "Νέο σοβαρό σημείο στην ομάδα", url: "/admin", tag: `alert-${user.id}` }).catch(() => undefined);
     }
   }
-  redirect(`/m/journal?saved=${concern ? "care" : "1"}`);
+  redirect(`/m/journal?saved=${concern ? "care" : "1"}`, RedirectType.replace);
 }
 
 // Ο στόχος της εβδομάδας: ένας, με τα λόγια του μέλους (από Δευτέρα).
@@ -72,22 +74,23 @@ async function saveGoal(formData: FormData) {
   const text = z.string().trim().min(1).max(300).safeParse(String(formData.get("goal") ?? ""));
   // Ημερολογιακή μέρα: στόχος που γράφεται Δευτέρα πρωί ανήκει σε αυτή την εβδομάδα (όχι στην προηγούμενη, όπως η «μέρα» του ημερολογίου πριν τις 20:00).
   if (text.success) await setWeekGoal(user.id, localParts(new Date()).date, text.data);
-  redirect("/m/journal?goal=1");
+  redirect("/m/journal?goal=1", RedirectType.replace);
 }
 
+// Κλίμακα 0–10 ως κουμπάκια (20/10): ίδιες ερωτήσεις και ίδιες τιμές, μόνο πιο εύκολη στο δάχτυλο.
 function Scale({ name, label, low, high, value }: { name: string; label: string; low: string; high: string; value?: number }) {
   return (
     <fieldset className="field" style={{ border: 0, padding: 0 }}>
       <legend><strong>{label}</strong></legend>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(11, 1fr)", gap: 2 }}>
+      <div className="scale" role="radiogroup" aria-label={label}>
         {Array.from({ length: 11 }, (_, i) => (
-          <label key={i} style={{ margin: 0, textAlign: "center", minWidth: 0 }}>
-            <input type="radio" name={name} value={i} defaultChecked={value === i} required style={{ width: "auto" }} />
-            <div>{i}</div>
+          <label key={i}>
+            <input type="radio" name={name} value={i} defaultChecked={value === i} required />
+            <span>{i}</span>
           </label>
         ))}
       </div>
-      <div className="row spread small muted"><span>0 = {low}</span><span>10 = {high}</span></div>
+      <div className="scale-ends"><span>0 = {low}</span><span>10 = {high}</span></div>
     </fieldset>
   );
 }
@@ -99,8 +102,8 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
   if (!(await hasConsent(user.id, "journal"))) {
     return (
       <main>
-        <h1>Ημερολόγιο ανάκαμψης</h1>
-        <p>Το ημερολόγιο δεν είναι ανοιχτό για σένα, γιατί δεν έχεις πει «ναι» γι' αυτό. Αν το θέλεις, μίλα με την ομάδα.</p>
+        <PageHead title="Ημερολόγιο ανάκαμψης" />
+        <Panel><p style={{ margin: 0 }}>Το ημερολόγιο δεν είναι ανοιχτό για σένα, γιατί δεν έχεις πει «ναι» γι' αυτό. Αν το θέλεις, μίλα με την ομάδα σου.</p></Panel>
       </main>
     );
   }
@@ -111,30 +114,31 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
 
   return (
     <main>
-      <h1>Ημερολόγιο ανάκαμψης</h1>
-      <p className="muted">{formatDate(date)}</p>
-      {/* Υποχρεωτική κεφαλίδα (Πολιτική συλλογής και επεξεργασίας, άρθρο 13.2) — αυτούσιο κείμενο, να μην αλλάξει χωρίς τον DPO. */}
-      <p className="small" style={{ marginTop: 0 }}>
-        Αν βρίσκεσαι σε άμεσο κίνδυνο, κάλεσε τώρα το <a href="tel:112">112</a> ή το <a href="tel:166">166</a>. Το ημερολόγιο δεν παρακολουθείται σε εικοσιτετράωρη βάση.
+      {/* Πριν την ώρα του ημερολογίου η καταχώριση είναι για χθες (journalDate)· το λέμε (διατύπωση προς έγκριση). */}
+      <PageHead title="Ημερολόγιο ανάκαμψης" sub={date === localParts(new Date()).date ? formatDate(date) : `${formatDate(date)} · για χθες — το σημερινό ανοίγει στις ${s.journalTime}`} />
+      {/* Υποχρεωτική κεφαλίδα (Πολιτική συλλογής και επεξεργασίας, άρθρο 13.2) — αυτούσιο κείμενο, να μην αλλάξει χωρίς τον DPO.
+          Το γενικό crisisNotice των Ρυθμίσεων δεν επαναλαμβάνεται εδώ (20/10: έλεγε το ίδιο δύο φορές)· μένει στο κόκκινο κουμπί. */}
+      <p className="m-legal">
+        <Icon name="info" size={18} />
+        <span>Αν βρίσκεσαι σε άμεσο κίνδυνο, κάλεσε τώρα το <a href="tel:112">112</a> ή το <a href="tel:166">166</a>. Το ημερολόγιο δεν παρακολουθείται σε εικοσιτετράωρη βάση.</span>
       </p>
       {sp.saved === "1" && <div className="notice">Αποθηκεύτηκε ✓</div>}
       {sp.saved === "care" && (
-        <div className="card" style={{ borderColor: "var(--red)" }}>
+        <Panel className="m-care" >
           <p style={{ marginTop: 0 }}>Αποθηκεύτηκε. Σε ευχαριστούμε που το έγραψες.</p>
           <p><strong>Θέλεις να σε πάρει κάποιος από την ομάδα τώρα;</strong></p>
           <div className="stack">
             <Link className="btn red" href="/m/help?ask=1">Ναι, να με πάρει κάποιος</Link>
             <Link className="btn" href="/m">Όχι τώρα</Link>
           </div>
-          <p className="muted small">Ό,τι γράφεις εδώ το βλέπει μόνο η ομάδα σου. Αν αλλάξεις γνώμη, το κόκκινο κουμπί είναι πάντα εδώ.</p>
-        </div>
+          <p className="muted small" style={{ marginBottom: 0 }}>Ό,τι γράφεις εδώ το βλέπει μόνο η ομάδα σου. Αν αλλάξεις γνώμη, το κόκκινο κουμπί είναι πάντα εδώ.</p>
+        </Panel>
       )}
-      <section className="card">
-        <strong>Ο στόχος μου αυτή την εβδομάδα</strong>
-        {sp.goal && <div className="small" style={{ color: "var(--ok)" }}>Αποθηκεύτηκε ✓</div>}
+      <Panel title="Ο στόχος μου αυτή την εβδομάδα" icon="target">
+        {sp.goal && <div className="small" style={{ color: "var(--ok)", marginBottom: 6 }}>Αποθηκεύτηκε ✓</div>}
         {goal ? (
           <>
-            <div className="body-text" style={{ fontSize: "1.1rem", margin: "6px 0" }}>«{goal.text}»</div>
+            <div className="body-text" style={{ fontSize: "1.1rem", margin: "0 0 6px" }}>«{goal.text}»</div>
             <details className="small">
               <summary>Αλλαγή στόχου</summary>
               <form action={saveGoal} className="row" style={{ gap: 6, marginTop: 6 }}>
@@ -144,21 +148,21 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
             </details>
           </>
         ) : (
-          <form action={saveGoal} style={{ marginTop: 6 }}>
-            <p className="muted small" style={{ margin: "0 0 6px" }}>Ένας μικρός, δικός σου στόχος για αυτή την εβδομάδα. Μία μέρα τη φορά.</p>
+          <form action={saveGoal}>
+            <p className="hint" style={{ margin: "0 0 6px" }}>Ένας μικρός, δικός σου στόχος για αυτή την εβδομάδα. Μία μέρα τη φορά.</p>
             <input name="goal" placeholder="π.χ. να μιλάω όταν ντρέπομαι" maxLength={300} required />
             <button type="submit" style={{ marginTop: 8 }}>Αυτός είναι ο στόχος μου</button>
           </form>
         )}
-      </section>
-      <p className="small muted">{s.crisisNotice}</p>
-      <form action={save} className="card">
+      </Panel>
+      <form action={save} className="panel">
+        <div className="panel-head"><h2>Πώς ήταν η μέρα σου</h2></div>
         <Scale name="mood" label="Διάθεση" low="πολύ άσχημα" high="πολύ καλά" value={entry?.mood} />
         <Scale name="confidence" label="Σιγουριά για αύριο" low="καθόλου" high="απόλυτα" value={entry?.confidence} />
         <Scale name="craving" label="Λαχτάρα" low="καθόλου" high="πολύ έντονη" value={entry?.craving} />
         <div className="field">
           <label htmlFor="sleepHours"><strong>Ύπνος (ώρες)</strong></label>
-          <input id="sleepHours" name="sleepHours" type="number" min={0} max={24} step={0.5} defaultValue={entry?.sleepHours} required />
+          <input id="sleepHours" name="sleepHours" type="number" inputMode="decimal" min={0} max={24} step={0.5} defaultValue={entry?.sleepHours} required style={{ maxWidth: 160 }} />
         </div>
         <div className="field">
           <label htmlFor="win"><strong>Μια νίκη σήμερα</strong> (προαιρετικό)</label>
@@ -166,30 +170,30 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
         </div>
         <fieldset className="field" style={{ border: 0, padding: 0 }}>
           <legend><strong>Υπήρξε κάτι σήμερα που θέλεις να ξέρει η ομάδα;</strong> <span className="muted small">τσέκαρε μόνο αν ισχύει</span></legend>
-          <label className="row" style={{ gap: 8, flexWrap: "nowrap" }}>
-            <input type="checkbox" name="used" defaultChecked={entry?.used} style={{ width: "auto", flex: "none" }} /> <span>Έκανα χρήση</span>
+          <label className="m-check">
+            <input type="checkbox" name="used" defaultChecked={entry?.used} /> <span>Έκανα χρήση</span>
           </label>
-          <label className="row" style={{ gap: 8, flexWrap: "nowrap" }}>
-            <input type="checkbox" name="harm" defaultChecked={entry ? entry.selfHarm === "YES" || entry.selfHarm === "UNSURE" : false} style={{ width: "auto", flex: "none" }} /> <span>Είχα σκέψεις να κάνω κακό στον εαυτό μου</span>
+          <label className="m-check">
+            <input type="checkbox" name="harm" defaultChecked={entry ? entry.selfHarm === "YES" || entry.selfHarm === "UNSURE" : false} /> <span>Είχα σκέψεις να κάνω κακό στον εαυτό μου</span>
           </label>
         </fieldset>
         {goal && (
           <fieldset className="field" style={{ border: 0, padding: 0 }}>
             <legend><strong>Σήμερα ήμουν συνεπής με τον στόχο μου;</strong> <span className="muted small">«{goal.text}»</span></legend>
             {Object.entries(GOAL_CHECK).map(([v, l]) => (
-              <label key={v} className="row" style={{ gap: 8 }}>
-                <input type="radio" name="goalCheck" value={v} defaultChecked={entry?.goalCheck === v} style={{ width: "auto" }} /> {l}
+              <label key={v} className="m-check">
+                <input type="radio" name="goalCheck" value={v} defaultChecked={entry?.goalCheck === v} /> {l}
               </label>
             ))}
-            <input name="goalNote" placeholder="τι με βοήθησε / τι με δυσκόλεψε (προαιρετικό)" defaultValue={dec(entry?.goalNote)} style={{ marginTop: 6 }} />
+            <input name="goalNote" aria-label="Τι με βοήθησε / τι με δυσκόλεψε (προαιρετικό)" placeholder="τι με βοήθησε / τι με δυσκόλεψε (προαιρετικό)" defaultValue={dec(entry?.goalNote)} style={{ marginTop: 6 }} />
           </fieldset>
         )}
         <div className="field">
           <label htmlFor="note"><strong>Κάτι που θέλεις να γράψεις</strong> (προαιρετικό)</label>
           <textarea id="note" name="note" defaultValue={dec(entry?.note)} />
         </div>
-        {/* Ενημέρωση πριν την αποθήκευση (απόφαση 14/10): ολόκληρη η καταχώριση — και η σημείωση και η νίκη — μπορεί να τη δει η ομάδα. */}
-        <p className="muted small" style={{ margin: "4px 0 8px" }}>Ό,τι γράφεις εδώ — οι απαντήσεις, η σημείωση και η νίκη σου — μπορεί να το δει ολόκληρο η ομάδα σου (οι θεραπευτές σου και η διαχείριση). Κανείς άλλος.</p>
+        {/* Ενημέρωση πριν την αποθήκευση (απόφαση 14/10, εγκρίθηκε 15/10): ολόκληρη η καταχώριση — και η σημείωση και η νίκη — μπορεί να τη δει η ομάδα. */}
+        <p className="muted small" style={{ margin: "4px 0 10px" }}>Ό,τι γράφεις εδώ — οι απαντήσεις, η σημείωση και η νίκη σου — μπορεί να το δει ολόκληρο η ομάδα σου (οι θεραπευτές σου και η διαχείριση). Κανείς άλλος.</p>
         <button className="primary big" type="submit">Αποθήκευση</button>
       </form>
     </main>

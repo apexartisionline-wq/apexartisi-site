@@ -1,5 +1,5 @@
-import Link from "next/link";
-import { redirect } from "next/navigation";
+import { RedirectType, redirect } from "next/navigation";
+import { ErrorNote, PageHead, Panel } from "@/components/ui";
 import { EC_WHEN, latestProfile, profileSchema, saveProfile } from "@/lib/assessment-db";
 import { requireRole } from "@/lib/auth";
 
@@ -14,7 +14,7 @@ async function save(formData: FormData) {
   });
   if (!parsed.success) redirect(`/m/profile?missing=${encodeURIComponent(parsed.error.issues.map((i) => i.message).join("|"))}`);
   await saveProfile(user.id, user.id, parsed.data);
-  redirect("/m/profile?saved=1");
+  redirect("/m/profile?saved=1", RedirectType.replace);
 }
 
 // Πριν την 1η ατομική: λίγα στοιχεία για την ασφάλεια του μέλους. Τα βλέπει μόνο η διαχείριση
@@ -34,53 +34,47 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
   const tel = "\\+?[0-9 ]{10,15}";
   return (
     <main>
-      <p style={{ margin: "8px 0 0" }}><Link className="back" href="/m/start">‹ Πίσω</Link></p>
-      <h1>Πριν την 1η ατομική</h1>
+      <PageHead title="Πριν την 1η ατομική" sub="Λίγα στοιχεία για την ασφάλειά σου." />
       <p className="muted">
-        Λίγα στοιχεία για την ασφάλειά σου. Μετά την 1η ατομική τα βλέπει <strong>μόνο η διαχείριση του προγράμματος</strong> — ούτε οι ψυχολόγοι και οι σύμβουλοι, ούτε τα άλλα μέλη.
-        Στην 1η ατομική τα επιβεβαιώνεις με τον/την ψυχολόγο. Μόνο αν κινδυνεύει η ζωή σου μπορεί ψυχολόγος της ομάδας να δει τη διεύθυνση και την επαφή έκτακτης ανάγκης· αυτό καταγράφεται και το βλέπει η διαχείριση.
+        Μετά την 1η ατομική τα βλέπει <strong>μόνο η διαχείριση του προγράμματος</strong> — όχι η υπόλοιπη ομάδα σου, ούτε άλλα μέλη.
+        Στην 1η ατομική τα επιβεβαιώνεις με την ομάδα σου. Μόνο αν κινδυνεύει η ζωή σου μπορεί ψυχολόγος της ομάδας να δει τη διεύθυνση και την επαφή έκτακτης ανάγκης· αυτό καταγράφεται και το βλέπει η διαχείριση.
       </p>
       {sp.saved && <div className="notice">Αποθηκεύτηκαν ✓ Ευχαριστούμε. Μπορείς να τα αλλάξεις όποτε θέλεις.</div>}
       {sp.missing && (
-        <div className="error">
-          Δεν αποθηκεύτηκαν ακόμα. Λείπει ή δεν φαίνεται σωστό:
-          <ul style={{ margin: "6px 0 0" }}>{sp.missing.split("|").map((m) => <li key={m}>{m}</li>)}</ul>
-        </div>
+        <ErrorNote>
+          Δεν αποθηκεύτηκαν ακόμα. Λείπει ή δεν φαίνεται σωστό: {sp.missing.split("|").join(" · ")}
+        </ErrorNote>
       )}
       <form action={save}>
-        <h2>Εσύ</h2>
-        <div className="card">
+        <Panel title="Εσύ" icon="user">
           {f("fullName", "Ονοματεπώνυμο", { required: true })}
           {f("preferredName", "Πώς θέλεις να σε λέμε")}
           {f("birthDate", "Ημερομηνία γέννησης", { type: "date", required: true, max: today, why: "Για να ξέρουμε ότι είσαι ενήλικας." })}
           {f("mobile", "Κινητό", { type: "tel", mode: "tel", required: true, pattern: tel, why: "Για να σε βρούμε αν κάτι αλλάξει στο πρόγραμμα ή αν ανησυχήσουμε για σένα." })}
           {f("email", "Email", { type: "email", mode: "email" })}
-        </div>
-        <h2>Πού μένεις</h2>
-        <div className="card">
+        </Panel>
+        <Panel title="Πού μένεις" icon="compass">
           {f("address", "Διεύθυνση κατοικίας", { required: true, why: "Οδός, αριθμός, όροφος, πόλη, Τ.Κ. — μόνο για να στείλουμε βοήθεια αν κινδυνεύεις σε ώρα ατομικής ή ομάδας." })}
           {f("abroadCountry", "Αν ζεις εκτός Ελλάδας: σε ποια χώρα", { why: "Εκεί ισχύει άλλος αριθμός έκτακτης ανάγκης." })}
-        </div>
-        <h2>Ένας άνθρωπος για έκτακτη ανάγκη</h2>
-        <p className="muted small" style={{ margin: "0 4px 8px" }}>
-          Προαιρετικό, αλλά μας βοηθά να σε προστατέψουμε. Δεν θα πούμε σε αυτόν τον άνθρωπο ότι είσαι στο πρόγραμμα, εκτός αν το επιτρέψεις παρακάτω.
-        </p>
-        <div className="card">
+        </Panel>
+        <Panel title="Ένας άνθρωπος για έκτακτη ανάγκη" icon="phone">
+          <p className="hint" style={{ margin: "0 0 10px" }}>
+            Προαιρετικό, αλλά μας βοηθά να σε προστατέψουμε. Δεν θα πούμε σε αυτόν τον άνθρωπο ότι είσαι στο πρόγραμμα, εκτός αν το επιτρέψεις παρακάτω.
+          </p>
           {f("ecName", "Όνομα")}
           {f("ecRelation", "Σχέση (π.χ. αδελφή, φίλος)")}
           {f("ecPhone", "Τηλέφωνο", { type: "tel", mode: "tel", pattern: tel })}
-          <div className="field">
-            <label>Πότε επιτρέπεις να καλέσουμε</label>
+          <fieldset className="field" style={{ border: 0, padding: 0 }}>
+            <legend>Πότε επιτρέπεις να καλέσουμε</legend>
             {Object.entries(EC_WHEN).map(([k, v]) => (
-              <label key={k} className="row" style={{ gap: 8, fontWeight: 400 }}>
-                <input type="radio" name="ecWhen" value={k} defaultChecked={p?.ecWhen === k} style={{ width: "auto" }} /> {v}
+              <label key={k} className="m-check" style={{ fontWeight: 400 }}>
+                <input type="radio" name="ecWhen" value={k} defaultChecked={p?.ecWhen === k} /> {v}
               </label>
             ))}
-          </div>
+          </fieldset>
           {f("ecWhatToSay", "Τι επιτρέπεται να πούμε", { why: "π.χ. μόνο ότι ανησυχείτε για μένα — τίποτα για το πρόγραμμα" })}
-        </div>
+        </Panel>
         <button className="primary big" type="submit" style={{ marginTop: 14, width: "100%" }}>Αποθήκευση</button>
-        <div style={{ height: 80 }} />
       </form>
     </main>
   );

@@ -3,8 +3,11 @@ import { getSettings } from "@/lib/settings";
 import { NavMenu } from "./NavMenu";
 import { BrandMark } from "./BrandMark";
 
-export async function Nav({ links, menu = false }: { links: { href: string; label: string }[]; menu?: boolean }) {
-  const many = menu && links.length > 3;
+// compact (μέλη, 20/10): στο κινητό οι σύνδεσμοι μαζεύονται στο «Μενού» όπως στην ομάδα (πριν τύλιγαν σε 3 γραμμές),
+// αλλά το σήμα μένει το ουδέτερο «Apex» με το δαχτυλίδι (όχι το λεκτικό «apex/rtisi» — απόφαση 4/10).
+export async function Nav({ links, menu = false, compact = false }: { links: { href: string; label: string }[]; menu?: boolean; compact?: boolean }) {
+  // Μέλη (compact): «Μενού» στο κινητό ακόμη και με λίγους συνδέσμους (π.χ. σε εκκρεμή έναρξη), ώστε η «Έξοδος» να μην τυλίγει σε δεύτερη γραμμή.
+  const many = menu ? links.length > 3 : compact ? links.length > 1 : false;
   // Πολλοί σύνδεσμοι (διαχείριση): οι πρώτοι φαίνονται, οι υπόλοιποι στο «Μενού» σε κάθε οθόνη.
   const crowded = menu && links.length > 8;
   const s = await getSettings();

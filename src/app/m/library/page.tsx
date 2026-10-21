@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
+import { Icon } from "@/components/Icon";
+import { EmptyState, PageHead, Panel, Pill } from "@/components/ui";
+import { RedirectType, redirect } from "next/navigation";
 import { requireMember } from "@/lib/intake";
 import { prisma } from "@/lib/db";
 import { currentStep, STEPS } from "@/lib/steps";
@@ -7,6 +9,7 @@ import { memberStepStatus } from "@/lib/step-modes";
 import { formatDate, localParts } from "@/lib/time";
 
 const KIND = { PDF: "PDF", AUDIO: "Ήχος", VIDEO: "Βίντεο", IMAGE: "Εικόνα", LINK: "Βίντεο" } as const;
+const KIND_ICON = { PDF: "doc", AUDIO: "chat", VIDEO: "video", IMAGE: "eye", LINK: "video" } as const;
 
 // Το μέλος λέει σε ποιο βήμα βρίσκεται· κάθε αλλαγή κρατιέται ως νέα γραμμή.
 async function saveStep(formData: FormData) {
@@ -16,7 +19,7 @@ async function saveStep(formData: FormData) {
   if (!STEPS.includes(step)) redirect("/m/library");
   const cur = await currentStep(user.id);
   if (cur?.step !== step) await prisma.memberStep.create({ data: { memberId: user.id, step, byId: user.id } });
-  redirect("/m/library?step=1");
+  redirect("/m/library?step=1", RedirectType.replace);
 }
 
 export default async function MemberLibrary({ searchParams }: { searchParams: Promise<{ step?: string }> }) {
@@ -29,50 +32,57 @@ export default async function MemberLibrary({ searchParams }: { searchParams: Pr
   ]);
   return (
     <main>
-      <h1>Βιβλιοθήκη</h1>
-      <form action={saveStep} className="card">
-        <label htmlFor="step"><strong>Σε ποιο βήμα βρίσκεσαι;</strong></label>
-        <p className="small muted" style={{ margin: "2px 0 8px" }}>Το βλέπει η ομάδα σου, για να ξέρει πού είσαι.</p>
-        <div className="row" style={{ gap: 8, flexWrap: "nowrap" }}>
-          <select id="step" name="step" defaultValue={step?.step ?? ""} required style={{ flex: 1 }}>
-            <option value="" disabled>Διάλεξε βήμα</option>
-            {STEPS.map((n) => <option key={n} value={n}>Βήμα {n}</option>)}
-          </select>
-          <button className="primary" type="submit">Αποθήκευση</button>
-        </div>
-        {sp.step && <p className="notice" style={{ margin: "8px 0 0" }}>Αποθηκεύτηκε ✓</p>}
-      </form>
-      <h2>Οι εργασίες μου</h2>
-      {mine.length === 0 ? (
-        <p className="muted">Δεν έχεις εργασίες ακόμα.</p>
-      ) : (
-        <div className="stack">
-          {mine.map((a) => {
+      <PageHead title="Βιβλιοθήκη" sub="Οι εργασίες σου και το υλικό του προγράμματος" />
+      <Panel title="Σε ποιο βήμα βρίσκεσαι;" icon="compass">
+        <form action={saveStep}>
+          <p className="hint" style={{ margin: "0 0 8px" }}>Το βλέπει η ομάδα σου, για να ξέρει πού είσαι.</p>
+          <div className="row" style={{ gap: 8, flexWrap: "nowrap" }}>
+            <select id="step" name="step" aria-label="Βήμα" defaultValue={step?.step ?? ""} required style={{ flex: 1 }}>
+              <option value="" disabled>Διάλεξε βήμα</option>
+              {STEPS.map((n) => <option key={n} value={n}>Βήμα {n}</option>)}
+            </select>
+            <button className="primary" type="submit">Αποθήκευση</button>
+          </div>
+          {sp.step && <p className="notice" style={{ margin: "8px 0 0" }}>Αποθηκεύτηκε ✓</p>}
+        </form>
+      </Panel>
+      <Panel title="Οι εργασίες μου" icon="doc">
+        {mine.length === 0 ? (
+          <EmptyState>Δεν έχεις εργασίες ακόμα.</EmptyState>
+        ) : (
+          mine.map((a) => {
             // Ίδιοι κανόνες κατάστασης με θεραπευτές και διαχείριση (step-modes.ts), με τα λόγια του μέλους.
             const st = memberStepStatus(a);
             return (
-            <Link key={a.id} href={`/m/library/a/${a.id}`} className="card row spread">
-              <span>{a.step && <span className="badge">Βήμα {a.step}</span>} <strong>{a.title}</strong><br /><span className="small muted">{formatDate(localParts(a.createdAt).date)}</span></span>
-              <span className={`small${st.done ? " muted" : ""}`}>{st.text}</span>
-            </Link>
+              <Link key={a.id} href={`/m/library/a/${a.id}`} className="linkrow">
+                <span className="iconbox"><Icon name="doc" size={20} /></span>
+                <span className="grow">
+                  <div style={{ fontWeight: 600 }}>{a.step ? `Βήμα ${a.step} · ` : ""}{a.title}</div>
+                  <div className="hint">{formatDate(localParts(a.createdAt).date)}</div>
+                  <div style={{ marginTop: 6 }}><Pill tone={st.done ? "ok" : "grey"} icon={st.done ? "check" : undefined}>{st.text}</Pill></div>
+                </span>
+                <span className="arrow"><Icon name="chevron" /></span>
+              </Link>
             );
-          })}
-        </div>
-      )}
-      <h2>Για όλους</h2>
-      {shared.length === 0 ? (
-        <p className="muted">Δεν υπάρχει υλικό ακόμα.</p>
-      ) : (
-        <div className="stack">
-          {shared.map((i) => (
-            <Link key={i.id} href={`/m/library/${i.id}`} className="card">
-              <span className="small muted">{KIND[i.kind]}</span><br />
-              <strong>{i.title}</strong>
-              {i.description && <p className="small" style={{ margin: "4px 0 0" }}>{i.description}</p>}
+          })
+        )}
+      </Panel>
+      <Panel title="Για όλους" icon="folder">
+        {shared.length === 0 ? (
+          <EmptyState>Δεν υπάρχει υλικό ακόμα.</EmptyState>
+        ) : (
+          shared.map((i) => (
+            <Link key={i.id} href={`/m/library/${i.id}`} className="linkrow">
+              <span className="iconbox"><Icon name={KIND_ICON[i.kind]} size={20} /></span>
+              <span className="grow">
+                <div style={{ fontWeight: 600 }}>{i.title}</div>
+                <div className="hint">{KIND[i.kind]}{i.description ? ` · ${i.description}` : ""}</div>
+              </span>
+              <span className="arrow"><Icon name="chevron" /></span>
             </Link>
-          ))}
-        </div>
-      )}
+          ))
+        )}
+      </Panel>
     </main>
   );
 }

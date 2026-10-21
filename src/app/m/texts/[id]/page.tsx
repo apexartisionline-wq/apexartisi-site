@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { PageHead } from "@/components/ui";
 import { withMemberCode } from "@/lib/forms";
 import { hasConsent, requireMember } from "@/lib/intake";
 import { prisma } from "@/lib/db";
@@ -13,10 +14,9 @@ export default async function TextPage({ params }: { params: Promise<{ id: strin
   if (!c || !isPublished(c.date, c.kind === "DAILY_TEXT" ? s.dailyTextTime : s.formsTime, new Date())) notFound();
   return (
     <main>
-      <p className="muted">{formatDate(c.date)}</p>
-      <h1>{c.title}</h1>
+      <PageHead title={c.title} sub={`${formatDate(c.date)} · ${c.kind === "DAILY_TEXT" ? "Κείμενο της ημέρας" : "Φόρμα"}`} />
       {c.imageMime && <img src={`/api/content/${c.id}/image`} alt={c.title} style={{ width: "100%", borderRadius: 12, marginBottom: 12 }} />}
-      {c.body && <div className="card body-text">{c.body}</div>}
+      {c.body && <div className="panel body-text">{c.body}</div>}
       {c.url && !forms && <p className="muted small">Οι φόρμες δεν είναι ανοιχτές για σένα, γιατί δεν έχεις πει «ναι» γι' αυτές. Μπορείς να δουλέψεις το θέμα στην ατομική σου.</p>}
       {c.url && forms && (
         <p><a className="btn primary" href={withMemberCode(c.url, user.memberCode)} target="_blank" rel="noopener noreferrer">Άνοιξε τη φόρμα</a></p>

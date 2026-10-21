@@ -1,11 +1,12 @@
 import { notFound, redirect } from "next/navigation";
+import { PageHead } from "@/components/ui";
 import { z } from "zod";
 import { requireMember } from "@/lib/intake";
 import { prisma } from "@/lib/db";
 import { notifyRole } from "@/lib/notify";
 import { canRequestChange } from "@/lib/program";
 import { getSettings } from "@/lib/settings";
-import { formatDate, formatHour } from "@/lib/time";
+import { formatDate, formatTime } from "@/lib/time";
 
 async function load(id: string, memberId: string) {
   return prisma.booking.findFirst({ where: { id, memberId }, include: { slot: true } });
@@ -37,19 +38,18 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
   const allowed = canRequestChange(b.slot.startsAt, new Date(), s);
   return (
     <main>
-      <h1>Αίτημα αλλαγής ή ακύρωσης</h1>
-      <p className="muted">{formatDate(b.slot.date)} στις {formatHour(b.slot.hour)}</p>
+      <PageHead title="Αίτημα αλλαγής ή ακύρωσης" sub={`${b.slot.kind === "PAIR" ? "Το Therapair σου" : "Η ατομική σου"} · ${formatDate(b.slot.date)} στις ${formatTime(b.slot.startsAt)}`} />
       {!allowed ? (
         <div className="notice">Τα αιτήματα γίνονται έως {s.changeRequestHours} ώρες πριν από το ραντεβού.</div>
       ) : (
-        <form action={send} className="card">
+        <form action={send} className="panel">
           <input type="hidden" name="id" value={b.id} />
           <fieldset className="field" style={{ border: 0, padding: 0 }}>
-            <label className="row" style={{ gap: 8 }}>
-              <input type="radio" name="kind" value="CHANGE" defaultChecked style={{ width: "auto" }} /> Θέλω να αλλάξω ώρα
+            <label className="m-check">
+              <input type="radio" name="kind" value="CHANGE" defaultChecked /> Θέλω να αλλάξω ώρα
             </label>
-            <label className="row" style={{ gap: 8 }}>
-              <input type="radio" name="kind" value="CANCEL" style={{ width: "auto" }} /> Θέλω να ακυρώσω
+            <label className="m-check">
+              <input type="radio" name="kind" value="CANCEL" /> Θέλω να ακυρώσω
             </label>
           </fieldset>
           <div className="field">
@@ -57,7 +57,7 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
             <textarea id="message" name="message" style={{ minHeight: 80 }} placeholder="π.χ. Πέμπτη απόγευμα" />
           </div>
           <button className="primary" type="submit">Στείλε το αίτημα</button>
-          <p className="muted small">Την αλλαγή την κάνει η ομάδα· θα δεις την απάντηση στο «Σήμερα».</p>
+          <p className="muted small" style={{ marginBottom: 0 }}>Την αλλαγή την κάνει η ομάδα· θα δεις την απάντηση στο «Σήμερα».</p>
         </form>
       )}
     </main>

@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { Icon } from "@/components/Icon";
+import { EmptyState, PageHead, Panel } from "@/components/ui";
 import { requireMember } from "@/lib/intake";
 import { prisma } from "@/lib/db";
 import { isPublished } from "@/lib/member";
@@ -18,14 +20,20 @@ export default async function TextsPage() {
   const visible = items.filter((c) => isPublished(c.date, c.kind === "DAILY_TEXT" ? s.dailyTextTime : s.formsTime, now));
   return (
     <main>
-      <h1>Κείμενα</h1>
-      {visible.length === 0 && <p className="muted">Δεν υπάρχει κάτι ακόμα.</p>}
-      {visible.map((c) => (
-        <div className="card" key={c.id}>
-          <span className="muted small">{formatDate(c.date)} · {c.kind === "DAILY_TEXT" ? "Κείμενο της ημέρας" : "Φόρμα"}</span>
-          <div><Link href={`/m/texts/${c.id}`}>{c.title}</Link></div>
-        </div>
-      ))}
+      <PageHead title="Κείμενα" sub="Τα κείμενα της ημέρας και οι φόρμες των τελευταίων εβδομάδων" />
+      <Panel>
+        {visible.length === 0 && <EmptyState>Δεν υπάρχει κάτι ακόμα.</EmptyState>}
+        {visible.map((c) => (
+          <Link key={c.id} href={`/m/texts/${c.id}`} className="linkrow">
+            <span className="iconbox"><Icon name={c.kind === "DAILY_TEXT" ? "doc" : "list"} size={20} /></span>
+            <span className="grow">
+              <div style={{ fontWeight: 600 }}>{c.title}</div>
+              <div className="hint">{formatDate(c.date)} · {c.kind === "DAILY_TEXT" ? "Κείμενο της ημέρας" : "Φόρμα"}</div>
+            </span>
+            <span className="arrow"><Icon name="chevron" /></span>
+          </Link>
+        ))}
+      </Panel>
     </main>
   );
 }

@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { PageHead } from "@/components/ui";
 import { notFound } from "next/navigation";
 import { requireMember } from "@/lib/intake";
 import { prisma } from "@/lib/db";
@@ -16,9 +16,7 @@ export default async function LibraryItemPage({ params }: { params: Promise<{ id
   const src = `/api/library/${item.id}`;
   return (
     <main>
-      <p><Link className="back" href="/m/library">‹ Βιβλιοθήκη</Link></p>
-      <h1>{item.title}</h1>
-      {item.description && <p>{item.description}</p>}
+      <PageHead title={item.title} sub={item.description ?? undefined} />
       <div className="watermarked" data-mark={mark}>
         {item.kind === "AUDIO" && <audio controls controlsList="nodownload" preload="metadata" src={src} style={{ width: "100%" }} />}
         {item.kind === "VIDEO" && (

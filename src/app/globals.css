@@ -6,7 +6,7 @@
 @font-face { font-family: "Manrope"; font-style: normal; font-display: swap; font-weight: 200 800; src: url(/fonts/manrope-latin-wght-normal.woff2) format("woff2-variations"); unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD; }
 
 :root {
-  color-scheme: light dark; /* τα πεδία (ημερομηνία κ.λπ.) ακολουθούν το θέμα — ορατό εικονίδιο και στο σκοτεινό */
+  color-scheme: light; /* τα εγγενή πεδία ακολουθούν ΤΟ ΘΕΜΑ ΤΟΥ ΛΟΓΑΡΙΑΣΜΟΥ (html[data-theme]), όχι τη συσκευή (17/10, διόρθωση 20/10) */
   --bg: #ffffff;          /* surface */
   --surface: #f3f9fc;     /* surface-raised: κάρτες, πλαίσια */
   --field: #ffffff;       /* πεδία φόρμας πάνω σε κάρτα */
@@ -55,6 +55,7 @@
 /* Θέμα (υπεύθυνη 17/10): η εφαρμογή έχει ΠΑΝΤΑ λευκό/φωτεινό φόντο από προεπιλογή, ανεξάρτητα από τη συσκευή· το σκούρο
    μόνο αν το διαλέξει ο ίδιος ο χρήστης στον «Λογαριασμό» (html[data-theme="dark"], όχι prefers-color-scheme). */
 html[data-theme="dark"] {
+    color-scheme: dark; /* ορατό εικονίδιο ημερομηνίας, σκούρα checkbox/radio μόνο όταν το διάλεξε ο χρήστης */
     --canvas: #0c1620;
     --card: #132231;
     --card-line: #22323f;
@@ -282,7 +283,7 @@ nav.top .brand-logo { height: 44px; width: auto; display: block; }
   .split > .side { min-width: 0; }
 }
 .redbar {
-  position: fixed; left: 0; right: 0; bottom: 0; padding: 12px 16px;
+  position: fixed; left: 0; right: 0; bottom: 0; padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
   background: linear-gradient(transparent, var(--bg) 30%);
 }
 .redbar .btn { max-width: 728px; margin: 0 auto; display: flex; }
@@ -981,6 +982,60 @@ details.safety-fold > .side-body > .panel { border: 0; padding: 4px 0 0 !importa
 .sidenav.dense a { padding: 8px 14px; font-size: .97rem; gap: 12px; }
 .sidenav.dense a svg { width: 19px; height: 19px; }
 .member-env ~ .redbar { background: linear-gradient(transparent, var(--canvas) 30%); }
+/* ── Περιβάλλον μέλους, ολοκλήρωση 20/10 (υπεύθυνη: «εξίσου προσεγμένο, ευανάγνωστο και εύχρηστο» με της ομάδας, χωρίς
+   αντιγραφή λειτουργιών): ίδιες κάρτες (.panel), ίδιες επικεφαλίδες (.page-head), ίδιες λίστες (.linkrow)· στο κινητό μία
+   στήλη και μικρότερο γέμισμα, στον υπολογιστή το «Σήμερα» σε δύο στήλες. Μόνο tokens — αλλάζουν μόνα τους στο σκοτάδι. ── */
+.member-env .panel { margin: 12px 0; }
+.member-env .panel .panel-head { margin-bottom: 10px; }
+.member-env .panel > p:last-child, .member-env .panel > .hint:last-child { margin-bottom: 0; }
+.member-env .page-head { margin: 4px 0 14px; }
+.member-env .page-sub { color: var(--muted); margin: 4px 0 0; }
+.member-env main.m-home { max-width: 1100px; }
+.m-grid { display: grid; gap: 0 20px; grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 980px) { .m-grid { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); align-items: start; } }
+@media (max-width: 760px) { .member-env .panel { padding: 16px; } }
+/* Νομικά υποχρεωτική γραμμή (ημερολόγιο): διακριτική, αλλά πάντα ορατή. */
+.m-legal { display: flex; gap: 10px; align-items: flex-start; font-size: var(--fs-help); color: var(--text); background: var(--card); border: 1px solid var(--card-line); border-radius: var(--radius); padding: 10px 14px; margin: 0 0 12px; }
+.m-legal svg { flex: none; color: var(--muted); margin-top: 1px; }
+/* Κλίμακα 0–10 του ημερολογίου: κουμπάκια αντί για 11 μικρά radio (στόχοι αφής ≥ 40px, ορατή επιλογή). */
+.scale { display: grid; grid-template-columns: repeat(11, minmax(0, 1fr)); gap: 4px; }
+.scale label { position: relative; margin: 0; min-width: 0; }
+.scale input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.scale span { display: flex; align-items: center; justify-content: center; min-height: 40px; border: 1px solid var(--line); border-radius: var(--radius-sm); font-weight: 600; font-size: .95rem; background: var(--field); color: var(--text); }
+.scale label:has(input:checked) span { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+.scale label:has(input:focus-visible) span { outline: 2px solid var(--accent-strong); outline-offset: 1px; }
+.scale-ends { display: flex; justify-content: space-between; gap: 8px; font-size: var(--fs-help); color: var(--muted); margin-top: 6px; }
+/* Στο κινητό 11 κουτάκια σε μία σειρά βγαίνουν ~26px: δύο σειρές (0–5 / 6–10) με κουτάκια ≥ 44px. Ίδια πεδία, ίδιες τιμές. */
+@media (max-width: 480px) { .scale { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; } .scale span { min-height: 44px; } }
+.m-check { display: flex; gap: 10px; align-items: center; min-height: 44px; margin: 0; font-weight: 500; }
+.m-check input { width: 20px; height: 20px; flex: none; margin: 0; }
+/* Γραμμή ραντεβού/λίστας μέλους: κείμενο αριστερά, ενέργεια δεξιά· στο κινητό η ενέργεια κάτω. */
+.m-row { display: flex; justify-content: space-between; align-items: center; gap: 8px 14px; flex-wrap: wrap; padding: 10px 0; border-top: 1px solid var(--card-line); }
+.m-row:first-of-type { border-top: 0; padding-top: 0; }
+.m-row .grow { flex: 1 1 200px; min-width: 0; }
+.m-row .hint { margin: 2px 0 0; }
+.member-env .linkrow { padding: 12px 0; }
+.member-env .linkrow .pill { white-space: normal; }
+.member-env h2 { font-size: var(--fs-h2); margin: 20px 0 8px; }
+.member-env .whereami strong { font-size: 1.5rem; }
+/* Κάρτα-σύνδεσμος (π.χ. στόχος εβδομάδας, μήνυμα από την ομάδα): μία γραμμή με εικονίδιο, μέσα σε κάρτα. */
+.member-env .linkrow.panel { padding: 14px 18px; margin: 12px 0; border-top: 1px solid var(--card-line); }
+.member-env .linkrow.panel:hover { border-color: var(--teal-line); }
+.panel.m-care { border-color: var(--red); }
+@media (max-width: 760px) { .member-env .linkrow.panel { padding: 12px 14px; } }
+/* Το πάνω μενού του μέλους: ίδιο πλάτος σε όλες τις σελίδες (1100px, όσο το «Σήμερα»), ώστε στον υπολογιστή να χωρά σε μία
+   γραμμή· οι σελίδες ανάγνωσης (760px) κάθονται κεντραρισμένες από κάτω, όπως οι σελίδες της ομάδας κάτω από το δικό τους μενού. */
+body:has(.member-env) nav.top { max-width: 1100px; }
+/* Οι παλιές .card του μέλους (κόκκινο κουμπί, πλάνο, λογαριασμός) παίρνουν το βάρος της .panel: ίδια καμπύλη, γέμισμα, σκιά. */
+.member-env .card { border-radius: var(--card-radius); padding: var(--card-pad); box-shadow: 0 1px 2px rgba(12, 22, 32, 0.04); }
+.member-env .card .card { background: var(--surface); border-color: var(--line); border-radius: var(--radius); padding: 14px 16px; box-shadow: none; }
+@media (max-width: 760px) { .member-env .card { padding: 16px; } }
+/* Κόκκινο κουμπί: η σταθερή μπάρα κρύβεται εκεί, άρα δεν χρειάζεται το κενό από κάτω· το «Γραμμές βοήθειας» πιάνεται με το δάχτυλο. */
+.member-env main.help { padding-bottom: 24px; }
+.member-env main.help details.fold > summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font-weight: 600; }
+/* Το επόμενο ραντεβού του μέλους ξεχωρίζει (όπως η επόμενη συνεδρία στο «Σήμερα» της ομάδας)· τα υπόλοιπα ήρεμα. */
+.member-env .panel.m-next { border-color: var(--teal-line); background: var(--teal-quiet); }
+html[data-theme="dark"] .member-env .panel.m-next { background: var(--card); border-color: var(--accent); }
 /* «Άνθρωποι» της διαχείρισης: ίδια κάρτα με τα «Μέλη», με γραμμή στοιχείων αντί για σήμα. */
 .member-card.is-inactive { opacity: .6; }
 .person-meta { grid-area: next; display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--muted); font-size: .92rem; }

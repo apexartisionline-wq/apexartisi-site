@@ -1,3 +1,4 @@
+import { EmptyState, PageHead, Panel } from "@/components/ui";
 import { requireRole } from "@/lib/auth";
 import { dec } from "@/lib/crypto";
 import { prisma } from "@/lib/db";
@@ -16,13 +17,13 @@ export default async function MemberMessage() {
   await prisma.closure.updateMany({ where: { memberId: user.id, sentAt: { not: null }, readAt: null }, data: { readAt: new Date() } });
   return (
     <main>
-      <h1>Από την ομάδα σου</h1>
-      {msgs.length === 0 && <div className="card muted">Δεν υπάρχει μήνυμα ακόμα.</div>}
+      <PageHead title="Από την ομάδα σου" sub="Τα μηνύματα που σου έστειλε η ομάδα" />
+      {msgs.length === 0 && <Panel><EmptyState>Δεν υπάρχει μήνυμα ακόμα.</EmptyState></Panel>}
       {msgs.map((m) => (
-        <article key={m.id} className="card">
-          <div className="muted small">{formatDate(localParts(m.sentAt).date)}</div>
+        <Panel key={m.id}>
+          <div className="hint" style={{ marginBottom: 6 }}>{formatDate(localParts(m.sentAt).date)}</div>
           <div className="body-text" style={{ fontSize: "1.05rem", lineHeight: 1.55 }}>{dec(m.text)}</div>
-        </article>
+        </Panel>
       ))}
     </main>
   );

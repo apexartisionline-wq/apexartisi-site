@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { ErrorNote, PageHead } from "@/components/ui";
 import { notFound, redirect } from "next/navigation";
 import { requireMember } from "@/lib/intake";
 import { dec, enc } from "@/lib/crypto";
@@ -58,15 +58,13 @@ export default async function AssignmentPage({ params, searchParams }: { params:
   const hasPdf = mode !== "FORM";
   return (
     <main>
-      <p><Link className="back" href="/m/library">‹ Βιβλιοθήκη</Link></p>
-      <h1>{a.step && <span className="badge">Βήμα {a.step}</span>} {a.title}</h1>
-      <p className="small muted">{formatDate(localParts(a.createdAt).date)}</p>
-      {a.instructions && <div className="card" style={{ whiteSpace: "pre-wrap" }}>{a.instructions}</div>}
+      <PageHead title={a.title} sub={`${a.step ? `Βήμα ${a.step} · ` : ""}${formatDate(localParts(a.createdAt).date)}`} />
+      {a.instructions && <div className="panel" style={{ whiteSpace: "pre-wrap" }}>{a.instructions}</div>}
       {sp.ok && <div className="notice">{OK[sp.ok] ?? OK["1"]}</div>}
-      {sp.e && <div className="error">{ERR[sp.e] ?? "Κάτι πήγε στραβά."}</div>}
+      {sp.e && <ErrorNote>{ERR[sp.e] ?? "Κάτι πήγε στραβά."}</ErrorNote>}
 
       {hasPdf && (
-        <div className="card">
+        <div className="panel">
           <p style={{ margin: "0 0 8px" }}><strong>{STEP_MODES[mode].member}</strong></p>
           <a className="btn primary" href={`/api/assignments/${a.id}/pdf`} target="_blank" rel="noopener">Άνοιγμα του PDF</a>
           {mode === "PDF_NOTEBOOK" && <p className="small muted" style={{ margin: "8px 0 0" }}>Διάβασέ το και γράψε τις απαντήσεις σου στο τετράδιό σου. Όταν τελειώσεις, πάτα «Το έγραψα στο τετράδιό μου».</p>}
@@ -75,7 +73,7 @@ export default async function AssignmentPage({ params, searchParams }: { params:
       )}
 
       {mode === "PDF_NOTEBOOK" && (
-        <form action={markNotebook} className="card">
+        <form action={markNotebook} className="panel">
           <input type="hidden" name="id" value={a.id} />
           {a.notebookAt
             ? <p style={{ margin: 0 }}>✓ Το έγραψες στο τετράδιό σου · {formatWhen(a.notebookAt)}</p>
@@ -84,7 +82,7 @@ export default async function AssignmentPage({ params, searchParams }: { params:
       )}
 
       {mode === "PDF_FILL" && (
-        <form action={`/api/assignments/${a.id}/answer-pdf`} method="post" encType="multipart/form-data" className="card">
+        <form action={`/api/assignments/${a.id}/answer-pdf`} method="post" encType="multipart/form-data" className="panel">
           <label htmlFor="pdf"><strong>Ανέβασε το συμπληρωμένο PDF</strong> <span className="small muted">(ως 5 MB)</span></label>
           <input id="pdf" name="pdf" type="file" accept="application/pdf" required />
           {a.answerPdfAt && <p className="small" style={{ margin: "6px 0 0" }}>✓ Ανέβηκε {formatWhen(a.answerPdfAt)} · <a href={`/api/assignments/${a.id}/pdf?f=answer`} target="_blank" rel="noopener">Δες αυτό που ανέβασες</a>. Αν ανεβάσεις καινούργιο, αντικαθιστά το προηγούμενο.</p>}
@@ -93,7 +91,7 @@ export default async function AssignmentPage({ params, searchParams }: { params:
       )}
 
       {mode === "FORM" && (
-        <form action={saveAnswer} className="card">
+        <form action={saveAnswer} className="panel">
           <input type="hidden" name="id" value={a.id} />
           <div className="field">
             <label htmlFor="answer"><strong>Γράψε εδώ</strong></label>
@@ -104,7 +102,7 @@ export default async function AssignmentPage({ params, searchParams }: { params:
       )}
 
       {mode !== "PDF_FILL" && (
-        <form action={`/api/assignments/${a.id}/photo`} method="post" encType="multipart/form-data" className="card">
+        <form action={`/api/assignments/${a.id}/photo`} method="post" encType="multipart/form-data" className="panel">
           <label htmlFor="photo"><strong>{mode === "PDF_NOTEBOOK" ? "Αν θέλεις, ανέβασε φωτογραφία από το τετράδιο" : "Ή ανέβασε φωτογραφία"}</strong>{mode === "FORM" && " (αν την έγραψες στο χαρτί)"}</label>
           <input id="photo" name="photo" type="file" accept="image/*" multiple required />
           <p className="small muted">Η τοποθεσία και τα στοιχεία της συσκευής αφαιρούνται από τη φωτογραφία.</p>

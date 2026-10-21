@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Icon } from "@/components/Icon";
+import { PageHead, Panel } from "@/components/ui";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { memberIntake } from "@/lib/intake";
 import { sessionJoinable, slotMinutes } from "@/lib/program";
 import { getSettings } from "@/lib/settings";
-import { formatDate, formatHour } from "@/lib/time";
+import { formatDate, formatTime } from "@/lib/time";
 import { vocative } from "@/lib/vocative";
 
 async function accept() {
@@ -40,7 +42,7 @@ export default async function StartPage() {
   if (status.complete || !s.requireIntake) {
     return (
       <main>
-        <h1>Καλώς ήρθες</h1>
+        <PageHead title="Καλώς ήρθες" />
         <div className="notice">Η έναρξη συνεργασίας ολοκληρώθηκε ✓</div>
         <Link className="btn primary big" href="/m">Συνέχεια</Link>
       </main>
@@ -58,41 +60,42 @@ export default async function StartPage() {
   const withTeam = status.missingSteps.length > 0 || status.missingConsents.some((p) => !p.byMember);
   return (
     <main>
-      <h1>Καλώς ήρθες, {vocative(user.name.split(" ")[0])}</h1>
-      <p>Πριν ανοίξει όλο το Apex, ολοκληρώνουμε μαζί την έναρξη της συνεργασίας.</p>
+      <PageHead title={`Καλώς ήρθες, ${vocative(user.name.split(" ")[0])}`} sub="Πριν ανοίξει όλο το Apex, ολοκληρώνουμε μαζί την έναρξη της συνεργασίας." />
 
       {next && (
-        <section className="card row spread">
-          <div>
-            <strong>Η πρώτη σου ατομική</strong>
-            <div className="muted">{formatDate(next.slot.date)} στις {formatHour(next.slot.hour)}</div>
+        <Panel title="Η πρώτη σου ατομική" icon="user">
+          <div className="m-row">
+            <div className="grow">
+              <strong>{formatDate(next.slot.date)} στις {formatTime(next.slot.startsAt)}</strong>
+              {!sessionJoinable(next.slot.startsAt, now, s, slotMinutes(next.slot.kind, s)) && <div className="hint">Το κουμπί ανοίγει {s.sessionJoinBeforeMinutes} λεπτά πριν.</div>}
+            </div>
+            <form action={`/m/join/${next.id}`} method="post">
+              <button className="primary" disabled={!sessionJoinable(next.slot.startsAt, now, s, slotMinutes(next.slot.kind, s))}>Μπες στην ατομική σου</button>
+            </form>
           </div>
-          <form action={`/m/join/${next.id}`} method="post">
-            <button className="primary" disabled={!sessionJoinable(next.slot.startsAt, now, s, slotMinutes(next.slot.kind, s))}>Μπες</button>
-          </form>
-        </section>
+        </Panel>
       )}
 
-      <Link className="card row spread" href="/m/profile" style={{ color: "inherit", textDecoration: "none" }}>
-        <span>
-          <strong>Πριν την 1η ατομική</strong>
-          <div className="muted small">{hasProfile ? "Τα στοιχεία σου ✓ · μπορείς να τα αλλάξεις" : "Συμπλήρωσε λίγα στοιχεία για την ασφάλειά σου"}</div>
+      <Link className="linkrow panel" href="/m/profile">
+        <span className="iconbox"><Icon name={hasProfile ? "check" : "shield"} size={20} /></span>
+        <span className="grow">
+          <div style={{ fontWeight: 600 }}>Πριν την 1η ατομική</div>
+          <div className="hint">{hasProfile ? "Τα στοιχεία σου ✓ · μπορείς να τα αλλάξεις" : "Συμπλήρωσε λίγα στοιχεία για την ασφάλειά σου"}</div>
         </span>
-        <span className="muted">›</span>
+        <span className="arrow"><Icon name="chevron" /></span>
       </Link>
 
-      <section className="card">
-        <strong>Τι μένει</strong>
-        <ul>
-          {withTeam && <li>Η πρώτη ατομική με ψυχολόγο της ομάδας (συμφωνητικό, συγκαταθέσεις, αρχική αξιολόγηση).</li>}
+      <Panel title="Τι μένει" icon="list">
+        <ul style={{ margin: 0, paddingLeft: 20 }}>
+          {/* Από 16/10 την 1η ατομική την έχει όποιος θεραπευτής έχει την ατομική (όχι μόνο ψυχολόγος)· διατύπωση προς έγκριση. */}
+          {withTeam && <li>Η πρώτη ατομική με την ομάδα σου (συμφωνητικό, συγκαταθέσεις, ιστορικό).</li>}
           {!accepted && <li>Η δήλωση εμπιστευτικότητας, εδώ παρακάτω.</li>}
         </ul>
-        <p className="small muted">Μέχρι τότε έχεις το κόκκινο κουμπί και τον λογαριασμό σου.</p>
-      </section>
+        <p className="hint" style={{ margin: "8px 0 0" }}>Μέχρι τότε έχεις το κόκκινο κουμπί και τον λογαριασμό σου.</p>
+      </Panel>
 
-      <section className="card">
-        <h2 style={{ marginTop: 0 }}>Δήλωση εμπιστευτικότητας</h2>
-        <p>
+      <Panel title="Δήλωση εμπιστευτικότητας" icon="shield">
+        <p style={{ marginTop: 0 }}>
           Στην ομάδα και στο Therapair οι άλλοι μοιράζονται πράγματα που δεν έχουν πει πουθενά αλλού. Αυτό γίνεται μόνο αν όλοι
           είμαστε σίγουροι ότι ό,τι λέγεται εκεί μένει εκεί.
         </p>
@@ -106,13 +109,13 @@ export default async function StartPage() {
           και μετά την ολοκλήρωση της συνεργασίας.
         </p>
         {accepted ? (
-          <div className="notice">Την αποδέχτηκες ✓</div>
+          <div className="notice" style={{ marginBottom: 0 }}>Την αποδέχτηκες ✓</div>
         ) : (
           <form action={accept}>
             <button className="primary big" type="submit">Τη διάβασα και δεσμεύομαι</button>
           </form>
         )}
-      </section>
+      </Panel>
     </main>
   );
 }

@@ -6,9 +6,9 @@ import { useEffect, useState, type ReactNode } from "react";
 type Status = { claimedByName: string | null; showHelpline: boolean; talked?: boolean };
 type Line = { label: string; number: string };
 
-// Κόκκινο κουμπί. «Το πατάς και τελείωσε»: το «Θέλω άνθρωπο» και οι γραμμές βοήθειας
-// είναι ορατά από την πρώτη στιγμή. Μετά: το πλάνο ασφάλειας, το μήνυμα από τον εαυτό
-// σου (χωρίς αυτόματη αναπαραγωγή) και η αναπνοή.
+// Κόκκινο κουμπί (σειρά, απόφαση 10/10): πρώτα το πλάνο του μέλους και το μήνυμα από τον εαυτό του (χωρίς αυτόματη
+// αναπαραγωγή), μετά «Θέλω να μιλήσω με άνθρωπο τώρα», «Κινδυνεύεις τώρα;» και οι γραμμές βοήθειας (κλειστές μέχρι να
+// χρειαστούν), στο τέλος η αναπνοή. Μετά από ανανέωση της σελίδας η ανοιχτή κατάσταση ξαναφορτώνεται από το /api/help/open.
 export function HelpFlow({
   hasSelfMessage,
   helplines,
@@ -29,9 +29,23 @@ export function HelpFlow({
   const [danger, setDanger] = useState(false);
 
   useEffect(() => {
-    fetch("/api/help/open", { method: "POST" }).catch(() => undefined);
-    // Από το ημερολόγιο: το μέλος απάντησε ήδη «Ναι, να με πάρει κάποιος».
-    if (autoAsk) askHuman();
+    // Το ?ask=1 (από το ημερολόγιο) φεύγει από τη διεύθυνση αμέσως, για να μην ξαναστείλει αίτημα σε ανανέωση ή «πίσω».
+    if (autoAsk && typeof window !== "undefined") window.history.replaceState(null, "", "/m/help");
+    (async () => {
+      let open: Status & { id: string } | null = null;
+      try {
+        const res = await fetch("/api/help/open", { method: "POST" });
+        if (res.ok) open = (await res.json()).open ?? null;
+      } catch { /* η καταγραφή του ανοίγματος δεν εμποδίζει τίποτα */ }
+      if (open) {
+        // Υπάρχει ήδη ανοιχτό αίτημα (π.χ. ανανέωση της σελίδας): δείχνουμε την κατάστασή του αντί για νέο πάτημα.
+        setRequestId(open.id);
+        setStatus(open);
+      } else if (autoAsk) {
+        // Από το ημερολόγιο: το μέλος απάντησε ήδη «Ναι, να με πάρει κάποιος».
+        askHuman();
+      }
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -87,7 +101,7 @@ export function HelpFlow({
       {plan && (
         <section className="card">
           <h2 style={{ marginTop: 0 }}>Το πλάνο σου</h2>
-          <p className="muted small" style={{ marginTop: -4 }}>Με τα δικά σου λόγια, όπως το γράψατε μαζί. <Link href="/m/safety">Άλλαξέ το ›</Link></p>
+          <p className="muted small" style={{ marginTop: -4 }}>Με τα δικά σου λόγια, όπως το γράψατε μαζί. <Link href="/m/safety?edit=1">Άλλαξέ το ›</Link></p>
           {plan}
         </section>
       )}
@@ -128,11 +142,11 @@ export function HelpFlow({
       )}
 
       {!danger && !showLines && (
-        <button onClick={() => setDanger(true)}>Κινδυνεύεις τώρα; Πάτα εδώ</button>
+        <button className="outline big" onClick={() => setDanger(true)}>Κινδυνεύεις τώρα; Πάτα εδώ</button>
       )}
       {showLines ? lines : (
-        <details>
-          <summary className="small">Γραμμές βοήθειας</summary>
+        <details className="fold">
+          <summary>Γραμμές βοήθειας</summary>
           {lines}
         </details>
       )}
@@ -148,7 +162,7 @@ export function HelpFlow({
       {!hasSelfMessage && (
         <p className="muted small">Δεν έχεις ηχογραφήσει ακόμα μήνυμα για τον εαυτό σου. <Link href="/m/self-message">Ηχογράφησέ το</Link>.</p>
       )}
-      {!asked && <Link className="btn big" href="/m">Είμαι καλύτερα</Link>}
+      {!asked ? <Link className="btn big" href="/m">Είμαι καλύτερα</Link> : <Link className="btn big" href="/m">Πίσω στο «Σήμερα»</Link>}
     </div>
   );
 }

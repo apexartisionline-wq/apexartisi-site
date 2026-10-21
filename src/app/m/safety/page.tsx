@@ -1,4 +1,5 @@
-import { redirect } from "next/navigation";
+import { RedirectType, redirect } from "next/navigation";
+import { PageHead } from "@/components/ui";
 import { SafetyPlanForm, SafetyPlanView } from "@/components/SafetyPlanForm";
 import { requireRole } from "@/lib/auth";
 import { getPlan, hasPlanContent, missingSections, savePlan } from "@/lib/safety";
@@ -7,7 +8,7 @@ async function save(formData: FormData) {
   "use server";
   const user = await requireRole("MEMBER");
   await savePlan(user.id, formData, user.id);
-  redirect("/m/safety?ok=1");
+  redirect("/m/safety?ok=1", RedirectType.replace);
 }
 
 // «Το πλάνο μου όταν δυσκολεύομαι»: το μέλος το ανοίγει από το μενού, όποτε θέλει, χωρίς να πατήσει το κόκκινο κουμπί.
@@ -20,8 +21,7 @@ export default async function MySafetyPlan({ searchParams }: { searchParams: Pro
   const missing = missingSections(plan);
   return (
     <main>
-      <h1>Το πλάνο μου όταν δυσκολεύομαι</h1>
-      <p className="muted">Το γράψαμε μαζί σε μια ατομική. Το βλέπεις πρώτο όταν πατάς το κόκκινο κουμπί. Μπορείς να το αλλάζεις.</p>
+      <PageHead title="Το πλάνο μου όταν δυσκολεύομαι" sub="Το γράψαμε μαζί σε μια ατομική. Το βλέπεις πρώτο όταν πατάς το κόκκινο κουμπί. Μπορείς να το αλλάζεις." />
       {sp.ok && <div className="notice">Αποθηκεύτηκε ✓</div>}
       {filled ? <SafetyPlanView plan={plan} canCall /> : <p className="muted">Δεν έχει γραφτεί κάτι ακόμα.</p>}
       {missing.length > 0 && (
