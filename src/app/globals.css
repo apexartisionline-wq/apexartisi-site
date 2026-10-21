@@ -1213,3 +1213,57 @@ p.motto { margin: 0 0 16px; display: block; }
 .board-text a:not(:first-child) { color: inherit; text-decoration: underline; text-decoration-color: var(--card-line); text-underline-offset: 3px; }
 .board-row.red .board-text a:not(:first-child) { color: var(--red-ink); }
 .board-meta { font-size: var(--fs-help); color: var(--muted); margin-top: 1px; }
+
+/* ---- Μέλος, ιδέες από τις εφαρμογές ανάκαμψης (21/10): «Τώρα», οι 7 μέρες του στόχου, κάτω μπάρα στο κινητό ---- */
+/* «Τώρα»: η μία ενέργεια της στιγμής, πάνω-πάνω, με την ήπια ανάδειξη του επόμενου ραντεβού (ίδιο teal, ένα accent). */
+.member-env .panel.m-now { border-color: var(--teal-line); background: var(--teal-quiet); }
+html[data-theme="dark"] .member-env .panel.m-now { background: var(--card); border-color: var(--accent); }
+.member-env .panel.m-now strong { font-size: 1.1rem; }
+/* Οι 7 μέρες του στόχου: γεμάτος = Ναι, μισός = Λίγο, άδειος = Όχι σήμερα, ανοιχτός = χωρίς απάντηση, διακεκομμένος = δεν ήρθε ακόμα. Χωρίς κόκκινο. */
+.goal-days { display: inline-flex; gap: 6px; margin-top: 8px; }
+.goal-days .gd { display: inline-flex; flex-direction: column; align-items: center; gap: 3px; width: 22px; font-size: .68rem; font-weight: 600; color: var(--muted); line-height: 1; }
+.goal-days .gd i { display: block; width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--line); box-sizing: border-box; background: var(--card); }
+.goal-days .gd.yes i { background: var(--accent); border-color: var(--accent); }
+.goal-days .gd.partly i { border-color: var(--accent); background: linear-gradient(90deg, var(--accent) 50%, var(--card) 50%); }
+.goal-days .gd.no i { border-color: var(--muted); }
+.goal-days .gd.future i { border-style: dashed; }
+.goal-days .gd.today { color: var(--accent-strong); }
+html[data-theme="dark"] .goal-days .gd.today { color: var(--accent); }
+/* Κάτω μπάρα του μέλους (μόνο κινητό): Σήμερα · Ημερολόγιο · [Κόκκινο κουμπί] · Ραντεβού · Μενού. Στον υπολογιστή μένει το πάνω μενού και η κόκκινη μπάρα. */
+.m-tabs, .m-sheet, .m-sheet-backdrop { display: none; }
+@media (max-width: 760px) {
+  .m-tabs {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; display: flex; align-items: stretch; justify-content: space-around;
+    background: var(--card); border-top: 1px solid var(--card-line); padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+    box-shadow: 0 -4px 16px rgba(12, 22, 32, 0.06);
+  }
+  .m-tabs .tab {
+    flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 3px;
+    padding: 4px 2px; min-height: 48px; border: 0; background: none; border-radius: var(--radius-sm); cursor: pointer;
+    color: var(--muted); font: inherit; font-size: .68rem; font-weight: 600; text-decoration: none; line-height: 1.1;
+  }
+  .m-tabs .tab > span:last-child { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .m-tabs .tab:hover { background: none; }
+  .m-tabs .tab.on { color: var(--accent-strong); }
+  html[data-theme="dark"] .m-tabs .tab.on { color: var(--accent); }
+  /* Το κόκκινο κουμπί στο κέντρο: μεγαλύτερος κύκλος, ελαφρώς πάνω από τη μπάρα, πάντα στο χέρι. Μόνο εδώ κόκκινο. */
+  .m-tabs .tab-red { flex: 1.35 1 0; color: var(--red-ink); }
+  .tab-red-circle {
+    width: 54px; height: 54px; border-radius: 50%; margin-top: -24px; display: inline-flex; align-items: center; justify-content: center;
+    background: var(--red); color: var(--red-text); border: 3px solid var(--card); box-shadow: 0 4px 14px color-mix(in srgb, var(--red) 35%, transparent);
+  }
+  /* Όσο υπάρχει η κάτω μπάρα: η γεμάτη κόκκινη μπάρα και το πάνω «Μενού»/«Έξοδος» περισσεύουν (το σήμα μένει). */
+  body:has(.m-tabs) .redbar, body:has(.m-tabs) nav.top .navmenu, body:has(.m-tabs) nav.top .nav-logout { display: none; }
+  /* Μέσα στη σελίδα του κόκκινου κουμπιού κρύβεται, όπως κρυβόταν και η παλιά μπάρα (δοκιμή 11/10). */
+  body:has(main.help) .m-tabs { display: none; }
+  .m-sheet-backdrop { display: block; position: fixed; inset: 0; z-index: 28; background: rgba(12, 22, 32, 0.35); }
+  .m-sheet {
+    /* Κάτω από τη μπάρα (z 29 < 30): η μπάρα μένει πάνω και πατήσιμη, το φύλλο αφήνει χώρο με padding. */
+    display: flex; flex-direction: column; position: fixed; left: 0; right: 0; bottom: 0; z-index: 29;
+    background: var(--card); border-radius: 20px 20px 0 0; padding: 10px 10px calc(80px + env(safe-area-inset-bottom)); box-shadow: 0 -8px 24px rgba(12, 22, 32, 0.15);
+  }
+  .m-sheet a, .m-sheet button { display: block; width: 100%; text-align: left; padding: 14px 12px; border: 0; border-radius: var(--radius-sm); background: none; color: var(--text); font: inherit; font-weight: 600; text-decoration: none; }
+  .m-sheet a:hover, .m-sheet button:hover { background: var(--soft); }
+  .m-sheet form { border-top: 1px solid var(--card-line); margin-top: 6px; padding-top: 6px; }
+  .m-sheet form button { color: var(--red-ink); }
+}

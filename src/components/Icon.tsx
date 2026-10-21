@@ -27,6 +27,8 @@ const PATHS: Record<string, string> = {
   eye: "M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Zm10 3a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z",
   "eye-off": "M3 3l18 18M10.6 5.1A10 10 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.6 6.6C3.8 8.4 2 12 2 12s3.5 7 10 7a9.7 9.7 0 0 0 5.4-1.6M9.9 9.9a3 3 0 0 0 4.2 4.2",
   arrow: "M5 12h14m-6-6 6 6-6 6",
+  home: "M3 11 12 4l9 7v9h-6v-6H9v6H3v-9Z",
+  menu: "M4 7h16M4 12h16M4 17h16",
 };
 
 export function Icon({ name, size = 20, className, label }: { name: keyof typeof PATHS | string; size?: number; className?: string; label?: string }) {

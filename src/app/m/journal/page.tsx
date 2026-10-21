@@ -8,7 +8,8 @@ import { hasConsent, requireMember } from "@/lib/intake";
 import { prisma } from "@/lib/db";
 import { notifyRole } from "@/lib/notify";
 import { journalDate } from "@/lib/member";
-import { GOAL_CHECK, setWeekGoal, weekGoal } from "@/lib/goals";
+import { GOAL_CHECK, goalWeek, setWeekGoal } from "@/lib/goals";
+import { GoalDays } from "@/components/GoalDays";
 import { getSettings } from "@/lib/settings";
 import { formatDate, localParts } from "@/lib/time";
 
@@ -107,10 +108,12 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
       </main>
     );
   }
-  const [entry, goal] = await Promise.all([
+  const today = localParts(new Date()).date;
+  const [entry, gw] = await Promise.all([
     prisma.journalEntry.findUnique({ where: { memberId_date: { memberId: user.id, date } } }),
-    weekGoal(user.id, localParts(new Date()).date),
+    goalWeek(user.id, today),
   ]);
+  const goal = gw.goal;
 
   return (
     <main>
@@ -139,6 +142,9 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
         {goal ? (
           <>
             <div className="body-text" style={{ fontSize: "1.1rem", margin: "0 0 6px" }}>«{goal.text}»</div>
+            {/* Οι 7 μέρες της εβδομάδας από τα βραδινά τσεκαρίσματα (21/10)· χωρίς ποσοστά. */}
+            <GoalDays days={gw.days} today={today} />
+            <div className="hint" style={{ margin: "4px 0 8px" }}>● Ναι · ◐ Λίγο · ○ Όχι σήμερα</div>
             <details className="small">
               <summary>Αλλαγή στόχου</summary>
               <form action={saveGoal} className="row" style={{ gap: 6, marginTop: 6 }}>

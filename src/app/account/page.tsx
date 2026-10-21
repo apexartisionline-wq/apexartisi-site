@@ -2,6 +2,7 @@ import Link from "next/link";
 import bcrypt from "bcryptjs";
 import { RedirectType, redirect } from "next/navigation";
 import { BackButton } from "@/components/BackButton";
+import { MemberTabs } from "@/components/MemberTabs";
 import { Nav } from "@/components/Nav";
 import { hashPassword, logoutEverywhere, requireRole, homeFor } from "@/lib/auth";
 import { prisma } from "@/lib/db";
@@ -244,9 +245,12 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
       </main>
       </div>
       {!staff && (
-        <div className="redbar">
-          <Link href="/m/help" className="btn red big">Κόκκινο κουμπί</Link>
-        </div>
+        <>
+          <div className="redbar">
+            <Link href="/m/help" className="btn red big">Κόκκινο κουμπί</Link>
+          </div>
+          <MemberTabs links={navLinks(user.role, navOpts)} />
+        </>
       )}
     </>
   );
