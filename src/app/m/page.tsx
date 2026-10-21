@@ -14,6 +14,7 @@ import { extraGroupTimes, holidaysFrom } from "@/lib/groups";
 import { bookingWindow, canRequestChange, groupsOn, isAfter, joinableGroup, sessionJoinable, slotMinutes } from "@/lib/program";
 import { goalWeek } from "@/lib/goals";
 import { getPlan, hasPlanContent } from "@/lib/safety";
+import { memberStepStatus } from "@/lib/step-modes";
 import { getSettings } from "@/lib/settings";
 import { ROOM_MISSING_MEMBER } from "@/lib/rooms";
 import { vocative } from "@/lib/vocative";
@@ -52,7 +53,7 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
   // την ομάδα: η επιβεβαίωση του σημειώματος υπερισχύει, αλλιώς το δικό του «Μπες»). Ο στόχος της εβδομάδας με τα λόγια του.
   // «6η ατομική» στις επόμενες (όχι «6 από 8»)· ίδιος κανόνας αρίθμησης με την ομάδα (session-order.ts).
   const orders = await sessionOrders(upcoming.filter((b) => b.slot.kind === "INDIVIDUAL").map((b) => ({ id: b.slot.id, startsAt: b.slot.startsAt, memberId: user.id })));
-  const [doneSessions, gw, nextCount, plan] = await Promise.all([
+  const [doneSessions, gw, nextCount, plan, openTask, weekBooked] = await Promise.all([
     prisma.booking.count({ where: { memberId: user.id, slot: { kind: "INDIVIDUAL", startsAt: { lt: now } }, OR: [{ confirmedCame: true }, { confirmedCame: null, joinedAt: { not: null } }] } }),
     // Ο στόχος της εβδομάδας με τα 7 βραδινά τσεκαρίσματα (goals.ts).
     goalWeek(user.id, today.date),
@@ -60,9 +61,15 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
     prisma.booking.count({ where: { memberId: user.id, slot: { startsAt: { gte: new Date(now.getTime() - s.pairMinutes * 60_000) } } } }),
     // «Το πλάνο μου όταν δυσκολεύομαι»: μία ήρεμη γραμμή στο «Σήμερα» όταν υπάρχει (21/10)· όχι κόκκινο, το κόκκινο κουμπί μένει για την κρίση.
     getPlan(user.id),
+    // Η πιο πρόσφατη ανοιχτή εργασία/βήμα από τη διαχείριση (21/10 — το «Today's challenges» του Affect μεταφράζεται στις υπάρχουσες εργασίες)· χωρίς τα bytes των PDF.
+    prisma.assignment.findFirst({ where: { memberId: user.id, answeredAt: null, notebookAt: null, answerPdfAt: null }, orderBy: { createdAt: "desc" }, select: { id: true, title: true, step: true, mode: true, answeredAt: true, notebookAt: true, answerPdfAt: true } }),
+    // Κρατήσεις της εβδομάδας κράτησης — ίδιος κανόνας με τη σελίδα «Ραντεβού» (ώστε η κάρτα να μη ζητά κράτηση όταν έχει κλείσει όλες τις ώρες).
+    prisma.booking.count({ where: { memberId: user.id, slot: { date: { gte: window.weekStart, lte: window.weekEnd } } } }),
   ]);
   const goal = gw.goal;
   const hasPlan = Boolean(plan && hasPlanContent(plan));
+  const taskStatus = openTask ? memberStepStatus(openTask) : null;
+  const left = Math.max(0, s.sessionsPerWeek - weekBooked);
   const unreadMessage =
     (await prisma.monthlyMessage.findFirst({ where: { memberId: user.id, sentAt: { not: null }, readAt: null }, select: { id: true } })) ??
     (await prisma.closure.findFirst({ where: { memberId: user.id, sentAt: { not: null }, readAt: null }, select: { id: true } }));
@@ -94,13 +101,26 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
     return `σε ${h} ${h === 1 ? "ώρα" : "ώρες"}`;
   };
   type NowCard = { kind: "session" | "group" | "journal" | "later" | "book"; bookingId?: string; title: string; hint?: string; action?: ReactNode };
+  // Ό,τι άλλο έχει η μέρα μετά από τώρα (ομάδες, ατομικές, το ημερολόγιο, το κείμενο), με σειρά ώρας.
+  const later: { key: string; at: Date; title: string; hint?: string }[] = [];
+  for (const g of groupsToday) {
+    const at = athensToUtc(today.date, ...(g.time.split(":").map(Number) as [number, number]));
+    if (at > now) later.push({ key: `g:${g.time}`, at, title: `Ομάδα στις ${g.time}`, hint: `Το κουμπί ανοίγει ${s.groupJoinBeforeMinutes} λεπτά πριν.` });
+  }
+  for (const b of upcoming) if (b.slot.date === today.date && b.slot.startsAt > now) later.push({ key: `b:${b.id}`, at: b.slot.startsAt, title: `${b.slot.kind === "PAIR" ? "Therapair" : "Ατομική"} στις ${formatTime(b.slot.startsAt)}`, hint: `Το κουμπί ανοίγει ${s.sessionJoinBeforeMinutes} λεπτά πριν.` });
+  if (consents.journal === "YES" && !journalOpen) later.push({ key: "j", at: athensToUtc(today.date, ...(s.journalTime.split(":").map(Number) as [number, number])), title: `Ημερολόγιο στις ${s.journalTime}` });
+  if (!text && !isAfterLocal(today, s.dailyTextTime)) later.push({ key: "t", at: athensToUtc(today.date, ...(s.dailyTextTime.split(":").map(Number) as [number, number])), title: `Το κείμενο της ημέρας στις ${s.dailyTextTime}` });
+  later.sort((a, b) => a.at.getTime() - b.at.getTime());
   let hero: NowCard | null = null;
+  let heroKey: string | null = null;
   if (joinNow) {
+    heroKey = `b:${joinNow.id}`;
     const pair = joinNow.slot.kind === "PAIR";
     hero = {
       kind: "session",
       bookingId: joinNow.id,
       title: `${pair ? "Το Therapair σου" : "Η ατομική σου"} ${joinNow.slot.startsAt <= now ? "ξεκίνησε" : "ξεκινά"} στις ${formatTime(joinNow.slot.startsAt)}`,
+      hint: joinNow.joinedAt ? "Μπήκες ✓" : undefined,
       action: (
         <form action={`/m/join/${joinNow.id}`} method="post">
           <button className="primary">{pair ? "Μπες στο Therapair σου" : "Μπες στην ατομική σου"}</button>
@@ -108,6 +128,7 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
       ),
     };
   } else if (groupOpen) {
+    heroKey = `g:${groupOpen.time}`;
     hero = {
       kind: "group",
       title: `Η ομάδα ${athensToUtc(today.date, ...(groupOpen.time.split(":").map(Number) as [number, number])) <= now ? "ξεκίνησε" : "ξεκινά"} στις ${groupOpen.time}`,
@@ -121,19 +142,20 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
   } else if (journalDue) {
     hero = { kind: "journal", title: "Το ημερολόγιο άνοιξε", hint: "Δυο λεπτά για τη μέρα σου.", action: journalLink };
   } else {
-    const later: { at: Date; title: string; hint?: string }[] = [];
-    for (const g of groupsToday) {
-      const at = athensToUtc(today.date, ...(g.time.split(":").map(Number) as [number, number]));
-      if (at > now) later.push({ at, title: `Ομάδα στις ${g.time}`, hint: `Το κουμπί ανοίγει ${s.groupJoinBeforeMinutes} λεπτά πριν.` });
-    }
-    for (const b of upcoming) if (b.slot.date === today.date && b.slot.startsAt > now) later.push({ at: b.slot.startsAt, title: `${b.slot.kind === "PAIR" ? "Therapair" : "Ατομική"} στις ${formatTime(b.slot.startsAt)}`, hint: `Το κουμπί ανοίγει ${s.sessionJoinBeforeMinutes} λεπτά πριν.` });
-    if (consents.journal === "YES" && !journalOpen) later.push({ at: athensToUtc(today.date, ...(s.journalTime.split(":").map(Number) as [number, number])), title: `Ημερολόγιο στις ${s.journalTime}` });
-    if (!text && !isAfterLocal(today, s.dailyTextTime)) later.push({ at: athensToUtc(today.date, ...(s.dailyTextTime.split(":").map(Number) as [number, number])), title: `Το κείμενο της ημέρας στις ${s.dailyTextTime}` });
-    later.sort((a, b) => a.at.getTime() - b.at.getTime());
     const next = later[0];
-    if (next) hero = { kind: "later", title: `Σήμερα: ${next.title}`, hint: [inWords(next.at), next.hint].filter(Boolean).join(" · ") };
+    if (next) { heroKey = next.key; hero = { kind: "later", title: `Σήμερα: ${next.title}`, hint: [inWords(next.at), next.hint].filter(Boolean).join(" · ") }; }
     else if (upcoming[0]) hero = { kind: "later", title: `Επόμενο: ${upcoming[0].slot.kind === "PAIR" ? "Therapair" : "ατομική"} ${upcoming[0].slot.date === addDays(today.date, 1) ? "αύριο" : formatDate(upcoming[0].slot.date)} στις ${formatTime(upcoming[0].slot.startsAt)}` };
-    else if (window.open) hero = { kind: "book", title: "Κλείσε τα ραντεβού της εβδομάδας", hint: `μέχρι τις ${formatTime(window.closesAt)}`, action: <Link className="btn primary" href="/m/book">Κλείσε ραντεβού</Link> };
+    else if (window.open && left > 0) hero = { kind: "book", title: "Κλείσε τα ραντεβού της εβδομάδας", hint: `μέχρι τις ${formatTime(window.closesAt)}`, action: <Link className="btn primary" href="/m/book">Κλείσε ραντεβού</Link> };
+  }
+  // «Μετά σήμερα: …» (21/10): ό,τι άλλο έχει η μέρα, σε μία γραμμή κάτω από το «Τώρα» — χωρίς τρίτη κάρτα. Διατύπωση προς έγκριση.
+  const afterToday = hero ? later.filter((x) => x.key !== heroKey) : [];
+  // Τις μέρες χωρίς ομάδα: πότε είναι η επόμενη (από τις Ρυθμίσεις, με τις αργίες της εβδομάδας) — 21/10, φράση προς έγκριση.
+  let nextGroup: { date: string; time: string } | null = null;
+  for (let d = 1; d <= 7 && !nextGroup; d++) {
+    const date = addDays(today.date, d);
+    const h = holidays.find((x) => x.date === date);
+    const time = h ? h.groupTime : groupsOn(date, s)[0]?.time;
+    if (time) nextGroup = { date, time };
   }
   // Το ημερολόγιο είναι η μία βραδινή ενέργεια: όταν ανοίξει και δεν έχει συμπληρωθεί (και δεν το λέει ήδη το «Τώρα»), η κάρτα του ανεβαίνει πρώτη στη δεξιά στήλη.
   const journalFirst = journalDue && hero?.kind !== "journal";
@@ -193,6 +215,7 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
             </div>
             {hero.action}
           </div>
+          {afterToday.length > 0 && <div className="hint" style={{ marginTop: 8 }}>Μετά σήμερα: {afterToday.map((x) => x.title).join(" · ")}</div>}
         </Panel>
       )}
 
@@ -229,6 +252,8 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
                       {first && orders.get(b.slot.id) ? `${orders.get(b.slot.id)!.n}η ατομική` : pair ? "Therapair" : "Ατομική"}
                       {!joinable && ` · το κουμπί ανοίγει ${s.sessionJoinBeforeMinutes} λεπτά πριν`}
                     </div>
+                    {/* Το δικό του «Μπες» μετρά ως παρουσία (13/10) — το βλέπει και το ίδιο, όπως στην ομάδα. */}
+                    {b.joinedAt && <div className="hint">Μπήκες ✓</div>}
                   </div>
                   <form action={`/m/join/${b.id}`} method="post">
                     <button className={first ? "primary" : "outline"} disabled={!joinable}>{pair ? "Μπες στο Therapair σου" : "Μπες στην ατομική σου"}</button>
@@ -246,9 +271,16 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
           })}
 
           {window.open && (
-            <Panel title="Κράτηση ατομικών" icon="calendar">
-              <p className="hint" style={{ margin: "0 0 10px" }}>Κλείσε τα ραντεβού της εβδομάδας μέχρι τις {formatTime(window.closesAt)}.</p>
-              <Link className="btn primary" href="/m/book">Κλείσε ραντεβού</Link>
+            <Panel title="Κράτηση ατομικών" icon="calendar" link={{ href: "/m/book", label: "Ραντεβού" }}>
+              {/* Ίδιες φράσεις και ίδιος κανόνας με τη σελίδα «Ραντεβού» (21/10): όταν έχει κλείσει όλες τις ώρες, δεν ζητάμε κράτηση. */}
+              {left === 0 ? (
+                <p className="hint" style={{ margin: 0 }}>Έκλεισες {s.sessionsPerWeek === 1 ? "το ραντεβού" : `και τα ${s.sessionsPerWeek} ραντεβού`} της εβδομάδας.</p>
+              ) : (
+                <>
+                  <p className="hint" style={{ margin: "0 0 10px" }}>Διάλεξε {left === 1 ? (weekBooked === 0 ? "μία ώρα" : "ακόμα μία ώρα") : `${left} ώρες`}. Οι κρατήσεις κλείνουν στις {formatTime(window.closesAt)}.</p>
+                  <Link className="btn primary" href="/m/book">Κλείσε ραντεβού</Link>
+                </>
+              )}
             </Panel>
           )}
 
@@ -268,6 +300,11 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
               {!attended && <p className="hint" style={{ margin: "8px 0 0" }}>Μπες πάντα από εδώ, για να ξέρει η ομάδα σου ότι ήρθες.</p>}
             </Panel>
           )}
+          {groupsToday.length === 0 && nextGroup && (
+            <Panel title="Ομάδα" icon="group">
+              <strong>Επόμενη ομάδα: {nextGroup.date === addDays(today.date, 1) ? "αύριο" : formatDate(nextGroup.date)} στις {nextGroup.time}</strong>
+            </Panel>
+          )}
         </div>
 
         <div>
@@ -282,6 +319,17 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
             </span>
             <span className="arrow"><Icon name="chevron" /></span>
           </Link>
+          {openTask && taskStatus && (
+            <Link href={`/m/library/a/${openTask.id}`} className="linkrow panel">
+              <span className="iconbox"><Icon name="doc" size={20} /></span>
+              <span className="grow">
+                <span className="hint">Η εργασία σου</span>
+                <div style={{ fontSize: "1.05rem", marginTop: 2 }}>{openTask.step ? `Βήμα ${openTask.step} · ` : ""}{openTask.title}</div>
+                <div style={{ marginTop: 6 }}><Pill tone="grey">{taskStatus.text}</Pill></div>
+              </span>
+              <span className="arrow"><Icon name="chevron" /></span>
+            </Link>
+          )}
           {hasPlan && (
             <Link href="/m/safety" className="linkrow panel">
               <span className="iconbox"><Icon name="shield" size={20} /></span>
@@ -293,7 +341,7 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
             </Link>
           )}
 
-          <Panel title="Το κείμενο της ημέρας" icon="doc">
+          <Panel title="Το κείμενο της ημέρας" icon="doc" link={{ href: "/m/texts", label: "Κείμενα" }}>
             {text ? (
               <>
                 {text.imageMime && <Link href={`/m/texts/${text.id}`}><img src={`/api/content/${text.id}/image`} alt={text.title} style={{ width: "100%", borderRadius: 12, marginBottom: 8 }} /></Link>}
@@ -305,7 +353,7 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
           </Panel>
 
           {(s.formsDays.includes(today.weekday) || forms.length > 0) && (
-            <Panel title="Φόρμες της θεματικής" icon="list">
+            <Panel title="Φόρμες της θεματικής" icon="list" link={{ href: "/m/texts", label: "Κείμενα" }}>
               {forms.length ? (
                 <ul style={{ margin: 0, paddingLeft: 20 }}>
                   {forms.map((f) => (

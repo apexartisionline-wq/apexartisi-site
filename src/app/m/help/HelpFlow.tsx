@@ -98,12 +98,15 @@ export function HelpFlow({
   return (
     <div className="stack">
       {/* Πρώτα το δικό του: το πλάνο και το μήνυμα από τον εαυτό του (απόφαση 10/10 — «θα το βλέπεις πρώτο»)· μετά η ομάδα και οι γραμμές. */}
-      {plan && (
+      {plan ? (
         <section className="card">
           <h2 style={{ marginTop: 0 }}>Το πλάνο σου</h2>
           <p className="muted small" style={{ marginTop: -4 }}>Με τα δικά σου λόγια, όπως το γράψατε μαζί. <Link href="/m/safety?edit=1">Άλλαξέ το ›</Link></p>
           {plan}
         </section>
+      ) : (
+        /* Χωρίς πλάνο ακόμα (γράφεται μαζί στη 2η ατομική, 17/10): το λέμε, δεν το ζητάμε από το μέλος μόνο του. Διατύπωση προς έγκριση (21/10). */
+        <p className="muted small" style={{ margin: 0 }}>Το πλάνο σου το γράφετε μαζί στην ατομική σου.</p>
       )}
 
       {hasSelfMessage && (
