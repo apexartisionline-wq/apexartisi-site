@@ -24,7 +24,7 @@ export default async function MemberLayout({ children }: { children: React.React
         <BackButton home={intakePending ? "/m/start" : "/m"} />
         {children}
       </div>
-      {/* Υπολογιστής: η κόκκινη μπάρα κάτω. Κινητό: η κάτω μπάρα πλοήγησης με το κόκκινο κουμπί στο κέντρο (21/10, προς έγκριση). */}
+      {/* Υπολογιστής: η κόκκινη μπάρα κάτω. Κινητό: η κάτω μπάρα πλοήγησης με το κόκκινο κουμπί στο κέντρο (21/10, εγκρίθηκε 22/10). */}
       <div className="redbar">
         <Link href="/m/help" className="btn red big">Κόκκινο κουμπί</Link>
       </div>
