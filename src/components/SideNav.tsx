@@ -23,6 +23,7 @@ const ICON: Record<string, string> = {
   "/admin/people": "user",
   "/admin/content": "doc",
   "/admin/announcements": "info",
+  "/admin/team-messages": "chat",
   "/admin/messages": "check",
   "/admin/steps": "target",
   "/admin/library": "folder",

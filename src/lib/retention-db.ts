@@ -72,6 +72,7 @@ async function clinicalOf(db: Tx, memberId: string, run: boolean): Promise<[stri
     ["σύνοψη περίπτωσης", () => db.caseSummary.count({ where }), () => db.caseSummary.deleteMany({ where })],
     ["ανασκοπήσεις κύκλου", () => db.cycleReview.count({ where }), () => db.cycleReview.deleteMany({ where })],
     ["μηνύματα μήνα", () => db.monthlyMessage.count({ where }), () => db.monthlyMessage.deleteMany({ where })],
+    ["μηνύματα από την ομάδα", () => db.teamMessage.count({ where }), () => db.teamMessage.deleteMany({ where })],
     ["αλλαγές νηφαλιότητας", () => db.sobrietyChange.count({ where }), () => db.sobrietyChange.deleteMany({ where })],
     ["παρουσίες σε ομάδες", () => db.attendance.count({ where }), () => db.attendance.deleteMany({ where })],
     ["«Προσοχή σε…» από σημειώματα ομάδας", () => db.groupMention.count({ where }), () => db.groupMention.deleteMany({ where })],

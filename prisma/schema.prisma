@@ -101,6 +101,7 @@ model User {
   attendances   Attendance[]
   journal       JournalEntry[]
   formAnswers   FormAnswer[]
+  teamMessages  TeamMessage[]
   helpRequests  HelpRequest[]      @relation("HelpMember")
   helpClaims    HelpRequest[]      @relation("HelpClaimer")
   requests      ChangeRequest[]
@@ -892,4 +893,22 @@ model PurgeLog {
 
   @@index([at])
   @@index([runId])
+}
+
+// Μήνυμα της διαχείρισης προς ένα ή πολλά μέλη (υπεύθυνη 22/10: «να μπορεί το διαχειριστικό να στέλνει μηνύματα στους
+// θεραπευόμενους» — μόνο προς το μέλος, χωρίς απάντηση). Και το μήνυμα ολοκλήρωσης κύκλου (kind cycle_done). Μία γραμμή ανά
+// μέλος, κρυπτογραφημένο· το μέλος το βλέπει στο «Από την ομάδα σου» με ειδοποίηση και ουδέτερο email (χωρίς το κείμενο).
+model TeamMessage {
+  id        String    @id @default(cuid())
+  memberId  String
+  member    User      @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  kind      String    @default("admin") // admin | cycle_done
+  text      String // κρυπτογραφημένο
+  sentById  String // ο λογαριασμός της διαχείρισης ή «system»
+  createdAt DateTime  @default(now())
+  readAt    DateTime?
+  emailedAt DateTime?
+
+  @@index([memberId, readAt])
+  @@index([createdAt])
 }

@@ -13,6 +13,7 @@ export function navLinks(role: Role, opts: { hasPlan?: boolean; hasMessages?: bo
       { href: "/admin/people", label: "Άνθρωποι" },
       { href: "/admin/content", label: "Κείμενα" },
       { href: "/admin/announcements", label: "Ανακοινώσεις" },
+      { href: "/admin/team-messages", label: "Μήνυμα σε μέλη" },
       { href: "/admin/messages", label: "Μηνύματα μήνα" },
       { href: "/admin/steps", label: "Βήματα" },
       { href: "/admin/library", label: "Βιβλιοθήκη" },

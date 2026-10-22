@@ -22,7 +22,11 @@ export async function notifyMembers(userIds: string[], msg: PushMessage, now = n
 
 async function unreadTeamMessage(memberId: string): Promise<boolean> {
   const where = { memberId, sentAt: { not: null }, readAt: null };
-  return Boolean((await prisma.monthlyMessage.findFirst({ where, select: { id: true } })) ?? (await prisma.closure.findFirst({ where, select: { id: true } })));
+  return Boolean(
+    (await prisma.monthlyMessage.findFirst({ where, select: { id: true } })) ??
+      (await prisma.closure.findFirst({ where, select: { id: true } })) ??
+      (await prisma.teamMessage.findFirst({ where: { memberId, readAt: null }, select: { id: true } })),
+  );
 }
 
 /** Καλείται από το cron: στέλνει όσες ειδοποιήσεις περίμεναν. */

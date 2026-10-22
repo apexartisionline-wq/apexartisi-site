@@ -1389,6 +1389,17 @@ html[data-theme="dark"] .member-env .m-day .s-now .t, html[data-theme="dark"] .m
 .m-month-list .ok { color: var(--ok); font-weight: 700; }
 @media (max-width: 420px) { .m-month-list li { flex-wrap: wrap; row-gap: 0; } .m-month-list .when { flex-basis: 100%; } }
 
-/* Μήνυμα ολοκλήρωσης κύκλου (22/10): ήπια γιορτή με το accent, όχι κόκκινο/κίτρινο. */
-.member-env .panel.m-cycle-done { border-color: var(--now-line); background: var(--now-bg); }
-.member-env .panel.m-cycle-done .panel-head .iconbox { background: var(--accent); color: var(--accent-text); }
+/* «Μήνυμα σε μέλη» (διαχείριση, 22/10): τα ονόματα σε στήλες. */
+.tm-members { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 6px 16px; margin-top: 8px; padding: 10px; border: 1px solid var(--card-line); border-radius: var(--radius-sm); max-height: 280px; overflow: auto; }
+.tm-pick { display: flex; gap: 8px; align-items: center; font-weight: 500; margin: 0; }
+.tm-pick input[type="checkbox"] { width: 18px; height: 18px; flex: 0 0 auto; margin: 0; }
+
+/* Μέλος με «Από την ομάδα» στο μενού (8 σύνδεσμοι, 22/10 — τα μηνύματα της διαχείρισης): σε μεγάλη οθόνη πιο φαρδύ μενού·
+   ως 1439px δεν χωρά σε μία γραμμή, άρα «Μενού» όπως στο tablet. */
+@media (min-width: 1440px) { body:has(.member-env) nav.top:has(.navlinks a:nth-child(8)) { max-width: 1400px; } }
+@media (min-width: 1200px) and (max-width: 1439px) {
+  body:has(.member-env) nav.top:has(.navlinks a:nth-child(8)) .navlinks.many { display: none; }
+  body:has(.member-env) nav.top:has(.navlinks a:nth-child(8)) .navmenu { display: block; }
+  body:has(.member-env) nav.top:has(.navlinks a:nth-child(8)) .nav-logout.has-menu { display: none; }
+  body:has(.member-env) nav.top:has(.navlinks a:nth-child(8)) .navmenu-logout { display: block; }
+}

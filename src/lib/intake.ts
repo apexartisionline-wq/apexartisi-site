@@ -30,14 +30,15 @@ export async function memberIntake(member: Pick<User, "id" | "source">) {
  */
 /** Τι δείχνει το μενού του μέλους (layout /m και «Λογαριασμός» — μία πηγή, 20/10): πλάνο, μηνύματα, εκκρεμής έναρξη. */
 export async function memberNavOpts(user: Pick<User, "id" | "source">): Promise<{ hasPlan: boolean; hasMessages: boolean; intakePending: boolean }> {
-  const [plan, monthly, closure, s, intake] = await Promise.all([
+  const [plan, monthly, closure, team, s, intake] = await Promise.all([
     prisma.safetyPlan.findUnique({ where: { memberId: user.id }, select: { memberId: true } }),
     prisma.monthlyMessage.findFirst({ where: { memberId: user.id, sentAt: { not: null } }, select: { id: true } }),
     prisma.closure.findFirst({ where: { memberId: user.id, sentAt: { not: null } }, select: { id: true } }),
+    prisma.teamMessage.findFirst({ where: { memberId: user.id }, select: { id: true } }),
     getSettings(),
     memberIntake(user),
   ]);
-  return { hasPlan: Boolean(plan), hasMessages: Boolean(monthly || closure), intakePending: s.requireIntake && !intake.status.complete };
+  return { hasPlan: Boolean(plan), hasMessages: Boolean(monthly || closure || team), intakePending: s.requireIntake && !intake.status.complete };
 }
 
 export async function requireMember(): Promise<User> {
