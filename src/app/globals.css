@@ -1221,14 +1221,14 @@ html[data-theme="dark"] .member-env .panel.m-now { background: var(--card); bord
 .member-env .panel.m-now strong { font-size: 1.1rem; }
 /* Οι 7 μέρες του στόχου: γεμάτος = Ναι, μισός = Λίγο, άδειος = Όχι σήμερα, ανοιχτός = χωρίς απάντηση, διακεκομμένος = δεν ήρθε ακόμα. Χωρίς κόκκινο. */
 .goal-days { display: inline-flex; gap: 6px; margin-top: 8px; }
-.goal-days .gd { display: inline-flex; flex-direction: column; align-items: center; gap: 3px; width: 22px; font-size: .68rem; font-weight: 600; color: var(--muted); line-height: 1; }
-.goal-days .gd i { display: block; width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--line); box-sizing: border-box; background: var(--card); }
-.goal-days .gd.yes i { background: var(--accent); border-color: var(--accent); }
-.goal-days .gd.partly i { border-color: var(--accent); background: linear-gradient(90deg, var(--accent) 50%, var(--card) 50%); }
-.goal-days .gd.no i { border-color: var(--muted); }
-.goal-days .gd.future i { border-style: dashed; }
-.goal-days .gd.today { color: var(--accent-strong); }
-html[data-theme="dark"] .goal-days .gd.today { color: var(--accent); }
+.goal-days .gday { display: inline-flex; flex-direction: column; align-items: center; gap: 3px; width: 22px; font-size: .68rem; font-weight: 600; color: var(--muted); line-height: 1; }
+.goal-days .gday i { display: block; width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--line); box-sizing: border-box; background: var(--card); }
+.goal-days .gday.s-yes i { background: var(--accent); border-color: var(--accent); }
+.goal-days .gday.s-partly i { border-color: var(--accent); background: linear-gradient(90deg, var(--accent) 50%, var(--card) 50%); }
+.goal-days .gday.s-no i { border-color: var(--muted); }
+.goal-days .gday.s-future i { border-style: dashed; }
+.goal-days .gday.today { color: var(--accent-strong); }
+html[data-theme="dark"] .goal-days .gday.today { color: var(--accent); }
 /* Κάτω μπάρα του μέλους (μόνο κινητό): Σήμερα · Ημερολόγιο · [Κόκκινο κουμπί] · Ραντεβού · Μενού. Στον υπολογιστή μένει το πάνω μενού και η κόκκινη μπάρα. */
 .m-tabs, .m-sheet, .m-sheet-backdrop { display: none; }
 @media (max-width: 760px) {
