@@ -43,7 +43,7 @@ export function navLinks(role: Role, opts: { hasPlan?: boolean; hasMessages?: bo
     { href: "/m/book", label: "Ραντεβού" },
     { href: "/m/journal", label: "Ημερολόγιο" },
     { href: "/m/texts", label: "Βιβλιοθήκη θεματικών" },
-    { href: "/m/library", label: "Βιβλιοθήκη" },
+    { href: "/m/library", label: "Οι εργασίες μου" },
     // Φαίνεται μόνο σε όποιον το έχει (γράφεται μαζί στη 2η ατομική). Στο μέλος λέγεται «Το σχέδιο ασφάλειάς μου» (υπεύθυνη 22/10).
     ...(opts.hasPlan ? [{ href: "/m/safety", label: "Το σχέδιο ασφάλειάς μου" }] : []),
     // Τα μηνύματα της ομάδας ξαναδιαβάζονται όποτε θέλει (μόλις υπάρξει το πρώτο).

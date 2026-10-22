@@ -115,7 +115,7 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
   }
   for (const b of upcoming) if (b.slot.date === today.date && b.slot.startsAt > now) later.push({ key: `b:${b.id}`, at: b.slot.startsAt, title: `${b.slot.kind === "PAIR" ? "Therapair" : "Ατομική"} στις ${formatTime(b.slot.startsAt)}`, hint: `Το κουμπί ανοίγει ${s.sessionJoinBeforeMinutes} λεπτά πριν.` });
   if (consents.journal === "YES" && !journalOpen) later.push({ key: "j", at: athensToUtc(today.date, ...(s.journalTime.split(":").map(Number) as [number, number])), title: `Ημερολόγιο στις ${s.journalTime}` });
-  if (!text && !isAfterLocal(today, s.dailyTextTime)) later.push({ key: "t", at: athensToUtc(today.date, ...(s.dailyTextTime.split(":").map(Number) as [number, number])), title: `«Ξυπνάμε παρέα» στις ${s.dailyTextTime}` });
+  if (!text && !isAfterLocal(today, s.dailyTextTime)) later.push({ key: "t", at: athensToUtc(today.date, ...(s.dailyTextTime.split(":").map(Number) as [number, number])), title: `«Ξεκινάμε τη μέρα παρέα» στις ${s.dailyTextTime}` });
   later.sort((a, b) => a.at.getTime() - b.at.getTime());
   let hero: NowCard | null = null;
   if (joinNow) {
@@ -156,7 +156,7 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
   const inAppForms = forms.filter((f) => f.questions);
   const formAnswers = inAppForms.length ? await latestAnswers(user.id, inAppForms.map((f) => f.id)) : null;
   const dayItems: DayItem[] = [];
-  if (text || !isAfterLocal(today, s.dailyTextTime)) dayItems.push({ key: "t", at: hm(s.dailyTextTime), title: "«Ξυπνάμε παρέα»", href: text ? `/m/texts/${text.id}` : undefined });
+  if (text || !isAfterLocal(today, s.dailyTextTime)) dayItems.push({ key: "t", at: hm(s.dailyTextTime), title: "«Ξεκινάμε τη μέρα παρέα»", href: text ? `/m/texts/${text.id}` : undefined });
   if (s.formsDays.includes(today.weekday) || forms.length > 0) {
     dayItems.push({
       key: "f",
@@ -248,6 +248,21 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
         </div>
       ))}
 
+      {/* «Ξεκινάμε τη μέρα παρέα» (υπεύθυνη 22/10): το κείμενο της ημέρας αμέσως μετά το καλωσόρισμα, με το ίδιο το κείμενο
+          (όχι μόνο τίτλο). Χωρίς σύνδεσμο στη βιβλιοθήκη θεματικών: εκεί δεν μπαίνουν τα κείμενα της ημέρας. */}
+      <Panel title="Ξεκινάμε τη μέρα παρέα" icon="sun" className="m-morning">
+        {text ? (
+          <>
+            {text.imageMime && <Link href={`/m/texts/${text.id}`}><img src={`/api/content/${text.id}/image`} alt={text.title} className="m-morning-img" /></Link>}
+            <strong className="m-morning-title">{text.title}</strong>
+            {text.body && <p className="m-morning-body">{text.body.length > 420 ? `${text.body.slice(0, 420).replace(/\s+\S*$/, "")}…` : text.body}</p>}
+            {text.body.length > 420 && <p style={{ margin: "6px 0 0" }}><Link href={`/m/texts/${text.id}`}>Συνέχεια ›</Link></p>}
+          </>
+        ) : (
+          <p className="hint" style={{ margin: 0 }}>{isAfterLocal(today, s.dailyTextTime) ? "Δεν υπάρχει κείμενο για σήμερα." : `Έρχεται στις ${s.dailyTextTime}.`}</p>
+        )}
+      </Panel>
+
       {(hero || day.length > 0) && (
         <Panel title={hero ? "Τώρα" : "Η μέρα σου"} icon="clock" className="m-now">
           {hero && (
@@ -293,19 +308,6 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
         </Link>
       )}
 
-      {/* «Ξυπνάμε παρέα» (υπεύθυνη 22/10): το κείμενο της ημέρας ψηλά στο «Σήμερα», με το ίδιο το κείμενο (όχι μόνο τίτλο). */}
-      <Panel title="Ξυπνάμε παρέα" icon="sun" className="m-morning" link={{ href: "/m/texts", label: "Θεματικές" }}>
-        {text ? (
-          <>
-            {text.imageMime && <Link href={`/m/texts/${text.id}`}><img src={`/api/content/${text.id}/image`} alt={text.title} className="m-morning-img" /></Link>}
-            <strong className="m-morning-title">{text.title}</strong>
-            {text.body && <p className="m-morning-body">{text.body.length > 420 ? `${text.body.slice(0, 420).replace(/\s+\S*$/, "")}…` : text.body}</p>}
-            {text.body.length > 420 && <p style={{ margin: "6px 0 0" }}><Link href={`/m/texts/${text.id}`}>Συνέχεια ›</Link></p>}
-          </>
-        ) : (
-          <p className="hint" style={{ margin: 0 }}>{isAfterLocal(today, s.dailyTextTime) ? "Δεν υπάρχει κείμενο για σήμερα." : `Έρχεται στις ${s.dailyTextTime}.`}</p>
-        )}
-      </Panel>
 
       <div className="m-grid">
         <div>

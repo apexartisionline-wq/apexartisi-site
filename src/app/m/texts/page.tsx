@@ -9,8 +9,9 @@ import { getSettings } from "@/lib/settings";
 import { addDays, formatDate, localParts, mondayOf } from "@/lib/time";
 
 // «Βιβλιοθήκη θεματικών» (υπεύθυνη 22/10: «όχι κείμενα — βιβλιοθήκη θεματικών· εκεί μέσα οι άνθρωποι βλέπουν τις θεματικές»).
-// Μία ενότητα ανά εβδομάδα (Δευτέρα–Κυριακή, όπως η θεματική της ομάδας) με τις φόρμες της· από κάτω τα «Ξυπνάμε παρέα»
-// (κείμενα της ημέρας). Ό,τι έχει βγει από την έναρξη του μέλους (ή τον τελευταίο χρόνο), νεότερα πάνω.
+// Μία ενότητα ανά εβδομάδα (Δευτέρα–Κυριακή, όπως η θεματική της ομάδας) με τις φόρμες της. Ό,τι έχει βγει από την έναρξη
+// του μέλους (ή τον τελευταίο χρόνο), νεότερα πάνω. Τα κείμενα της ημέρας («Ξεκινάμε τη μέρα παρέα») ΔΕΝ μπαίνουν εδώ
+// (υπεύθυνη 22/10: «δεν έχει θέση στη βιβλιοθήκη θεματικών, δεν τις κρατάνε τις κάρτες») — μόνο στο «Σήμερα» της μέρας τους.
 // Φόρμες μέσα στο Apex (22/10): το μέλος απαντά και ξαναβλέπει τις απαντήσεις του· οι παλιές με σύνδεσμο (Google) μένουν σύνδεσμοι.
 export default async function ThemesLibraryPage() {
   const user = await requireMember();
@@ -19,13 +20,11 @@ export default async function ThemesLibraryPage() {
   const today = localParts(now).date;
   const from = user.programStartDate && user.programStartDate > addDays(today, -365) ? addDays(mondayOf(user.programStartDate), -7) : addDays(today, -365);
   const items = await prisma.content.findMany({
-    where: { date: { gte: from, lte: today } },
+    where: { kind: "FORM", date: { gte: from, lte: today } },
     orderBy: [{ date: "desc" }, { title: "asc" }],
     select: { id: true, date: true, kind: true, title: true, questions: true },
   });
-  const visible = items.filter((c) => isPublished(c.date, c.kind === "DAILY_TEXT" ? s.dailyTextTime : s.formsTime, now));
-  const forms = visible.filter((c) => c.kind === "FORM");
-  const texts = visible.filter((c) => c.kind === "DAILY_TEXT");
+  const forms = items.filter((c) => isPublished(c.date, s.formsTime, now));
   const weeks = new Map<string, typeof forms>();
   for (const f of forms) {
     const w = mondayOf(f.date);
@@ -35,8 +34,8 @@ export default async function ThemesLibraryPage() {
   const mine = await latestAnswers(user.id, forms.filter((f) => parseQuestions(f.questions).length).map((f) => f.id));
   return (
     <main>
-      <PageHead title="Βιβλιοθήκη θεματικών" sub="Οι θεματικές που δουλεύουμε κάθε εβδομάδα και τα «Ξυπνάμε παρέα»" />
-      {weeks.size === 0 && texts.length === 0 && <Panel><EmptyState>Δεν υπάρχει κάτι ακόμα.</EmptyState></Panel>}
+      <PageHead title="Βιβλιοθήκη θεματικών" sub="Οι θεματικές που δουλεύουμε κάθε εβδομάδα" />
+      {weeks.size === 0 && <Panel><EmptyState>Δεν υπάρχει κάτι ακόμα.</EmptyState></Panel>}
       {[...weeks.entries()].map(([w, fs]) => {
         const sorted = [...fs].sort((a, b) => a.date.localeCompare(b.date));
         return (
@@ -64,19 +63,6 @@ export default async function ThemesLibraryPage() {
           </details>
         );
       })}
-      {texts.length > 0 && (
-        <Panel title="Ξυπνάμε παρέα" icon="sun">
-          {texts.slice(0, 30).map((c) => (
-            <Link key={c.id} href={`/m/texts/${c.id}`} className="linkrow">
-              <span className="grow">
-                <div style={{ fontWeight: 600 }}>{c.title}</div>
-                <div className="hint">{formatDate(c.date)}</div>
-              </span>
-              <span className="arrow"><Icon name="chevron" /></span>
-            </Link>
-          ))}
-        </Panel>
-      )}
     </main>
   );
 }

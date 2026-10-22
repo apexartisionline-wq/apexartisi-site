@@ -37,7 +37,7 @@ export default async function TextPage({ params, searchParams }: { params: Promi
   const mine = qs.length ? (await latestAnswers(user.id, [c.id])).get(c.id) : undefined;
   return (
     <main>
-      <PageHead title={c.title} sub={`${formatDate(c.date)} · ${c.kind === "DAILY_TEXT" ? "Ξυπνάμε παρέα" : "Φόρμα της θεματικής"}`} />
+      <PageHead title={c.title} sub={`${formatDate(c.date)} · ${c.kind === "DAILY_TEXT" ? "Ξεκινάμε τη μέρα παρέα" : "Φόρμα της θεματικής"}`} />
       {c.imageMime && <img src={`/api/content/${c.id}/image`} alt={c.title} style={{ width: "100%", borderRadius: 12, marginBottom: 12 }} />}
       {c.body && <div className="panel body-text">{c.body}</div>}
       {qs.length > 0 ? (

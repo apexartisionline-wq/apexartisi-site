@@ -15,7 +15,7 @@ async function give(formData: FormData) {
   await prisma.assignment.create({
     data: { memberId, title, instructions: String(formData.get("instructions") ?? "").slice(0, 5000), createdById: user.id },
   });
-  await notifyMembers([memberId], { title: "Νέα εργασία στη βιβλιοθήκη", url: "/m/library", tag: "assignment" });
+  await notifyMembers([memberId], { title: "Νέα εργασία στο «Οι εργασίες μου»", url: "/m/library", tag: "assignment" });
   revalidatePath(`/t/members/${memberId}`);
 }
 

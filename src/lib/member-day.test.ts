@@ -5,7 +5,7 @@ const at = (hhmm: string) => new Date(`2026-10-22T${hhmm}:00Z`);
 
 const items: DayItem[] = [
   { key: "j", at: at("20:00"), title: "Ημερολόγιο" },
-  { key: "t", at: at("09:00"), title: "Ξυπνάμε παρέα" },
+  { key: "t", at: at("09:00"), title: "Ξεκινάμε τη μέρα παρέα" },
   { key: "g", at: at("21:00"), opensAt: at("20:50"), endsAt: at("22:30"), title: "Ομάδα" },
   { key: "s", at: at("12:00"), opensAt: at("11:55"), endsAt: at("12:50"), title: "Ατομική" },
 ];

@@ -1308,7 +1308,7 @@ html[data-theme="dark"] .goal-days .gday.today { color: var(--accent); }
 
 /* ───────── Μέλος: πιο ζωντανό (υπεύθυνη 22/10: «τα χρώματα είναι πεθαμενατζίδικα, ζωντάνεψέ το λίγο») ─────────
    Μόνο χρώματα του brand (tokens, αλλάζουν μόνα τους στο σκοτεινό)· κόκκινο/κίτρινο μένουν μόνο για ασφάλεια.
-   (1) Το καλωσόρισμα σε απαλή γαλάζια ζώνη· (2) γεμάτα εικονίδια στις κάρτες (accent με λευκό)· (3) «Ξυπνάμε παρέα» σαν πρωινό
+   (1) Το καλωσόρισμα σε απαλή γαλάζια ζώνη· (2) γεμάτα εικονίδια στις κάρτες (accent με λευκό)· (3) «Ξεκινάμε τη μέρα παρέα» σαν πρωινό
    φως· (4) οι αριθμοί της πορείας στο accent· (5) η ενεργή καρτέλα της κάτω μπάρας με γαλάζιο φόντο. */
 .member-env main.m-home > .page-head {
   background: linear-gradient(135deg, var(--now-bg) 0%, var(--card) 85%);
@@ -1381,3 +1381,10 @@ html[data-theme="dark"] .jform .jsec { color: var(--accent); }
 .member-env .m-day li.m-day-mark { gap: 12px; padding: 2px 0; border-top: 2px solid var(--accent); color: var(--accent-strong); font-size: var(--fs-help); font-weight: 700; }
 .member-env .m-day li.m-day-mark + li { border-top: 0; }
 html[data-theme="dark"] .member-env .m-day .s-now .t, html[data-theme="dark"] .member-env .m-day .s-now .st, html[data-theme="dark"] .member-env .m-day li.m-day-mark { color: var(--accent); }
+
+/* «Ραντεβού»: πότε και με ποιον (22/10) — κάτω από το ημερολόγιο μήνα, ατομικές και ομάδες με το όνομα. */
+.m-month-list { list-style: none; margin: 12px 0 0; padding: 0; }
+.m-month-list li { display: flex; align-items: baseline; gap: 12px; padding: 8px 0; border-top: 1px solid var(--card-line); }
+.m-month-list .when { flex: 0 0 8.5em; color: var(--muted); font-variant-numeric: tabular-nums; font-size: var(--fs-help); }
+.m-month-list .ok { color: var(--ok); font-weight: 700; }
+@media (max-width: 420px) { .m-month-list li { flex-wrap: wrap; row-gap: 0; } .m-month-list .when { flex-basis: 100%; } }

@@ -7,6 +7,8 @@ import { requireMember } from "@/lib/intake";
 import { bookHour, cancelBooking, openHours } from "@/lib/booking";
 import { prisma } from "@/lib/db";
 import { notifyRole } from "@/lib/notify";
+import { groupDays } from "@/lib/groups";
+import { memberGroups } from "@/lib/group-presence";
 import { sessionOrders } from "@/lib/session-order-db";
 import { bookingWindow, canRequestChange, slotMinutes } from "@/lib/program";
 import { getSettings } from "@/lib/settings";
@@ -61,7 +63,7 @@ export default async function BookPage({
   const today = localParts(now).date;
   const ym = /^\d{4}-(0[1-9]|1[0-2])$/.test(sp.m ?? "") ? sp.m! : today.slice(0, 7);
   const mb = monthBounds(ym);
-  const [mine, hours, pending, monthBookings] = await Promise.all([
+  const [mine, hours, pending, monthBookings, monthGroupDays, monthAttendance] = await Promise.all([
     prisma.booking.findMany({
       where: { memberId: user.id, slot: { date: { gte: w.weekStart, lte: w.weekEnd } } },
       include: { slot: true },
@@ -71,9 +73,31 @@ export default async function BookPage({
     prisma.changeRequest.findMany({ where: { memberId: user.id, status: "PENDING" }, select: { bookingId: true } }),
     prisma.booking.findMany({
       where: { memberId: user.id, slot: { date: { gte: mb.first, lte: mb.last } } },
-      select: { slot: { select: { date: true, startsAt: true, kind: true } } },
+      select: { confirmedCame: true, joinedAt: true, slot: { select: { date: true, startsAt: true, kind: true, therapist: { select: { name: true } } } } },
+      orderBy: { slot: { startsAt: "asc" } },
     }),
+    groupDays(mb.first, mb.last, s),
+    prisma.attendance.findMany({ where: { memberId: user.id, date: { gte: mb.first, lte: mb.last } }, select: { date: true, joinedAt: true } }),
   ]);
+
+  // «Πότε και με ποιον» (υπεύθυνη 22/10: «να βλέπει συγκεκριμένα πότε ήταν τα ατομικά του και με ποιον, και πότε οι ομάδες
+  // και με ποιον» — αλλάζει την απόφαση 14/10 (6) για το όνομα στο μέλος). Ό,τι πέρασε: μόνο όσα έγιναν (✓), όχι «δεν ήρθες»·
+  // ό,τι έρχεται: με το όνομα όταν είναι ήδη ορισμένο. Ομάδες: ο συντονιστής της μέρας (εναλλαγή ή αλλαγή της διαχείρισης).
+  const groupRows = memberGroups(
+    monthGroupDays.map((g) => ({ ...g, endsAt: new Date(g.startsAt.getTime() + s.groupDurationMinutes * 60_000) })),
+    monthAttendance,
+    { now, joinDate: user.programStartDate },
+  ).rows.filter((g) => g.state === "present" || g.state === "future");
+  const coordIds = [...new Set(groupRows.map((g) => g.coordinatorId).filter((x): x is string => Boolean(x)))];
+  const coordNames = new Map((coordIds.length ? await prisma.user.findMany({ where: { id: { in: coordIds } }, select: { id: true, name: true } }) : []).map((u) => [u.id, u.name]));
+  // Μόνο το όνομα, όχι ο τύπος θεραπευτή (απόφαση 14/10 (6) για τον τύπο μένει)· στα ψεύτικα ονόματα ο τύπος είναι σε παρένθεση.
+  const shown = (name: string | null | undefined) => (name ? name.replace(/\s*\([^)]*\)\s*$/, "") : null);
+  const monthRows = [
+    ...monthBookings
+      .filter((b) => b.slot.startsAt.getTime() + slotMinutes(b.slot.kind, s) * 60_000 > now.getTime() || b.confirmedCame === true || (b.confirmedCame === null && b.joinedAt !== null))
+      .map((b) => ({ date: b.slot.date, startsAt: b.slot.startsAt, what: KINDS[b.slot.kind as keyof typeof KINDS] ?? "Ατομική", who: shown(b.slot.therapist?.name), done: b.slot.startsAt <= now })),
+    ...groupRows.map((g) => ({ date: g.date, startsAt: g.startsAt, what: "Ομάδα", who: g.coordinatorId ? shown(coordNames.get(g.coordinatorId)) : null, done: g.state === "present" })),
+  ].sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
   const pendingFor = new Set(pending.map((r) => r.bookingId));
   const firstUpcoming = mine.find((b) => b.slot.kind === "INDIVIDUAL" && b.slot.startsAt > now);
   // Ακύρωση με επιβεβαίωση (20/10), όπως η κράτηση: ?u=<κράτηση>.
@@ -103,9 +127,25 @@ export default async function BookPage({
           ym={ym}
           today={today}
           base="/m/book"
-          items={monthBookings.map((b) => ({ date: b.slot.date, time: formatTime(b.slot.startsAt), label: KINDS[b.slot.kind as keyof typeof KINDS] ?? "Ατομική" }))}
+          items={monthRows.map((r) => ({ date: r.date, time: formatTime(r.startsAt), label: r.what }))}
         />
-        <p className="hint" style={{ margin: "10px 0 0" }}>{monthBookings.length ? `${monthBookings.length} ${monthBookings.length === 1 ? "ραντεβού" : "ραντεβού"} αυτόν τον μήνα.` : "Κανένα ραντεβού αυτόν τον μήνα."}</p>
+        {monthRows.length === 0 ? (
+          <p className="hint" style={{ margin: "10px 0 0" }}>Κανένα ραντεβού αυτόν τον μήνα.</p>
+        ) : (
+          <ul className="m-month-list">
+            {monthRows.map((r) => (
+              <li key={`${r.what}${r.startsAt.toISOString()}`} className={r.done ? "done" : undefined}>
+                <span className="when">{formatDate(r.date)} · {formatTime(r.startsAt)}</span>
+                <span className="grow">
+                  <strong>{r.what}</strong>
+                  {/* «·» αντί για «με»: τα ονόματα είναι στην ονομαστική («με Βασίλης» δεν στέκει). */}
+                  {r.who && <span className="muted"> · {r.who}</span>}
+                </span>
+                {r.done && <span className="ok" aria-label="έγινε">✓</span>}
+              </li>
+            ))}
+          </ul>
+        )}
       </Panel>
 
       <Panel title={`Αυτή την εβδομάδα · ${formatDate(w.weekStart)} – ${formatDate(w.weekEnd)}`} icon="clock">

@@ -20,9 +20,9 @@ export const GROUP_LABEL: Record<GroupState, string> = {
   not_held: "δεν έγινε",
 };
 
-export function memberGroups(occ: Occurrence[], attendance: { date: string; joinedAt: Date }[], o: { now: Date; joinDate: string | null }) {
+export function memberGroups<T extends Occurrence>(occ: T[], attendance: { date: string; joinedAt: Date }[], o: { now: Date; joinDate: string | null }) {
   const sorted = [...occ].sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
-  const matched = new Set<Occurrence>();
+  const matched = new Set<T>();
   // Κάθε παρουσία (μία ανά μέρα) πάει στην ομάδα της μέρας που ταιριάζει στην ώρα· αλλιώς στην πρώτη της μέρας.
   for (const a of attendance) {
     const same = sorted.filter((g) => g.date === a.date && !matched.has(g));

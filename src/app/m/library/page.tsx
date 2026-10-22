@@ -32,7 +32,8 @@ export default async function MemberLibrary({ searchParams }: { searchParams: Pr
   ]);
   return (
     <main>
-      <PageHead title="Βιβλιοθήκη" sub="Οι εργασίες σου και το υλικό του προγράμματος" />
+      {/* «Βιβλιοθήκη» → «Οι εργασίες μου» (υπεύθυνη 22/10)· ίδια διεύθυνση /m/library. */}
+      <PageHead title="Οι εργασίες μου" sub="Το βήμα σου, οι εργασίες σου και το υλικό του προγράμματος" />
       <Panel title="Σε ποιο βήμα βρίσκεσαι;" icon="compass">
         <form action={saveStep}>
           <p className="hint" style={{ margin: "0 0 8px" }}>Το βλέπει η ομάδα σου, για να ξέρει πού είσαι.</p>
@@ -46,7 +47,7 @@ export default async function MemberLibrary({ searchParams }: { searchParams: Pr
           {sp.step && <p className="notice" style={{ margin: "8px 0 0" }}>Αποθηκεύτηκε ✓</p>}
         </form>
       </Panel>
-      <Panel title="Οι εργασίες μου" icon="doc">
+      <Panel title="Εργασίες" icon="doc">
         {mine.length === 0 ? (
           <EmptyState>Δεν έχεις εργασίες ακόμα.</EmptyState>
         ) : (
