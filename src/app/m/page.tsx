@@ -140,7 +140,7 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
       ),
     };
   } else if (journalDue) {
-    hero = { kind: "journal", title: "Το ημερολόγιο άνοιξε", hint: "Δυο λεπτά για τη μέρα σου.", action: journalLink };
+    hero = { kind: "journal", title: "Το ημερολόγιο άνοιξε", hint: "Γράψε για τη μέρα σου.", action: journalLink };
   } else {
     const next = later[0];
     if (next) { heroKey = next.key; hero = { kind: "later", title: `Σήμερα: ${next.title}`, hint: [inWords(next.at), next.hint].filter(Boolean).join(" · ") }; }
