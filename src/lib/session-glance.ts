@@ -1,6 +1,7 @@
 import "server-only";
 import { dec } from "./crypto";
 import { prisma } from "./db";
+import { parseQuestions } from "./theme-forms";
 import { memberNotes } from "./member-notes";
 import { bothPictures } from "./picture-db";
 import { addDays, localParts } from "./time";
@@ -17,7 +18,9 @@ export async function sessionGlance(memberId: string, beforeSlot: { id: string; 
     memberNotes(memberId, { before: beforeSlot.startsAt, excludeSlot: beforeSlot.id, take: 1 }).then((ns) => ns[0] ?? null),
     prisma.assignment.findFirst({ where: { memberId }, orderBy: { createdAt: "desc" }, select: { id: true, title: true, answer: true, answeredAt: true } }),
     // Φόρμες της θεματικής αυτής της εβδομάδας (Δευτέρα–Κυριακή).
-    prisma.content.findMany({ where: { kind: "FORM", date: { gte: mondayOf(today), lte: addDays(mondayOf(today), 6) } }, orderBy: { date: "asc" }, select: { id: true, title: true, date: true, body: true, url: true } }),
+    prisma.content.findMany({ where: { kind: "FORM", date: { gte: mondayOf(today), lte: addDays(mondayOf(today), 6) } }, orderBy: { date: "asc" }, select: { id: true, title: true, date: true, body: true, url: true, questions: true } }).then((fs) =>
+      // Φόρμες μέσα στο Apex (22/10): οι ερωτήσεις κάτω από το κείμενο, για να τις έχει ο θεραπευτής μπροστά του.
+      fs.map(({ questions, ...f }) => { const qs = parseQuestions(questions); return { ...f, body: qs.length ? `${f.body}${f.body ? "\n\n" : ""}Ερωτήσεις της φόρμας:\n${qs.map((q, i) => `${i + 1}. ${q}`).join("\n")}` : f.body }; })),
     // Το κείμενο της ημέρας, για να ξέρει ο θεραπευτής τι διάβασε σήμερα το μέλος.
     prisma.content.findFirst({ where: { kind: "DAILY_TEXT", date: today }, select: { id: true, title: true, date: true, body: true, url: true } }),
   ]);

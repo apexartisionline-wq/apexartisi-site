@@ -5,6 +5,7 @@ import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { normalizeSearch } from "@/lib/guide";
 import { isPublished } from "@/lib/member";
+import { parseQuestions } from "@/lib/theme-forms";
 import { getSettings } from "@/lib/settings";
 import { addDays, formatDate, localParts, mondayOf } from "@/lib/time";
 import styles from "./page.module.css";
@@ -40,8 +41,10 @@ export default async function TherapistMaterial({ searchParams }: { searchParams
     prisma.content.findMany({
       where: { date: { gte: pastFrom } },
       orderBy: [{ date: "asc" }],
-      select: { id: true, date: true, kind: true, title: true, body: true, url: true, imageMime: true },
-    }),
+      select: { id: true, date: true, kind: true, title: true, body: true, url: true, imageMime: true, questions: true },
+    }).then((cs) =>
+      // Φόρμες μέσα στο Apex (22/10): οι ερωτήσεις κάτω από το κείμενο, όπως τις βλέπει το μέλος.
+      cs.map(({ questions, ...c }) => { const qs = parseQuestions(questions); return { ...c, body: qs.length ? `${c.body}${c.body ? "\n\n" : ""}Ερωτήσεις της φόρμας:\n${qs.map((q, i) => `${i + 1}. ${q}`).join("\n")}` : c.body }; })),
     prisma.libraryItem.findMany({ where: { published: true }, orderBy: { createdAt: "desc" }, select: { id: true, kind: true, title: true, description: true } }),
   ]);
   const timeOf = (c: Item) => (c.kind === "DAILY_TEXT" ? s.dailyTextTime : s.formsTime);

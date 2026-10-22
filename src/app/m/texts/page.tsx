@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Icon } from "@/components/Icon";
-import { EmptyState, PageHead, Panel } from "@/components/ui";
+import { EmptyState, PageHead, Panel, Pill } from "@/components/ui";
+import { latestAnswers, parseQuestions } from "@/lib/theme-forms";
 import { requireMember } from "@/lib/intake";
 import { prisma } from "@/lib/db";
 import { isPublished } from "@/lib/member";
@@ -10,7 +11,7 @@ import { addDays, formatDate, localParts, mondayOf } from "@/lib/time";
 // «Βιβλιοθήκη θεματικών» (υπεύθυνη 22/10: «όχι κείμενα — βιβλιοθήκη θεματικών· εκεί μέσα οι άνθρωποι βλέπουν τις θεματικές»).
 // Μία ενότητα ανά εβδομάδα (Δευτέρα–Κυριακή, όπως η θεματική της ομάδας) με τις φόρμες της· από κάτω τα «Ξυπνάμε παρέα»
 // (κείμενα της ημέρας). Ό,τι έχει βγει από την έναρξη του μέλους (ή τον τελευταίο χρόνο), νεότερα πάνω.
-// Οι απαντήσεις των φορμών μένουν προς το παρόν στις Google Forms — δεν φαίνονται εδώ (βλ. docs/apofaseis/03).
+// Φόρμες μέσα στο Apex (22/10): το μέλος απαντά και ξαναβλέπει τις απαντήσεις του· οι παλιές με σύνδεσμο (Google) μένουν σύνδεσμοι.
 export default async function ThemesLibraryPage() {
   const user = await requireMember();
   const s = await getSettings();
@@ -20,7 +21,7 @@ export default async function ThemesLibraryPage() {
   const items = await prisma.content.findMany({
     where: { date: { gte: from, lte: today } },
     orderBy: [{ date: "desc" }, { title: "asc" }],
-    select: { id: true, date: true, kind: true, title: true },
+    select: { id: true, date: true, kind: true, title: true, questions: true },
   });
   const visible = items.filter((c) => isPublished(c.date, c.kind === "DAILY_TEXT" ? s.dailyTextTime : s.formsTime, now));
   const forms = visible.filter((c) => c.kind === "FORM");
@@ -31,6 +32,7 @@ export default async function ThemesLibraryPage() {
     weeks.set(w, [...(weeks.get(w) ?? []), f]);
   }
   const thisWeek = mondayOf(today);
+  const mine = await latestAnswers(user.id, forms.filter((f) => parseQuestions(f.questions).length).map((f) => f.id));
   return (
     <main>
       <PageHead title="Βιβλιοθήκη θεματικών" sub="Οι θεματικές που δουλεύουμε κάθε εβδομάδα και τα «Ξυπνάμε παρέα»" />
@@ -52,6 +54,9 @@ export default async function ThemesLibraryPage() {
                 <span className="grow">
                   <div style={{ fontWeight: 600 }}>{f.title}</div>
                   <div className="hint">Φόρμα {i + 1} · {formatDate(f.date)}</div>
+                  {parseQuestions(f.questions).length > 0 && (
+                    <div style={{ marginTop: 4 }}>{mine.has(f.id) ? <Pill tone="ok" icon="check">Απάντησες</Pill> : <Pill tone="grey">Να την απαντήσεις</Pill>}</div>
+                  )}
                 </span>
                 <span className="arrow"><Icon name="chevron" /></span>
               </Link>

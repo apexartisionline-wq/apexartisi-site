@@ -366,7 +366,10 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
                 <ul style={{ margin: 0, paddingLeft: 20 }}>
                   {forms.map((f) => (
                     <li key={f.id}>
-                      {f.url && consents.forms === "YES" ? (
+                      {/* Φόρμα μέσα στο Apex (22/10): πάντα στη σελίδα της, εκεί απαντά. Παλιές με σύνδεσμο: όπως πριν. */}
+                      {f.questions ? (
+                        <Link href={`/m/texts/${f.id}`}>{f.title}</Link>
+                      ) : f.url && consents.forms === "YES" ? (
                         <a href={withMemberCode(f.url, user.memberCode)} target="_blank" rel="noopener noreferrer">{f.title}</a>
                       ) : (
                         <Link href={`/m/texts/${f.id}`}>{f.title}</Link>

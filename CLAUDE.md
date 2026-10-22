@@ -22,6 +22,7 @@ Online πρόγραμμα ανάκαμψης βασισμένο στα 12 βήμ
 - `docs/apofaseis/04-klinika-axiologisi-asfaleia.md` — αρχική αξιολόγηση, ερωτηματολόγια, ανάγκες ασφάλειας, πλάνο, ατομικό σχέδιο. (Κρίσιμο: δουλεύεται σε Fable.)
 - `docs/apofaseis/05-texnika-montela.md` — Netlify, Neon, ψεύτικα δεδομένα, μηδενισμός, ταχύτητα, μοντέλα.
 - Σχέδια και έρευνα: `docs/PLAN.md`, `docs/REVIEW.md`, `docs/clinical/`, `docs/legal/`, `docs/research/`.
+- **Θεματική της εβδομάδας (από 22/10):** ΟΧΙ Google Forms — ένα αρχείο `content/thematikes/*.json` που μπαίνει μόνο του σε κάθε ανέβασμα· διαδικασία στο `docs/odigies/thematiki-sto-apex.md`. Ποτέ απαντήσεις ή στοιχεία μελών σε αρχείο.
 - Χάρτης Apex (artifact https://claude.ai/artifact/7cXbHcuDwxgANcUCREEQ2g): τι υπάρχει και τι εκκρεμεί. Ενημερώνεται σε κάθε ορόσημο (διάβασε με Artifact `read`, άλλαξε μόνο ό,τι άλλαξε, ξαναδημοσίευσε στο ίδιο url).
 
 ## Τεχνικά (τα απαραίτητα)

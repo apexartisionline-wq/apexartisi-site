@@ -100,6 +100,7 @@ model User {
   pairNotes     PairNote[]    @relation("PairNoteTherapist")
   attendances   Attendance[]
   journal       JournalEntry[]
+  formAnswers   FormAnswer[]
   helpRequests  HelpRequest[]      @relation("HelpMember")
   helpClaims    HelpRequest[]      @relation("HelpClaimer")
   requests      ChangeRequest[]
@@ -227,8 +228,27 @@ model Content {
   // Εικόνα (π.χ. η κάρτα «Καθημερινή σκέψη» του πρωινού): φαίνεται στο «Σήμερα» του μέλους και στο «Υλικό» των θεραπευτών.
   imageMime String?
   image     Bytes?
+  // Φόρμα της θεματικής ΜΕΣΑ στο Apex (22/10): οι ερωτήσεις ως JSON πίνακας κειμένων. Κενό = παλιά φόρμα με σύνδεσμο (Google).
+  questions String       @default("")
+  answers   FormAnswer[]
 
   @@index([date, kind])
+}
+
+// Απαντήσεις μέλους σε φόρμα της θεματικής (22/10). Κάθε αποθήκευση = νέα γραμμή (νέα έκδοση, τίποτα δεν σβήνεται μέσα
+// στον χρόνο τήρησης)· ισχύει η πιο πρόσφατη. Οι απαντήσεις κρυπτογραφημένες (JSON πίνακας, ίδια σειρά με τις ερωτήσεις).
+// Κλινικός φάκελος: σβήνονται μαζί του (retention-db.ts). Η φόρμα δεν σβήνεται όσο έχει απαντήσεις (Restrict).
+model FormAnswer {
+  id        String   @id @default(cuid())
+  contentId String
+  content   Content  @relation(fields: [contentId], references: [id], onDelete: Restrict)
+  memberId  String
+  member    User     @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  answers   String
+  createdAt DateTime @default(now())
+
+  @@index([memberId, contentId, createdAt])
+  @@index([contentId])
 }
 
 // Ημερολόγιο ανάκαμψης (κάθε βράδυ).
