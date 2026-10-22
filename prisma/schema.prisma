@@ -247,6 +247,9 @@ model JournalEntry {
   goalCheck  String? // YES | PARTLY | NO — συνέπεια με τον στόχο της εβδομάδας
   goalNote   String   @default("") // κρυπτογραφημένο
   win        String   @default("") // «Μια νίκη σήμερα» — κρυπτογραφημένο
+  // Οι υπόλοιπες ερωτήσεις του πραγματικού «Ημερολογίου της Ανάκαμψής μου» (τετράδιο v2, υπεύθυνη 22/10), ως ένα
+  // κρυπτογραφημένο JSON (βλ. src/lib/journal-questions.ts)· σβήνεται μαζί με την καταχώριση (κλινικός φάκελος).
+  answers    String   @default("")
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 

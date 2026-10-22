@@ -21,7 +21,7 @@ export default async function MySafetyPlan({ searchParams }: { searchParams: Pro
   const missing = missingSections(plan);
   return (
     <main>
-      <PageHead title="Το πλάνο μου όταν δυσκολεύομαι" sub="Το γράψαμε μαζί σε μια ατομική. Το βλέπεις πρώτο όταν πατάς το κόκκινο κουμπί. Μπορείς να το αλλάζεις." />
+      <PageHead title="Το σχέδιο ασφάλειάς μου" sub="Όταν δυσκολεύομαι. Το γράψαμε μαζί σε μια ατομική. Το βλέπεις πρώτο όταν πατάς το κόκκινο κουμπί. Μπορείς να το αλλάζεις." />
       {sp.ok && <div className="notice">Αποθηκεύτηκε ✓</div>}
       {filled ? <SafetyPlanView plan={plan} canCall /> : <p className="muted">Δεν έχει γραφτεί κάτι ακόμα.</p>}
       {missing.length > 0 && (
@@ -30,7 +30,7 @@ export default async function MySafetyPlan({ searchParams }: { searchParams: Pro
         </p>
       )}
       <details className="fold" open={!filled || sp.edit === "1"} style={{ marginTop: 16 }}>
-        <summary>Άλλαξε ή συμπλήρωσε το πλάνο</summary>
+        <summary>Άλλαξε ή συμπλήρωσε το σχέδιο</summary>
         <SafetyPlanForm plan={plan} action={save} />
       </details>
     </main>

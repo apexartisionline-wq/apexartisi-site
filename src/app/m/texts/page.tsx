@@ -5,35 +5,73 @@ import { requireMember } from "@/lib/intake";
 import { prisma } from "@/lib/db";
 import { isPublished } from "@/lib/member";
 import { getSettings } from "@/lib/settings";
-import { addDays, formatDate, localParts } from "@/lib/time";
+import { addDays, formatDate, localParts, mondayOf } from "@/lib/time";
 
-export default async function TextsPage() {
-  await requireMember();
+// «Βιβλιοθήκη θεματικών» (υπεύθυνη 22/10: «όχι κείμενα — βιβλιοθήκη θεματικών· εκεί μέσα οι άνθρωποι βλέπουν τις θεματικές»).
+// Μία ενότητα ανά εβδομάδα (Δευτέρα–Κυριακή, όπως η θεματική της ομάδας) με τις φόρμες της· από κάτω τα «Ξυπνάμε παρέα»
+// (κείμενα της ημέρας). Ό,τι έχει βγει από την έναρξη του μέλους (ή τον τελευταίο χρόνο), νεότερα πάνω.
+// Οι απαντήσεις των φορμών μένουν προς το παρόν στις Google Forms — δεν φαίνονται εδώ (βλ. docs/apofaseis/03).
+export default async function ThemesLibraryPage() {
+  const user = await requireMember();
   const s = await getSettings();
   const now = new Date();
   const today = localParts(now).date;
+  const from = user.programStartDate && user.programStartDate > addDays(today, -365) ? addDays(mondayOf(user.programStartDate), -7) : addDays(today, -365);
   const items = await prisma.content.findMany({
-    omit: { image: true },
-    where: { date: { gte: addDays(today, -21), lte: today } },
-    orderBy: [{ date: "desc" }, { kind: "asc" }],
+    where: { date: { gte: from, lte: today } },
+    orderBy: [{ date: "desc" }, { title: "asc" }],
+    select: { id: true, date: true, kind: true, title: true },
   });
   const visible = items.filter((c) => isPublished(c.date, c.kind === "DAILY_TEXT" ? s.dailyTextTime : s.formsTime, now));
+  const forms = visible.filter((c) => c.kind === "FORM");
+  const texts = visible.filter((c) => c.kind === "DAILY_TEXT");
+  const weeks = new Map<string, typeof forms>();
+  for (const f of forms) {
+    const w = mondayOf(f.date);
+    weeks.set(w, [...(weeks.get(w) ?? []), f]);
+  }
+  const thisWeek = mondayOf(today);
   return (
     <main>
-      <PageHead title="Κείμενα" sub="Τα κείμενα της ημέρας και οι φόρμες των τελευταίων εβδομάδων" />
-      <Panel>
-        {visible.length === 0 && <EmptyState>Δεν υπάρχει κάτι ακόμα.</EmptyState>}
-        {visible.map((c) => (
-          <Link key={c.id} href={`/m/texts/${c.id}`} className="linkrow">
-            <span className="iconbox"><Icon name={c.kind === "DAILY_TEXT" ? "doc" : "list"} size={20} /></span>
-            <span className="grow">
-              <div style={{ fontWeight: 600 }}>{c.title}</div>
-              <div className="hint">{formatDate(c.date)} · {c.kind === "DAILY_TEXT" ? "Κείμενο της ημέρας" : "Φόρμα"}</div>
-            </span>
-            <span className="arrow"><Icon name="chevron" /></span>
-          </Link>
-        ))}
-      </Panel>
+      <PageHead title="Βιβλιοθήκη θεματικών" sub="Οι θεματικές που δουλεύουμε κάθε εβδομάδα και τα «Ξυπνάμε παρέα»" />
+      {weeks.size === 0 && texts.length === 0 && <Panel><EmptyState>Δεν υπάρχει κάτι ακόμα.</EmptyState></Panel>}
+      {[...weeks.entries()].map(([w, fs]) => {
+        const sorted = [...fs].sort((a, b) => a.date.localeCompare(b.date));
+        return (
+          <details key={w} className="panel m-theme" open={w === thisWeek}>
+            <summary>
+              <span className="iconbox"><Icon name="list" size={20} /></span>
+              <span className="grow">
+                <strong>{w === thisWeek ? "Αυτή την εβδομάδα" : `Εβδομάδα ${formatDate(w)}`}</strong>
+                <div className="hint">{sorted.map((f) => f.title).join(" · ")}</div>
+              </span>
+            </summary>
+            {sorted.map((f, i) => (
+              <Link key={f.id} href={`/m/texts/${f.id}`} className="linkrow">
+                <span className="iconbox">{i + 1}</span>
+                <span className="grow">
+                  <div style={{ fontWeight: 600 }}>{f.title}</div>
+                  <div className="hint">Φόρμα {i + 1} · {formatDate(f.date)}</div>
+                </span>
+                <span className="arrow"><Icon name="chevron" /></span>
+              </Link>
+            ))}
+          </details>
+        );
+      })}
+      {texts.length > 0 && (
+        <Panel title="Ξυπνάμε παρέα" icon="sun">
+          {texts.slice(0, 30).map((c) => (
+            <Link key={c.id} href={`/m/texts/${c.id}`} className="linkrow">
+              <span className="grow">
+                <div style={{ fontWeight: 600 }}>{c.title}</div>
+                <div className="hint">{formatDate(c.date)}</div>
+              </span>
+              <span className="arrow"><Icon name="chevron" /></span>
+            </Link>
+          ))}
+        </Panel>
+      )}
     </main>
   );
 }

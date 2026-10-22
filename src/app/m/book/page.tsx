@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { EmptyState, ErrorNote, PageHead, Panel } from "@/components/ui";
+import { MonthCalendar, monthBounds } from "@/components/MonthCalendar";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireMember } from "@/lib/intake";
@@ -9,7 +10,7 @@ import { notifyRole } from "@/lib/notify";
 import { sessionOrders } from "@/lib/session-order-db";
 import { bookingWindow, canRequestChange, slotMinutes } from "@/lib/program";
 import { getSettings } from "@/lib/settings";
-import { DAY_NAMES, formatDate, formatHour, formatTime } from "@/lib/time";
+import { DAY_NAMES, formatDate, formatHour, formatTime, localParts } from "@/lib/time";
 import { RedirectType } from "next/navigation";
 
 const KINDS = { INDIVIDUAL: "Ατομική", PAIR: "Therapair" } as const;
@@ -49,14 +50,18 @@ async function undo(formData: FormData) {
 export default async function BookPage({
   searchParams,
 }: {
-  searchParams: Promise<{ ok?: string; e?: string; undone?: string; c?: string; u?: string }>;
+  searchParams: Promise<{ ok?: string; e?: string; undone?: string; c?: string; u?: string; m?: string }>;
 }) {
   const user = await requireMember();
   const [s, sp] = await Promise.all([getSettings(), searchParams]);
   const now = new Date();
   const w = bookingWindow(now, s);
 
-  const [mine, hours, pending] = await Promise.all([
+  // Ημερολόγιο μήνα (22/10): ?m=ΥΥΥΥ-ΜΜ, αλλιώς ο τρέχων μήνας.
+  const today = localParts(now).date;
+  const ym = /^\d{4}-(0[1-9]|1[0-2])$/.test(sp.m ?? "") ? sp.m! : today.slice(0, 7);
+  const mb = monthBounds(ym);
+  const [mine, hours, pending, monthBookings] = await Promise.all([
     prisma.booking.findMany({
       where: { memberId: user.id, slot: { date: { gte: w.weekStart, lte: w.weekEnd } } },
       include: { slot: true },
@@ -64,6 +69,10 @@ export default async function BookPage({
     }),
     w.open ? openHours(w.weekStart, w.weekEnd, now) : Promise.resolve([]),
     prisma.changeRequest.findMany({ where: { memberId: user.id, status: "PENDING" }, select: { bookingId: true } }),
+    prisma.booking.findMany({
+      where: { memberId: user.id, slot: { date: { gte: mb.first, lte: mb.last } } },
+      select: { slot: { select: { date: true, startsAt: true, kind: true } } },
+    }),
   ]);
   const pendingFor = new Set(pending.map((r) => r.bookingId));
   const firstUpcoming = mine.find((b) => b.slot.kind === "INDIVIDUAL" && b.slot.startsAt > now);
@@ -84,12 +93,22 @@ export default async function BookPage({
 
   return (
     <main>
-      <PageHead title="Ραντεβού της εβδομάδας" sub={`${formatDate(w.weekStart)} – ${formatDate(w.weekEnd)}`} />
+      <PageHead title="Ραντεβού" sub="Ο μήνας σου με μια ματιά, και οι ώρες της εβδομάδας" />
       {sp.ok && <div className="notice">Το ραντεβού κλείστηκε ✓ Μπορείς να το ακυρώσεις μέχρι τις {formatTime(w.closesAt)}.</div>}
       {sp.undone && <div className="notice">Το ραντεβού ακυρώθηκε.</div>}
       {sp.e && <ErrorNote>{sp.e}</ErrorNote>}
 
-      <Panel title="Τα ραντεβού σου" icon="calendar">
+      <Panel title="Ο μήνας σου" icon="calendar">
+        <MonthCalendar
+          ym={ym}
+          today={today}
+          base="/m/book"
+          items={monthBookings.map((b) => ({ date: b.slot.date, time: formatTime(b.slot.startsAt), label: KINDS[b.slot.kind as keyof typeof KINDS] ?? "Ατομική" }))}
+        />
+        <p className="hint" style={{ margin: "10px 0 0" }}>{monthBookings.length ? `${monthBookings.length} ${monthBookings.length === 1 ? "ραντεβού" : "ραντεβού"} αυτόν τον μήνα.` : "Κανένα ραντεβού αυτόν τον μήνα."}</p>
+      </Panel>
+
+      <Panel title={`Αυτή την εβδομάδα · ${formatDate(w.weekStart)} – ${formatDate(w.weekEnd)}`} icon="clock">
         {mine.length === 0 && <EmptyState>Δεν έχεις κλείσει ραντεβού αυτή την εβδομάδα.</EmptyState>}
         {mine.map((b) => (
           <div key={b.id} className="m-row">

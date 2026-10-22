@@ -8,6 +8,7 @@ import { dec } from "@/lib/crypto";
 import { prisma } from "@/lib/db";
 import { GOAL_CHECK, type GoalCheck } from "@/lib/goals";
 import { SELF_HARM } from "@/lib/journal-labels";
+import { TEXT_QUESTIONS, VALUES, parseAnswers } from "@/lib/journal-questions";
 import { addDays, formatDate, formatWhen } from "@/lib/time";
 
 const isDate = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s);
@@ -28,6 +29,8 @@ export default async function JournalDayPage({ params }: { params: Promise<{ id:
   await logAccess(user.id, id, `journal_day_view:${date}`);
   const flag = Boolean(j && (j.used || j.selfHarm === "YES" || j.selfHarm === "UNSURE"));
   const note = dec(j?.note), win = dec(j?.win), goalNote = dec(j?.goalNote);
+  // Οι υπόλοιπες ερωτήσεις του τετραδίου (22/10)· σε παλιές καταχωρίσεις λείπουν και απλώς δεν φαίνονται.
+  const a = parseAnswers(dec(j?.answers));
   const back = `/t/members/${id}/journal`;
   return (
     <main>
@@ -49,12 +52,23 @@ export default async function JournalDayPage({ params }: { params: Promise<{ id:
             <span><b>{j.confidence}</b>/10 σιγουριά για αύριο</span>
           </div>
           <ul className="journal-ans">
+            {a.wake && <li>Πώς ξύπνησε: <strong>{a.wake}</strong></li>}
             <li>Χρήση: {j.used ? <strong className="warn-text">ναι</strong> : "όχι"}</li>
+            {a.cravingAny !== undefined && <li>Λαχτάρα ή παρόρμηση: {a.cravingAny ? <strong>ναι</strong> : "όχι"}</li>}
+            {a.reaction && a.reaction.length > 0 && <li>Πώς αντέδρασε: {a.reaction.join(" · ")}</li>}
+            {a.selfCare && a.selfCare.length > 0 && <li>Καλό για τον εαυτό του: {a.selfCare.join(" · ")}</li>}
+            {a.values && <li>Εναρμονισμένο με τις αξίες του: <strong>{VALUES[a.values]}</strong></li>}
             <li>Σκέψεις να κάνει κακό στον εαυτό του: {j.selfHarm === "YES" || j.selfHarm === "UNSURE" ? <strong className="warn-text">{SELF_HARM[j.selfHarm]}</strong> : SELF_HARM[j.selfHarm]}</li>
             {j.goalCheck && <li>Συνεπής με τον στόχο: <strong>{GOAL_CHECK[j.goalCheck as GoalCheck] ?? j.goalCheck}</strong>{goalNote && <span className="wm"> — «{goalNote}»</span>}</li>}
             <li>Μια νίκη σήμερα: {win ? <span className="wm">«{win}»</span> : <span className="muted">δεν έγραψε</span>}</li>
           </ul>
-          <div className="small muted" style={{ marginTop: 8 }}>Κάτι που θέλει να γράψει:</div>
+          {TEXT_QUESTIONS.filter((q) => a[q.key]).map((q) => (
+            <div key={q.key}>
+              <div className="small muted" style={{ marginTop: 8 }}>{q.n}. {q.label}</div>
+              <div className="body-text journal-note wm">{String(a[q.key])}</div>
+            </div>
+          ))}
+          <div className="small muted" style={{ marginTop: 8 }}>Κάτι άλλο που θέλει να γράψει:</div>
           {note ? <div className="body-text journal-note wm">{note}</div> : <div className="muted">δεν έγραψε</div>}
           <p className="hint" style={{ margin: "10px 0 0" }}>Γράφτηκε {formatWhen(j.updatedAt)}. Το μέλος ξέρει ότι ολόκληρη η καταχώριση μπορεί να τη δει η ομάδα του. Η προβολή καταγράφεται.</p>
         </section>

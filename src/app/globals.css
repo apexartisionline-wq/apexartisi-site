@@ -1024,6 +1024,7 @@ details.safety-fold > .side-body > .panel { border: 0; padding: 4px 0 0 !importa
 .member-env .page-head { margin: 4px 0 14px; }
 .member-env .page-sub { color: var(--muted); margin: 4px 0 0; }
 .member-env main.m-home { max-width: 1100px; }
+@media (min-width: 1000px) { .member-env main.m-home { max-width: 1240px; } } /* 22/10: ίδιο πλάτος με το μενού */
 .m-grid { display: grid; gap: 0 20px; grid-template-columns: minmax(0, 1fr); }
 @media (min-width: 980px) { .m-grid { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); align-items: start; } }
 @media (max-width: 760px) { .member-env .panel { padding: 16px; } }
@@ -1059,6 +1060,9 @@ details.safety-fold > .side-body > .panel { border: 0; padding: 4px 0 0 !importa
 /* Το πάνω μενού του μέλους: ίδιο πλάτος σε όλες τις σελίδες (1100px, όσο το «Σήμερα»), ώστε στον υπολογιστή να χωρά σε μία
    γραμμή· οι σελίδες ανάγνωσης (760px) κάθονται κεντραρισμένες από κάτω, όπως οι σελίδες της ομάδας κάτω από το δικό τους μενού. */
 body:has(.member-env) nav.top { max-width: 1100px; }
+/* 22/10: με «Βιβλιοθήκη θεματικών» και «Το σχέδιο ασφάλειάς μου» το μενού του μέλους δεν χωρούσε σε 1100 — σε μεγάλη οθόνη πιο φαρδύ
+   και λίγο πιο σφιχτό, ώστε να μένει σε μία γραμμή. */
+@media (min-width: 1000px) { body:has(.member-env) nav.top { max-width: 1240px; } body:has(.member-env) nav.top .navlinks a { padding: 6px 8px; } }
 /* Οι παλιές .card του μέλους (κόκκινο κουμπί, πλάνο, λογαριασμός) παίρνουν το βάρος της .panel: ίδια καμπύλη, γέμισμα, σκιά. */
 .member-env .card { border-radius: var(--card-radius); padding: var(--card-pad); box-shadow: 0 1px 2px rgba(12, 22, 32, 0.04); }
 .member-env .card .card { background: var(--surface); border-color: var(--line); border-radius: var(--radius); padding: 14px 16px; box-shadow: none; }
@@ -1300,4 +1304,65 @@ html[data-theme="dark"] .goal-days .gday.today { color: var(--accent); }
   .m-sheet a:hover, .m-sheet button:hover { background: var(--soft); }
   .m-sheet form { border-top: 1px solid var(--card-line); margin-top: 6px; padding-top: 6px; }
   .m-sheet form button { color: var(--red-ink); }
+}
+
+/* ───────── Μέλος: πιο ζωντανό (υπεύθυνη 22/10: «τα χρώματα είναι πεθαμενατζίδικα, ζωντάνεψέ το λίγο») ─────────
+   Μόνο χρώματα του brand (tokens, αλλάζουν μόνα τους στο σκοτεινό)· κόκκινο/κίτρινο μένουν μόνο για ασφάλεια.
+   (1) Το καλωσόρισμα σε απαλή γαλάζια ζώνη· (2) γεμάτα εικονίδια στις κάρτες (accent με λευκό)· (3) «Ξυπνάμε παρέα» σαν πρωινό
+   φως· (4) οι αριθμοί της πορείας στο accent· (5) η ενεργή καρτέλα της κάτω μπάρας με γαλάζιο φόντο. */
+.member-env main.m-home > .page-head {
+  background: linear-gradient(135deg, var(--now-bg) 0%, var(--card) 85%);
+  border: 1px solid var(--now-line); border-radius: var(--radius-lg); padding: 18px 20px; margin: 4px 0 16px;
+}
+.member-env main.m-home > .page-head h1 { color: var(--accent-strong); }
+html[data-theme="dark"] .member-env main.m-home > .page-head h1 { color: var(--accent); }
+.member-env .panel-head .iconbox, .member-env .linkrow .iconbox { background: var(--accent); color: var(--accent-text); }
+.member-env .whereami strong { color: var(--accent-strong); font-size: 1.6rem; }
+html[data-theme="dark"] .member-env .whereami strong { color: var(--accent); }
+.member-env .panel.m-morning { background: linear-gradient(160deg, var(--now-bg) 0%, var(--card) 70%); border-color: var(--now-line); }
+.m-morning-img { width: 100%; border-radius: 12px; margin-bottom: 10px; display: block; }
+.m-morning-title { display: block; font-size: 1.15rem; margin-bottom: 6px; }
+.m-morning-body { margin: 0; white-space: pre-line; line-height: 1.65; }
+@media (max-width: 760px) {
+  .m-tabs .tab.on:not(.tab-red) { background: var(--now-bg); border-radius: 14px; }
+}
+
+/* Ημερολόγιο μήνα στα «Ραντεβού» (22/10): μόνο τα ραντεβού του μέλους, ίδια όψη περασμένα/επόμενα (χωρίς «ήρθε/δεν ήρθε»). */
+.mcal-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+.mcal-head strong { font-size: 1.1rem; }
+.mcal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.mcal-dow { text-align: center; font-size: .8rem; color: var(--muted); font-weight: 700; padding-bottom: 2px; }
+.mcal-day { min-height: 54px; border-radius: 10px; background: var(--canvas); padding: 4px; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.mcal-day.out { background: transparent; opacity: .35; }
+.mcal-n { font-size: .85rem; font-weight: 600; }
+.mcal-day.has { background: var(--accent); color: var(--accent-text); }
+.mcal-day.has.past { background: var(--now-bg); color: var(--text); box-shadow: inset 0 0 0 1px var(--now-line); }
+.mcal-day.today { box-shadow: inset 0 0 0 2px var(--accent-strong); }
+html[data-theme="dark"] .mcal-day.today { box-shadow: inset 0 0 0 2px var(--accent); }
+.mcal-t { font-size: .72rem; font-weight: 700; line-height: 1.1; }
+details.panel.m-theme > summary { display: flex; align-items: center; gap: 12px; cursor: pointer; list-style: none; }
+details.panel.m-theme > summary::-webkit-details-marker { display: none; }
+details.panel.m-theme[open] > summary { margin-bottom: 8px; }
+details.panel.m-theme .linkrow .iconbox { font-weight: 800; }
+.member-env details.m-theme > summary .iconbox { background: var(--accent); color: var(--accent-text); }
+.member-env details.m-theme .linkrow { color: var(--text); }
+/* Ημερολόγιο ανάκαμψης, οι 18 ερωτήσεις του τετραδίου (22/10): ενότητες, «chips» για τις πολλαπλές επιλογές,
+   και οι ερωτήσεις 6–7 + ένταση μόνο όταν η 5 είναι «Ναι» (CSS :has, χωρίς JavaScript). */
+.jform .jsec { margin: 22px 0 8px; padding-top: 14px; border-top: 1px solid var(--card-line); font-size: 1rem; color: var(--accent-strong); text-transform: none; }
+html[data-theme="dark"] .jform .jsec { color: var(--accent); }
+.jform .jsec:first-of-type { border-top: 0; padding-top: 0; margin-top: 6px; }
+.jform textarea { min-height: 72px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border: 1px solid var(--card-line); border-radius: 999px; background: var(--card); cursor: pointer; min-height: 44px; }
+.chip input { width: auto; margin: 0; }
+.chip:has(input:checked) { background: var(--now-bg); border-color: var(--accent); }
+.jif-craving { display: none; }
+.jform:has(input[name="cravingAny"][value="YES"]:checked) .jif-craving { display: block; }
+.scale.s10 { grid-template-columns: repeat(10, minmax(0, 1fr)); }
+/* Μέλος σε tablet (761–1199px): οι 7 σύνδεσμοι δεν χωρούν σε μία γραμμή — «Μενού» όπως στο κινητό (22/10). */
+@media (min-width: 761px) and (max-width: 1199px) {
+  body:has(.member-env) .navlinks.many { display: none; }
+  body:has(.member-env) .navmenu { display: block; }
+  body:has(.member-env) .nav-logout.has-menu { display: none; }
+  body:has(.member-env) .navmenu-logout { display: block; }
 }

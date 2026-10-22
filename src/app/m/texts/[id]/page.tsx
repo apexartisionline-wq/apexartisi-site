@@ -14,7 +14,7 @@ export default async function TextPage({ params }: { params: Promise<{ id: strin
   if (!c || !isPublished(c.date, c.kind === "DAILY_TEXT" ? s.dailyTextTime : s.formsTime, new Date())) notFound();
   return (
     <main>
-      <PageHead title={c.title} sub={`${formatDate(c.date)} · ${c.kind === "DAILY_TEXT" ? "Κείμενο της ημέρας" : "Φόρμα"}`} />
+      <PageHead title={c.title} sub={`${formatDate(c.date)} · ${c.kind === "DAILY_TEXT" ? "Ξυπνάμε παρέα" : "Φόρμα της θεματικής"}`} />
       {c.imageMime && <img src={`/api/content/${c.id}/image`} alt={c.title} style={{ width: "100%", borderRadius: 12, marginBottom: 12 }} />}
       {c.body && <div className="panel body-text">{c.body}</div>}
       {c.url && !forms && <p className="muted small">Οι φόρμες δεν είναι ανοιχτές για σένα, γιατί δεν έχεις πει «ναι» γι' αυτές. Μπορείς να δουλέψεις το θέμα στην ατομική σου.</p>}

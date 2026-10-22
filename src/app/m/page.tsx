@@ -109,7 +109,7 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
   }
   for (const b of upcoming) if (b.slot.date === today.date && b.slot.startsAt > now) later.push({ key: `b:${b.id}`, at: b.slot.startsAt, title: `${b.slot.kind === "PAIR" ? "Therapair" : "Ατομική"} στις ${formatTime(b.slot.startsAt)}`, hint: `Το κουμπί ανοίγει ${s.sessionJoinBeforeMinutes} λεπτά πριν.` });
   if (consents.journal === "YES" && !journalOpen) later.push({ key: "j", at: athensToUtc(today.date, ...(s.journalTime.split(":").map(Number) as [number, number])), title: `Ημερολόγιο στις ${s.journalTime}` });
-  if (!text && !isAfterLocal(today, s.dailyTextTime)) later.push({ key: "t", at: athensToUtc(today.date, ...(s.dailyTextTime.split(":").map(Number) as [number, number])), title: `Το κείμενο της ημέρας στις ${s.dailyTextTime}` });
+  if (!text && !isAfterLocal(today, s.dailyTextTime)) later.push({ key: "t", at: athensToUtc(today.date, ...(s.dailyTextTime.split(":").map(Number) as [number, number])), title: `«Ξυπνάμε παρέα» στις ${s.dailyTextTime}` });
   later.sort((a, b) => a.at.getTime() - b.at.getTime());
   let hero: NowCard | null = null;
   let heroKey: string | null = null;
@@ -180,7 +180,9 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
   return (
     <main className="m-home">
       {/* Ίδια επικεφαλίδα με την ομάδα (20/10): όνομα + ημερομηνία. Μία κύρια ενέργεια ανά κάρτα. */}
-      <PageHead title={`Γεια σου, ${vocative(user.name.split(" ")[0])}`} sub={formatDate(today.date)} />
+      {/* Ζεστό καλωσόρισμα (υπεύθυνη 22/10: «καλωσορίζουμε το μέλος ζεστά — καλώς ήρθες, πάμε να δούμε πώς είναι η μέρα σου —
+          όχι ξερό «γεια σου»»). */}
+      <PageHead title={`Καλώς ήρθες, ${vocative(user.name.split(" ")[0])}`} sub={`Πάμε να δούμε πώς είναι η μέρα σου · ${formatDate(today.date)}`} />
 
       <Announcements />
       {sp.e === "room" && <div className="notice">{ROOM_MISSING_MEMBER}</div>}
@@ -226,11 +228,25 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
           <span className="iconbox"><Icon name="shield" size={20} /></span>
           <span className="grow">
             <strong>Δυσκολεύεσαι τώρα;</strong>
-            <div className="hint">Το πλάνο σου, με τα δικά σου λόγια</div>
+            <div className="hint">Το σχέδιο ασφάλειάς σου, με τα δικά σου λόγια</div>
           </span>
           <span className="arrow"><Icon name="chevron" /></span>
         </Link>
       )}
+
+      {/* «Ξυπνάμε παρέα» (υπεύθυνη 22/10): το κείμενο της ημέρας ψηλά στο «Σήμερα», με το ίδιο το κείμενο (όχι μόνο τίτλο). */}
+      <Panel title="Ξυπνάμε παρέα" icon="sun" className="m-morning" link={{ href: "/m/texts", label: "Θεματικές" }}>
+        {text ? (
+          <>
+            {text.imageMime && <Link href={`/m/texts/${text.id}`}><img src={`/api/content/${text.id}/image`} alt={text.title} className="m-morning-img" /></Link>}
+            <strong className="m-morning-title">{text.title}</strong>
+            {text.body && <p className="m-morning-body">{text.body.length > 420 ? `${text.body.slice(0, 420).replace(/\s+\S*$/, "")}…` : text.body}</p>}
+            {text.body.length > 420 && <p style={{ margin: "6px 0 0" }}><Link href={`/m/texts/${text.id}`}>Συνέχεια ›</Link></p>}
+          </>
+        ) : (
+          <p className="hint" style={{ margin: 0 }}>{isAfterLocal(today, s.dailyTextTime) ? "Δεν υπάρχει κείμενο για σήμερα." : `Έρχεται στις ${s.dailyTextTime}.`}</p>
+        )}
+      </Panel>
 
       <div className="m-grid">
         <div>
@@ -344,19 +360,8 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
             </Link>
           )}
 
-          <Panel title="Το κείμενο της ημέρας" icon="doc" link={{ href: "/m/texts", label: "Κείμενα" }}>
-            {text ? (
-              <>
-                {text.imageMime && <Link href={`/m/texts/${text.id}`}><img src={`/api/content/${text.id}/image`} alt={text.title} style={{ width: "100%", borderRadius: 12, marginBottom: 8 }} /></Link>}
-                <p style={{ margin: 0 }}><Link href={`/m/texts/${text.id}`}>{text.title} ›</Link></p>
-              </>
-            ) : (
-              <p className="hint" style={{ margin: 0 }}>{isAfterLocal(today, s.dailyTextTime) ? "Δεν υπάρχει κείμενο για σήμερα." : `Έρχεται στις ${s.dailyTextTime}.`}</p>
-            )}
-          </Panel>
-
           {(s.formsDays.includes(today.weekday) || forms.length > 0) && (
-            <Panel title="Φόρμες της θεματικής" icon="list" link={{ href: "/m/texts", label: "Κείμενα" }}>
+            <Panel title="Φόρμες της θεματικής" icon="list" link={{ href: "/m/texts", label: "Θεματικές" }}>
               {forms.length ? (
                 <ul style={{ margin: 0, paddingLeft: 20 }}>
                   {forms.map((f) => (

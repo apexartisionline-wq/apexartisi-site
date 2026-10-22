@@ -42,10 +42,10 @@ export function navLinks(role: Role, opts: { hasPlan?: boolean; hasMessages?: bo
     { href: "/m", label: "Σήμερα" },
     { href: "/m/book", label: "Ραντεβού" },
     { href: "/m/journal", label: "Ημερολόγιο" },
-    { href: "/m/texts", label: "Κείμενα" },
+    { href: "/m/texts", label: "Βιβλιοθήκη θεματικών" },
     { href: "/m/library", label: "Βιβλιοθήκη" },
-    // Το πλάνο ασφάλειας γράφεται μόνο όταν υπάρχει λόγος· φαίνεται μόνο σε όποιον το έχει.
-    ...(opts.hasPlan ? [{ href: "/m/safety", label: "Το πλάνο μου" }] : []),
+    // Φαίνεται μόνο σε όποιον το έχει (γράφεται μαζί στη 2η ατομική). Στο μέλος λέγεται «Το σχέδιο ασφάλειάς μου» (υπεύθυνη 22/10).
+    ...(opts.hasPlan ? [{ href: "/m/safety", label: "Το σχέδιο ασφάλειάς μου" }] : []),
     // Τα μηνύματα της ομάδας ξαναδιαβάζονται όποτε θέλει (μόλις υπάρξει το πρώτο).
     ...(opts.hasMessages ? [{ href: "/m/message", label: "Από την ομάδα" }] : []),
     { href: "/account", label: "Λογαριασμός" },
