@@ -219,6 +219,19 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
         </Panel>
       )}
 
+      {/* «Δυσκολεύεσαι τώρα;» αμέσως κάτω από το «Τώρα», με γεμάτη ασπίδα (υπεύθυνη 22/10, εκδοχή «Π1β»: «τις στιγμές που το
+          χρειάζομαι δεν θέλω να περνάω πρώτα από τις ατομικές και τους κύκλους»). Accent, όχι κόκκινο — το κόκκινο μένει στο κόκκινο κουμπί. */}
+      {hasPlan && (
+        <Link href="/m/safety" className="linkrow panel m-plan">
+          <span className="iconbox"><Icon name="shield" size={20} /></span>
+          <span className="grow">
+            <strong>Δυσκολεύεσαι τώρα;</strong>
+            <div className="hint">Το πλάνο σου, με τα δικά σου λόγια</div>
+          </span>
+          <span className="arrow"><Icon name="chevron" /></span>
+        </Link>
+      )}
+
       <div className="m-grid">
         <div>
           <Panel title="Η πορεία σου" icon="chart">
@@ -326,16 +339,6 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
                 <span className="hint">Η εργασία σου</span>
                 <div style={{ fontSize: "1.05rem", marginTop: 2 }}>{openTask.step ? `Βήμα ${openTask.step} · ` : ""}{openTask.title}</div>
                 <div style={{ marginTop: 6 }}><Pill tone="grey">{taskStatus.text}</Pill></div>
-              </span>
-              <span className="arrow"><Icon name="chevron" /></span>
-            </Link>
-          )}
-          {hasPlan && (
-            <Link href="/m/safety" className="linkrow panel">
-              <span className="iconbox"><Icon name="shield" size={20} /></span>
-              <span className="grow">
-                <strong>Δυσκολεύεσαι τώρα;</strong>
-                <div className="hint">Το πλάνο σου, με τα δικά σου λόγια</div>
               </span>
               <span className="arrow"><Icon name="chevron" /></span>
             </Link>

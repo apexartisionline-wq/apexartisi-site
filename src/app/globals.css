@@ -51,6 +51,9 @@
   --bar-accent-strong: #6fddf6;
   --bar-hover: #173444;
   --bar-edge: #2a5566;
+  /* «Τώρα» του μέλους (υπεύθυνη 22/10, «Π1β»): το μόνο γαλάζιο κουτί του «Σήμερα». */
+  --now-bg: #e6f7fb;
+  --now-line: #97ecff;
   --note-box: #ffffff;    /* κουτί ερώτησης στο σημειωματάριο */
   --note-text: #0c1620;
   --note-muted: #3f5864;
@@ -70,6 +73,8 @@ html[data-theme="dark"] {
     --teal-line: #2a5566;
     --bar: #132231;         /* στο σκοτεινό ένα σκαλί πάνω από τον καμβά, για να ξεχωρίζει */
     --bar-hover: #22364a;
+    --now-bg: #132231;
+    --now-line: #97ecff;
     --bg: #0c1620;
     --surface: #132231;
     --field: #0c1620;
@@ -1062,8 +1067,8 @@ body:has(.member-env) nav.top { max-width: 1100px; }
 .member-env main.help { padding-bottom: 24px; }
 .member-env main.help details.fold > summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font-weight: 600; }
 /* Το επόμενο ραντεβού του μέλους ξεχωρίζει (όπως η επόμενη συνεδρία στο «Σήμερα» της ομάδας)· τα υπόλοιπα ήρεμα. */
-.member-env .panel.m-next { border-color: var(--teal-line); background: var(--teal-quiet); }
-html[data-theme="dark"] .member-env .panel.m-next { background: var(--card); border-color: var(--accent); }
+/* Π1β (22/10): το επόμενο ραντεβού ξεχωρίζει μόνο με το κύριο κουμπί του — γαλάζιο μένει ΜΟΝΟ το «Τώρα»
+   (τρία «μέλη» στη δοκιμή μπέρδευαν ποιο από τα δύο γαλάζια κουτιά είναι το σημερινό). */
 /* «Άνθρωποι» της διαχείρισης: ίδια κάρτα με τα «Μέλη», με γραμμή στοιχείων αντί για σήμα. */
 .member-card.is-inactive { opacity: .6; }
 .person-meta { grid-area: next; display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--muted); font-size: .92rem; }
@@ -1244,8 +1249,9 @@ p.motto { margin: 0 0 16px; display: block; }
 
 /* ---- Μέλος, ιδέες από τις εφαρμογές ανάκαμψης (21/10): «Τώρα», οι 7 μέρες του στόχου, κάτω μπάρα στο κινητό ---- */
 /* «Τώρα»: η μία ενέργεια της στιγμής, πάνω-πάνω, με την ήπια ανάδειξη του επόμενου ραντεβού (ίδιο teal, ένα accent). */
-.member-env .panel.m-now { border-color: var(--teal-line); background: var(--teal-quiet); }
-html[data-theme="dark"] .member-env .panel.m-now { background: var(--card); border-color: var(--accent); }
+.member-env .panel.m-now { border-color: var(--now-line); background: var(--now-bg); }
+.member-env .panel.m-now .panel-head .iconbox, .member-env .m-plan .iconbox { background: var(--accent); color: var(--accent-text); }
+.member-env .linkrow.m-plan { border-color: var(--now-line); }
 .member-env .panel.m-now strong { font-size: 1.1rem; }
 /* Οι 7 μέρες του στόχου: γεμάτος = Ναι, μισός = Λίγο, άδειος = Όχι σήμερα, ανοιχτός = χωρίς απάντηση, διακεκομμένος = δεν ήρθε ακόμα. Χωρίς κόκκινο. */
 .goal-days { display: inline-flex; gap: 6px; margin-top: 8px; }
