@@ -11,7 +11,7 @@ import { cyclePeriod, cyclePeriodLabel } from "./member";
 import { getSettings } from "./settings";
 import { addDays, localParts, mondayOf } from "./time";
 import { cycleIsComplete, type CycleProgress } from "./cycle-rules";
-import { notifyRole } from "./notify";
+import { notifyMembers, notifyRole } from "./notify";
 
 /** Συντάκτης των αυτόματων κλεισιμάτων κύκλου (17/10): δεν είναι λογαριασμός. */
 export const AUTO_AUTHOR = "system";
@@ -151,6 +151,7 @@ export async function autoCloseCycles(memberIds?: string[], now = new Date()): P
   const due = await dueCycleReviews(ids, now);
   const left: { memberId: string; cycleId: string }[] = [];
   let closed = 0;
+  const closedIds: string[] = [];
   for (const d of due) {
     try {
       const cycle = await lastFinishedCycle(d.memberId, now);
@@ -161,15 +162,35 @@ export async function autoCloseCycles(memberIds?: string[], now = new Date()): P
       const open = await prisma.careTask.findFirst({ where: { memberId: d.memberId, kind: "new_cycle", doneAt: null }, select: { id: true } });
       if (!open) await prisma.careTask.create({ data: { memberId: d.memberId, kind: "new_cycle", dueAt: now } });
       closed++;
+      closedIds.push(d.memberId);
     } catch (e) {
       console.error("[cycle-auto-close]", d.memberId, e);
       left.push(d);
     }
   }
+  if (closedIds.length > 0) {
+    // Και στο ίδιο το μέλος (υπεύθυνη 22/10: «φτιάξε το μήνυμα ολοκλήρωσης κύκλου»): η κάρτα στο «Σήμερα» (`cycleJustCompleted`).
+    await notifyMembers(closedIds, { title: "Ολοκλήρωσες τον κύκλο σου", body: "Η ομάδα σου είναι εδώ για τη συνέχεια.", url: "/m", tag: "cycle" }).catch((e) => console.error("[cycle-auto-close notify member]", e));
+  }
   if (closed > 0) {
     await notifyRole("ADMIN", { title: `Έκλεισε κύκλος (${closed === 1 ? "1 μέλος" : `${closed} μέλη`}) — νέος κύκλος: συμφωνητικό και προεξόφληση`, url: "/admin", tag: "cycle" }).catch((e) => console.error("[cycle-auto-close notify]", e));
   }
   return left;
+}
+
+/**
+ * Μήνυμα ολοκλήρωσης κύκλου στο μέλος (υπεύθυνη 22/10): ο κύκλος που έκλεισε τις τελευταίες 7 μέρες, όσο η ομάδα δεν έχει
+ * στείλει ακόμα το προσωπικό μήνυμα του κύκλου («Ένα μήνυμα από την ομάδα σου» — αυτό το παίρνει από εκεί και πέρα).
+ * Χωρίς μετρήματα και χωρίς χρέωση (απόφαση 20/10): μόνο η ολοκλήρωση.
+ */
+export async function cycleJustCompleted(memberId: string, now = new Date()): Promise<boolean> {
+  const last = await prisma.cycleReview.findFirst({ where: { memberId }, orderBy: { createdAt: "desc" }, select: { cycleId: true } });
+  if (!last) return false;
+  const [first, msg] = await Promise.all([
+    prisma.cycleReview.findFirst({ where: { cycleId: last.cycleId }, orderBy: { createdAt: "asc" }, select: { createdAt: true } }),
+    prisma.monthlyMessage.findUnique({ where: { cycleId: last.cycleId }, select: { sentAt: true } }),
+  ]);
+  return Boolean(first && now.getTime() - first.createdAt.getTime() < 7 * 86_400_000 && !msg?.sentAt);
 }
 
 /** Παλιά μορφή (πριν 14/10): δύο γραμμές. Μένει για τα παλιά δεδομένα και τα tests. */

@@ -14,6 +14,7 @@ import { extraGroupTimes, holidaysFrom } from "@/lib/groups";
 import { bookingWindow, canRequestChange, groupsOn, isAfter, joinableGroup, sessionJoinable, slotMinutes } from "@/lib/program";
 import { gr } from "@/lib/assessment";
 import { goalWeek } from "@/lib/goals";
+import { cycleJustCompleted } from "@/lib/cycle-review";
 import { dayTimeline, type DayItem } from "@/lib/member-day";
 import { soberDays } from "@/lib/note-form";
 import { latestAnswers } from "@/lib/theme-forms";
@@ -59,7 +60,7 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
   // την ομάδα: η επιβεβαίωση του σημειώματος υπερισχύει, αλλιώς το δικό του «Μπες»). Ο στόχος της εβδομάδας με τα λόγια του.
   // «6η ατομική» στις επόμενες (όχι «6 από 8»)· ίδιος κανόνας αρίθμησης με την ομάδα (session-order.ts).
   const orders = await sessionOrders(upcoming.filter((b) => b.slot.kind === "INDIVIDUAL").map((b) => ({ id: b.slot.id, startsAt: b.slot.startsAt, memberId: user.id })));
-  const [doneSessions, gw, nextCount, plan, openTask, weekBooked] = await Promise.all([
+  const [doneSessions, gw, nextCount, plan, openTask, weekBooked, cycleDone] = await Promise.all([
     prisma.booking.count({ where: { memberId: user.id, slot: { kind: "INDIVIDUAL", startsAt: { lt: now } }, OR: [{ confirmedCame: true }, { confirmedCame: null, joinedAt: { not: null } }] } }),
     // Ο στόχος της εβδομάδας με τα 7 βραδινά τσεκαρίσματα (goals.ts).
     goalWeek(user.id, today.date),
@@ -71,6 +72,7 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
     prisma.assignment.findFirst({ where: { memberId: user.id, answeredAt: null, notebookAt: null, answerPdfAt: null }, orderBy: { createdAt: "desc" }, select: { id: true, title: true, step: true, mode: true, answeredAt: true, notebookAt: true, answerPdfAt: true } }),
     // Κρατήσεις της εβδομάδας κράτησης — ίδιος κανόνας με τη σελίδα «Ραντεβού» (ώστε η κάρτα να μη ζητά κράτηση όταν έχει κλείσει όλες τις ώρες).
     prisma.booking.count({ where: { memberId: user.id, slot: { date: { gte: window.weekStart, lte: window.weekEnd } } } }),
+    cycleJustCompleted(user.id, now),
   ]);
   const goal = gw.goal;
   const hasPlan = Boolean(plan && hasPlanContent(plan));
@@ -262,6 +264,15 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
           <p className="hint" style={{ margin: 0 }}>{isAfterLocal(today, s.dailyTextTime) ? "Δεν υπάρχει κείμενο για σήμερα." : `Έρχεται στις ${s.dailyTextTime}.`}</p>
         )}
       </Panel>
+
+      {/* Μήνυμα ολοκλήρωσης κύκλου (υπεύθυνη 22/10): 7 μέρες μετά το κλείσιμο, ώσπου να έρθει το προσωπικό μήνυμα της ομάδας.
+          Θετικό πρόσημο, χωρίς μετρήματα και χωρίς χρέωση. Διατύπωση προς έγκριση. */}
+      {cycleDone && (
+        <Panel title="Ολοκλήρωσες τον κύκλο σου" icon="check" className="m-cycle-done">
+          <p style={{ margin: 0 }}>Ατομικές και ομάδες, μία μέρα τη φορά — τα κατάφερες, {vocative(user.name.split(" ")[0])}.</p>
+          <p className="hint" style={{ margin: "6px 0 0" }}>Σύντομα θα σου γράψουμε τι είδαμε. Η ομάδα σου είναι εδώ για τη συνέχεια.</p>
+        </Panel>
+      )}
 
       {(hero || day.length > 0) && (
         <Panel title={hero ? "Τώρα" : "Η μέρα σου"} icon="clock" className="m-now">

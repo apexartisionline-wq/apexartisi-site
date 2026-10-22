@@ -1388,3 +1388,7 @@ html[data-theme="dark"] .member-env .m-day .s-now .t, html[data-theme="dark"] .m
 .m-month-list .when { flex: 0 0 8.5em; color: var(--muted); font-variant-numeric: tabular-nums; font-size: var(--fs-help); }
 .m-month-list .ok { color: var(--ok); font-weight: 700; }
 @media (max-width: 420px) { .m-month-list li { flex-wrap: wrap; row-gap: 0; } .m-month-list .when { flex-basis: 100%; } }
+
+/* Μήνυμα ολοκλήρωσης κύκλου (22/10): ήπια γιορτή με το accent, όχι κόκκινο/κίτρινο. */
+.member-env .panel.m-cycle-done { border-color: var(--now-line); background: var(--now-bg); }
+.member-env .panel.m-cycle-done .panel-head .iconbox { background: var(--accent); color: var(--accent-text); }
