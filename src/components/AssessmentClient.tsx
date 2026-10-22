@@ -2,7 +2,7 @@
 
 import { type ReactNode, useState } from "react";
 import {
-  ABSTINENCE, AS_PRESCRIBED, MARITAL, type Assessment, assessmentWarnings, AUDIT_ITEMS, auditScore, DAST_ITEMS, dastScore, DIAGNOSES, PGSI_ITEMS,
+  ABSTINENCE, AS_PRESCRIBED, MARITAL, type Assessment, assessmentWarnings, AUDIT_ATTRIBUTION, AUDIT_ITEMS, auditScore, DAST_ITEMS, dastScore, DIAGNOSES, PGSI_ITEMS,
   PGSI_OPTIONS, pgsiScore, questionnaires, type Score, SUBSTANCE_LABEL, SUBSTANCES, type SubstanceKey, TRAUMA, TREATMENT_END,
   TREATMENT_WHERE, type YesNo,
 } from "@/lib/assessment";
@@ -229,6 +229,8 @@ export function AssessmentClient({ action, memberId, initial, profile, showAdmin
                     </div>
                   </div>
                 ))}
+                {/* Όρος της άδειας του ΠΟΥ (21/10): η αναφορά αυτούσια κάτω από το ερωτηματολόγιο. */}
+                <div className="q muted small" lang="en">{AUDIT_ATTRIBUTION}</div>
               </div>
             </details>
             {scoreRow("AUDIT", auditScore(d.audit))}

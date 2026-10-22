@@ -11,7 +11,7 @@ import { isPsychologist, nameWithKind, seesMonthFolder } from "@/lib/access";
 import { logAccess } from "@/lib/audit";
 import { currentStep, lastStepWork } from "@/lib/steps";
 import { SafetyZone } from "@/components/SafetyZone";
-import { auditScore, dastScore, gr, pgsiScore, questionnaires } from "@/lib/assessment";
+import { AUDIT_ATTRIBUTION, auditScore, dastScore, gr, pgsiScore, questionnaires } from "@/lib/assessment";
 import { SCREEN_LICENSED, screenScore } from "@/lib/screening";
 import { latestAssessment } from "@/lib/assessment-db";
 import { requireRole } from "@/lib/auth";
@@ -228,6 +228,8 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
               <details className="fold" style={{ marginTop: 6 }}>
                 <summary>Σύνοψη από την αρχική αξιολόγηση</summary>
                 <div className="hint">{ax.author}{isPsychologist(user) && scores.length > 0 && ` · ${scores.join(" · ")} (περίοδος βαριάς χρήσης)`}</div>
+                {/* Όρος της άδειας του ΠΟΥ (21/10): η αναφορά συνοδεύει κάθε εμφάνιση του AUDIT. */}
+                {isPsychologist(user) && SCREEN_LICENSED.alcohol && q?.audit && <div className="hint" lang="en" style={{ marginTop: 4 }}>{AUDIT_ATTRIBUTION}</div>}
                 <div className="body-text wm">{ax.data.summary}</div>
               </details>
             )}

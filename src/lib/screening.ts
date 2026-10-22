@@ -9,7 +9,11 @@
 export const SCREEN_KEYS = ["alcohol", "drugs", "gambling"] as const;
 export type ScreenKey = (typeof SCREEN_KEYS)[number];
 
-/** Ποιο επίσημο εργαλείο έχει άδεια (ΠΟΥ / CAMH / CCSA). Μέχρι τότε φαίνεται το προσωρινό του Apex. */
+/**
+ * Ποιο επίσημο εργαλείο έχει άδεια (ΠΟΥ / CAMH / CCSA). Μέχρι τότε φαίνεται το προσωρινό του Apex.
+ * AUDIT: η άδεια του ΠΟΥ ήρθε 21/10/2026 (αγγλικό πρωτότυπο, docs/legal/2026-10-22-adeia-who-audit.md) — η σημαία γυρίζει true
+ * ΜΟΝΟ όταν οριστεί η πηγή του ελληνικού κειμένου (AUDIT_GREEK_SOURCE στο assessment.ts) και το εγκρίνει η υπεύθυνη. DAST-10 / PGSI: εκκρεμούν.
+ */
 export const SCREEN_LICENSED: Record<ScreenKey, boolean> = { alcohol: false, drugs: false, gambling: false };
 
 export const SCREEN_VERSION = "apex-1";

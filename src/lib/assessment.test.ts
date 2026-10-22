@@ -1,10 +1,26 @@
 import { describe, expect, it } from "vitest";
 import {
-  assessmentWarnings, assessmentAlerts, assessmentLines, assessmentSchema, auditScore, dastScore, keepAdminOnly, missingForComplete, pgsiScore,
+  assessmentWarnings, assessmentAlerts, assessmentLines, assessmentSchema, AUDIT_ATTRIBUTION, AUDIT_ITEMS, AUDIT_ITEMS_EN, auditScore, dastScore, keepAdminOnly, missingForComplete, pgsiScore,
   questionnaires, soberSinceFrom, stripAdminOnly,
 } from "./assessment";
 
 const base = assessmentSchema.parse({});
+
+describe("AUDIT — άδεια ΠΟΥ (21/10)", () => {
+  it("επίσημο αγγλικό κείμενο: 10 ερωτήσεις, 1–8 με 0–4, 9–10 με 0/2/4 (η βαθμολόγηση δεν αλλάζει)", () => {
+    expect(AUDIT_ITEMS_EN).toHaveLength(10);
+    for (const it of AUDIT_ITEMS_EN.slice(0, 8)) expect(it.options.map((o) => o[0])).toEqual([0, 1, 2, 3, 4]);
+    for (const it of AUDIT_ITEMS_EN.slice(8)) expect(it.options.map((o) => o[0])).toEqual([0, 2, 4]);
+    expect(AUDIT_ITEMS_EN[3].q).toMatch(/during the last year/);
+    // Η ελληνική απόδοση έχει την ίδια δομή βαθμολόγησης (ο αριθμός μένει συγκρίσιμος).
+    expect(AUDIT_ITEMS.map((it) => it.options.map((o) => o[0]))).toEqual(AUDIT_ITEMS_EN.map((it) => it.options.map((o) => o[0])));
+  });
+  it("η αναφορά στον ΠΟΥ είναι αυτούσια", () => {
+    expect(AUDIT_ATTRIBUTION).toMatch(/^Reproduced with permission from AUDIT: the Alcohol Use Disorders Identification Test/);
+    expect(AUDIT_ATTRIBUTION).toContain("https://www.who.int/publications/i/item/who-msd-msb-01.6a");
+    expect(AUDIT_ATTRIBUTION).toMatch(/WHO does not endorse any specific companies, products or services\.$/);
+  });
+});
 
 describe("βαθμολογίες", () => {
   it("AUDIT: άθροισμα, χωρίς χαρακτηρισμό κινδύνου (περίοδος βαριάς χρήσης)", () => {

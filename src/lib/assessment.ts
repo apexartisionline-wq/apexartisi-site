@@ -30,9 +30,43 @@ export const ABSTINENCE = ["Δέσμευση στην αποχή", "Όχι ακ�
 export const MARITAL = ["Παντρεμένος/η", "Σε σχέση / συμβίωση", "Ελεύθερος/η", "Διαζευγμένος/η ή σε διάσταση", "Χήρος/α", "Δεν θέλει να πει"] as const;
 const ABSTINENCE_LEGACY = ["Δεσμευμένος/η στην αποχή"] as const;
 
+// ---- AUDIT: άδεια ΠΟΥ (21/10/2026, docs/legal/2026-10-22-adeia-who-audit.md) ----
+// Δωρεάν, χωρίς λήξη, για χρήση μέσα στο λογισμικό μας. ΟΡΟΙ: (α) η παρακάτω αναφορά αυτούσια κάτω από το ερωτηματολόγιο και
+// σε κάθε έντυπο/αναφορά που το συνοδεύει· (β) ΟΧΙ αλλαγή ερωτήσεων ή βαθμολόγησης· (γ) ΟΧΙ λογότυπο/όνομα του ΠΟΥ σε site,
+// διαφημίσεις, posts· (δ) ΟΧΙ «μας εγκρίνει/πιστοποιεί ο ΠΟΥ». Παράβαση = αυτόματη ακύρωση. Η άδεια καλύπτει το ΑΓΓΛΙΚΟ
+// πρωτότυπο· για μεταφράσεις ο ΠΟΥ δεν ευθύνεται και ελέγχουμε εμείς αν χρειάζεται άλλη άδεια.
+export const AUDIT_ATTRIBUTION =
+  "Reproduced with permission from AUDIT: the Alcohol Use Disorders Identification Test: guidelines for use in primary health care, 2nd ed. Geneva, World Health Organization (WHO), 2001, https://www.who.int/publications/i/item/who-msd-msb-01.6a, accessed 22/10/2026. WHO does not endorse any specific companies, products or services.";
+/** Το επίσημο αγγλικό κείμενο (ΠΟΥ 2001, εκδοχή συνέντευξης) — ΔΕΝ αλλάζει (όρος της άδειας)· ο δεσμευτικός οδηγός για κάθε ελληνική απόδοση. */
+export const AUDIT_ITEMS_EN: { q: string; options: [number, string][] }[] = (() => {
+  const freq: [number, string][] = [[0, "Never"], [1, "Less than monthly"], [2, "Monthly"], [3, "Weekly"], [4, "Daily or almost daily"]];
+  const yn: [number, string][] = [[0, "No"], [2, "Yes, but not in the last year"], [4, "Yes, during the last year"]];
+  return [
+    { q: "How often do you have a drink containing alcohol?", options: [[0, "Never"], [1, "Monthly or less"], [2, "2 to 4 times a month"], [3, "2 to 3 times a week"], [4, "4 or more times a week"]] },
+    { q: "How many drinks containing alcohol do you have on a typical day when you are drinking?", options: [[0, "1 or 2"], [1, "3 or 4"], [2, "5 or 6"], [3, "7, 8, or 9"], [4, "10 or more"]] },
+    { q: "How often do you have six or more drinks on one occasion?", options: freq },
+    { q: "How often during the last year have you found that you were not able to stop drinking once you had started?", options: freq },
+    { q: "How often during the last year have you failed to do what was normally expected from you because of drinking?", options: freq },
+    { q: "How often during the last year have you needed a first drink in the morning to get yourself going after a heavy drinking session?", options: freq },
+    { q: "How often during the last year have you had a feeling of guilt or remorse after drinking?", options: freq },
+    { q: "How often during the last year have you been unable to remember what happened the night before because you had been drinking?", options: freq },
+    { q: "Have you or someone else been injured as a result of your drinking?", options: yn },
+    { q: "Has a relative or friend or a doctor or another health worker been concerned about your drinking or suggested you cut down?", options: yn },
+  ];
+})();
+/**
+ * Πηγή του ΕΛΛΗΝΙΚΟΥ κειμένου που θα μπει στο λογισμικό — ΚΕΝΟ (22/10): το AUDIT_ITEMS παρακάτω είναι ΔΙΚΗ ΜΑΣ συντομευμένη
+ * απόδοση του σχεδίου 02 (όχι αυτούσια μετάφραση, σε τρίτο πρόσωπο, χωρίς το «τον τελευταίο χρόνο») — δεν καλύπτεται από την
+ * άδεια ως «AUDIT». Μέχρι να οριστεί πηγή (auditscreen.org / έκδοση Moussas κ.ά. 2009 / δική μας πιστή μετάφραση με disclaimer)
+ * και να εγκριθεί από την υπεύθυνη και τον νομικό, η σημαία SCREEN_LICENSED.alcohol μένει false (δείχνει το προσωρινό του Apex).
+ */
+export const AUDIT_GREEK_SOURCE: string | null = null;
+
 // ⚠ ΔΟΚΙΜΗ: προσωρινά κείμενα. Σε πραγματικά μέλη μόνο με γραπτή άδεια και επίσημη ελληνική έκδοση
-// (docs/clinical/erotimatologia-adeies.md). Το AUDIT είναι η απόδοση του σχεδίου 02.
-// Για νηφάλια μέλη ρωτάμε για την ΠΕΡΙΟΔΟ ΒΑΡΙΑΣ ΧΡΗΣΗΣ (απόφαση υπεύθυνης): ο αριθμός δεν λέει «κίνδυνο τώρα».
+// (docs/clinical/erotimatologia-adeies.md). Το AUDIT_ITEMS είναι η δική μας απόδοση του σχεδίου 02 — ΟΧΙ το επίσημο κείμενο
+// (βλ. AUDIT_GREEK_SOURCE). Για νηφάλια μέλη ρωτάμε για την ΠΕΡΙΟΔΟ ΒΑΡΙΑΣ ΧΡΗΣΗΣ (απόφαση υπεύθυνης 2/10): ο αριθμός δεν λέει
+// «κίνδυνο τώρα». ΠΡΟΣΟΧΗ: το επίσημο AUDIT ρωτά «τον τελευταίο χρόνο» (ερ. 4–10)· η άδεια απαγορεύει αλλαγή των ερωτήσεων —
+// εκκρεμεί απόφαση υπεύθυνης/νομικού πώς συμβιβάζεται με την «περίοδο βαριάς χρήσης» (docs/legal/2026-10-22-adeia-who-audit.md).
 export const AUDIT_ITEMS: { q: string; options: [number, string][] }[] = (() => {
   const freq = ["ποτέ", "λιγότερο από μηνιαία", "μηνιαία", "εβδομαδιαία", "καθημερινά ή σχεδόν"];
   const f = (q: string) => ({ q, options: freq.map((o, i) => [i, o] as [number, string]) });
