@@ -1366,3 +1366,18 @@ html[data-theme="dark"] .jform .jsec { color: var(--accent); }
   body:has(.member-env) .nav-logout.has-menu { display: none; }
   body:has(.member-env) .navmenu-logout { display: block; }
 }
+
+/* «Η μέρα σου» μέσα στο «Τώρα» (22/10): η μέρα ώρα-ώρα, όπως ο πίνακας του site. ✓ ό,τι έκανε, ήπιο ό,τι πέρασε, accent το «τώρα». */
+.member-env .m-day-title { margin: 14px 0 4px; padding-top: 12px; border-top: 1px solid var(--now-line); font-size: var(--fs-help); font-weight: 600; color: var(--muted); }
+.member-env .m-day { list-style: none; margin: 0; padding: 0; }
+.member-env .m-day li { display: flex; align-items: baseline; gap: 12px; padding: 6px 0; }
+.member-env .m-day li + li { border-top: 1px solid var(--card-line); }
+.member-env .m-day .t { flex: 0 0 3.2em; font-variant-numeric: tabular-nums; color: var(--muted); }
+.member-env .m-day .st { color: var(--muted); font-size: var(--fs-help); white-space: nowrap; }
+.member-env .m-day .s-done .st { color: var(--ok); font-weight: 700; font-size: 1rem; }
+.member-env .m-day .s-past { opacity: .55; }
+.member-env .m-day .s-now { font-weight: 700; }
+.member-env .m-day .s-now .t, .member-env .m-day .s-now .st { color: var(--accent-strong); font-weight: 700; }
+.member-env .m-day li.m-day-mark { gap: 12px; padding: 2px 0; border-top: 2px solid var(--accent); color: var(--accent-strong); font-size: var(--fs-help); font-weight: 700; }
+.member-env .m-day li.m-day-mark + li { border-top: 0; }
+html[data-theme="dark"] .member-env .m-day .s-now .t, html[data-theme="dark"] .member-env .m-day .s-now .st, html[data-theme="dark"] .member-env .m-day li.m-day-mark { color: var(--accent); }

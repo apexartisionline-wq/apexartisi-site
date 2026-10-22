@@ -1,6 +1,6 @@
 import { Announcements } from "@/components/Announcements";
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 import { GoalDays } from "@/components/GoalDays";
 import { Icon } from "@/components/Icon";
 import { PageHead, Panel, Pill } from "@/components/ui";
@@ -12,7 +12,11 @@ import { isPublished, journalDate } from "@/lib/member";
 import { sessionOrders } from "@/lib/session-order-db";
 import { extraGroupTimes, holidaysFrom } from "@/lib/groups";
 import { bookingWindow, canRequestChange, groupsOn, isAfter, joinableGroup, sessionJoinable, slotMinutes } from "@/lib/program";
+import { gr } from "@/lib/assessment";
 import { goalWeek } from "@/lib/goals";
+import { dayTimeline, type DayItem } from "@/lib/member-day";
+import { soberDays } from "@/lib/note-form";
+import { latestAnswers } from "@/lib/theme-forms";
 import { getPlan, hasPlanContent } from "@/lib/safety";
 import { memberStepStatus } from "@/lib/step-modes";
 import { getSettings } from "@/lib/settings";
@@ -29,7 +33,7 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
   const window = bookingWindow(now, s);
 
   await ensureDemoToday();
-  const [contents, upcoming, journal, attended, requests, consents] = await Promise.all([
+  const [contents, upcoming, journal, attended, requests, consents, todayBookings] = await Promise.all([
     prisma.content.findMany({ where: { date: today.date }, orderBy: { title: "asc" }, omit: { image: true } }),
     prisma.booking.findMany({
       where: { memberId: user.id, slot: { startsAt: { gte: new Date(now.getTime() - s.pairMinutes * 60_000) } } },
@@ -46,6 +50,8 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
       orderBy: { createdAt: "desc" },
     }),
     memberConsents(user.id),
+    // Τα ραντεβού της ημέρας, και όσα πέρασαν, για «Η μέρα σου».
+    prisma.booking.findMany({ where: { memberId: user.id, slot: { date: today.date } }, include: { slot: true } }),
   ]);
 
   // Η πορεία του με θετικό πρόσημο (υπεύθυνη 20/10: όχι «Μήνας Χ» ούτε «Χ από 8» στην αρχική — θυμίζουν χρέωση και
@@ -112,9 +118,7 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
   if (!text && !isAfterLocal(today, s.dailyTextTime)) later.push({ key: "t", at: athensToUtc(today.date, ...(s.dailyTextTime.split(":").map(Number) as [number, number])), title: `«Ξυπνάμε παρέα» στις ${s.dailyTextTime}` });
   later.sort((a, b) => a.at.getTime() - b.at.getTime());
   let hero: NowCard | null = null;
-  let heroKey: string | null = null;
   if (joinNow) {
-    heroKey = `b:${joinNow.id}`;
     const pair = joinNow.slot.kind === "PAIR";
     hero = {
       kind: "session",
@@ -128,7 +132,6 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
       ),
     };
   } else if (groupOpen) {
-    heroKey = `g:${groupOpen.time}`;
     hero = {
       kind: "group",
       title: `Η ομάδα ${athensToUtc(today.date, ...(groupOpen.time.split(":").map(Number) as [number, number])) <= now ? "ξεκίνησε" : "ξεκινά"} στις ${groupOpen.time}`,
@@ -143,12 +146,49 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
     hero = { kind: "journal", title: "Το ημερολόγιο άνοιξε", hint: "Γράψε για τη μέρα σου.", action: journalLink };
   } else {
     const next = later[0];
-    if (next) { heroKey = next.key; hero = { kind: "later", title: `Σήμερα: ${next.title}`, hint: [inWords(next.at), next.hint].filter(Boolean).join(" · ") }; }
+    if (next) { hero = { kind: "later", title: `Σήμερα: ${next.title}`, hint: [inWords(next.at), next.hint].filter(Boolean).join(" · ") }; }
     else if (upcoming[0]) hero = { kind: "later", title: `Επόμενο: ${upcoming[0].slot.kind === "PAIR" ? "Therapair" : "ατομική"} ${upcoming[0].slot.date === addDays(today.date, 1) ? "αύριο" : formatDate(upcoming[0].slot.date)} στις ${formatTime(upcoming[0].slot.startsAt)}` };
     else if (window.open && left > 0) hero = { kind: "book", title: "Κλείσε τα ραντεβού της εβδομάδας", hint: `μέχρι τις ${formatTime(window.closesAt)}`, action: <Link className="btn primary" href="/m/book">Κλείσε ραντεβού</Link> };
   }
-  // «Μετά σήμερα: …» (21/10): ό,τι άλλο έχει η μέρα, σε μία γραμμή κάτω από το «Τώρα» — χωρίς τρίτη κάρτα. Διατύπωση προς έγκριση.
-  const afterToday = hero ? later.filter((x) => x.key !== heroKey) : [];
+  // «Η μέρα σου» (υπεύθυνη 22/10: «το πρόγραμμα με βάση την ώρα», όπως ο πίνακας του site): ολόκληρη η μέρα ώρα-ώρα μέσα
+  // στην κάρτα «Τώρα», στη θέση της γραμμής «Μετά σήμερα». ✓ ό,τι έκανε· ό,τι πέρασε μένει ήπιο, χωρίς κρίση.
+  const hm = (hhmm: string) => athensToUtc(today.date, ...(hhmm.split(":").map(Number) as [number, number]));
+  const inAppForms = forms.filter((f) => f.questions);
+  const formAnswers = inAppForms.length ? await latestAnswers(user.id, inAppForms.map((f) => f.id)) : null;
+  const dayItems: DayItem[] = [];
+  if (text || !isAfterLocal(today, s.dailyTextTime)) dayItems.push({ key: "t", at: hm(s.dailyTextTime), title: "«Ξυπνάμε παρέα»", href: text ? `/m/texts/${text.id}` : undefined });
+  if (s.formsDays.includes(today.weekday) || forms.length > 0) {
+    dayItems.push({
+      key: "f",
+      at: hm(s.formsTime),
+      title: "Φόρμα της θεματικής",
+      href: forms.length === 1 ? `/m/texts/${forms[0].id}` : "/m/texts",
+      done: inAppForms.length > 0 && inAppForms.length === forms.length && inAppForms.every((f) => formAnswers?.has(f.id)),
+    });
+  }
+  for (const b of todayBookings) {
+    const start = b.slot.startsAt.getTime();
+    dayItems.push({
+      key: `b:${b.id}`,
+      at: b.slot.startsAt,
+      opensAt: new Date(start - s.sessionJoinBeforeMinutes * 60_000),
+      endsAt: new Date(start + slotMinutes(b.slot.kind, s) * 60_000),
+      title: b.slot.kind === "PAIR" ? "Therapair" : "Ατομική",
+      done: b.confirmedCame === true || (b.confirmedCame === null && b.joinedAt !== null),
+    });
+  }
+  if (consents.journal === "YES") dayItems.push({ key: "j", at: hm(s.journalTime), title: "Ημερολόγιο ανάκαμψης", href: s.journalFormUrl ? undefined : "/m/journal", done: Boolean(journal) });
+  for (const g of groupsToday) {
+    const start = hm(g.time).getTime();
+    dayItems.push({ key: `g:${g.time}`, at: hm(g.time), opensAt: new Date(start - s.groupJoinBeforeMinutes * 60_000), endsAt: new Date(start + s.groupDurationMinutes * 60_000), title: "Ομάδα", done: Boolean(attended) });
+  }
+  const day = dayTimeline(dayItems, now);
+  const firstLater = day.findIndex((x) => x.state === "later");
+  // Η γραμμή «τώρα» μπαίνει ανάμεσα σε ό,τι πέρασε και ό,τι έρχεται, όταν δεν γίνεται κάτι αυτή τη στιγμή.
+  const nowMark = day.some((x) => x.state === "now") ? -1 : firstLater === -1 ? day.length : firstLater;
+  // Μέρες νηφαλιότητας (υπεύθυνη 22/10, εκδοχή «ήρεμη γραμμή στο Σήμερα»): από την ημερομηνία του φακέλου· σε υποτροπή η ομάδα
+  // βάζει νέα ημερομηνία και μετρά από εκεί, χωρίς «μηδενίστηκε». Χωρίς ημερομηνία δεν φαίνεται τίποτα.
+  const sober = soberDays(user.soberSince, today.date);
   // Τις μέρες χωρίς ομάδα: πότε είναι η επόμενη (από τις Ρυθμίσεις, με τις αργίες της εβδομάδας) — 21/10, φράση προς έγκριση.
   let nextGroup: { date: string; time: string } | null = null;
   for (let d = 1; d <= 7 && !nextGroup; d++) {
@@ -208,16 +248,35 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
         </div>
       ))}
 
-      {hero && (
-        <Panel title="Τώρα" icon="clock" className="m-now">
-          <div className="m-row">
-            <div className="grow">
-              <strong>{hero.title}</strong>
-              {hero.hint && <div className="hint">{hero.hint}</div>}
+      {(hero || day.length > 0) && (
+        <Panel title={hero ? "Τώρα" : "Η μέρα σου"} icon="clock" className="m-now">
+          {hero && (
+            <div className="m-row">
+              <div className="grow">
+                <strong>{hero.title}</strong>
+                {hero.hint && <div className="hint">{hero.hint}</div>}
+              </div>
+              {hero.action}
             </div>
-            {hero.action}
-          </div>
-          {afterToday.length > 0 && <div className="hint" style={{ marginTop: 8 }}>Μετά σήμερα: {afterToday.map((x) => x.title).join(" · ")}</div>}
+          )}
+          {day.length > 0 && (
+            <>
+              {hero && <div className="m-day-title">Η μέρα σου</div>}
+              <ol className="m-day">
+                {day.map(({ item, state }, i) => (
+                  <Fragment key={item.key}>
+                    {i === nowMark && <li className="m-day-mark"><span className="t">{formatTime(now)}</span><span>τώρα</span></li>}
+                    <li className={`s-${state}`}>
+                      <span className="t">{formatTime(item.at)}</span>
+                      <span className="grow">{item.href && state !== "later" ? <Link href={item.href}>{item.title}</Link> : item.title}</span>
+                      <span className="st">{state === "done" ? "✓" : state === "now" ? "τώρα" : i === firstLater ? inWords(item.at) : ""}</span>
+                    </li>
+                  </Fragment>
+                ))}
+                {nowMark === day.length && <li className="m-day-mark"><span className="t">{formatTime(now)}</span><span>τώρα</span></li>}
+              </ol>
+            </>
+          )}
         </Panel>
       )}
 
@@ -252,6 +311,12 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
         <div>
           <Panel title="Η πορεία σου" icon="chart">
             <div className="whereami">
+              {sober !== null && (
+                <div>
+                  <strong>{sober === 0 ? "Σήμερα" : `${sober.toLocaleString("el-GR")} ${sober === 1 ? "μέρα" : "μέρες"}`}</strong>
+                  <div className="hint">{sober === 0 ? "η πρώτη μέρα της νηφαλιότητάς σου" : `νηφαλιότητας, από ${gr(user.soberSince!)}`}</div>
+                </div>
+              )}
               <div>
                 <strong>{doneSessions === 0 ? "Ξεκινάς" : `${doneSessions} ${doneSessions === 1 ? "ατομική" : "ατομικές"}`}</strong>
                 <div className="hint">{doneSessions === 0 ? "Η πρώτη σου ατομική έρχεται." : doneSessions === 1 ? "Η πρώτη σου ατομική έγινε. Συνέχισε έτσι." : "με παρουσία, από την αρχή. Συνέχισε έτσι."}</div>
