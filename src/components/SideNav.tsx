@@ -50,10 +50,9 @@ export function SideNav({ links, home = "/t" }: { links: { href: string; label: 
   return (
     <aside className={`sidenav${main.length > 10 ? " dense" : ""}`} aria-label="Κύριο μενού">
       <Link href={home} className="sidenav-brand" aria-label="apex/rtisi online — Σήμερα">
-        <picture>
-          <source srcSet="/brand/apexrtisi-online-dark.svg" media="(prefers-color-scheme: dark)" />
-          <img src="/brand/apexrtisi-online.svg" alt="apex/rtisi online" />
-        </picture>
+        {/* Λογότυπο κατά το θέμα του ΛΟΓΑΡΙΑΣΜΟΥ (html[data-theme]), όχι της συσκευής (22/10· πριν: prefers-color-scheme). */}
+        <img className="logo-light" src="/brand/apexrtisi-online.svg" alt="apex/rtisi online" />
+        <img className="logo-dark" src="/brand/apexrtisi-online-dark.svg" alt="" />
       </Link>
       <nav className="sidenav-links">
         {main.map((l) => (

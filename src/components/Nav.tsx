@@ -11,16 +11,16 @@ export async function Nav({ links, menu = false, compact = false }: { links: { h
   // Πολλοί σύνδεσμοι (διαχείριση): οι πρώτοι φαίνονται, οι υπόλοιποι στο «Μενού» σε κάθε οθόνη.
   const crowded = menu && links.length > 8;
   const s = await getSettings();
+  // Πάνω μπάρα σε ανθρακί σε όλο το πλάτος (υπεύθυνη 22/10, εκδοχή «Μ2»): το header παίρνει το χρώμα, το nav μένει στο πλάτος της σελίδας.
   return (
+    <header className="topbar">
     <nav className={many ? "top has-menu" : "top"}>
       {/* Ομάδα (θεραπευτές, διαχείριση): το πλήρες λογότυπο «apex/rtisi online», όπως στην αλληλογραφία (απόφαση 9/10).
           Μέλη: μόνο το ουδέτερο «Apex» με το δαχτυλίδι, για να μην προδίδει τίποτα στο κινητό τους (απόφαση 4/10). */}
       <Link href="/" className={menu ? "brand brand-full" : "brand"}>
+        {/* Η μπάρα είναι πάντα σκούρα: το λογότυπο της ομάδας στην εκδοχή για σκούρο φόντο («Apex» γαλάζιο, «rtisi» λευκό, απόφαση 5/10). */}
         {menu ? (
-          <picture>
-            <source srcSet="/brand/apexrtisi-online-dark.svg" media="(prefers-color-scheme: dark)" />
-            <img className="brand-logo" src="/brand/apexrtisi-online.svg" alt="apex/rtisi online" />
-          </picture>
+          <img className="brand-logo" src="/brand/apexrtisi-online-dark.svg" alt="apex/rtisi online" />
         ) : (
           <>
             {s.logoUrl ? <img src={s.logoUrl} alt="" /> : <BrandMark echo />}
@@ -39,5 +39,6 @@ export async function Nav({ links, menu = false, compact = false }: { links: { h
         <button type="submit" style={{ padding: "6px 10px" }}>Έξοδος</button>
       </form>
     </nav>
+    </header>
   );
 }

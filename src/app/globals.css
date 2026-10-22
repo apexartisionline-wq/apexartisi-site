@@ -44,6 +44,13 @@
   --btn-h: 46px;
   --teal-quiet: #eaf6f7;
   --teal-line: #bfe0e3;
+  /* Πάνω μπάρα (υπεύθυνη 22/10, «Μ2»): μπλε-ανθρακί του brand με το γαλάζιο λογότυπο για σκούρο φόντο (απόφαση 5/10). */
+  --bar: #0c1620;
+  --bar-text: #f3f9fc;
+  --bar-accent: #97ecff;
+  --bar-accent-strong: #6fddf6;
+  --bar-hover: #173444;
+  --bar-edge: #2a5566;
   --note-box: #ffffff;    /* κουτί ερώτησης στο σημειωματάριο */
   --note-text: #0c1620;
   --note-muted: #3f5864;
@@ -61,6 +68,8 @@ html[data-theme="dark"] {
     --card-line: #22323f;
     --teal-quiet: #173444;
     --teal-line: #2a5566;
+    --bar: #132231;         /* στο σκοτεινό ένα σκαλί πάνω από τον καμβά, για να ξεχωρίζει */
+    --bar-hover: #22364a;
     --bg: #0c1620;
     --surface: #132231;
     --field: #0c1620;
@@ -239,6 +248,23 @@ nav.top img { height: 40px; }
 /* Πλήρες λογότυπο της ομάδας: ύψος 44px (το αρχείο έχει δικό του ελεύθερο χώρο γύρω του). */
 nav.top .brand-logo { height: 44px; width: auto; display: block; }
 @media (max-width: 760px) { nav.top .brand-logo { height: 36px; } }
+/* Πάνω μπάρα σε ανθρακί (υπεύθυνη 22/10, εκδοχή «Μ2», σε μέλη, ομάδα και διαχείριση): το header σε όλο το πλάτος,
+   σήμα και «Apex» γαλάζια, κείμενο ανοιχτό· το αναδυόμενο «Μενού» μένει ανοιχτή κάρτα με τα κανονικά χρώματα. */
+.topbar { background: var(--bar); color: var(--bar-text); }
+.topbar nav.top { border-bottom: 0; }
+.topbar .brand-mark, .topbar .brand-name { color: var(--bar-accent); }
+.topbar nav.top a { color: var(--bar-text); }
+.topbar nav.top a:hover { background: var(--bar-hover); }
+.topbar nav.top .brand:hover { background: none; }
+.topbar nav.top > form button, .topbar .navmenu > summary { background: transparent; color: var(--bar-text); border-color: var(--bar-edge); }
+.topbar nav.top > form button:hover, .topbar .navmenu > summary:hover { border-color: var(--bar-accent); }
+.topbar .tour-btn, .topbar .tour-btn:hover { color: var(--bar); }
+.topbar .tour-btn { background: var(--bar-accent); border-color: var(--bar-accent); }
+.topbar .tour-btn:hover { background: var(--bar-accent-strong); border-color: var(--bar-accent-strong); }
+.topbar nav.top .navmenu-list a { color: var(--text); }
+.topbar nav.top .navmenu-list a:hover { background: var(--soft); }
+.topbar :focus-visible { outline-color: var(--bar-accent); }
+.topbar .navmenu-list :focus-visible { outline-color: var(--accent); }
 .navlinks { display: contents; }
 .navmenu { display: none; position: relative; }
 .navmenu.always { display: block; }
@@ -423,7 +449,7 @@ body:has(main.help) .redbar { display: none; }
 
 /* Μηνιαίος φάκελος: εκτύπωση / αποθήκευση ως PDF */
 @media print {
-  nav.top, .no-print, .redbar { display: none !important; }
+  .topbar, nav.top, .no-print, .redbar { display: none !important; }
   body { background: #fff; color: #000; }
   .card, .list { border-color: #bbb; break-inside: avoid; }
 }
@@ -840,11 +866,13 @@ details.side-fold .iconbox { width: 30px; height: 30px; }
 .sidenav { display: none; }
 @media (min-width: 1100px) {
   .has-side > .sidenav { display: flex; flex-direction: column; position: fixed; top: 0; bottom: 0; left: 0; width: 248px; z-index: 40; padding: 28px 16px 20px; background: color-mix(in srgb, var(--teal-quiet) 65%, var(--canvas)); border-right: 1px solid var(--card-line); overflow-y: auto; }
-  .has-side > nav.top { display: none; }
+  .has-side > .topbar { display: none; }
   .has-side > .staff { margin-left: 248px; }
 }
 .sidenav-brand { display: block; padding: 0 12px 28px; }
 .sidenav-brand img { height: 44px; width: auto; display: block; }
+.sidenav-brand .logo-dark, html[data-theme="dark"] .sidenav-brand .logo-light { display: none; }
+html[data-theme="dark"] .sidenav-brand .logo-dark { display: block; }
 .sidenav-links { display: flex; flex-direction: column; gap: 6px; }
 .sidenav a, .sidenav-out { display: flex; align-items: center; gap: 14px; padding: 12px 14px; border-radius: var(--radius); color: var(--text); text-decoration: none; font-weight: 500; font-size: 1.05rem; line-height: 1.2; }
 .sidenav a:hover { background: var(--card); }
