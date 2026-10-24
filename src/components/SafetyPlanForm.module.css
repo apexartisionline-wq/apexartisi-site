@@ -19,3 +19,11 @@
 .personRow .num { margin-top: 0; }
 /* Σκούρο μόνο με επιλογή του χρήστη (17/10): html[data-theme="dark"], όχι η ρύθμιση της συσκευής. */
 :global(html[data-theme="dark"]) .num { color: var(--accent); }
+
+/* «Δώσε ζωή» (23/10), μόνο στη σελίδα του μέλους: εικονίδιο ανά ερώτηση και χρωματιστή γραμμή αριστερά (χρώματα της παλέτας του μέλους). */
+.lively .card { display: flex; gap: 14px; align-items: flex-start; background: var(--card); border-left: 5px solid var(--pl, var(--accent)); box-shadow: var(--shadow); padding: 16px 18px; }
+.body { flex: 1; min-width: 0; }
+.ic { flex: none; display: inline-grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; background: color-mix(in srgb, var(--pl, var(--accent)) 16%, var(--card)); color: var(--pl, var(--accent)); }
+.lively .card[data-k="warningSigns"], .lively .card[data-k="distractions"], .lively .card[data-k="reasons"] { --pl: var(--d-forms, var(--accent)); }
+.lively .card[data-k="myCoping"], .lively .card[data-k="safeEnvironment"] { --pl: var(--d-journal, var(--ok)); }
+.lively .card[data-k="helperList"] { --pl: var(--d-session, var(--accent)); }

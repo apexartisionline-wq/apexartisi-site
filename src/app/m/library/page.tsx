@@ -51,21 +51,28 @@ export default async function MemberLibrary({ searchParams }: { searchParams: Pr
         {mine.length === 0 ? (
           <EmptyState>Δεν έχεις εργασίες ακόμα.</EmptyState>
         ) : (
-          mine.map((a) => {
-            // Ίδιοι κανόνες κατάστασης με θεραπευτές και διαχείριση (step-modes.ts), με τα λόγια του μέλους.
-            const st = memberStepStatus(a);
-            return (
-              <Link key={a.id} href={`/m/library/a/${a.id}`} className="linkrow">
-                <span className="iconbox"><Icon name="doc" size={20} /></span>
-                <span className="grow">
-                  <div style={{ fontWeight: 600 }}>{a.step ? `Βήμα ${a.step} · ` : ""}{a.title}</div>
-                  <div className="hint">{formatDate(localParts(a.createdAt).date)}</div>
-                  <div style={{ marginTop: 6 }}><Pill tone={st.done ? "ok" : "grey"} icon={st.done ? "check" : undefined}>{st.text}</Pill></div>
-                </span>
-                <span className="arrow"><Icon name="chevron" /></span>
-              </Link>
-            );
-          })
+          // «Δώσε ζωή» (23/10): οι εργασίες σαν πορεία — ✓ όσες ολοκληρώθηκαν, τονισμένη η πρώτη που μένει, οι υπόλοιπες ήπια.
+          <ol className="tasks-tl">
+            {mine.map((a, i) => {
+              // Ίδιοι κανόνες κατάστασης με θεραπευτές και διαχείριση (step-modes.ts), με τα λόγια του μέλους.
+              const st = memberStepStatus(a);
+              const current = !st.done && mine.findIndex((x) => !memberStepStatus(x).done) === i;
+              return (
+                <li key={a.id} className={st.done ? "done" : current ? "now" : "todo"}>
+                  <span className="tl-dot" aria-hidden>{st.done && <Icon name="check" size={14} />}</span>
+                  <Link href={`/m/library/a/${a.id}`} className="linkrow">
+                    <span className="iconbox"><Icon name="doc" size={20} /></span>
+                    <span className="grow">
+                      <div style={{ fontWeight: 600 }}>{a.step ? `Βήμα ${a.step} · ` : ""}{a.title}</div>
+                      <div className="hint">{formatDate(localParts(a.createdAt).date)}</div>
+                      <div style={{ marginTop: 6 }}><Pill tone={st.done ? "ok" : "grey"} icon={st.done ? "check" : undefined}>{st.text}</Pill></div>
+                    </span>
+                    <span className="arrow"><Icon name="chevron" /></span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ol>
         )}
       </Panel>
       <Panel title="Για όλους" icon="folder">

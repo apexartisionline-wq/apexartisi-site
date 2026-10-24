@@ -1503,7 +1503,7 @@ a.eko2-item:hover { background: var(--card); box-shadow: var(--shadow); }
 /* ---- «Βάλε παραπάνω χρώμα» (23/10): χρώμα ανά είδος (ατομική, ομάδα, φόρμες, ημερολόγιο, κείμενο, πρόγραμμα, εργασία).
    Brand (προεπιλογή): μόνο tokens — πετρόλ, ανθρακί/γαλάζιο της μπάρας, πράσινο ✓. «Όπως οι φωτογραφίες» (.xr-foto): η παλέτα
    των φωτογραφιών της υπεύθυνης, ΠΡΟΣ ΑΠΟΦΑΣΗ (βγαίνει από τον κανόνα «μόνο brand»· όχι κόκκινο/κίτρινο). ---- */
-.eko {
+.member-env, .eko {
   --c-session-bg: var(--accent); --c-session-ink: var(--accent-text);
   --c-group-bg: var(--bar-hover); --c-group-ink: var(--bar-accent);
   --c-forms-bg: var(--bar-accent); --c-forms-ink: var(--bar);
@@ -1517,8 +1517,8 @@ a.eko2-item:hover { background: var(--card); box-shadow: var(--shadow); }
   --t-prog: color-mix(in srgb, var(--accent) 5%, var(--card));
   --hello: linear-gradient(120deg, var(--now-bg) 0%, color-mix(in srgb, var(--bar-accent) 45%, var(--card)) 100%);
 }
-html[data-theme="dark"] .eko { --c-forms-bg: var(--bar-accent); --t-forms: color-mix(in srgb, var(--bar-accent) 10%, var(--card)); --t-journal: color-mix(in srgb, var(--ok) 14%, var(--card)); }
-.eko.xr-foto {
+html[data-theme="dark"] .member-env, html[data-theme="dark"] .eko { --c-forms-bg: var(--bar-accent); --t-forms: color-mix(in srgb, var(--bar-accent) 10%, var(--card)); --t-journal: color-mix(in srgb, var(--ok) 14%, var(--card)); }
+.xr-foto {
   --c-session-bg: #fde3d4; --c-session-ink: #b4532a;
   --c-group-bg: #ebe5fd; --c-group-ink: #6a4fc7;
   --c-forms-bg: #dce8fe; --c-forms-ink: #2f62d0;
@@ -1529,7 +1529,7 @@ html[data-theme="dark"] .eko { --c-forms-bg: var(--bar-accent); --t-forms: color
   --t-forms: #f1f6ff; --t-journal: #effaf3; --t-task: #fff5ef; --t-prog: #ffffff;
   --hello: linear-gradient(120deg, #e3f6fb 0%, #fdf0e6 100%);
 }
-html[data-theme="dark"] .eko.xr-foto {
+html[data-theme="dark"] .xr-foto {
   --c-session-bg: #43281c; --c-session-ink: #f7a985;
   --c-group-bg: #2d2547; --c-group-ink: #bba8f7;
   --c-forms-bg: #1d2c4a; --c-forms-ink: #93b6ff;
@@ -1566,13 +1566,82 @@ html[data-theme="dark"] .eko.xr-foto {
 @media (max-width: 760px) { .eko1 .eko-hello { padding: 22px 18px; } }
 .eko .eko-switch .eko-sep { margin-left: 10px; }
 /* Τελείες της «Η μέρα σου» ανά είδος, και περισσότερο χρώμα στις υπόλοιπες κάρτες. */
-.eko { --d-session: var(--accent); --d-group: var(--bar-edge); --d-forms: var(--bar-accent-strong); --d-journal: var(--ok); --d-sun: var(--bar);
+.member-env, .eko { --d-session: var(--accent); --d-group: var(--bar-edge); --d-forms: var(--bar-accent-strong); --d-journal: var(--ok); --d-sun: var(--bar);
   --t-goal: color-mix(in srgb, var(--bar-accent) 10%, var(--card)); --t-progress: color-mix(in srgb, var(--accent) 6%, var(--card));
   --t-morning: linear-gradient(120deg, color-mix(in srgb, var(--bar-accent) 22%, var(--card)), var(--card)); }
-html[data-theme="dark"] .eko { --d-sun: var(--bar-accent); }
-.eko.xr-foto { --d-session: #e07a4f; --d-group: #7b5fd6; --d-forms: #3b74e6; --d-journal: #2e9a5f; --d-sun: #0b7c9b;
+html[data-theme="dark"] .member-env, html[data-theme="dark"] .eko { --d-sun: var(--bar-accent); }
+.xr-foto { --d-session: #e07a4f; --d-group: #7b5fd6; --d-forms: #3b74e6; --d-journal: #2e9a5f; --d-sun: #0b7c9b;
   --t-goal: #f1f6ff; --t-progress: #f6f3ff; --t-morning: linear-gradient(120deg, #e3f6fb, #fdf0e6); }
-html[data-theme="dark"] .eko.xr-foto { --t-goal: #16213a; --t-progress: #211c36; --t-morning: linear-gradient(120deg, #12303a, #2a1c16); --d-sun: #97ecff; }
+html[data-theme="dark"] .xr-foto { --t-goal: #16213a; --t-progress: #211c36; --t-morning: linear-gradient(120deg, #12303a, #2a1c16); --d-sun: #97ecff; }
 .eko .eko-c-goal .linkrow { background: var(--t-goal); }
 .eko .eko-c-progress .panel { background: var(--t-progress); }
 .eko .panel.m-morning { background: var(--t-morning); }
+
+
+/* ==== «Δώσε ζωή σε όλες τις καρτέλες της εφαρμογής» (υπεύθυνη 23/10, από 4 φωτογραφίες) — όλες οι σελίδες του μέλους (.member-env.live).
+   Παλέτα: οι ίδιες μεταβλητές με τις εκδοχές του «Σήμερα» (brand ή .xr-foto). Το κόκκινο κουμπί (main.help) μένει ήρεμο, χωρίς διακόσμηση. ==== */
+.member-env.live { position: relative; background:
+  radial-gradient(1100px 520px at 105% -10%, color-mix(in srgb, var(--bar-accent) 24%, transparent), transparent 60%),
+  radial-gradient(900px 520px at -10% 110%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 60%),
+  var(--canvas); background-attachment: fixed; }
+.member-env.live.xr-foto { background:
+  radial-gradient(1100px 520px at 105% -10%, color-mix(in srgb, var(--bar-accent) 22%, transparent), transparent 60%),
+  radial-gradient(900px 520px at -10% 110%, rgba(253, 227, 212, .7), transparent 60%),
+  var(--canvas); background-attachment: fixed; }
+html[data-theme="dark"] .member-env.live.xr-foto { background:
+  radial-gradient(1100px 520px at 105% -10%, color-mix(in srgb, var(--bar-accent) 12%, transparent), transparent 60%),
+  radial-gradient(900px 520px at -10% 110%, rgba(120, 60, 30, .25), transparent 60%),
+  var(--canvas); background-attachment: fixed; }
+/* Φύλλα κάτω αριστερά (διακοσμητικά, μόνο σε υπολογιστή). */
+@media (min-width: 1100px) {
+  .member-env.live::before { content: ""; position: fixed; left: -10px; bottom: 0; width: 200px; height: 290px; background: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 220 320'%3E%3Cg fill='%23087f8c'%3E%3Cpath opacity='.55' d='M40 320C30 250 50 190 110 150c-10 60-30 120-70 170z'/%3E%3Cpath opacity='.35' d='M60 320c10-80 60-130 140-150-30 70-80 120-140 150z'/%3E%3Cpath opacity='.25' d='M20 300C-10 240 0 180 40 130c20 60 10 120-20 170z'/%3E%3C/g%3E%3C/svg%3E") no-repeat left bottom / contain; opacity: .5; pointer-events: none; z-index: 0; }
+  html[data-theme="dark"] .member-env.live::before { opacity: .25; }
+  .member-env.live > * { position: relative; z-index: 1; }
+}
+/* Κεφαλίδα κάθε σελίδας: χρωματιστή ζώνη με τον δρόμο με τις στάσεις (όχι στο «Σήμερα», όχι στο κόκκινο κουμπί). */
+.member-env.live main:not(.m-home):not(.help) > .page-head { position: relative; overflow: hidden; padding: 30px 34px; border-radius: var(--radius-lg); margin: 4px 0 22px;
+  background: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 200' preserveAspectRatio='xMaxYMax slice'%3E%3Cpath d='M0 200 C120 150 220 190 330 140 C430 95 500 120 600 60 V200Z' fill='%2397ecff' fill-opacity='.12'/%3E%3Cpath d='M260 170 C340 150 380 120 440 115 C500 110 530 80 580 50' fill='none' stroke='%2397ecff' stroke-width='3' stroke-dasharray='7 9' stroke-opacity='.8'/%3E%3Ccircle cx='440' cy='115' r='9' fill='%230c1620' stroke='%2397ecff' stroke-width='4'/%3E%3Ccircle cx='520' cy='92' r='6' fill='%2397ecff'/%3E%3Ccircle cx='580' cy='50' r='16' fill='none' stroke='%2397ecff' stroke-width='5'/%3E%3Ccircle cx='580' cy='50' r='34' fill='%2397ecff' fill-opacity='.12'/%3E%3C/svg%3E") no-repeat right bottom / auto 100%, linear-gradient(120deg, var(--bar) 0%, var(--bar-hover) 55%, var(--bar-edge) 100%); color: var(--bar-text); box-shadow: var(--shadow); }
+.member-env.live main:not(.m-home):not(.help) > .page-head h1 { color: var(--bar-text); margin: 0; font-size: clamp(1.8rem, 4vw, 2.6rem); max-width: 22ch; }
+.member-env.live main:not(.m-home):not(.help) > .page-head .page-sub { color: var(--bar-text); opacity: .88; margin: 8px 0 0; max-width: 60ch; }
+/* Το κείμενο αφήνει χώρο στον δρόμο δεξιά· στο κινητό μόνο το χρώμα, χωρίς σχέδιο πάνω στα γράμματα. */
+.member-env.live main:not(.m-home):not(.help) > .page-head > div:first-child { max-width: min(640px, 70%); }
+@media (max-width: 760px) {
+  .member-env.live main:not(.m-home):not(.help) > .page-head { padding: 22px 20px; background: linear-gradient(120deg, var(--bar) 0%, var(--bar-hover) 60%, var(--bar-edge) 100%); }
+  .member-env.live main:not(.m-home):not(.help) > .page-head > div:first-child { max-width: none; }
+}
+/* Κάρτες με σκιά και χρώμα ανά είδος στα εικονίδια (από το ίδιο το εικονίδιο: data-i). */
+.member-env.live .panel, .member-env.live .linkrow.panel, .member-env.live .card { box-shadow: 0 1px 2px rgba(12, 22, 32, .04), 0 8px 24px rgba(12, 22, 32, .06); }
+.member-env.live .linkrow.panel { transition: transform .15s ease, box-shadow .15s ease; }
+.member-env.live .linkrow.panel:hover { transform: translateY(-1px); box-shadow: 0 2px 4px rgba(12, 22, 32, .05), 0 12px 28px rgba(12, 22, 32, .09); }
+.member-env.live .iconbox:has(svg[data-i="user"]) { background: var(--c-session-bg); color: var(--c-session-ink); }
+.member-env.live .iconbox:has(svg[data-i="group"]), .member-env.live .iconbox:has(svg[data-i="chart"]) { background: var(--c-group-bg); color: var(--c-group-ink); }
+.member-env.live .iconbox:has(svg[data-i="doc"]), .member-env.live .iconbox:has(svg[data-i="list"]), .member-env.live .iconbox:has(svg[data-i="folder"]), .member-env.live .iconbox:has(svg[data-i="video"]) { background: var(--c-forms-bg); color: var(--c-forms-ink); }
+.member-env.live .iconbox:has(svg[data-i="leaf"]) { background: var(--c-journal-bg); color: var(--c-journal-ink); }
+.member-env.live .iconbox:has(svg[data-i="sun"]), .member-env.live .iconbox:has(svg[data-i="chat"]) { background: var(--c-sun-bg); color: var(--c-sun-ink); }
+.member-env.live .iconbox:has(svg[data-i="calendar"]), .member-env.live .iconbox:has(svg[data-i="clock"]), .member-env.live .iconbox:has(svg[data-i="target"]), .member-env.live .iconbox:has(svg[data-i="compass"]) { background: var(--c-cal-bg); color: var(--c-cal-ink); }
+/* Η υποχρεωτική ενημέρωση του ημερολογίου (112/166): ήπιο κόκκινο, γιατί είναι θέμα ασφάλειας. */
+.member-env.live .m-legal { align-items: center; background: var(--red-quiet); border-color: color-mix(in srgb, var(--red) 25%, var(--card)); font-weight: 500; }
+.member-env.live .m-legal svg { color: var(--red-ink); box-sizing: content-box; padding: 8px; border-radius: 50%; background: color-mix(in srgb, var(--red) 12%, var(--card)); }
+html[data-theme="dark"] .member-env.live .m-legal svg { color: var(--red); }
+/* «Οι εργασίες μου» σαν πορεία. */
+.tasks-tl { list-style: none; margin: 0; padding: 0; position: relative; }
+.tasks-tl::before { content: ""; position: absolute; left: 13px; top: 26px; bottom: 26px; border-left: 2px dashed var(--card-line); }
+.tasks-tl li { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 12px; align-items: center; }
+.tasks-tl .tl-dot { position: relative; z-index: 1; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--card); box-shadow: inset 0 0 0 2px var(--card-line); color: var(--ok-text); }
+.tasks-tl li.done .tl-dot { background: var(--d-journal); box-shadow: none; }
+.tasks-tl li.now .tl-dot { background: var(--d-forms); box-shadow: 0 0 0 6px color-mix(in srgb, var(--d-forms) 22%, transparent); }
+.tasks-tl .linkrow { margin: 6px 0; border-radius: 14px; border: 1px solid var(--card-line); background: var(--card); }
+.tasks-tl li.now .linkrow { background: color-mix(in srgb, var(--d-forms) 9%, var(--card)); border-color: color-mix(in srgb, var(--d-forms) 30%, var(--card)); }
+.member-env.live .tasks-tl li.done .iconbox { background: var(--c-journal-bg); color: var(--c-journal-ink); }
+/* Εκδοχή 2, όπως η νέα φωτογραφία: στάσεις στον δρόμο, τονισμένο το επόμενο της μέρας, ημερομηνία μέσα στο «Επόμενο βήμα». */
+.eko-art .a-stop.s1 { fill: var(--d-journal); stroke: var(--bar-text); stroke-width: 4; }
+.eko-art .a-stop.s2 { fill: var(--bar-text); stroke: var(--bar-accent); stroke-width: 7; }
+.eko-art .a-stop.s3 { fill: var(--d-session); stroke: var(--bar-text); stroke-width: 4; }
+.eko2 .eko-switch { margin-top: -4px; }
+.eko2-tl li.hl .eko2-item { background: color-mix(in srgb, var(--bar-accent) 20%, var(--card)); }
+.eko .eko2-tl li.hl .eko-ic { background: var(--bar); color: var(--bar-accent); }
+.eko-next-row { display: flex; gap: 20px; align-items: center; position: relative; }
+.eko-next .eko-date { background: var(--card); color: var(--text); flex: none; }
+@media (max-width: 760px) { .eko-next-row { align-items: flex-start; } .eko-next .eko-date { display: none; } }
+/* Στο κόκκινο κουμπί καμία διακόσμηση. */
+.member-env.live:has(main.help)::before { display: none; }

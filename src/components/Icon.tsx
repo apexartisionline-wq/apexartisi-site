@@ -37,6 +37,7 @@ export function Icon({ name, size = 20, className, label }: { name: keyof typeof
   return (
     <svg
       className={className}
+      data-i={name}
       width={size}
       height={size}
       viewBox="0 0 24 24"

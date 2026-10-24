@@ -70,16 +70,22 @@ function field(f: (typeof PLAN_FIELDS)[number], plan: PlanData | null) {
  * canCall: κουμπί κλήσης μόνο για όποιον δικαιούται να βλέπει τα τηλέφωνα (το μέλος)· στην προεπισκόπηση
  * του θεραπευτή το πλάνο έρχεται ήδη με «•••» (planForStaff) και χωρίς κουμπί κλήσης.
  */
-export function SafetyPlanView({ plan, canCall = false }: { plan: PlanData; canCall?: boolean }) {
+// «Δώσε ζωή» (υπεύθυνη 23/10): στη σελίδα «Το σχέδιο ασφάλειάς μου» (lively) κάθε ερώτηση με εικονίδιο και χρωματιστή
+// γραμμή. Μόνο εμφάνιση — κείμενα, σειρά και τηλέφωνα όπως πριν· στο κόκκινο κουμπί και στην ομάδα μένει το λιτό.
+const PLAN_ICON: Record<string, string> = { warningSigns: "eye", myCoping: "leaf", distractions: "compass", helperList: "group", safeEnvironment: "shield", reasons: "target" };
+export function SafetyPlanView({ plan, canCall = false, lively = false }: { plan: PlanData; canCall?: boolean; lively?: boolean }) {
   const helpers = planHelpers(plan);
   const text = (k: PlanFieldKey) => plan[k]?.trim();
+  const ic = (k: string) => lively && <span className={s.ic} aria-hidden><Icon name={PLAN_ICON[k] ?? "info"} size={22} /></span>;
   return (
-    <div className={s.cards}>
+    <div className={`${s.cards}${lively ? ` ${s.lively}` : ""}`}>
       {PLAN_ORDER.map((k) => {
         if (k === "helperList") {
           if (helpers.length === 0 && !plan.helpers) return null;
           return (
-            <section className={s.card} key="helperList" aria-label={HELPERS_LABEL}>
+            <section className={s.card} key="helperList" aria-label={HELPERS_LABEL} data-k="helperList">
+              {ic("helperList")}
+              <div className={s.body}>
               <span className={s.q}>{HELPERS_LABEL}</span>
               <ol className={s.people}>
                 {helpers.map((h, i) => {
@@ -108,6 +114,7 @@ export function SafetyPlanView({ plan, canCall = false }: { plan: PlanData; canC
                   <span className="hint">Παλιότερη καταγραφή: </span>{plan.helpers}
                 </p>
               )}
+              </div>
             </section>
           );
         }
@@ -115,9 +122,12 @@ export function SafetyPlanView({ plan, canCall = false }: { plan: PlanData; canC
         if (!v) return null;
         const f = PLAN_FIELDS.find((x) => x.key === k)!;
         return (
-          <section className={s.card} key={k} aria-label={f.label}>
-            <span className={s.q}>{f.label}</span>
-            <p className={s.a}>{v}</p>
+          <section className={s.card} key={k} aria-label={f.label} data-k={k}>
+            {ic(k)}
+            <div className={s.body}>
+              <span className={s.q}>{f.label}</span>
+              <p className={s.a}>{v}</p>
+            </div>
           </section>
         );
       })}

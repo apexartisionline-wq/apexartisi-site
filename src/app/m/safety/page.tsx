@@ -23,7 +23,7 @@ export default async function MySafetyPlan({ searchParams }: { searchParams: Pro
     <main>
       <PageHead title="Το σχέδιο ασφάλειάς μου" sub="Όταν δυσκολεύομαι. Το γράψαμε μαζί σε μια ατομική. Το βλέπεις πρώτο όταν πατάς το κόκκινο κουμπί. Μπορείς να το αλλάζεις." />
       {sp.ok && <div className="notice">Αποθηκεύτηκε ✓</div>}
-      {filled ? <SafetyPlanView plan={plan} canCall /> : <p className="muted">Δεν έχει γραφτεί κάτι ακόμα.</p>}
+      {filled ? <SafetyPlanView plan={plan} canCall lively /> : <p className="muted">Δεν έχει γραφτεί κάτι ακόμα.</p>}
       {missing.length > 0 && (
         <p className="hint" style={{ marginTop: 12 }}>
           {filled ? "Κάποιες ερωτήσεις είναι ακόμα κενές. " : ""}Μπορείς να το συμπληρώσεις στην επόμενη ατομική, μαζί με την ομάδα σου — ή εδώ, όποτε θέλεις.

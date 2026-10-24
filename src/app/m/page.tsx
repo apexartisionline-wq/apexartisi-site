@@ -1,6 +1,8 @@
 import { Announcements } from "@/components/Announcements";
 import Link from "next/link";
 import { Fragment, type ReactNode } from "react";
+import { cookies } from "next/headers";
+import { PALETTE_COOKIE } from "@/lib/palette";
 import { GoalDays } from "@/components/GoalDays";
 import { Icon } from "@/components/Icon";
 import { PageHead, Panel, Pill } from "@/components/ui";
@@ -386,18 +388,19 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
   if (eko) {
     const first = vocative(user.name.split(" ")[0]);
     // «Βάλε παραπάνω χρώμα» (23/10) → δύο παλέτες για σύγκριση: brand (προεπιλογή, πιο έντονο) ή «όπως οι φωτογραφίες» (?xr=foto).
-    const foto = sp.xr === "foto";
-    const q = (v: string, x: boolean) => `/m?eko=${v}${x ? "&xr=foto" : ""}`;
+    const foto = sp.xr === "foto" || (await cookies()).get(PALETTE_COOKIE)?.value === "foto";
+    const q = (v: string) => `/m?eko=${v}`;
+    const pal = (x: boolean) => `/m/xr?v=${x ? "foto" : "brand"}&back=${encodeURIComponent(q(eko))}`;
     const whenLabel = (date: string) => (date === today.date ? `Σήμερα · ${formatDate(date)}` : date === addDays(today.date, 1) ? `Αύριο · ${formatDate(date)}` : formatDate(date));
     const switcher = (
       <nav className="eko-switch" aria-label="Προεπισκόπηση εμφάνισης">
         <span>Προεπισκόπηση:</span>
         <Link href="/m">Τωρινή</Link>
-        <Link href={q("1", foto)} className={eko === "1" ? "on" : undefined}>Εκδοχή 1</Link>
-        <Link href={q("2", foto)} className={eko === "2" ? "on" : undefined}>Εκδοχή 2</Link>
+        <Link href={q("1")} className={eko === "1" ? "on" : undefined}>Εκδοχή 1</Link>
+        <Link href={q("2")} className={eko === "2" ? "on" : undefined}>Εκδοχή 2</Link>
         <span className="eko-sep">Χρώμα:</span>
-        <Link href={q(eko, false)} className={!foto ? "on" : undefined}>Brand</Link>
-        <Link href={q(eko, true)} className={foto ? "on" : undefined}>Όπως οι φωτογραφίες</Link>
+        <a href={pal(false)} className={!foto ? "on" : undefined}>Brand</a>
+        <a href={pal(true)} className={foto ? "on" : undefined}>Όπως οι φωτογραφίες</a>
       </nav>
     );
     // «Το πρόγραμμά σου»: τα επόμενα ραντεβού (ως 3) και η ομάδα της ημέρας (ή η επόμενη), με σειρά ώρας — ίδια κουμπιά με πριν.
@@ -544,7 +547,6 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
 
     return (
       <main className={`m-home eko eko2${foto ? " xr-foto" : ""}`}>
-        {switcher}
         <section className="eko-hero">
           <svg className="eko-art" viewBox="0 0 1200 340" preserveAspectRatio="xMidYMid slice" aria-hidden>
             <circle className="a-halo" cx="905" cy="118" r="120" />
@@ -554,6 +556,10 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
             <path className="a-sea" d="M0 285 C300 270 500 300 760 282 C960 268 1100 290 1200 280 V340 H0Z" />
             <path className="a-road" d="M-20 330 C180 300 300 330 470 300 C650 268 600 238 780 232 C930 226 1000 214 1100 196" />
             <path className="a-m1" d="M0 300 L70 268 L150 300 Z M1080 300 L1150 250 L1200 280 V300 Z" />
+            {/* Στάσεις στον δρόμο (φωτογραφία 23/10): μικρά βήματα. */}
+            <circle className="a-stop s1" cx="600" cy="282" r="11" />
+            <circle className="a-stop s2" cx="690" cy="252" r="16" />
+            <circle className="a-stop s3" cx="1010" cy="214" r="11" />
           </svg>
           <div className="eko-hero-text">
             <p className="eko-kicker">Σήμερα είναι μια νέα ευκαιρία</p>
@@ -562,8 +568,8 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
           </div>
           <p className="eko-motto">Μικρά βήματα,<br />μεγάλη πορεία</p>
         </section>
+        {switcher}
         {notices}
-        {morningPanel}
         <div className="eko2-grid">
           <section className="eko2-day">
             <div className="eko2-dayhead">
@@ -588,7 +594,7 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
                   return (
                     <Fragment key={item.key}>
                       {i === nowMark && nowRow("eko-now", "Εδώ είσαι τώρα — συνέχισε!")}
-                      <li className={`s-${state} c-${m.tone}`}>
+                      <li className={`s-${state} c-${m.tone}${state === "now" || (nowMark !== -1 && i === firstLater) ? " hl" : ""}`}>
                         <span className="t">{formatTime(item.at)}</span>
                         <span className="eko-dot" aria-hidden />
                         {item.href && state !== "later" ? <Link className="eko2-item" href={item.href}>{body}</Link> : <div className="eko2-item">{body}</div>}
@@ -607,12 +613,19 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
                   <path className="a-m2" d="M120 220 L220 120 L290 160 L360 90 L400 110 V220Z" />
                   <path className="a-road" d="M150 230 C230 200 210 170 280 150 C330 136 340 110 400 96" />
                 </svg>
-                <p className="eko-kicker">{hero.kind === "session" || hero.kind === "group" || hero.kind === "journal" ? "Τώρα" : "Επόμενο βήμα"}</p>
-                <h2>{hero.title}</h2>
-                {hero.hint && <p className="eko-next-hint">{hero.hint}</p>}
-                {hero.action && <div className="eko-next-act">{hero.action}</div>}
+                <div className="eko-next-row">
+                  {dateBadge}
+                  <div>
+                    <p className="eko-kicker">{hero.kind === "session" || hero.kind === "group" || hero.kind === "journal" ? "Τώρα" : "Επόμενο βήμα"}</p>
+                    <h2>{hero.title}</h2>
+                    {hero.hint && <p className="eko-next-hint">{hero.hint}</p>}
+                    {hero.action && <div className="eko-next-act">{hero.action}</div>}
+                  </div>
+                </div>
               </section>
             )}
+            {/* Στη φωτογραφία της υπεύθυνης (23/10) το «Ξεκινάμε τη μέρα παρέα» κάθεται κάτω από το «Επόμενο βήμα». */}
+            {morningPanel}
             <div className="eko2-cards">
               <div className="eko-c eko-c-forms">{formsPanel}</div>
               <div className="eko-c eko-c-journal">{journalPanel}</div>
