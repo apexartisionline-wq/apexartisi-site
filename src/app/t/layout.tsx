@@ -28,7 +28,7 @@ export default async function TherapistLayout({ children }: { children: React.Re
     <div className="has-side">
       <SideNav links={navLinks(user.role)} home={user.role === "ADMIN" ? "/admin" : "/t"} />
       <Nav links={navLinks(user.role)} menu />
-      <div className={wm ? "staff wm-scope" : "staff"} style={style}><BackButton home="/t" />{children}</div>
+      <div className={wm ? "staff live xr-foto wm-scope" : "staff live xr-foto"} style={style}><BackButton home="/t" />{children}</div>
       {wm && <NoCopy name={user.name} />}
       <NoteGate items={gateItems} />
     </div>

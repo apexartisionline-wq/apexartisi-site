@@ -74,6 +74,7 @@ export default async function TeamMessagesPage({ searchParams }: { searchParams:
       </form>
 
       {recent.length > 0 && (
+        <div className="table-wrap">
         <table>
           <thead>
             <tr><th>Πότε</th><th>Προς</th><th>Μήνυμα</th><th>Email</th><th>Το διάβασε</th></tr>
@@ -93,6 +94,7 @@ export default async function TeamMessagesPage({ searchParams }: { searchParams:
             })}
           </tbody>
         </table>
+        </div>
       )}
     </>
   );

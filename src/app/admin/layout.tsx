@@ -14,7 +14,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     <div className="has-side">
       <SideNav links={navLinks("ADMIN")} home="/admin" />
       <Nav links={navLinks("ADMIN")} menu />
-      <div className="staff"><main className="wide"><BackButton home="/admin" />{children}</main></div>
+      <div className="staff live xr-foto"><main className="wide"><BackButton home="/admin" />{children}</main></div>
     </div>
   );
 }

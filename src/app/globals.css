@@ -1600,15 +1600,15 @@ html[data-theme="dark"] .member-env.live.xr-foto { background:
   .member-env.live main:not(.m-home):not(.help) > .page-head > div:first-child { max-width: none; }
 }
 /* Κάρτες με σκιά και χρώμα ανά είδος στα εικονίδια (από το ίδιο το εικονίδιο: data-i). */
-.member-env.live .panel, .member-env.live .linkrow.panel, .member-env.live .card { box-shadow: 0 1px 2px rgba(12, 22, 32, .04), 0 8px 24px rgba(12, 22, 32, .06); }
-.member-env.live .linkrow.panel { transition: transform .15s ease, box-shadow .15s ease; }
-.member-env.live .linkrow.panel:hover { transform: translateY(-1px); box-shadow: 0 2px 4px rgba(12, 22, 32, .05), 0 12px 28px rgba(12, 22, 32, .09); }
-.member-env.live .iconbox:has(svg[data-i="user"]) { background: var(--c-session-bg); color: var(--c-session-ink); }
-.member-env.live .iconbox:has(svg[data-i="group"]), .member-env.live .iconbox:has(svg[data-i="chart"]) { background: var(--c-group-bg); color: var(--c-group-ink); }
-.member-env.live .iconbox:has(svg[data-i="doc"]), .member-env.live .iconbox:has(svg[data-i="list"]), .member-env.live .iconbox:has(svg[data-i="folder"]), .member-env.live .iconbox:has(svg[data-i="video"]) { background: var(--c-forms-bg); color: var(--c-forms-ink); }
-.member-env.live .iconbox:has(svg[data-i="leaf"]) { background: var(--c-journal-bg); color: var(--c-journal-ink); }
-.member-env.live .iconbox:has(svg[data-i="sun"]), .member-env.live .iconbox:has(svg[data-i="chat"]) { background: var(--c-sun-bg); color: var(--c-sun-ink); }
-.member-env.live .iconbox:has(svg[data-i="calendar"]), .member-env.live .iconbox:has(svg[data-i="clock"]), .member-env.live .iconbox:has(svg[data-i="target"]), .member-env.live .iconbox:has(svg[data-i="compass"]) { background: var(--c-cal-bg); color: var(--c-cal-ink); }
+:is(.member-env, .staff).live .panel, :is(.member-env, .staff).live .linkrow.panel, :is(.member-env, .staff).live .card { box-shadow: 0 1px 2px rgba(12, 22, 32, .04), 0 8px 24px rgba(12, 22, 32, .06); }
+:is(.member-env, .staff).live .linkrow.panel { transition: transform .15s ease, box-shadow .15s ease; }
+:is(.member-env, .staff).live .linkrow.panel:hover { transform: translateY(-1px); box-shadow: 0 2px 4px rgba(12, 22, 32, .05), 0 12px 28px rgba(12, 22, 32, .09); }
+:is(.member-env, .staff).live .iconbox:has(svg[data-i="user"]) { background: var(--c-session-bg); color: var(--c-session-ink); }
+:is(.member-env, .staff).live .iconbox:has(svg[data-i="group"]), :is(.member-env, .staff).live .iconbox:has(svg[data-i="chart"]) { background: var(--c-group-bg); color: var(--c-group-ink); }
+:is(.member-env, .staff).live .iconbox:has(svg[data-i="doc"]), :is(.member-env, .staff).live .iconbox:has(svg[data-i="list"]), :is(.member-env, .staff).live .iconbox:has(svg[data-i="folder"]), :is(.member-env, .staff).live .iconbox:has(svg[data-i="video"]) { background: var(--c-forms-bg); color: var(--c-forms-ink); }
+:is(.member-env, .staff).live .iconbox:has(svg[data-i="leaf"]) { background: var(--c-journal-bg); color: var(--c-journal-ink); }
+:is(.member-env, .staff).live .iconbox:has(svg[data-i="sun"]), :is(.member-env, .staff).live .iconbox:has(svg[data-i="chat"]) { background: var(--c-sun-bg); color: var(--c-sun-ink); }
+:is(.member-env, .staff).live .iconbox:has(svg[data-i="calendar"]), :is(.member-env, .staff).live .iconbox:has(svg[data-i="clock"]), :is(.member-env, .staff).live .iconbox:has(svg[data-i="target"]), :is(.member-env, .staff).live .iconbox:has(svg[data-i="compass"]) { background: var(--c-cal-bg); color: var(--c-cal-ink); }
 /* Η υποχρεωτική ενημέρωση του ημερολογίου (112/166): ήπιο κόκκινο, γιατί είναι θέμα ασφάλειας. */
 .member-env.live .m-legal { align-items: center; background: var(--red-quiet); border-color: color-mix(in srgb, var(--red) 25%, var(--card)); font-weight: 500; }
 .member-env.live .m-legal svg { color: var(--red-ink); box-sizing: content-box; padding: 8px; border-radius: 50%; background: color-mix(in srgb, var(--red) 12%, var(--card)); }
@@ -1649,3 +1649,26 @@ html[data-theme="dark"] .member-env.live .m-legal svg { color: var(--red); }
   .eko2-item .hint { display: none; }
   .eko2-dayhead h2 { font-size: 1.5rem; }
 }
+
+
+/* ==== Ίδια ζωή στην ομάδα και στη διαχείριση, προσαρμοσμένη (υπεύθυνη 23/10: «όσα αλλάζουμε στην εμφάνιση του θεραπευόμενου
+   θα τα αλλάζεις και στα υπόλοιπα προφίλ, προσαρμοσμένα στον κάθε ρόλο»). Εργαλείο δουλειάς: πιο ήπιο φόντο, χωρίς φύλλα,
+   ίδια κεφαλίδα (πιο χαμηλή), ίδιες κάρτες και χρώμα ανά είδος στα εικονίδια· τα κόκκινα/κίτρινα σήματα μένουν ως έχουν. ==== */
+.staff.live { background:
+  radial-gradient(1100px 480px at 105% -10%, color-mix(in srgb, var(--bar-accent) 16%, transparent), transparent 60%),
+  var(--canvas); }
+.staff.live main > .page-head, .staff.live main > h1:first-of-type { position: relative; overflow: hidden; border-radius: var(--radius-lg); color: var(--bar-text); box-shadow: var(--shadow);
+  background: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 200' preserveAspectRatio='xMaxYMax slice'%3E%3Cpath d='M0 200 C120 150 220 190 330 140 C430 95 500 120 600 60 V200Z' fill='%2397ecff' fill-opacity='.12'/%3E%3Cpath d='M260 170 C340 150 380 120 440 115 C500 110 530 80 580 50' fill='none' stroke='%2397ecff' stroke-width='3' stroke-dasharray='7 9' stroke-opacity='.8'/%3E%3Ccircle cx='440' cy='115' r='9' fill='%230c1620' stroke='%2397ecff' stroke-width='4'/%3E%3Ccircle cx='520' cy='92' r='6' fill='%2397ecff'/%3E%3Ccircle cx='580' cy='50' r='16' fill='none' stroke='%2397ecff' stroke-width='5'/%3E%3Ccircle cx='580' cy='50' r='34' fill='%2397ecff' fill-opacity='.12'/%3E%3C/svg%3E") no-repeat right bottom / auto 100%, linear-gradient(120deg, var(--bar) 0%, var(--bar-hover) 55%, var(--bar-edge) 100%); }
+.staff.live main > .page-head { padding: 22px 28px; margin: 4px 0 20px; }
+.staff.live main > .page-head h1 { color: var(--bar-text); margin: 0; }
+.staff.live main > .page-head .page-sub, .staff.live main > .page-head .page-sub * { color: var(--bar-text); }
+.staff.live main > .page-head .page-sub { opacity: .9; margin: 6px 0 0; }
+.staff.live main > .page-head > div:first-child { max-width: min(760px, 72%); }
+.staff.live main > .page-head .head-actions .btn:not(.primary) { background: var(--bar-text); color: var(--bar); border-color: var(--bar-text); }
+.staff.live main > h1:first-of-type { padding: 20px 28px; margin: 4px 0 16px; padding-right: max(28px, 30%); }
+@media (max-width: 760px) {
+  .staff.live main > .page-head, .staff.live main > h1:first-of-type { background: linear-gradient(120deg, var(--bar) 0%, var(--bar-hover) 60%, var(--bar-edge) 100%); padding: 18px 18px; }
+  .staff.live main > .page-head > div:first-child { max-width: none; }
+}
+/* Πλαϊνό μενού: ίδια οικογένεια χρωμάτων με την κεφαλίδα. */
+.has-side:has(.staff.live) > .sidenav { background: linear-gradient(180deg, color-mix(in srgb, var(--bar-accent) 14%, var(--canvas)) 0%, var(--canvas) 70%); }
