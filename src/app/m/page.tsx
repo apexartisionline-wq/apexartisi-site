@@ -1,8 +1,6 @@
 import { Announcements } from "@/components/Announcements";
 import Link from "next/link";
 import { Fragment, type ReactNode } from "react";
-import { cookies } from "next/headers";
-import { PALETTE_COOKIE } from "@/lib/palette";
 import { GoalDays } from "@/components/GoalDays";
 import { Icon } from "@/components/Icon";
 import { PageHead, Panel, Pill } from "@/components/ui";
@@ -26,7 +24,7 @@ import { ROOM_MISSING_MEMBER } from "@/lib/rooms";
 import { vocative } from "@/lib/vocative";
 import { addDays, athensToUtc, formatDate, formatTime, isAfterLocal, localParts } from "@/lib/time";
 
-export default async function MemberHome({ searchParams }: { searchParams: Promise<{ e?: string; req?: string; eko?: string; xr?: string }> }) {
+export default async function MemberHome({ searchParams }: { searchParams: Promise<{ e?: string; req?: string }> }) {
   const user = await requireMember();
   const sp = await searchParams;
   const s = await getSettings();
@@ -380,29 +378,11 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
     </>
   );
 
-  // Προεπισκόπηση δύο νέων εμφανίσεων του «Σήμερα» (υπεύθυνη 23/10: «άλλαξε εμφάνιση στο προφίλ του θεραπευόμενου όπως οι δύο
-  // φωτογραφίες, να το δω σε 2 εκδοχές»): /m?eko=1 (καθαρές κάρτες, «Το πρόγραμμά σου» και «Η μέρα σου» κάτω) και /m?eko=2
-  // (εικονογραφημένο καλωσόρισμα, «Η μέρα σου» αριστερά, «Επόμενο βήμα» δεξιά). Ίδια δεδομένα, ίδια κουμπιά και ίδιες ενότητες
-  // με την τωρινή διάταξη — αλλάζει μόνο η εμφάνιση. Μόνο χρώματα του brand (όχι πορτοκαλί/μωβ των φωτογραφιών).
-  const eko = sp.eko === "1" || sp.eko === "2" ? sp.eko : null;
-  if (eko) {
+  // «Σήμερα» του μέλους (υπεύθυνη 23/10: «εκδοχή 2 όπως οι φωτογραφίες», από τις φωτογραφίες της): εικονογραφημένο
+  // καλωσόρισμα, «Η μέρα σου» αριστερά, «Τώρα / Επόμενο βήμα» δεξιά, χρώμα ανά είδος. Ίδια δεδομένα και κουμπιά με πριν.
+  {
     const first = vocative(user.name.split(" ")[0]);
-    // «Βάλε παραπάνω χρώμα» (23/10) → δύο παλέτες για σύγκριση: brand (προεπιλογή, πιο έντονο) ή «όπως οι φωτογραφίες» (?xr=foto).
-    const foto = sp.xr === "foto" || (await cookies()).get(PALETTE_COOKIE)?.value === "foto";
-    const q = (v: string) => `/m?eko=${v}`;
-    const pal = (x: boolean) => `/m/xr?v=${x ? "foto" : "brand"}&back=${encodeURIComponent(q(eko))}`;
     const whenLabel = (date: string) => (date === today.date ? `Σήμερα · ${formatDate(date)}` : date === addDays(today.date, 1) ? `Αύριο · ${formatDate(date)}` : formatDate(date));
-    const switcher = (
-      <nav className="eko-switch" aria-label="Προεπισκόπηση εμφάνισης">
-        <span>Προεπισκόπηση:</span>
-        <Link href="/m">Τωρινή</Link>
-        <Link href={q("1")} className={eko === "1" ? "on" : undefined}>Εκδοχή 1</Link>
-        <Link href={q("2")} className={eko === "2" ? "on" : undefined}>Εκδοχή 2</Link>
-        <span className="eko-sep">Χρώμα:</span>
-        <a href={pal(false)} className={!foto ? "on" : undefined}>Brand</a>
-        <a href={pal(true)} className={foto ? "on" : undefined}>Όπως οι φωτογραφίες</a>
-      </nav>
-    );
     // «Το πρόγραμμά σου»: τα επόμενα ραντεβού (ως 3) και η ομάδα της ημέρας (ή η επόμενη), με σειρά ώρας — ίδια κουμπιά με πριν.
     type ProgRow = { key: string; at: Date; icon: string; tone?: string; title: string; when: string; time: string; hint?: string; action?: ReactNode; extra?: ReactNode };
     const prog: ProgRow[] = upcoming.slice(0, 3).map((b, i) => {
@@ -488,65 +468,8 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
       </li>
     );
 
-    if (eko === "1") {
-      return (
-        <main className={`m-home eko eko1${foto ? " xr-foto" : ""}`}>
-          {switcher}
-          <header className="eko-hello">
-            <h1>Καλώς ήρθες, {first}</h1>
-            <p>Πάμε να δούμε πώς είναι η μέρα σου · {formatDate(today.date)}</p>
-          </header>
-          {notices}
-          {morningPanel}
-          <div className="eko-grid">
-            <div>
-              <section className="panel eko-prog">
-                <div className="eko-head">
-                  <span className="eko-ic c-cal"><Icon name="calendar" size={22} /></span>
-                  <div><h2>Το πρόγραμμά σου</h2><p className="hint">Τα επόμενα ραντεβού και οι ομάδες σου</p></div>
-                </div>
-                {progRows}
-              </section>
-              {planLink}
-              {bookingPanel}
-            </div>
-            <div>
-              <div className="eko-c eko-c-forms">{formsPanel}</div>
-              <div className="eko-c eko-c-journal">{journalPanel}</div>
-              <div className="eko-c eko-c-task">{taskLink}</div>
-              <div className="eko-c eko-c-goal">{goalLink}</div>
-              <div className="eko-c eko-c-progress">{progressPanel}</div>
-            </div>
-          </div>
-          {day.length > 0 && (
-            <section className="panel eko-day">
-              <div className="eko-head">
-                <span className="eko-ic c-sun"><Icon name="sun" size={22} /></span>
-                <div className="grow"><h2>Η μέρα σου</h2><p className="hint">Όλα όσα έχεις για σήμερα</p></div>
-                <span className="eko-chip"><Icon name="calendar" size={16} /> {formatDate(today.date)}</span>
-              </div>
-              <ol className="eko-tl">
-                {day.map(({ item, state }, i) => (
-                  <Fragment key={item.key}>
-                    {i === nowMark && nowRow("eko-now")}
-                    <li className={`s-${state} c-${dayMeta(item.key).tone}`}>
-                      <span className="t">{formatTime(item.at)}</span>
-                      <span className="eko-dot" aria-hidden />
-                      <span className="grow">{item.href && state !== "later" ? <Link href={item.href}>{item.title.replace(/[«»]/g, "")}</Link> : item.title.replace(/[«»]/g, "")}</span>
-                      <span className="st">{dayStatus(state, i, item.at)}</span>
-                    </li>
-                  </Fragment>
-                ))}
-                {nowMark === day.length && nowRow("eko-now")}
-              </ol>
-            </section>
-          )}
-        </main>
-      );
-    }
-
     return (
-      <main className={`m-home eko eko2${foto ? " xr-foto" : ""}`}>
+      <main className="m-home eko eko2 xr-foto">
         <section className="eko-hero">
           <svg className="eko-art" viewBox="0 0 1200 340" preserveAspectRatio="xMidYMid slice" aria-hidden>
             <circle className="a-halo" cx="905" cy="118" r="120" />
@@ -568,7 +491,6 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
           </div>
           <p className="eko-motto">Μικρά βήματα,<br />μεγάλη πορεία</p>
         </section>
-        {switcher}
         {notices}
         <div className="eko2-grid">
           <section className="eko2-day">
@@ -648,124 +570,4 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
     );
   }
 
-  return (
-    <main className="m-home">
-      {/* Ίδια επικεφαλίδα με την ομάδα (20/10): όνομα + ημερομηνία. Μία κύρια ενέργεια ανά κάρτα. */}
-      {/* Ζεστό καλωσόρισμα (υπεύθυνη 22/10: «καλωσορίζουμε το μέλος ζεστά — καλώς ήρθες, πάμε να δούμε πώς είναι η μέρα σου —
-          όχι ξερό «γεια σου»»). */}
-      <PageHead title={`Καλώς ήρθες, ${vocative(user.name.split(" ")[0])}`} sub={`Πάμε να δούμε πώς είναι η μέρα σου · ${formatDate(today.date)}`} />
-
-      {notices}
-      {morningPanel}
-
-      {(hero || day.length > 0) && (
-        <Panel title={hero ? "Τώρα" : "Η μέρα σου"} icon="clock" className="m-now">
-          {hero && (
-            <div className="m-row">
-              <div className="grow">
-                <strong>{hero.title}</strong>
-                {hero.hint && <div className="hint">{hero.hint}</div>}
-              </div>
-              {hero.action}
-            </div>
-          )}
-          {day.length > 0 && (
-            <>
-              {hero && <div className="m-day-title">Η μέρα σου</div>}
-              <ol className="m-day">
-                {day.map(({ item, state }, i) => (
-                  <Fragment key={item.key}>
-                    {i === nowMark && <li className="m-day-mark"><span className="t">{formatTime(now)}</span><span>τώρα</span></li>}
-                    <li className={`s-${state}`}>
-                      <span className="t">{formatTime(item.at)}</span>
-                      <span className="grow">{item.href && state !== "later" ? <Link href={item.href}>{item.title}</Link> : item.title}</span>
-                      <span className="st">{state === "done" ? "✓" : state === "now" ? "τώρα" : i === firstLater ? inWords(item.at) : ""}</span>
-                    </li>
-                  </Fragment>
-                ))}
-                {nowMark === day.length && <li className="m-day-mark"><span className="t">{formatTime(now)}</span><span>τώρα</span></li>}
-              </ol>
-            </>
-          )}
-        </Panel>
-      )}
-
-      {planLink}
-
-
-      <div className="m-grid">
-        <div>
-      {progressPanel}
-
-          {upcoming.map((b, i) => {
-            const minutes = slotMinutes(b.slot.kind, s);
-            const joinable = sessionJoinable(b.slot.startsAt, now, s, minutes);
-            const canAsk = canRequestChange(b.slot.startsAt, now, s) && !pendingFor.has(b.id);
-            const pair = b.slot.kind === "PAIR";
-            // Μόνο το επόμενο ραντεβού ξεχωρίζει και δείχνει «Νη ατομική» (τα επόμενα θα έπαιρναν τον ίδιο αριθμό: μετρούν μόνο οι παρουσίες).
-            const first = i === 0;
-            return (
-              <Panel key={b.id} title={pair ? "Το Therapair σου" : "Η ατομική σου"} icon={pair ? "group" : "user"} className={first && hero?.bookingId !== b.id ? "m-next" : undefined}>
-                <div className="m-row">
-                  <div className="grow">
-                    <strong>{formatDate(b.slot.date)} στις {formatTime(b.slot.startsAt)}</strong>
-                    <div className="hint">
-                      {first && orders.get(b.slot.id) ? `${orders.get(b.slot.id)!.n}η ατομική` : pair ? "Therapair" : "Ατομική"}
-                      {!joinable && ` · το κουμπί ανοίγει ${s.sessionJoinBeforeMinutes} λεπτά πριν`}
-                    </div>
-                    {/* Το δικό του «Μπες» μετρά ως παρουσία (13/10) — το βλέπει και το ίδιο, όπως στην ομάδα. */}
-                    {b.joinedAt && <div className="hint">Μπήκες ✓</div>}
-                  </div>
-                  <form action={`/m/join/${b.id}`} method="post">
-                    <button className={first ? "primary" : "outline"} disabled={!joinable}>{pair ? "Μπες στο Therapair σου" : "Μπες στην ατομική σου"}</button>
-                  </form>
-                </div>
-                <div className="hint" style={{ marginTop: 6 }}>
-                  {pendingFor.has(b.id) ? (
-                    <Pill tone="grey">αίτημα αλλαγής: σε αναμονή</Pill>
-                  ) : canAsk ? (
-                    <Link href={`/m/request/${b.id}`}>Αίτημα αλλαγής ή ακύρωσης ›</Link>
-                  ) : null}
-                </div>
-              </Panel>
-            );
-          })}
-
-      {bookingPanel}
-
-          {groupsToday.length > 0 && (
-            <Panel title="Ομάδα" icon="group">
-              <div className="m-row">
-                <div className="grow">
-                  <strong>Σήμερα στις {groupsToday.map((g) => g.time).join(", ")}</strong>
-                  {attended && <div className="hint">Μπήκες ✓</div>}
-                </div>
-                <form action="/m/join/group" method="post">
-                  <button className="primary" disabled={!groupOpen}>Μπες στην ομάδα</button>
-                </form>
-              </div>
-              {!groupOpen && !attended && <p className="hint" style={{ margin: "6px 0 0" }}>Το κουμπί ανοίγει {s.groupJoinBeforeMinutes} λεπτά πριν.</p>}
-              {/* Η παρουσία στην ομάδα καταγράφεται από αυτό το κουμπί (16/10) — το μέλος να το ξέρει. Διατύπωση προς έγκριση. */}
-              {!attended && <p className="hint" style={{ margin: "8px 0 0" }}>Μπες πάντα από εδώ, για να ξέρει η ομάδα σου ότι ήρθες.</p>}
-            </Panel>
-          )}
-          {groupsToday.length === 0 && nextGroup && (
-            <Panel title="Ομάδα" icon="group">
-              <strong>Επόμενη ομάδα: {nextGroup.date === addDays(today.date, 1) ? "αύριο" : formatDate(nextGroup.date)} στις {nextGroup.time}</strong>
-            </Panel>
-          )}
-        </div>
-
-        <div>
-          {journalFirst && journalPanel}
-      {goalLink}
-      {taskLink}
-
-      {formsPanel}
-
-          {!journalFirst && journalPanel}
-        </div>
-      </div>
-    </main>
-  );
 }

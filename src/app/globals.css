@@ -1404,10 +1404,7 @@ html[data-theme="dark"] .member-env .m-day .s-now .t, html[data-theme="dark"] .m
   body:has(.member-env) nav.top:has(.navlinks a:nth-child(8)) .navmenu-logout { display: block; }
 }
 
-/* ---- Προεπισκόπηση «Σήμερα» μέλους, Εκδοχή 1 και 2 (υπεύθυνη 23/10, από δύο φωτογραφίες) — /m?eko=1|2. Μόνο tokens του brand. ---- */
-.eko-switch { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 14px; font-size: var(--fs-help); color: var(--muted); }
-.eko-switch a { padding: 4px 12px; border-radius: 999px; border: 1px solid var(--card-line); background: var(--card); color: var(--text); text-decoration: none; font-weight: 600; }
-.eko-switch a.on { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+/* ---- «Σήμερα» μέλους (υπεύθυνη 23/10: «εκδοχή 2 όπως οι φωτογραφίες»). Αρχικά δύο εκδοχές για προεπισκόπηση· έμεινε η 2. ---- */
 .eko .eko-ic { flex: 0 0 auto; display: inline-grid; place-items: center; width: 46px; height: 46px; border-radius: 50%; background: var(--now-bg); color: var(--accent-strong); box-shadow: inset 0 0 0 1px var(--now-line); }
 html[data-theme="dark"] .eko .eko-ic { color: var(--accent); }
 .eko .eko-head { display: flex; align-items: center; gap: 14px; padding-bottom: 14px; border-bottom: 1px solid var(--card-line); margin-bottom: 4px; }
@@ -1425,13 +1422,9 @@ html[data-theme="dark"] .eko .eko-when { color: var(--accent); }
 @media (max-width: 760px) { .eko .eko-prow { flex-wrap: wrap; } .eko .eko-act { min-width: 0; width: 100%; align-items: stretch; } }
 
 /* Εκδοχή 1: ήρεμο καλωσόρισμα χωρίς κουτί, δύο στήλες, «Η μέρα σου» σε όλο το πλάτος από κάτω. */
-.eko1 .eko-hello { padding: 8px 0 18px; }
-.eko1 .eko-hello h1 { margin: 0; font-size: clamp(2rem, 4vw, 2.6rem); }
-.eko1 .eko-hello p { margin: 6px 0 0; color: var(--muted); font-size: 1.1rem; }
 .eko .eko-grid { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: var(--gap); align-items: start; margin-top: var(--gap); }
 .eko .eko-grid > div > * + * { margin-top: var(--gap); }
 @media (max-width: 900px) { .eko .eko-grid { grid-template-columns: 1fr; } }
-.eko1 .eko-day { margin-top: var(--gap); }
 .eko .eko-chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid var(--card-line); border-radius: 10px; font-size: var(--fs-help); white-space: nowrap; }
 .eko-tl { list-style: none; margin: 8px 0 0; padding: 0; position: relative; }
 .eko-tl li { position: relative; display: grid; grid-template-columns: 4em 18px 1fr auto; align-items: center; gap: 12px; padding: 9px 10px; border-radius: 10px; }
@@ -1562,9 +1555,6 @@ html[data-theme="dark"] .xr-foto {
 .eko-tl li.c-journal .eko-dot, .eko2-tl li.c-journal .eko-dot { background: var(--d-journal); box-shadow: 0 0 0 4px color-mix(in srgb, var(--d-journal) 22%, var(--card)); }
 .eko-tl li.c-sun .eko-dot, .eko2-tl li.c-sun .eko-dot { background: var(--d-sun); box-shadow: 0 0 0 4px color-mix(in srgb, var(--d-sun) 22%, var(--card)); }
 /* Εκδοχή 1: χρωματιστό καλωσόρισμα. */
-.eko1 .eko-hello { padding: 28px 32px; border-radius: var(--radius-lg); background: var(--hello); margin-bottom: var(--gap); }
-@media (max-width: 760px) { .eko1 .eko-hello { padding: 22px 18px; } }
-.eko .eko-switch .eko-sep { margin-left: 10px; }
 /* Τελείες της «Η μέρα σου» ανά είδος, και περισσότερο χρώμα στις υπόλοιπες κάρτες. */
 .member-env, .eko { --d-session: var(--accent); --d-group: var(--bar-edge); --d-forms: var(--bar-accent-strong); --d-journal: var(--ok); --d-sun: var(--bar);
   --t-goal: color-mix(in srgb, var(--bar-accent) 10%, var(--card)); --t-progress: color-mix(in srgb, var(--accent) 6%, var(--card));
@@ -1637,7 +1627,6 @@ html[data-theme="dark"] .member-env.live .m-legal svg { color: var(--red); }
 .eko-art .a-stop.s1 { fill: var(--d-journal); stroke: var(--bar-text); stroke-width: 4; }
 .eko-art .a-stop.s2 { fill: var(--bar-text); stroke: var(--bar-accent); stroke-width: 7; }
 .eko-art .a-stop.s3 { fill: var(--d-session); stroke: var(--bar-text); stroke-width: 4; }
-.eko2 .eko-switch { margin-top: -4px; }
 .eko2-tl li.hl .eko2-item { background: color-mix(in srgb, var(--bar-accent) 20%, var(--card)); }
 .eko .eko2-tl li.hl .eko-ic { background: var(--bar); color: var(--bar-accent); }
 .eko-next-row { display: flex; gap: 20px; align-items: center; position: relative; }
@@ -1645,3 +1634,18 @@ html[data-theme="dark"] .member-env.live .m-legal svg { color: var(--red); }
 @media (max-width: 760px) { .eko-next-row { align-items: flex-start; } .eko-next .eko-date { display: none; } }
 /* Στο κόκκινο κουμπί καμία διακόσμηση. */
 .member-env.live:has(main.help)::before { display: none; }
+/* Κινητό: πρώτα το «Τώρα / Επόμενο βήμα», μετά «Η μέρα σου» πιο μαζεμένη, μετά οι υπόλοιπες κάρτες. */
+@media (max-width: 900px) {
+  .eko2-grid { display: flex; flex-direction: column; gap: var(--gap); }
+  .eko2-right { display: contents; }
+  .eko2-right > * { order: 2; margin-top: 0 !important; width: 100%; box-sizing: border-box; }
+  .eko2-right > .eko-next { order: 0; }
+  .eko2-grid > .eko2-day { order: 1; }
+}
+@media (max-width: 760px) {
+  .eko2-tl li { grid-template-columns: 3.2em 14px 1fr; gap: 8px; }
+  .eko2-tl::before { left: calc(3.2em + 14px); }
+  .eko2-item { padding: 8px; gap: 10px; }
+  .eko2-item .hint { display: none; }
+  .eko2-dayhead h2 { font-size: 1.5rem; }
+}
