@@ -24,7 +24,7 @@ import { ROOM_MISSING_MEMBER } from "@/lib/rooms";
 import { vocative } from "@/lib/vocative";
 import { addDays, athensToUtc, formatDate, formatTime, isAfterLocal, localParts } from "@/lib/time";
 
-export default async function MemberHome({ searchParams }: { searchParams: Promise<{ e?: string; req?: string; eko?: string }> }) {
+export default async function MemberHome({ searchParams }: { searchParams: Promise<{ e?: string; req?: string; eko?: string; xr?: string }> }) {
   const user = await requireMember();
   const sp = await searchParams;
   const s = await getSettings();
@@ -385,17 +385,23 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
   const eko = sp.eko === "1" || sp.eko === "2" ? sp.eko : null;
   if (eko) {
     const first = vocative(user.name.split(" ")[0]);
+    // «Βάλε παραπάνω χρώμα» (23/10) → δύο παλέτες για σύγκριση: brand (προεπιλογή, πιο έντονο) ή «όπως οι φωτογραφίες» (?xr=foto).
+    const foto = sp.xr === "foto";
+    const q = (v: string, x: boolean) => `/m?eko=${v}${x ? "&xr=foto" : ""}`;
     const whenLabel = (date: string) => (date === today.date ? `Σήμερα · ${formatDate(date)}` : date === addDays(today.date, 1) ? `Αύριο · ${formatDate(date)}` : formatDate(date));
     const switcher = (
       <nav className="eko-switch" aria-label="Προεπισκόπηση εμφάνισης">
         <span>Προεπισκόπηση:</span>
         <Link href="/m">Τωρινή</Link>
-        <Link href="/m?eko=1" className={eko === "1" ? "on" : undefined}>Εκδοχή 1</Link>
-        <Link href="/m?eko=2" className={eko === "2" ? "on" : undefined}>Εκδοχή 2</Link>
+        <Link href={q("1", foto)} className={eko === "1" ? "on" : undefined}>Εκδοχή 1</Link>
+        <Link href={q("2", foto)} className={eko === "2" ? "on" : undefined}>Εκδοχή 2</Link>
+        <span className="eko-sep">Χρώμα:</span>
+        <Link href={q(eko, false)} className={!foto ? "on" : undefined}>Brand</Link>
+        <Link href={q(eko, true)} className={foto ? "on" : undefined}>Όπως οι φωτογραφίες</Link>
       </nav>
     );
     // «Το πρόγραμμά σου»: τα επόμενα ραντεβού (ως 3) και η ομάδα της ημέρας (ή η επόμενη), με σειρά ώρας — ίδια κουμπιά με πριν.
-    type ProgRow = { key: string; at: Date; icon: string; title: string; when: string; time: string; hint?: string; action?: ReactNode; extra?: ReactNode };
+    type ProgRow = { key: string; at: Date; icon: string; tone?: string; title: string; when: string; time: string; hint?: string; action?: ReactNode; extra?: ReactNode };
     const prog: ProgRow[] = upcoming.slice(0, 3).map((b, i) => {
       const joinable = sessionJoinable(b.slot.startsAt, now, s, slotMinutes(b.slot.kind, s));
       const canAsk = canRequestChange(b.slot.startsAt, now, s) && !pendingFor.has(b.id);
@@ -440,7 +446,7 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
     ) : (
       prog.map((r) => (
         <div key={r.key} className="eko-prow">
-          <span className="eko-ic"><Icon name={r.icon} size={22} /></span>
+          <span className={`eko-ic c-${r.icon === "group" ? "group" : "session"}`}><Icon name={r.icon} size={22} /></span>
           <div className="grow">
             <strong>{r.title}</strong>
             <div className="eko-when">{r.when}</div>
@@ -457,12 +463,12 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
       ))
     );
     // «Η μέρα σου» με εικονίδιο και μία γραμμή για το καθένα (ίδια λογική ώρας με το «Τώρα»).
-    const dayMeta = (key: string): { icon: string; hint: string } =>
-      key === "t" ? { icon: "sun", hint: "Το κείμενο της ημέρας." }
-      : key === "f" ? { icon: "doc", hint: "Οι φόρμες της θεματικής της εβδομάδας." }
-      : key.startsWith("b:") ? { icon: "user", hint: `Το κουμπί ανοίγει ${s.sessionJoinBeforeMinutes} λεπτά πριν.` }
-      : key === "j" ? { icon: "leaf", hint: "Γράψε για τη μέρα σου." }
-      : { icon: "group", hint: `Το κουμπί ανοίγει ${s.groupJoinBeforeMinutes} λεπτά πριν.` };
+    const dayMeta = (key: string): { icon: string; hint: string; tone: string } =>
+      key === "t" ? { icon: "sun", hint: "Το κείμενο της ημέρας.", tone: "sun" }
+      : key === "f" ? { icon: "doc", hint: "Οι φόρμες της θεματικής της εβδομάδας.", tone: "forms" }
+      : key.startsWith("b:") ? { icon: "user", hint: `Το κουμπί ανοίγει ${s.sessionJoinBeforeMinutes} λεπτά πριν.`, tone: "session" }
+      : key === "j" ? { icon: "leaf", hint: "Γράψε για τη μέρα σου.", tone: "journal" }
+      : { icon: "group", hint: `Το κουμπί ανοίγει ${s.groupJoinBeforeMinutes} λεπτά πριν.`, tone: "group" };
     const dayStatus = (state: string, i: number, at: Date) => (state === "done" ? "✓" : state === "now" ? "τώρα" : i === firstLater ? inWords(at) : "");
     const dateBadge = (
       <span className="eko-date">
@@ -481,7 +487,7 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
 
     if (eko === "1") {
       return (
-        <main className="m-home eko eko1">
+        <main className={`m-home eko eko1${foto ? " xr-foto" : ""}`}>
           {switcher}
           <header className="eko-hello">
             <h1>Καλώς ήρθες, {first}</h1>
@@ -493,7 +499,7 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
             <div>
               <section className="panel eko-prog">
                 <div className="eko-head">
-                  <span className="eko-ic"><Icon name="calendar" size={22} /></span>
+                  <span className="eko-ic c-cal"><Icon name="calendar" size={22} /></span>
                   <div><h2>Το πρόγραμμά σου</h2><p className="hint">Τα επόμενα ραντεβού και οι ομάδες σου</p></div>
                 </div>
                 {progRows}
@@ -502,17 +508,17 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
               {bookingPanel}
             </div>
             <div>
-              {formsPanel}
-              {journalPanel}
-              {taskLink}
-              {goalLink}
-              {progressPanel}
+              <div className="eko-c eko-c-forms">{formsPanel}</div>
+              <div className="eko-c eko-c-journal">{journalPanel}</div>
+              <div className="eko-c eko-c-task">{taskLink}</div>
+              <div className="eko-c eko-c-goal">{goalLink}</div>
+              <div className="eko-c eko-c-progress">{progressPanel}</div>
             </div>
           </div>
           {day.length > 0 && (
             <section className="panel eko-day">
               <div className="eko-head">
-                <span className="eko-ic"><Icon name="sun" size={22} /></span>
+                <span className="eko-ic c-sun"><Icon name="sun" size={22} /></span>
                 <div className="grow"><h2>Η μέρα σου</h2><p className="hint">Όλα όσα έχεις για σήμερα</p></div>
                 <span className="eko-chip"><Icon name="calendar" size={16} /> {formatDate(today.date)}</span>
               </div>
@@ -520,7 +526,7 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
                 {day.map(({ item, state }, i) => (
                   <Fragment key={item.key}>
                     {i === nowMark && nowRow("eko-now")}
-                    <li className={`s-${state}`}>
+                    <li className={`s-${state} c-${dayMeta(item.key).tone}`}>
                       <span className="t">{formatTime(item.at)}</span>
                       <span className="eko-dot" aria-hidden />
                       <span className="grow">{item.href && state !== "later" ? <Link href={item.href}>{item.title.replace(/[«»]/g, "")}</Link> : item.title.replace(/[«»]/g, "")}</span>
@@ -537,7 +543,7 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
     }
 
     return (
-      <main className="m-home eko eko2">
+      <main className={`m-home eko eko2${foto ? " xr-foto" : ""}`}>
         {switcher}
         <section className="eko-hero">
           <svg className="eko-art" viewBox="0 0 1200 340" preserveAspectRatio="xMidYMid slice" aria-hidden>
@@ -573,7 +579,7 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
                   const title = item.title.replace(/[«»]/g, "");
                   const body = (
                     <>
-                      <span className="eko-ic"><Icon name={m.icon} size={20} /></span>
+                      <span className={`eko-ic c-${m.tone}`}><Icon name={m.icon} size={20} /></span>
                       <span className="grow"><strong>{title}</strong><span className="hint">{m.hint}</span></span>
                       <span className="st">{dayStatus(state, i, item.at)}</span>
                       {item.href && state !== "later" && <span className="arrow"><Icon name="chevron" /></span>}
@@ -582,7 +588,7 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
                   return (
                     <Fragment key={item.key}>
                       {i === nowMark && nowRow("eko-now", "Εδώ είσαι τώρα — συνέχισε!")}
-                      <li className={`s-${state}`}>
+                      <li className={`s-${state} c-${m.tone}`}>
                         <span className="t">{formatTime(item.at)}</span>
                         <span className="eko-dot" aria-hidden />
                         {item.href && state !== "later" ? <Link className="eko2-item" href={item.href}>{body}</Link> : <div className="eko2-item">{body}</div>}
@@ -608,20 +614,20 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
               </section>
             )}
             <div className="eko2-cards">
-              {formsPanel}
-              {journalPanel}
+              <div className="eko-c eko-c-forms">{formsPanel}</div>
+              <div className="eko-c eko-c-journal">{journalPanel}</div>
             </div>
-            {taskLink}
+            <div className="eko-c eko-c-task">{taskLink}</div>
             {planLink}
             <section className="panel eko-prog">
               <div className="eko-head">
-                <span className="eko-ic"><Icon name="calendar" size={22} /></span>
+                <span className="eko-ic c-cal"><Icon name="calendar" size={22} /></span>
                 <div><h2>Το πρόγραμμά σου</h2><p className="hint">Τα επόμενα ραντεβού και οι ομάδες σου</p></div>
               </div>
               {progRows}
             </section>
-            {goalLink}
-            {progressPanel}
+            <div className="eko-c eko-c-goal">{goalLink}</div>
+            <div className="eko-c eko-c-progress">{progressPanel}</div>
             {bookingPanel}
           </div>
         </div>

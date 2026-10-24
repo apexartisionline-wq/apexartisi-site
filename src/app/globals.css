@@ -1499,3 +1499,80 @@ a.eko2-item:hover { background: var(--card); box-shadow: var(--shadow); }
 .eko2-cards > * { margin: 0; }
 @media (max-width: 760px) { .eko2-cards { grid-template-columns: 1fr; } }
 .eko .eko-prow > .grow, .eko .eko-head > .grow, .eko2-item .grow { flex: 1; min-width: 0; }
+
+/* ---- «Βάλε παραπάνω χρώμα» (23/10): χρώμα ανά είδος (ατομική, ομάδα, φόρμες, ημερολόγιο, κείμενο, πρόγραμμα, εργασία).
+   Brand (προεπιλογή): μόνο tokens — πετρόλ, ανθρακί/γαλάζιο της μπάρας, πράσινο ✓. «Όπως οι φωτογραφίες» (.xr-foto): η παλέτα
+   των φωτογραφιών της υπεύθυνης, ΠΡΟΣ ΑΠΟΦΑΣΗ (βγαίνει από τον κανόνα «μόνο brand»· όχι κόκκινο/κίτρινο). ---- */
+.eko {
+  --c-session-bg: var(--accent); --c-session-ink: var(--accent-text);
+  --c-group-bg: var(--bar-hover); --c-group-ink: var(--bar-accent);
+  --c-forms-bg: var(--bar-accent); --c-forms-ink: var(--bar);
+  --c-journal-bg: var(--ok); --c-journal-ink: var(--ok-text);
+  --c-sun-bg: var(--bar); --c-sun-ink: var(--bar-accent);
+  --c-cal-bg: var(--accent-strong); --c-cal-ink: var(--accent-text);
+  --c-task-bg: var(--bar-edge); --c-task-ink: var(--bar-text);
+  --t-forms: color-mix(in srgb, var(--bar-accent) 16%, var(--card));
+  --t-journal: color-mix(in srgb, var(--ok) 8%, var(--card));
+  --t-task: color-mix(in srgb, var(--accent) 7%, var(--card));
+  --t-prog: color-mix(in srgb, var(--accent) 5%, var(--card));
+  --hello: linear-gradient(120deg, var(--now-bg) 0%, color-mix(in srgb, var(--bar-accent) 45%, var(--card)) 100%);
+}
+html[data-theme="dark"] .eko { --c-forms-bg: var(--bar-accent); --t-forms: color-mix(in srgb, var(--bar-accent) 10%, var(--card)); --t-journal: color-mix(in srgb, var(--ok) 14%, var(--card)); }
+.eko.xr-foto {
+  --c-session-bg: #fde3d4; --c-session-ink: #b4532a;
+  --c-group-bg: #ebe5fd; --c-group-ink: #6a4fc7;
+  --c-forms-bg: #dce8fe; --c-forms-ink: #2f62d0;
+  --c-journal-bg: #d9f2e2; --c-journal-ink: #23824f;
+  --c-sun-bg: #d8f4fa; --c-sun-ink: #0b7c9b;
+  --c-cal-bg: #d8f4fa; --c-cal-ink: #0b7c9b;
+  --c-task-bg: #fde3d4; --c-task-ink: #b4532a;
+  --t-forms: #f1f6ff; --t-journal: #effaf3; --t-task: #fff5ef; --t-prog: #ffffff;
+  --hello: linear-gradient(120deg, #e3f6fb 0%, #fdf0e6 100%);
+}
+html[data-theme="dark"] .eko.xr-foto {
+  --c-session-bg: #43281c; --c-session-ink: #f7a985;
+  --c-group-bg: #2d2547; --c-group-ink: #bba8f7;
+  --c-forms-bg: #1d2c4a; --c-forms-ink: #93b6ff;
+  --c-journal-bg: #183623; --c-journal-ink: #7fd3a0;
+  --c-sun-bg: #12303a; --c-sun-ink: #97ecff;
+  --c-cal-bg: #12303a; --c-cal-ink: #97ecff;
+  --c-task-bg: #43281c; --c-task-ink: #f7a985;
+  --t-forms: #16213a; --t-journal: #132a1c; --t-task: #2a1c16; --t-prog: var(--card);
+  --hello: linear-gradient(120deg, #12303a 0%, #2a1c16 100%);
+}
+.eko .eko-ic.c-session { background: var(--c-session-bg); color: var(--c-session-ink); box-shadow: none; }
+.eko .eko-ic.c-group { background: var(--c-group-bg); color: var(--c-group-ink); box-shadow: none; }
+.eko .eko-ic.c-forms { background: var(--c-forms-bg); color: var(--c-forms-ink); box-shadow: none; }
+.eko .eko-ic.c-journal { background: var(--c-journal-bg); color: var(--c-journal-ink); box-shadow: none; }
+.eko .eko-ic.c-sun { background: var(--c-sun-bg); color: var(--c-sun-ink); box-shadow: none; }
+.eko .eko-ic.c-cal { background: var(--c-cal-bg); color: var(--c-cal-ink); box-shadow: none; }
+/* Οι κοινές κάρτες με χρώμα ανά είδος. */
+.eko .eko-c-forms .panel { background: var(--t-forms); }
+.eko .eko-c-forms .panel-head .iconbox { background: var(--c-forms-bg); color: var(--c-forms-ink); }
+.eko .eko-c-journal .panel { background: var(--t-journal); }
+.eko .eko-c-journal .panel-head .iconbox { background: var(--c-journal-bg); color: var(--c-journal-ink); }
+.eko .eko-c-task .linkrow { background: var(--t-task); }
+.eko .eko-c-task .iconbox { background: var(--c-task-bg); color: var(--c-task-ink); }
+.eko .eko-c-goal .iconbox { background: var(--c-cal-bg); color: var(--c-cal-ink); }
+.eko .eko-prog { background: var(--t-prog); border-top: 4px solid var(--c-cal-bg); }
+/* Χρωματιστές τελείες στη «Η μέρα σου». */
+.eko-tl li.c-session .eko-dot, .eko2-tl li.c-session .eko-dot { background: var(--d-session); box-shadow: 0 0 0 4px color-mix(in srgb, var(--d-session) 22%, var(--card)); }
+.eko-tl li.c-group .eko-dot, .eko2-tl li.c-group .eko-dot { background: var(--d-group); box-shadow: 0 0 0 4px color-mix(in srgb, var(--d-group) 22%, var(--card)); }
+.eko-tl li.c-forms .eko-dot, .eko2-tl li.c-forms .eko-dot { background: var(--d-forms); box-shadow: 0 0 0 4px color-mix(in srgb, var(--d-forms) 22%, var(--card)); }
+.eko-tl li.c-journal .eko-dot, .eko2-tl li.c-journal .eko-dot { background: var(--d-journal); box-shadow: 0 0 0 4px color-mix(in srgb, var(--d-journal) 22%, var(--card)); }
+.eko-tl li.c-sun .eko-dot, .eko2-tl li.c-sun .eko-dot { background: var(--d-sun); box-shadow: 0 0 0 4px color-mix(in srgb, var(--d-sun) 22%, var(--card)); }
+/* Εκδοχή 1: χρωματιστό καλωσόρισμα. */
+.eko1 .eko-hello { padding: 28px 32px; border-radius: var(--radius-lg); background: var(--hello); margin-bottom: var(--gap); }
+@media (max-width: 760px) { .eko1 .eko-hello { padding: 22px 18px; } }
+.eko .eko-switch .eko-sep { margin-left: 10px; }
+/* Τελείες της «Η μέρα σου» ανά είδος, και περισσότερο χρώμα στις υπόλοιπες κάρτες. */
+.eko { --d-session: var(--accent); --d-group: var(--bar-edge); --d-forms: var(--bar-accent-strong); --d-journal: var(--ok); --d-sun: var(--bar);
+  --t-goal: color-mix(in srgb, var(--bar-accent) 10%, var(--card)); --t-progress: color-mix(in srgb, var(--accent) 6%, var(--card));
+  --t-morning: linear-gradient(120deg, color-mix(in srgb, var(--bar-accent) 22%, var(--card)), var(--card)); }
+html[data-theme="dark"] .eko { --d-sun: var(--bar-accent); }
+.eko.xr-foto { --d-session: #e07a4f; --d-group: #7b5fd6; --d-forms: #3b74e6; --d-journal: #2e9a5f; --d-sun: #0b7c9b;
+  --t-goal: #f1f6ff; --t-progress: #f6f3ff; --t-morning: linear-gradient(120deg, #e3f6fb, #fdf0e6); }
+html[data-theme="dark"] .eko.xr-foto { --t-goal: #16213a; --t-progress: #211c36; --t-morning: linear-gradient(120deg, #12303a, #2a1c16); --d-sun: #97ecff; }
+.eko .eko-c-goal .linkrow { background: var(--t-goal); }
+.eko .eko-c-progress .panel { background: var(--t-progress); }
+.eko .panel.m-morning { background: var(--t-morning); }
