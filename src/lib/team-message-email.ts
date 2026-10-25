@@ -2,7 +2,7 @@ import { vocative } from "./vocative";
 
 // Email για νέο μήνυμα της ομάδας (υπεύθυνη 22/10: «και μετά θα πηγαίνει και σε email»). ΟΥΔΕΤΕΡΟ: χωρίς το κείμενο του
 // μηνύματος και χωρίς λέξεις για πρόγραμμα/ανάκαμψη — το Gmail του προγράμματος δεν έχει σύμβαση επεξεργασίας (mail.ts) και
-// το email μπορεί να το δει κι άλλος. Το μήνυμα διαβάζεται μόνο μέσα στο Apex. Διατύπωση προς έγκριση.
+// το email μπορεί να το δει κι άλλος. Το μήνυμα διαβάζεται μόνο μέσα στο Apex. Εγκρίθηκε από την υπεύθυνη 25/10 — να μην αλλάξει χωρίς ερώτηση.
 export function teamMessageEmail(p: { name: string; url: string; appName?: string }): { subject: string; text: string } {
   const first = vocative(p.name.trim().split(/\s+/)[0] || p.name);
   const app = p.appName || "Apex";
