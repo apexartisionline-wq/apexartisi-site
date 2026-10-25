@@ -6,6 +6,9 @@ import { Nav } from "@/components/Nav";
 import { requireRole } from "@/lib/auth";
 import { memberNavOpts } from "@/lib/intake";
 import { navLinks } from "@/lib/nav";
+import { LiveAlert } from "@/components/LiveAlert";
+import { liveEventsFor } from "@/lib/live-events";
+import { getSettings } from "@/lib/settings";
 
 export default async function MemberLayout({ children }: { children: React.ReactNode }) {
   const user = await requireRole("MEMBER");
@@ -14,11 +17,14 @@ export default async function MemberLayout({ children }: { children: React.React
   // Μία πηγή για το μενού του μέλους (intake.ts): πλάνο, μηνύματα από την ομάδα, εκκρεμής έναρξη (τότε μόνο «Σήμερα» → έναρξη και «Λογαριασμός»).
   const { hasPlan, hasMessages, intakePending, alumnus } = await memberNavOpts(user);
   const links = navLinks("MEMBER", { hasPlan, hasMessages, intakePending, alumnus });
+  // Αναδυόμενη ειδοποίηση «σαν του κινητού» σε όλες τις σελίδες του μέλους (25/10): η ομάδα / η ατομική άνοιξε, ξεκίνησε.
+  const live = intakePending ? [] : await liveEventsFor(user.id, await getSettings());
   // «Δώσε ζωή σε όλες τις καρτέλες» (υπεύθυνη 23/10): ζωντανή εμφάνιση σε όλες τις σελίδες του μέλους, με την παλέτα
   // «όπως οι φωτογραφίες» (υπεύθυνη 23/10: «εκδοχή 2 όπως οι φωτογραφίες»).
   return (
     <>
       <Nav links={links} compact />
+      <LiveAlert events={live} />
       {/* Ίδιο φόντο, κάρτες και επικεφαλίδες με το περιβάλλον της ομάδας (16/10)· χωρίς το πλαϊνό μενού (έχει το λεκτικό
           «apex/rtisi», που δεν φτάνει στο κινητό των μελών — μόνο το ουδέτερο «Apex»). */}
       <div className="member-env live xr-foto">

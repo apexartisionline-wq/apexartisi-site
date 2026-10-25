@@ -1,4 +1,6 @@
 import { Announcements } from "@/components/Announcements";
+import { PushIntro } from "@/components/PushIntro";
+import { vapidPublicKey } from "@/lib/push";
 import { InstallNudge } from "@/components/InstallGuide";
 import Link from "next/link";
 import { Fragment, type ReactNode } from "react";
@@ -120,7 +122,7 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
     if (at > now) later.push({ key: `g:${g.time}`, at, title: `Ομάδα στις ${g.time}`, hint: `Το κουμπί ανοίγει ${s.groupJoinBeforeMinutes} λεπτά πριν.` });
   }
   for (const b of upcoming) if (b.slot.date === today.date && b.slot.startsAt > now) later.push({ key: `b:${b.id}`, at: b.slot.startsAt, title: `${b.slot.kind === "PAIR" ? "Therapair" : "Ατομική"} στις ${formatTime(b.slot.startsAt)}`, hint: `Το κουμπί ανοίγει ${s.sessionJoinBeforeMinutes} λεπτά πριν.` });
-  if (journalOn && !journalOpen) later.push({ key: "j", at: athensToUtc(today.date, ...(s.journalTime.split(":").map(Number) as [number, number])), title: `Ημερολόγιο στις ${s.journalTime}` });
+  // Το ημερολόγιο είναι πάντα ανοιχτό (υπεύθυνη 25/10: «άκυρο, βγάλ' το»): όχι «Το ημερολόγιο άνοιξε» / «Ημερολόγιο στις 20:00».
   if (!text && !isAfterLocal(today, s.dailyTextTime)) later.push({ key: "t", at: athensToUtc(today.date, ...(s.dailyTextTime.split(":").map(Number) as [number, number])), title: `«Ξεκινάμε τη μέρα παρέα» στις ${s.dailyTextTime}` });
   later.sort((a, b) => a.at.getTime() - b.at.getTime());
   let hero: NowCard | null = null;
@@ -148,8 +150,6 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
         </form>
       ),
     };
-  } else if (journalDue) {
-    hero = { kind: "journal", title: "Το ημερολόγιο άνοιξε", hint: "Γράψε για τη μέρα σου.", action: journalLink };
   } else {
     const next = later[0];
     if (next) { hero = { kind: "later", title: `Σήμερα: ${next.title}`, hint: [inWords(next.at), next.hint].filter(Boolean).join(" · ") }; }
@@ -183,7 +183,7 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
       done: b.confirmedCame === true || (b.confirmedCame === null && b.joinedAt !== null),
     });
   }
-  if (journalOn) dayItems.push({ key: "j", at: hm(s.journalTime), title: "Ημερολόγιο ανάκαμψης", href: s.journalFormUrl ? undefined : "/m/journal", done: Boolean(journal) });
+
   for (const g of groupsToday) {
     const start = hm(g.time).getTime();
     dayItems.push({ key: `g:${g.time}`, at: hm(g.time), opensAt: new Date(start - s.groupJoinBeforeMinutes * 60_000), endsAt: new Date(start + s.groupDurationMinutes * 60_000), title: "Ομάδα", done: Boolean(attended) });
@@ -204,7 +204,7 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
     if (time) nextGroup = { date, time };
   }
   // Το ημερολόγιο είναι η μία βραδινή ενέργεια: όταν ανοίξει και δεν έχει συμπληρωθεί (και δεν το λέει ήδη το «Τώρα»), η κάρτα του ανεβαίνει πρώτη στη δεξιά στήλη.
-  const journalFirst = journalDue && hero?.kind !== "journal";
+  const journalFirst = journalDue;
   const journalPanel = journalOn && (
     <Panel title="Ημερολόγιο ανάκαμψης" icon="leaf" className={journalFirst ? "m-next" : undefined}>
       {s.journalFormUrl ? (
@@ -517,6 +517,7 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
           <p className="eko-motto">Μικρά βήματα,<br />μεγάλη πορεία</p>
         </section>
         {notices}
+        <PushIntro vapidKey={vapidPublicKey()} />
         <InstallNudge />
         <div className="eko2-grid">
           <section className="eko2-day">

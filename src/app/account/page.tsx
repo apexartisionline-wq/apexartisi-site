@@ -1,3 +1,4 @@
+import { revalidatePath } from "next/cache";
 import Link from "next/link";
 import bcrypt from "bcryptjs";
 import { RedirectType, redirect } from "next/navigation";
@@ -14,6 +15,7 @@ import { ErrorNote, PageHead } from "@/components/ui";
 import { vapidPublicKey } from "@/lib/push";
 import { cookies } from "next/headers";
 import { THEME_COOKIE, THEMES, themeOf } from "@/lib/theme";
+import { ThemePicker } from "@/components/ThemePicker";
 import { MEMBER_PREFS, type Prefs } from "@/lib/schedule";
 import { newSecret, qrFor, verifyTotp } from "@/lib/totp";
 import { memberConsents, memberNavOpts } from "@/lib/intake";
@@ -46,7 +48,7 @@ async function setTheme(formData: FormData) {
   const theme = themeOf(formData.get("theme"));
   await prisma.user.update({ where: { id: user.id }, data: { theme } });
   (await cookies()).set(THEME_COOKIE, theme, { sameSite: "lax", path: "/", expires: new Date(Date.now() + 365 * 86_400_000) });
-  redirect("/account?okt=1", RedirectType.replace);
+  revalidatePath("/", "layout");
 }
 
 async function signOutAll() {
@@ -126,18 +128,10 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
           </div>
         )}
         <h2>Εμφάνιση</h2>
-        <form action={setTheme} className="card">
-          {sp.okt && <div className="notice">Αποθηκεύτηκε ✓</div>}
-          <div className="row" style={{ gap: 16, flexWrap: "wrap" }}>
-            {(Object.keys(THEMES) as (keyof typeof THEMES)[]).map((k) => (
-              <label key={k} className="row" style={{ gap: 6 }}>
-                <input type="radio" name="theme" value={k} defaultChecked={themeOf(user.theme) === k} style={{ width: "auto" }} /> {THEMES[k]}
-              </label>
-            ))}
-            <button type="submit" className="sm">Αποθήκευση</button>
-          </div>
-          <p className="small muted" style={{ margin: "6px 0 0" }}>Το φωτεινό είναι η προεπιλογή σε κάθε συσκευή. Η επιλογή σου μένει στον λογαριασμό σου.</p>
-        </form>
+        <div className="card">
+          <ThemePicker themes={THEMES} current={themeOf(user.theme)} action={setTheme} />
+          <p className="small muted" style={{ margin: "6px 0 0" }}>Αλλάζει μόλις το πατήσεις. Το φωτεινό είναι η προεπιλογή σε κάθε συσκευή· η επιλογή σου μένει στον λογαριασμό σου.</p>
+        </div>
         <h2>Ειδοποιήσεις</h2>
         <div className="card stack">
           <PushToggle vapidKey={vapidPublicKey()} />
