@@ -89,3 +89,4 @@
 - Διόρθωση ασφάλειας: σε υπολογιστή κάρτες της αρχικής περνούσαν πάνω από το κόκκινο κουμπί· τώρα μένει πάντα από πάνω (έλεγχος 45 θέσεων, 0 λάθη).
 - Αρχεία: schema + migration alumni, booking.ts, nav.ts, intake.ts, dropout/cycle-review/schedule/safety-batch/Consistency, m/page, m/book, m/journal, m/library, admin/people, admin/alumni-payments (νέο), admin/audit, t/members, MembersList, globals.css, prisma/demo.ts, demo-reset.ts, docs/apofaseis/03.
 - Μένει: έγκριση των δύο φράσεων προς το μέλος· ποσό/τρόπος πληρωμής αποφοίτου (εκτός Apex προς το παρόν).
+- 25/10: εγκρίθηκε «Μια ατομική όποτε τη χρειάζεσαι.»· βγήκε η φράση για τη χρέωση από τα Ραντεβού του αποφοίτου (m/book/page.tsx, docs/apofaseis/03).

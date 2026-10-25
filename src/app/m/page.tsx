@@ -313,6 +313,7 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
           {window.open && (
             <Panel title="Κράτηση ατομικών" icon="calendar" link={{ href: "/m/book", label: "Ραντεβού" }}>
               {/* Ίδιες φράσεις και ίδιος κανόνας με τη σελίδα «Ραντεβού» (21/10): όταν έχει κλείσει όλες τις ώρες, δεν ζητάμε κράτηση. */}
+              {/* Απόφοιτος: φράση εγκεκριμένη από την υπεύθυνη 25/10 — να μην αλλάξει χωρίς ερώτηση. */}
               {alumnus ? (
                 <>
                   <p className="hint" style={{ margin: "0 0 10px" }}>Μια ατομική όποτε τη χρειάζεσαι. Οι κρατήσεις κλείνουν στις {formatTime(window.closesAt)}.</p>
