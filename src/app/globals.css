@@ -316,6 +316,8 @@ nav.top .brand-logo { height: 44px; width: auto; display: block; }
 .redbar {
   position: fixed; left: 0; right: 0; bottom: 0; padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
   background: linear-gradient(transparent, var(--bg) 30%);
+  /* Πάντα πάνω από τις κάρτες (25/10: στη «ζωντανή» αρχική οι κάρτες με z-index 1 περνούσαν πάνω από το κουμπί σε υπολογιστή). */
+  z-index: 25;
 }
 .redbar .btn { max-width: 728px; margin: 0 auto; display: flex; }
 /* Μέσα στη σελίδα του κόκκινου κουμπιού η μπάρα είναι περιττή και κάλυπτε τον κύκλο της ανάσας (δοκιμή 11/10). */
@@ -1672,3 +1674,5 @@ html[data-theme="dark"] .member-env.live .m-legal svg { color: var(--red); }
 }
 /* Πλαϊνό μενού: ίδια οικογένεια χρωμάτων με την κεφαλίδα. */
 .has-side:has(.staff.live) > .sidenav { background: linear-gradient(180deg, color-mix(in srgb, var(--bar-accent) 14%, var(--canvas)) 0%, var(--canvas) 70%); }
+.badge.alumni { background: color-mix(in srgb, #8b6fe0 20%, var(--card)); color: var(--text); }
+.pill.alumni { background: color-mix(in srgb, #8b6fe0 20%, var(--card)); color: var(--text); }

@@ -4,7 +4,7 @@ import { PageHead, Panel } from "@/components/ui";
 import { dec, enc } from "@/lib/crypto";
 import { RedirectType, redirect } from "next/navigation";
 import { z } from "zod";
-import { hasConsent, requireMember } from "@/lib/intake";
+import { hasConsent, requireProgramMember } from "@/lib/intake";
 import { prisma } from "@/lib/db";
 import { notifyRole } from "@/lib/notify";
 import { journalDate } from "@/lib/member";
@@ -43,7 +43,7 @@ const schema = z.object({
 
 async function save(formData: FormData) {
   "use server";
-  const user = await requireMember();
+  const user = await requireProgramMember();
   if (!(await hasConsent(user.id, "journal"))) redirect("/m/journal");
   const s = await getSettings();
   const date = journalDate(new Date(), s);
@@ -108,7 +108,7 @@ async function save(formData: FormData) {
 // Ο στόχος της εβδομάδας: ένας, με τα λόγια του μέλους (από Δευτέρα).
 async function saveGoal(formData: FormData) {
   "use server";
-  const user = await requireMember();
+  const user = await requireProgramMember();
   if (!(await hasConsent(user.id, "journal"))) redirect("/m/journal");
   const s = await getSettings();
   const text = z.string().trim().min(1).max(300).safeParse(String(formData.get("goal") ?? ""));
@@ -137,7 +137,7 @@ function Scale({ name, label, low, high, value, min = 0, hint, required = true }
 }
 
 export default async function JournalPage({ searchParams }: { searchParams: Promise<{ saved?: string; goal?: string }> }) {
-  const user = await requireMember();
+  const user = await requireProgramMember();
   const [s, sp] = await Promise.all([getSettings(), searchParams]);
   const date = journalDate(new Date(), s);
   if (!(await hasConsent(user.id, "journal"))) {

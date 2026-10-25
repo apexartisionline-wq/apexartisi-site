@@ -60,7 +60,8 @@ export async function Consistency({ choice, basePath, canEdit, sort = "groups", 
 }) {
   const now = new Date();
   const today = localParts(now).date;
-  const members = await prisma.user.findMany({ where: { role: "MEMBER", active: true }, orderBy: { name: "asc" }, select: { id: true, name: true, programStartDate: true } });
+  // Απόφοιτοι (25/10): εκτός «Συνέπειας» — οι ομάδες τους είναι ελεύθερες, χωρίς μέτρημα.
+  const members = await prisma.user.findMany({ where: { role: "MEMBER", active: true, alumniSince: null }, orderBy: { name: "asc" }, select: { id: true, name: true, programStartDate: true } });
   const pictures = await picturesFor(members.map((m) => m.id), choice, now);
   const activeMember = { member: { role: "MEMBER" as const, active: true } };
   const [lastGroup, lastSession, lastJournal] = await Promise.all([

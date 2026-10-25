@@ -14,7 +14,7 @@ import { DEMO_DAY_USERNAMES } from "../src/lib/demo-day";
 
 const prisma = new PrismaClient();
 // Οι 8 ψεύτικοι λογαριασμοί του seed (prisma/demo.ts) + τα ψεύτικα μέλη των ραντεβού της ημέρας.
-const SEED_USERNAMES = ["eva", "anna", "vasilis", "dimitra", "nikos", "eleni", "giorgos", "maria", ...DEMO_DAY_USERNAMES];
+const SEED_USERNAMES = ["eva", "anna", "vasilis", "dimitra", "nikos", "eleni", "giorgos", "maria", "stavros", ...DEMO_DAY_USERNAMES];
 
 async function main() {
   if (process.env.DEMO_SEED !== "1") return;

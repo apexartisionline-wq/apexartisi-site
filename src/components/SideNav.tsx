@@ -21,6 +21,7 @@ const ICON: Record<string, string> = {
   "/admin/groups": "group",
   "/admin/consistency": "chart",
   "/admin/people": "user",
+  "/admin/alumni-payments": "check",
   "/admin/content": "doc",
   "/admin/announcements": "info",
   "/admin/team-messages": "chat",

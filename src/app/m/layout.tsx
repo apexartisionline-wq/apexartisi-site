@@ -12,8 +12,8 @@ export default async function MemberLayout({ children }: { children: React.React
   // Ο κωδικός ήρθε με email (16/10): πριν από οτιδήποτε άλλο, το μέλος βάζει δικό του κωδικό.
   if (user.mustChangeCode) redirect("/account?first=1");
   // Μία πηγή για το μενού του μέλους (intake.ts): πλάνο, μηνύματα από την ομάδα, εκκρεμής έναρξη (τότε μόνο «Σήμερα» → έναρξη και «Λογαριασμός»).
-  const { hasPlan, hasMessages, intakePending } = await memberNavOpts(user);
-  const links = navLinks("MEMBER", { hasPlan, hasMessages, intakePending });
+  const { hasPlan, hasMessages, intakePending, alumnus } = await memberNavOpts(user);
+  const links = navLinks("MEMBER", { hasPlan, hasMessages, intakePending, alumnus });
   // «Δώσε ζωή σε όλες τις καρτέλες» (υπεύθυνη 23/10): ζωντανή εμφάνιση σε όλες τις σελίδες του μέλους, με την παλέτα
   // «όπως οι φωτογραφίες» (υπεύθυνη 23/10: «εκδοχή 2 όπως οι φωτογραφίες»).
   return (

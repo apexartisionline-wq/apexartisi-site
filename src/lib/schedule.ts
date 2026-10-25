@@ -39,7 +39,7 @@ export async function runSchedule(now = new Date()): Promise<void> {
   const p = localParts(now);
   const min = p.hour * 60 + p.minute;
   if (min >= 22 * 60 || min < 8 * 60) return;
-  const members = await prisma.user.findMany({ where: { role: "MEMBER", active: true }, select: { id: true, notifyPrefs: true, journal: { where: { date: p.date }, select: { id: true } } } });
+  const members = await prisma.user.findMany({ where: { role: "MEMBER", active: true }, select: { id: true, notifyPrefs: true, alumniSince: true, journal: { where: { date: p.date }, select: { id: true } } } });
   const at = (hhmm: string) => min >= toMinutes(hhmm) && min < toMinutes(hhmm) + 15;
 
   // Κείμενο της ημέρας
@@ -48,7 +48,7 @@ export async function runSchedule(now = new Date()): Promise<void> {
   }
   // Ημερολόγιο
   if (at(s.journalTime)) {
-    for (const m of members) if (on(m.notifyPrefs as Prefs, "journal") && m.journal.length === 0) await once(`journal:${p.date}:${m.id}`, m.id, { title: "Ένα λεπτό για σένα", url: "/m" });
+    for (const m of members) if (!m.alumniSince && on(m.notifyPrefs as Prefs, "journal") && m.journal.length === 0) await once(`journal:${p.date}:${m.id}`, m.id, { title: "Ένα λεπτό για σένα", url: "/m" });
   }
   // Κράτηση: Δευτέρα 10:00 σε όλους, 19:00 σε όσους δεν έκλεισαν
   if (p.weekday === s.bookingDay && (at("10:00") || at("19:00"))) {
@@ -57,7 +57,8 @@ export async function runSchedule(now = new Date()): Promise<void> {
     const tag = at("10:00") ? "am" : "pm";
     for (const m of members) {
       if (!on(m.notifyPrefs as Prefs, "booking")) continue;
-      if (tag === "pm" && booked.has(m.id)) continue;
+      // Απόφοιτος (25/10): ατομική όποτε τη θέλει, χωρίς υπενθύμιση «κλείνουν οι κρατήσεις».
+      if (tag === "pm" && (booked.has(m.id) || m.alumniSince)) continue;
       await once(`booking:${p.date}:${tag}:${m.id}`, m.id, { title: tag === "am" ? "Οι ώρες της εβδομάδας άνοιξαν" : `Οι κρατήσεις κλείνουν στις ${s.bookingCloseTime}`, url: "/m/book" });
     }
   }

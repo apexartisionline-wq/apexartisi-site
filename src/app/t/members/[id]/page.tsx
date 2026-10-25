@@ -108,7 +108,9 @@ export default async function TherapistMemberPage({ params, searchParams }: { pa
         crumbs={[{ href: "/t/members", label: "Μέλη" }, { label: "Καρτέλα μέλους" }]}
         title={member.name}
         sub={<>
-          {day ? `${day}η μέρα στο πρόγραμμα` : "Η έναρξη δεν έχει ημερομηνία ακόμα"} · {cycle ? `Μήνας ${months}` : "χωρίς κύκλο ακόμα"}
+          {member.alumniSince
+            ? <><span className="pill alumni">Απόφοιτος</span> από {formatDate(member.alumniSince)} · ομάδες δωρεάν, ατομικές ανά συνεδρία</>
+            : <>{day ? `${day}η μέρα στο πρόγραμμα` : "Η έναρξη δεν έχει ημερομηνία ακόμα"} · {cycle ? `Μήνας ${months}` : "χωρίς κύκλο ακόμα"}</>}
           {step && <> · Βήμα {step.step} <span className="small">(το είπε το μέλος, {formatDate(localParts(step.createdAt).date)})</span></>}
         </>}
       >

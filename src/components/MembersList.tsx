@@ -20,6 +20,7 @@ export type MemberRow = {
   more: number;
   overdue: boolean;
   noRecord: boolean;
+  alumnus: boolean; // απόφοιτος (25/10): ομάδες δωρεάν, ατομικές ανά συνεδρία
   next: { when: string; time: string; who: string | null; pair: boolean } | null;
 };
 
@@ -83,6 +84,7 @@ export function MembersList({ rows, initialQ, initialF }: { rows: MemberRow[]; i
                     <span className="member-name">{r.name}</span>
                     <span className="member-badges">
                       <span className={`pill ${b.cls}`}><Icon name={b.icon} size={14} />{b.label}</span>
+                      {r.alumnus && <span className="pill alumni">Απόφοιτος</span>}
                       {r.overdue && <span className="pill red member-overdue"><Icon name="clock" size={14} />ΕΚΠΡΟΘΕΣΜΗ</span>}
                     </span>
                   </div>

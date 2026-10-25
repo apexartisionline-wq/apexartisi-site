@@ -1,6 +1,6 @@
 import { ErrorNote, PageHead } from "@/components/ui";
 import { notFound, redirect } from "next/navigation";
-import { requireMember } from "@/lib/intake";
+import { requireProgramMember } from "@/lib/intake";
 import { dec, enc } from "@/lib/crypto";
 import { prisma } from "@/lib/db";
 import { PHOTOS_PER_ASSIGNMENT } from "@/lib/library";
@@ -21,7 +21,7 @@ const OK: Record<string, string> = { "1": "Αποθηκεύτηκε ✓", pdf: "
 // Τρόπος «PDF · στο τετράδιο»: το μέλος σημειώνει ότι το έγραψε (μία ώρα, η πρώτη φορά μένει).
 async function markNotebook(formData: FormData) {
   "use server";
-  const user = await requireMember();
+  const user = await requireProgramMember();
   const id = String(formData.get("id"));
   const a = await prisma.assignment.findFirst({ where: { id, memberId: user.id, mode: "PDF_NOTEBOOK" }, select: { id: true, notebookAt: true, answeredAt: true, createdById: true } });
   if (!a) notFound();
@@ -35,7 +35,7 @@ async function markNotebook(formData: FormData) {
 
 async function saveAnswer(formData: FormData) {
   "use server";
-  const user = await requireMember();
+  const user = await requireProgramMember();
   const id = String(formData.get("id"));
   const answer = String(formData.get("answer") ?? "").slice(0, 20000);
   const a = await prisma.assignment.findFirst({ where: { id, memberId: user.id }, select: { answeredAt: true, createdById: true } });
@@ -46,7 +46,7 @@ async function saveAnswer(formData: FormData) {
 }
 
 export default async function AssignmentPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ ok?: string; e?: string }> }) {
-  const user = await requireMember();
+  const user = await requireProgramMember();
   const [{ id }, sp] = await Promise.all([params, searchParams]);
   const a = await prisma.assignment.findFirst({
     where: { id, memberId: user.id },

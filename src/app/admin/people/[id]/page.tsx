@@ -10,7 +10,7 @@ import { cycleInfo } from "@/lib/member";
 import { programDay } from "@/lib/program";
 import { getSettings } from "@/lib/settings";
 import { addDays, formatDate, formatWhen, localParts } from "@/lib/time";
-import { newCycle, reset2fa, updatePerson } from "../actions";
+import { newCycle, reset2fa, setAlumnus, updatePerson } from "../actions";
 import { ResetCodeForm } from "../CodeForms";
 import { SELF_HARM } from "@/lib/journal-labels";
 import { MemberSessions } from "@/components/MemberSessions";
@@ -39,7 +39,7 @@ export default async function PersonPage({ params, searchParams }: { params: Pro
 
   return (
     <>
-      <h1>{p.name}</h1>
+      <h1>{p.name}{p.alumniSince && <> <span className="badge alumni">Απόφοιτος</span></>}</h1>
       {sp.ok && <div className="notice">Αποθηκεύτηκε ✓</div>}
 
       {isMember && (
@@ -139,6 +139,22 @@ export default async function PersonPage({ params, searchParams }: { params: Pro
       {isMember && (
         <>
           <p><Link className="btn" href={`/admin/people/${p.id}/close`}>Ολοκλήρωση συνεργασίας ›</Link></p>
+          {/* Απόφοιτος (υπεύθυνη 25/10): ίδιος λογαριασμός, ομάδες δωρεάν χωρίς μέτρημα, ατομικές με χρέωση ανά συνεδρία. */}
+          <form action={setAlumnus} className="card row spread">
+            <input type="hidden" name="id" value={p.id} />
+            <input type="hidden" name="on" value={p.alumniSince ? "0" : "1"} />
+            {p.alumniSince ? (
+              <>
+                <span><strong>Απόφοιτος</strong> από {gr(p.alumniSince)} · ομάδες δωρεάν χωρίς μέτρημα· κάθε ατομική μπαίνει στις <Link href="/admin/alumni-payments">Πληρωμές αποφοίτων</Link>.</span>
+                <button type="submit">Ξανά μέλος προγράμματος</button>
+              </>
+            ) : (
+              <>
+                <span className="small">Τελείωσε το πρόγραμμα και συνεχίζει ως απόφοιτος; Ομάδες δωρεάν χωρίς μέτρημα, θεματικές και κείμενο ημέρας, ατομικές με χρέωση ανά συνεδρία. Χωρίς ημερολόγιο και εργασίες· το κόκκινο κουμπί και το σχέδιο ασφάλειας μένουν. Κλείνει τον ανοιχτό κύκλο.</span>
+                <button type="submit">Γίνεται απόφοιτος (από σήμερα)</button>
+              </>
+            )}
+          </form>
           <h2>Κύκλος ατομικών</h2>
           <form action={newCycle} className="card row spread">
             <input type="hidden" name="id" value={p.id} />

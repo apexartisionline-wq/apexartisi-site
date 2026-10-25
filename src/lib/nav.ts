@@ -1,7 +1,7 @@
 import type { Role } from "@prisma/client";
 
 // Κάθε ρόλος βλέπει μόνο τα δικά του μενού.
-export function navLinks(role: Role, opts: { hasPlan?: boolean; hasMessages?: boolean; intakePending?: boolean } = {}): { href: string; label: string }[] {
+export function navLinks(role: Role, opts: { hasPlan?: boolean; hasMessages?: boolean; intakePending?: boolean; alumnus?: boolean } = {}): { href: string; label: string }[] {
   if (role === "ADMIN")
     return [
       { href: "/admin", label: "Σήμερα" },
@@ -11,6 +11,7 @@ export function navLinks(role: Role, opts: { hasPlan?: boolean; hasMessages?: bo
       { href: "/admin/groups", label: "Ομάδες" },
       { href: "/admin/consistency", label: "Συνέπεια" },
       { href: "/admin/people", label: "Άνθρωποι" },
+      { href: "/admin/alumni-payments", label: "Πληρωμές αποφοίτων" },
       { href: "/admin/content", label: "Κείμενα" },
       { href: "/admin/announcements", label: "Ανακοινώσεις" },
       { href: "/admin/team-messages", label: "Μήνυμα σε μέλη" },
@@ -42,9 +43,10 @@ export function navLinks(role: Role, opts: { hasPlan?: boolean; hasMessages?: bo
   return [
     { href: "/m", label: "Σήμερα" },
     { href: "/m/book", label: "Ραντεβού" },
-    { href: "/m/journal", label: "Ημερολόγιο" },
+    // Απόφοιτοι (25/10): χωρίς ημερολόγιο ανάκαμψης και εργασίες (ελαχιστοποίηση δεδομένων)· θεματικές και κείμενα ημέρας ναι.
+    ...(opts.alumnus ? [] : [{ href: "/m/journal", label: "Ημερολόγιο" }]),
     { href: "/m/texts", label: "Βιβλιοθήκη θεματικών" },
-    { href: "/m/library", label: "Οι εργασίες μου" },
+    ...(opts.alumnus ? [] : [{ href: "/m/library", label: "Οι εργασίες μου" }]),
     // Φαίνεται μόνο σε όποιον το έχει (γράφεται μαζί στη 2η ατομική). Στο μέλος λέγεται «Το σχέδιο ασφάλειάς μου» (υπεύθυνη 22/10).
     ...(opts.hasPlan ? [{ href: "/m/safety", label: "Το σχέδιο ασφάλειάς μου" }] : []),
     // Τα μηνύματα της ομάδας ξαναδιαβάζονται όποτε θέλει (μόλις υπάρξει το πρώτο).

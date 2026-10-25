@@ -76,6 +76,7 @@ model User {
   source           MemberSource?
   programStartDate String? // YYYY-MM-DD (ώρα Ελλάδας)
   soberSince       String? // ημερομηνία νηφαλιότητας YYYY-MM-DD· αλλαγές στο SobrietyChange
+  alumniSince      String? // απόφοιτος από YYYY-MM-DD (υπεύθυνη 25/10): ομάδες δωρεάν χωρίς μέτρημα, ατομικές με χρέωση ανά συνεδρία
   selfMessage      Bytes?
   selfMessageType  String?
 
@@ -169,6 +170,7 @@ model Booking {
   memberId        String
   member          User            @relation("MemberBookings", fields: [memberId], references: [id], onDelete: Cascade)
   cycleId         String?
+  paidAt          DateTime? // ατομική αποφοίτου: πότε σημειώθηκε «πληρώθηκε» (διαχείριση· η πληρωμή γίνεται εκτός Apex)
   cycle           Cycle?          @relation(fields: [cycleId], references: [id])
   joinedAt        DateTime? // πάτημα «Μπες» από το μέλος· δεν αλλάζει από σημείωμα (13/10)
   // Επιβεβαίωση θεραπευτή από το σημείωμα («Ήρθε» = true, «Δεν ήρθε» = false)· υπερισχύει του πατήματος (απόφαση 13/10).

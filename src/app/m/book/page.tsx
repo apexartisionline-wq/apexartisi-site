@@ -121,6 +121,8 @@ export default async function BookPage({
       {sp.ok && <div className="notice">Το ραντεβού κλείστηκε ✓ Μπορείς να το ακυρώσεις μέχρι τις {formatTime(w.closesAt)}.</div>}
       {sp.undone && <div className="notice">Το ραντεβού ακυρώθηκε.</div>}
       {sp.e && <ErrorNote>{sp.e}</ErrorNote>}
+      {/* Απόφοιτος (υπεύθυνη 25/10). Κείμενο προς έγκριση από την υπεύθυνη. */}
+      {user.alumniSince && <p className="hint">Ως απόφοιτος, οι ομάδες είναι δωρεάν και κάθε ατομική χρεώνεται χωριστά.</p>}
 
       <Panel title="Ο μήνας σου" icon="calendar">
         <MonthCalendar

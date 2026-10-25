@@ -7,6 +7,7 @@ import bcrypt from "bcryptjs";
 import { randomBytes } from "node:crypto";
 import { DEFAULT_SETTINGS, settingsSchema } from "../src/lib/settings";
 import { addDays, athensToUtc, localParts, weekdayOf } from "../src/lib/time";
+import { enc } from "../src/lib/crypto-core";
 
 const prisma = new PrismaClient();
 const VERSION = "δοκιμή";
@@ -23,6 +24,7 @@ async function main() {
     console.log("[demo] Η βάση έχει ήδη στοιχεία· δεν προστίθεται τίποτα.");
     await ensureAssessmentChecks();
     await ensureGuest();
+    await ensureAlumnus(passwordHashFor(password));
     await ensureDemoAccess(password);
     return;
   }
@@ -117,10 +119,11 @@ async function main() {
   // Μόνο σε ολότελα καινούργια βάση· μετά από μηδενισμό οι Ρυθμίσεις της υπεύθυνης (δωμάτια, ομάδες, ώρες) μένουν.
   await prisma.setting.upsert({ where: { key: "app" }, create: { key: "app", value: settings }, update: {} });
   await ensureGuest();
+  await ensureAlumnus(passwordHashFor(password));
   await ensureDemoAccess(password);
 
   console.log(`[demo] Έτοιμο. Λογαριασμοί (κωδικός: DEMO_PASSWORD):
-  Εύα: eva · θεραπευτές: anna, vasilis, dimitra · μέλη: nikos, eleni, giorgos, maria (νέο μέλος)`);
+  Εύα: eva · θεραπευτές: anna, vasilis, dimitra · μέλη: nikos, eleni, giorgos, maria (νέο μέλος) · απόφοιτος: stavros`);
   void eva;
 }
 
@@ -159,12 +162,62 @@ async function ensureGuest() {
   console.log("[demo] Λογαριασμός επισκέπτη «panos» (απλή αρχική): κωδικό δίνει η διαχείριση με «Νέος κωδικός».");
 }
 
+const passwordHashFor = (password: string) => bcrypt.hash(password, 12);
+
+/**
+ * Ψεύτικος απόφοιτος «stavros» (υπεύθυνη 25/10: προφίλ αποφοίτων). Τελείωσε το πρόγραμμα πριν από 14 μέρες: κύκλος κλειστός,
+ * ομάδες δωρεάν (παρουσίες χωρίς μέτρημα), δύο ατομικές μετά την αποφοίτηση (η μία «Πληρώθηκε», η άλλη όχι ακόμα) και μία
+ * επόμενη. Οι παλιές ατομικές έχουν σημείωμα, αλλιώς ο θεραπευτής θα έβλεπε «εκκρεμεί σημείωμα». Ξανατρέχει άφοβα: φτιάχνει
+ * μόνο ό,τι λείπει (το demo-reset σβήνει τις παλιές θέσεις, οπότε ξαναμπαίνουν σε κάθε build).
+ */
+async function ensureAlumnus(hash: Promise<string>) {
+  const vasilis = await prisma.user.findUnique({ where: { username: "vasilis" } });
+  const anna = await prisma.user.findUnique({ where: { username: "anna" } });
+  if (!vasilis || !anna) return;
+  const today = localParts(new Date()).date;
+  let m = await prisma.user.findUnique({ where: { username: "stavros" } });
+  if (!m) {
+    m = await prisma.user.create({
+      data: {
+        username: "stavros", name: "Σταύρος Δοκιμαστικός", memberCode: "A-10020", role: "MEMBER", source: "APEX", passwordHash: await hash,
+        phone: "6900000000", programStartDate: addDays(today, -200), soberSince: addDays(today, -230), alumniSince: addDays(today, -14),
+      },
+    });
+    await prisma.cycle.create({ data: { memberId: m.id, length: 8, settledAt: new Date(), closedAt: athensToUtc(addDays(today, -14), 12) } });
+    for (const key of ["online_consent", "agreement", "assessment"]) await prisma.intakeCheck.create({ data: { memberId: m.id, key, doneById: anna.id } });
+    for (const purpose of ["record", "journal", "forms", "telegram", "self_message", "emergency_contact", "confidentiality"]) {
+      await prisma.consent.create({ data: { memberId: m.id, purpose, choice: "YES", version: VERSION, recordedById: purpose === "confidentiality" ? m.id : anna.id } });
+    }
+    for (const d of [2, 4, 9, 11]) await prisma.attendance.create({ data: { memberId: m.id, date: addDays(today, -d) } });
+  }
+  // Ατομικές μετά την αποφοίτηση: χωρίς κύκλο (χρέωση ανά συνεδρία), θέση 4 στις 20:00 ώστε να μη συγκρούεται με τις 1–3 του seed.
+  const sessions: { days: number; paid: boolean }[] = [{ days: -12, paid: true }, { days: -5, paid: false }, { days: 3, paid: false }];
+  for (const x of sessions) {
+    const date = addDays(today, x.days);
+    const startsAt = athensToUtc(date, 20);
+    const slot = (await prisma.slot.findUnique({ where: { date_hour_position: { date, hour: 20, position: 4 } } }))
+      ?? await prisma.slot.create({ data: { date, hour: 20, position: 4, startsAt, therapistId: vasilis.id } });
+    if (await prisma.booking.findFirst({ where: { slotId: slot.id } })) continue;
+    const past = x.days < 0;
+    await prisma.booking.create({
+      data: {
+        slotId: slot.id, memberId: m.id, cycleId: null, kind: "BIOMATIC",
+        ...(past ? { joinedAt: startsAt, confirmedCame: true, confirmedAt: new Date(startsAt.getTime() + 50 * 60_000), confirmedById: vasilis.id, durationMinutes: 50 } : {}),
+        ...(x.paid ? { paidAt: new Date(startsAt.getTime() + 2 * 3600_000) } : {}),
+      },
+    });
+    if (past && !(await prisma.sessionNote.findUnique({ where: { slotId: slot.id } }))) {
+      await prisma.sessionNote.create({ data: { slotId: slot.id, therapistId: vasilis.id, content: enc("Ψεύτικο σημείωμα δοκιμής (απόφοιτος)."), riskChange: "SAME", usedSince: "NO", nextStep: enc("Συνεχίζει στις ομάδες.") } });
+    }
+  }
+}
+
 /**
  * Οι ψεύτικοι λογαριασμοί της δοκιμής μπαίνουν πάντα με το DEMO_PASSWORD: σε κάθε build ξανά ο ίδιος
  * κωδικός, χωρίς κλείδωμα από λάθος προσπάθειες (11/10: η θεραπεύτρια δεν μπορούσε να μπει).
  * Αφορά μόνο τα ψεύτικα ονόματα· λογαριασμοί που φτιάχνει η διαχείριση δεν αγγίζονται.
  */
-const DEMO_USERNAMES = ["eva", "anna", "vasilis", "dimitra", "nikos", "eleni", "giorgos", "maria"];
+const DEMO_USERNAMES = ["eva", "anna", "vasilis", "dimitra", "nikos", "eleni", "giorgos", "maria", "stavros"];
 /**
  * Δεύτερος κωδικός (εξαψήφιος) στους ψεύτικους λογαριασμούς της δοκιμής. Απόφαση 14/10: ενεργός, για να ελεγχθεί.
  * **Προσωρινά κλειστός (υπεύθυνη 16/10, «βγάλε το εξαψήφιο για λίγο»).** Όσο είναι false, κάθε build κλείνει τη ρύθμιση

@@ -41,7 +41,7 @@ export async function memberSafetyMany(ids: string[], now = new Date()): Promise
     members, checks, consents, plans, help, singleNotes, pairNotes, attendance, presentBookings, dropouts, s, missed, lastJournal,
     assessments, teamAlerts, flaggedJournal, lastReview, lastSelfHarm, lastUsed, strongCravings,
   ] = await Promise.all([
-    prisma.user.findMany({ where: { id: in_ }, select: { id: true, source: true, programStartDate: true, createdAt: true } }),
+    prisma.user.findMany({ where: { id: in_ }, select: { id: true, source: true, programStartDate: true, createdAt: true, alumniSince: true } }),
     prisma.intakeCheck.findMany({ where: { memberId: in_ } }),
     prisma.consent.findMany({ where: { memberId: in_ }, select: { memberId: true, purpose: true, choice: true, recordedAt: true } }),
     prisma.safetyPlan.findMany({ where: { memberId: in_ }, select: { memberId: true, updatedAt: true } }),
@@ -159,7 +159,8 @@ export async function memberSafetyMany(ids: string[], now = new Date()): Promise
       helpRequests: (helpBy.get(memberId) ?? []).filter((h) => h.createdAt >= since14).map((h) => ({ createdAt: h.createdAt })),
       notes: notes30.map((n) => ({ at: n.startsAt, riskChange: n.riskChange, usedSince: n.usedSince, slotId: n.slotId })),
       missed: (missedBy.get(memberId) ?? []).map((b) => ({ at: b.slot.startsAt, slotId: b.slotId, noted: b.confirmedCame === false })),
-      lastContact: contacts.length ? new Date(Math.max(...contacts.map((d) => d.getTime()))) : null,
+      // Απόφοιτοι (25/10): όχι «μέρες χωρίς επαφή» — οι ομάδες τους είναι ελεύθερες, χωρίς μέτρημα.
+      lastContact: member.alumniSince ? null : contacts.length ? new Date(Math.max(...contacts.map((d) => d.getTime()))) : null,
       openDropout: (dropBy.get(memberId) ?? 0) > 0,
       dropoutDays: s.dropoutDays,
       intakeComplete: status.complete,

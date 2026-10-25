@@ -109,7 +109,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
   const consents = staff ? {} : await memberConsents(user.id);
   const qr = staff && !user.totpEnabled && user.totpSecret ? await qrFor(user.totpSecret, user.username, s.appName) : null;
   // Ίδιο μενού με τις σελίδες του μέλους (layout /m): «Το πλάνο μου», «Από την ομάδα», και μειωμένο όσο εκκρεμεί η έναρξη.
-  const navOpts = staff ? { hasPlan: false, hasMessages: false, intakePending: false } : await memberNavOpts(user);
+  const navOpts = staff ? { hasPlan: false, hasMessages: false, intakePending: false, alumnus: false } : await memberNavOpts(user);
   // Ανάκληση συγκατάθεσης με επιβεβαίωση (20/10): ?w=<σκοπός>.
   const withdrawing = !staff && sp.w ? PURPOSES.find((p) => p.key === sp.w && !p.required && consents[p.key] === "YES" && p.choices.includes("NO")) : undefined;
   return (

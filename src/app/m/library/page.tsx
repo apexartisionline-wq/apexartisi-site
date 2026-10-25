@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Icon } from "@/components/Icon";
 import { EmptyState, PageHead, Panel, Pill } from "@/components/ui";
 import { RedirectType, redirect } from "next/navigation";
-import { requireMember } from "@/lib/intake";
+import { requireProgramMember } from "@/lib/intake";
 import { prisma } from "@/lib/db";
 import { currentStep, STEPS } from "@/lib/steps";
 import { memberStepStatus } from "@/lib/step-modes";
@@ -14,7 +14,7 @@ const KIND_ICON = { PDF: "doc", AUDIO: "chat", VIDEO: "video", IMAGE: "eye", LIN
 // Το μέλος λέει σε ποιο βήμα βρίσκεται· κάθε αλλαγή κρατιέται ως νέα γραμμή.
 async function saveStep(formData: FormData) {
   "use server";
-  const user = await requireMember();
+  const user = await requireProgramMember();
   const step = Number(formData.get("step"));
   if (!STEPS.includes(step)) redirect("/m/library");
   const cur = await currentStep(user.id);
@@ -23,7 +23,7 @@ async function saveStep(formData: FormData) {
 }
 
 export default async function MemberLibrary({ searchParams }: { searchParams: Promise<{ step?: string }> }) {
-  const user = await requireMember();
+  const user = await requireProgramMember();
   const sp = await searchParams;
   const [mine, shared, step] = await Promise.all([
     prisma.assignment.findMany({ where: { memberId: user.id }, orderBy: { createdAt: "desc" }, select: { id: true, title: true, step: true, createdAt: true, answeredAt: true, mode: true, notebookAt: true, answerPdfAt: true } }),

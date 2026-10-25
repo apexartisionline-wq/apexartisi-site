@@ -97,11 +97,13 @@ export async function bookHour(args: {
         const taken = await tx.booking.count({ where: { slotId: pick.slot.id } });
         if (taken >= capacity) throw new Error("FULL");
 
-        const cycleId = await cycleForNewBooking(tx, memberId, s);
+        // Απόφοιτος (25/10): ατομικές με χρέωση ανά συνεδρία — χωρίς κύκλο (δεν μετρά σε «8 ατομικές», δεν ανοίγει νέο κύκλο).
+        const alumnus = Boolean((await tx.user.findUnique({ where: { id: memberId }, select: { alumniSince: true } }))?.alumniSince);
+        const cycleId = alumnus ? null : await cycleForNewBooking(tx, memberId, s);
         const created = await tx.booking.create({
           data: { slotId: pick.slot.id, memberId, cycleId, kind: pick.kind, alternationOk: pick.ok },
         });
-        await closeCycleIfFull(tx, cycleId);
+        if (cycleId) await closeCycleIfFull(tx, cycleId);
         return created;
       });
       return { ok: true, bookingId: booking.id };
@@ -181,6 +183,8 @@ export async function cancelBooking(bookingId: string, by: { byId: string; reaso
     await tx.recordHistory.create({ data: { kind: "booking_cancelled", memberId: b.memberId, ref: b.slot.id, byId: by.byId, before: enc(JSON.stringify({ reason: by.reason, date: b.slot.date, hour: b.slot.hour, startsAt: b.slot.startsAt, therapistId: b.slot.therapistId, kind: b.slot.kind, cycleId: b.cycleId, bookedAt: b.createdAt })) } });
     await tx.booking.delete({ where: { id: bookingId } });
     if (!b.cycleId) return;
+    // Απόφοιτος (25/10): ο κύκλος του έκλεισε με την αποφοίτηση και δεν ξανανοίγει από ακύρωση παλιάς κράτησης.
+    if ((await tx.user.findUnique({ where: { id: b.memberId }, select: { alumniSince: true } }))?.alumniSince) return;
     const cycle = await tx.cycle.findUnique({ where: { id: b.cycleId }, include: { _count: { select: { bookings: true } } } });
     if (!cycle) return;
     const latest = await tx.cycle.findFirst({ where: { memberId: b.memberId }, orderBy: { startedAt: "desc" } });

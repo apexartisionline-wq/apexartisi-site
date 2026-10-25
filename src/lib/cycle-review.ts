@@ -149,7 +149,7 @@ export async function closeCycle(memberId: string, cycle: NonNullable<Awaited<Re
  * τα ενεργά μέλη. Επιστρέφει όσους κύκλους έμειναν ακόμα ανοιχτοί (κανονικά κανέναν) για την υπενθύμιση.
  */
 export async function autoCloseCycles(memberIds?: string[], now = new Date()): Promise<{ memberId: string; cycleId: string }[]> {
-  const ids = memberIds ?? (await prisma.user.findMany({ where: { role: "MEMBER", active: true }, select: { id: true } })).map((m) => m.id);
+  const ids = memberIds ?? (await prisma.user.findMany({ where: { role: "MEMBER", active: true, alumniSince: null }, select: { id: true } })).map((m) => m.id);
   const due = await dueCycleReviews(ids, now);
   const left: { memberId: string; cycleId: string }[] = [];
   let closed = 0;

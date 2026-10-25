@@ -12,7 +12,8 @@ export async function checkDropouts(now = new Date(), settings?: Settings): Prom
   const since = dropoutSince(now, s.dropoutDays);
   const today = localParts(now).date;
   const members = await prisma.user.findMany({
-    where: { role: "MEMBER", active: true, programStartDate: { not: null } },
+    // Οι απόφοιτοι (25/10) δεν έχουν «χωρίς επαφή»: έρχονται στις ομάδες όποτε θέλουν.
+    where: { role: "MEMBER", active: true, programStartDate: { not: null }, alumniSince: null },
     select: {
       id: true,
       programStartDate: true,

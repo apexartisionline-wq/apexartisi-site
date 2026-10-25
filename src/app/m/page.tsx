@@ -94,7 +94,10 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
   // ομάδα που ανοίγει → ημερολόγιο που άνοιξε και δεν συμπληρώθηκε → το επόμενο της ημέρας (με «σε Χ ώρες») → το επόμενο
   // ραντεβού → κράτηση αν είναι ανοιχτή. Οι κάρτες από κάτω μένουν όπως είναι (πλήρες πρόγραμμα)· εδώ μόνο το «τι κάνω τώρα».
   // Με εξωτερική φόρμα ημερολογίου δεν ξέρουμε αν συμπληρώθηκε (journal πάντα null) — τότε το «Τώρα» δεν το ζητά· μένει η κάρτα του.
-  const journalDue = consents.journal === "YES" && !s.journalFormUrl && journalOpen && !journal;
+  // Απόφοιτοι (25/10): χωρίς ημερολόγιο ανάκαμψης, στόχο εβδομάδας και εργασίες.
+  const alumnus = Boolean(user.alumniSince);
+  const journalOn = consents.journal === "YES" && !alumnus;
+  const journalDue = journalOn && !s.journalFormUrl && journalOpen && !journal;
   const journalLink = s.journalFormUrl ? (
     <a className="btn primary" href={withMemberCode(s.journalFormUrl, user.memberCode)} target="_blank" rel="noopener noreferrer">Συμπλήρωσέ το</a>
   ) : (
@@ -115,7 +118,7 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
     if (at > now) later.push({ key: `g:${g.time}`, at, title: `Ομάδα στις ${g.time}`, hint: `Το κουμπί ανοίγει ${s.groupJoinBeforeMinutes} λεπτά πριν.` });
   }
   for (const b of upcoming) if (b.slot.date === today.date && b.slot.startsAt > now) later.push({ key: `b:${b.id}`, at: b.slot.startsAt, title: `${b.slot.kind === "PAIR" ? "Therapair" : "Ατομική"} στις ${formatTime(b.slot.startsAt)}`, hint: `Το κουμπί ανοίγει ${s.sessionJoinBeforeMinutes} λεπτά πριν.` });
-  if (consents.journal === "YES" && !journalOpen) later.push({ key: "j", at: athensToUtc(today.date, ...(s.journalTime.split(":").map(Number) as [number, number])), title: `Ημερολόγιο στις ${s.journalTime}` });
+  if (journalOn && !journalOpen) later.push({ key: "j", at: athensToUtc(today.date, ...(s.journalTime.split(":").map(Number) as [number, number])), title: `Ημερολόγιο στις ${s.journalTime}` });
   if (!text && !isAfterLocal(today, s.dailyTextTime)) later.push({ key: "t", at: athensToUtc(today.date, ...(s.dailyTextTime.split(":").map(Number) as [number, number])), title: `«Ξεκινάμε τη μέρα παρέα» στις ${s.dailyTextTime}` });
   later.sort((a, b) => a.at.getTime() - b.at.getTime());
   let hero: NowCard | null = null;
@@ -178,7 +181,7 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
       done: b.confirmedCame === true || (b.confirmedCame === null && b.joinedAt !== null),
     });
   }
-  if (consents.journal === "YES") dayItems.push({ key: "j", at: hm(s.journalTime), title: "Ημερολόγιο ανάκαμψης", href: s.journalFormUrl ? undefined : "/m/journal", done: Boolean(journal) });
+  if (journalOn) dayItems.push({ key: "j", at: hm(s.journalTime), title: "Ημερολόγιο ανάκαμψης", href: s.journalFormUrl ? undefined : "/m/journal", done: Boolean(journal) });
   for (const g of groupsToday) {
     const start = hm(g.time).getTime();
     dayItems.push({ key: `g:${g.time}`, at: hm(g.time), opensAt: new Date(start - s.groupJoinBeforeMinutes * 60_000), endsAt: new Date(start + s.groupDurationMinutes * 60_000), title: "Ομάδα", done: Boolean(attended) });
@@ -200,7 +203,7 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
   }
   // Το ημερολόγιο είναι η μία βραδινή ενέργεια: όταν ανοίξει και δεν έχει συμπληρωθεί (και δεν το λέει ήδη το «Τώρα»), η κάρτα του ανεβαίνει πρώτη στη δεξιά στήλη.
   const journalFirst = journalDue && hero?.kind !== "journal";
-  const journalPanel = consents.journal === "YES" && (
+  const journalPanel = journalOn && (
     <Panel title="Ημερολόγιο ανάκαμψης" icon="leaf" className={journalFirst ? "m-next" : undefined}>
       {s.journalFormUrl ? (
         journalOpen ? (
@@ -310,7 +313,12 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
           {window.open && (
             <Panel title="Κράτηση ατομικών" icon="calendar" link={{ href: "/m/book", label: "Ραντεβού" }}>
               {/* Ίδιες φράσεις και ίδιος κανόνας με τη σελίδα «Ραντεβού» (21/10): όταν έχει κλείσει όλες τις ώρες, δεν ζητάμε κράτηση. */}
-              {left === 0 ? (
+              {alumnus ? (
+                <>
+                  <p className="hint" style={{ margin: "0 0 10px" }}>Μια ατομική όποτε τη χρειάζεσαι. Οι κρατήσεις κλείνουν στις {formatTime(window.closesAt)}.</p>
+                  <Link className="btn primary" href="/m/book">Κλείσε ραντεβού</Link>
+                </>
+              ) : left === 0 ? (
                 <p className="hint" style={{ margin: 0 }}>Έκλεισες {s.sessionsPerWeek === 1 ? "το ραντεβού" : `και τα ${s.sessionsPerWeek} ραντεβού`} της εβδομάδας.</p>
               ) : (
                 <>
@@ -552,7 +560,7 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
               <div className="eko-c eko-c-forms">{formsPanel}</div>
               <div className="eko-c eko-c-journal">{journalPanel}</div>
             </div>
-            <div className="eko-c eko-c-task">{taskLink}</div>
+            {!alumnus && <div className="eko-c eko-c-task">{taskLink}</div>}
             {planLink}
             <section className="panel eko-prog">
               <div className="eko-head">
@@ -561,7 +569,7 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
               </div>
               {progRows}
             </section>
-            <div className="eko-c eko-c-goal">{goalLink}</div>
+            {!alumnus && <div className="eko-c eko-c-goal">{goalLink}</div>}
             <div className="eko-c eko-c-progress">{progressPanel}</div>
             {bookingPanel}
           </div>

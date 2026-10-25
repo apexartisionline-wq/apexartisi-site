@@ -19,6 +19,7 @@ export default async function MembersOverview({ searchParams }: { searchParams: 
       select: {
         id: true,
         name: true,
+        alumniSince: true,
         bookings: {
           where: { slot: { startsAt: { gt: now } } },
           select: { slot: { select: { date: true, startsAt: true, kind: true, therapist: { select: { name: true } } } } },
@@ -45,6 +46,7 @@ export default async function MembersOverview({ searchParams }: { searchParams: 
         more: Math.max(0, flags.length - 1),
         overdue: flags.some((f) => f.key === "risk_review" && f.level === "red"),
         noRecord: flags.some((f) => f.key === "no_record"),
+        alumnus: Boolean(m.alumniSince),
         next: next ? { when: formatDate(next.date), time: formatTime(next.startsAt), who: next.therapist?.name ?? null, pair: next.kind === "PAIR" } : null,
       };
     })

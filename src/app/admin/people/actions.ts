@@ -7,6 +7,7 @@ import { z } from "zod";
 import { generateCode, hashPassword, requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
+import { localParts } from "@/lib/time";
 import { logAccess } from "@/lib/audit";
 import { headers } from "next/headers";
 import { appUrl, mailConfigured, sendMail } from "@/lib/mail";
@@ -148,6 +149,21 @@ export async function updatePerson(formData: FormData) {
   if (!active) await prisma.session.deleteMany({ where: { userId: user.id } });
   if (before && before.simpleHome !== user.simpleHome) await logAccess(admin.id, user.id, user.simpleHome ? "simple_home_on" : "simple_home_off");
   redirect(`/admin/people/${d.id}?ok=1`);
+}
+
+// Απόφοιτος (υπεύθυνη 25/10): ίδιος λογαριασμός· ομάδες δωρεάν χωρίς μέτρημα, ατομικές χωρίς κύκλο, χρέωση ανά συνεδρία
+// (σημειώνεται στις «Πληρωμές αποφοίτων»). Κλείνει τον ανοιχτό κύκλο. Η επαναφορά δεν ανοίγει κύκλο: «Νέος κύκλος» από κάτω.
+export async function setAlumnus(formData: FormData) {
+  const admin = await requireRole("ADMIN");
+  const id = String(formData.get("id"));
+  const on = formData.get("on") === "1";
+  const member = await prisma.user.findFirst({ where: { id, role: "MEMBER" }, select: { id: true } });
+  if (!member) redirect("/admin/people");
+  const today = localParts(new Date()).date;
+  await prisma.user.update({ where: { id }, data: { alumniSince: on ? today : null } });
+  if (on) await prisma.cycle.updateMany({ where: { memberId: id, closedAt: null }, data: { closedAt: new Date() } });
+  await logAccess(admin.id, id, on ? "alumni_on" : "alumni_off");
+  redirect(`/admin/people/${id}?ok=1`);
 }
 
 export async function newCycle(formData: FormData) {
