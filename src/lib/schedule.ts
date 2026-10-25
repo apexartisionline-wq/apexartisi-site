@@ -10,7 +10,7 @@ import { addDays, athensToUtc, localParts, mondayOf, toMinutes } from "./time";
 // Κατηγορίες ειδοποιήσεων μέλους (το μέλος κλείνει όποια θέλει). Ουδέτερα κείμενα.
 export const MEMBER_PREFS = [
   { key: "daily", label: "Κείμενο της ημέρας" },
-  { key: "reminders", label: "15′ πριν από ομάδα ή ατομική" },
+  { key: "reminders", label: "10′ πριν από την ομάδα, 5′ πριν από την ατομική" },
   { key: "journal", label: "Ημερολόγιο (το βράδυ)" },
   { key: "booking", label: "Κρατήσεις της εβδομάδας" },
 ] as const;
@@ -62,19 +62,19 @@ export async function runSchedule(now = new Date()): Promise<void> {
       await once(`booking:${p.date}:${tag}:${m.id}`, m.id, { title: tag === "am" ? "Οι ώρες της εβδομάδας άνοιξαν" : `Οι κρατήσεις κλείνουν στις ${s.bookingCloseTime}`, url: "/m/book" });
     }
   }
-  // 15′ πριν από ομάδα
+  // 10′ πριν από ομάδα (υπεύθυνη 25/10: «σε 10 λεπτά ξεκινάει η ομάδα σου»)
   for (const g of groupsOn(p.date, s)) {
     const [h, mm] = g.time.split(":").map(Number);
     const start = athensToUtc(p.date, h, mm).getTime();
     const diff = (start - now.getTime()) / 60_000;
-    if (diff > 0 && diff <= 15) {
-      for (const m of members) if (on(m.notifyPrefs as Prefs, "reminders")) await once(`group:${p.date}:${g.time}:${m.id}`, m.id, { title: "Ξεκινάμε σε 15 λεπτά", url: "/m" });
+    if (diff > 0 && diff <= 10) {
+      for (const m of members) if (on(m.notifyPrefs as Prefs, "reminders")) await once(`group:${p.date}:${g.time}:${m.id}`, m.id, { title: "Σε 10 λεπτά ξεκινάει η ομάδα σου", url: "/m" });
     }
   }
-  // 15′ πριν από ατομική/Therapair
+  // 5′ πριν από ατομική/Therapair (υπεύθυνη 25/10: «σε 5 λεπτά ξεκινάει το ατομικό σου»)
   const soon = await prisma.booking.findMany({
-    where: { slot: { startsAt: { gt: now, lte: new Date(now.getTime() + 15 * 60_000) } } },
-    include: { member: { select: { notifyPrefs: true } } },
+    where: { slot: { startsAt: { gt: now, lte: new Date(now.getTime() + 5 * 60_000) } } },
+    include: { member: { select: { notifyPrefs: true } }, slot: { select: { kind: true } } },
   });
-  for (const b of soon) if (on(b.member.notifyPrefs as Prefs, "reminders")) await once(`session:${b.id}`, b.memberId, { title: "Ξεκινάμε σε 15 λεπτά", url: "/m" });
+  for (const b of soon) if (on(b.member.notifyPrefs as Prefs, "reminders")) await once(`session:${b.id}`, b.memberId, { title: b.slot.kind === "PAIR" ? "Σε 5 λεπτά ξεκινάει το Therapair σου" : "Σε 5 λεπτά ξεκινάει το ατομικό σου", url: "/m" });
 }
