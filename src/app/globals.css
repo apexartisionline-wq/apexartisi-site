@@ -1727,3 +1727,30 @@ html[data-theme="dark"] .dl-badge { background: #f2f6f8; color: #0c1620; border-
 .gbtn.g-partly i { background: linear-gradient(90deg, var(--accent) 50%, transparent 50%); }
 .gbtn.g-no i { border-color: var(--muted); }
 .gbtn.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--card)); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent); }
+
+/* 25/10 (υπεύθυνη: «οι κάρτες πίσω από το καλωσόρισμα σε όλα τα προφίλ είναι πολύ σκοτεινές»): στο φωτεινό θέμα το καλωσόρισμα
+   και οι κεφαλίδες σελίδων γίνονται ανοιχτός ουρανός με σκούρα γράμματα — μέλος, θεραπευτής, διαχείριση. Στο σκοτεινό θέμα μένουν ως είχαν.
+   Τοπικά ξαναορίζονται τα χρώματα της μπάρας, ώστε ό,τι ζωγραφίζεται με αυτά (κείμενο, δρόμος, στάσεις) να ακολουθεί. */
+html:not([data-theme="dark"]) .eko2 .eko-hero, html:not([data-theme="dark"]) .member-env.live main:not(.m-home):not(.help) > .page-head, html:not([data-theme="dark"]) .staff.live main > .page-head, html:not([data-theme="dark"]) .staff.live main > h1:first-of-type {
+  --bar: #eef8fb; --bar-hover: #dcf0f5; --bar-edge: #c4e4ec; --bar-text: #0c2532; --bar-accent: #0a8a98; --bar-accent-strong: #08707c;
+}
+html:not([data-theme="dark"]) .member-env.live main:not(.m-home):not(.help) > .page-head,
+html:not([data-theme="dark"]) .staff.live main > .page-head, html:not([data-theme="dark"]) .staff.live main > h1:first-of-type {
+  background: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 200' preserveAspectRatio='xMaxYMax slice'%3E%3Cpath d='M0 200 C120 150 220 190 330 140 C430 95 500 120 600 60 V200Z' fill='%230a8a98' fill-opacity='.12'/%3E%3Cpath d='M260 170 C340 150 380 120 440 115 C500 110 530 80 580 50' fill='none' stroke='%230a8a98' stroke-width='3' stroke-dasharray='7 9' stroke-opacity='.8'/%3E%3Ccircle cx='440' cy='115' r='9' fill='%23ffffff' stroke='%230a8a98' stroke-width='4'/%3E%3Ccircle cx='520' cy='92' r='6' fill='%230a8a98'/%3E%3Ccircle cx='580' cy='50' r='16' fill='none' stroke='%230a8a98' stroke-width='5'/%3E%3Ccircle cx='580' cy='50' r='34' fill='%230a8a98' fill-opacity='.12'/%3E%3C/svg%3E") no-repeat right bottom / auto 100%, linear-gradient(120deg, var(--bar) 0%, var(--bar-hover) 55%, var(--bar-edge) 100%);
+  border: 1px solid #cfe7ee;
+}
+@media (max-width: 760px) {
+  html:not([data-theme="dark"]) .member-env.live main:not(.m-home):not(.help) > .page-head,
+  html:not([data-theme="dark"]) .staff.live main > .page-head, html:not([data-theme="dark"]) .staff.live main > h1:first-of-type { background: linear-gradient(120deg, var(--bar) 0%, var(--bar-hover) 60%, var(--bar-edge) 100%); }
+}
+html:not([data-theme="dark"]) .eko2 .eko-hero { border: 1px solid #cfe7ee; }
+html:not([data-theme="dark"]) .eko2 .eko-hero h1 span { color: var(--bar-accent-strong); }
+html:not([data-theme="dark"]) .eko-hero .eko-art .a-sun { fill: #fff3c9; fill-opacity: 1; }
+html:not([data-theme="dark"]) .eko-hero .eko-art .a-halo { stroke: #f2c94c; stroke-opacity: .35; }
+html:not([data-theme="dark"]) .eko-hero .eko-art .a-m3 { fill: #b5dde7; fill-opacity: .8; }
+html:not([data-theme="dark"]) .eko-hero .eko-art .a-m2 { fill: #9dd1de; fill-opacity: .75; }
+html:not([data-theme="dark"]) .eko-hero .eko-art .a-m1 { fill: #7fc0d0; }
+html:not([data-theme="dark"]) .eko-hero .eko-art .a-sea { fill: #cfeaf1; fill-opacity: .9; }
+html:not([data-theme="dark"]) .eko-hero .eko-art .a-stop.s1, html:not([data-theme="dark"]) .eko-hero .eko-art .a-stop.s3 { stroke: #ffffff; }
+html:not([data-theme="dark"]) .eko-hero .eko-art .a-stop.s2 { fill: #ffffff; }
+html:not([data-theme="dark"]) .staff.live main > .page-head .head-actions .btn:not(.primary) { background: var(--card); color: var(--text); border-color: var(--card-line, var(--line)); }
