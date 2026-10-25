@@ -125,7 +125,7 @@ export type JournalPicture = {
  * @param o.lastPossible η τελευταία μέρα που μπορεί να έχει εγγραφή (journalDate(now): σήμερα μετά την ώρα του ημερολογίου, αλλιώς χθες)
  * @param o.startDate έναρξη προγράμματος (πριν από αυτήν δεν μετρούν μέρες)
  */
-export function journalPicture(entries: JournalEntryNum[], o: { from: string; to: string; lastPossible: string; startDate?: string | null; minForAvg?: number }): JournalPicture {
+export function journalPicture(entries: JournalEntryNum[], o: { from: string; to: string; lastPossible: string; startDate?: string | null; minForAvg?: number; goalChecks?: { date: string; check: string }[] }): JournalPicture {
   const minForAvg = o.minForAvg ?? MIN_FOR_AVG;
   const from = o.startDate && o.startDate > o.from ? o.startDate : o.from;
   const to = o.lastPossible < o.to ? o.lastPossible : o.to;
@@ -133,7 +133,9 @@ export function journalPicture(entries: JournalEntryNum[], o: { from: string; to
   const inRange = days ? entries.filter((e) => e.date >= from && e.date <= to).sort((a, b) => (a.date < b.date ? -1 : 1)) : [];
   const avg = (k: keyof JournalAvg) => Math.round((inRange.reduce((a, e) => a + e[k], 0) / inRange.length) * 10) / 10;
   const goal = { YES: 0, PARTLY: 0, NO: 0 };
-  for (const e of inRange) if (e.goalCheck === "YES" || e.goalCheck === "PARTLY" || e.goalCheck === "NO") goal[e.goalCheck]++;
+  // Από 25/10 η συνέπεια πατιέται στην κάρτα του στόχου (GoalCheckIn) και μετρά και χωρίς καταχώριση ημερολογίου.
+  const checks = o.goalChecks ? (days ? o.goalChecks.filter((c) => c.date >= from && c.date <= to) : []) : inRange.map((e) => ({ check: e.goalCheck }));
+  for (const c of checks) if (c.check === "YES" || c.check === "PARTLY" || c.check === "NO") goal[c.check]++;
   const top = inRange.reduce<JournalEntryNum | null>((a, b) => (!a || b.craving > a.craving ? b : a), null);
   return {
     from: days ? from : null,

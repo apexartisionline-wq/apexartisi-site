@@ -139,3 +139,13 @@ describe("ειδικές περιπτώσεις", () => {
     expect(checkPicture({ sessions: broken, groups: groupPicture([]), journal: journalPicture([], { from: "2026-10-08", to: "2026-10-14", lastPossible: "2026-10-13" }) })).toContain("ατομικές: πέρασαν ≠ παρουσίες + «Δεν ήρθε» + χωρίς καταγραφή");
   });
 });
+
+describe("συνέπεια με τον στόχο από την κάρτα (25/10)", () => {
+  it("μετρά τα πατήματα και σε μέρες χωρίς ημερολόγιο, μόνο μέσα στην περίοδο", () => {
+    const p = journalPicture([j("2026-10-05")], {
+      from: "2026-10-05", to: "2026-10-11", lastPossible: "2026-10-11",
+      goalChecks: [{ date: "2026-10-04", check: "YES" }, { date: "2026-10-06", check: "YES" }, { date: "2026-10-07", check: "PARTLY" }, { date: "2026-10-08", check: "NO" }],
+    });
+    expect(p.goal).toEqual({ YES: 1, PARTLY: 1, NO: 1 });
+  });
+});

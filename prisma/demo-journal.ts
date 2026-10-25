@@ -29,8 +29,10 @@ export async function seedJournal(prisma: PrismaClient): Promise<string> {
       // Συνέπεια με τον στόχο της εβδομάδας (ψεύτικα): καλύτερη όταν η λαχτάρα είναι χαμηλή.
       const goalCheck = craving <= 3 ? "YES" : craving <= 6 ? "PARTLY" : "NO";
       await prisma.journalEntry.create({
-        data: { memberId: m.id, date: addDays(today, i - p.days.length + 1), craving, sleepHours, mood, confidence: Math.max(0, 10 - craving), selfHarm: "NO", used: false, goalCheck },
+        data: { memberId: m.id, date: addDays(today, i - p.days.length + 1), craving, sleepHours, mood, confidence: Math.max(0, 10 - craving), selfHarm: "NO", used: false },
       });
+      // Από 25/10 η συνέπεια αποθηκεύεται χωριστά (GoalCheckIn).
+      await prisma.goalCheckIn.upsert({ where: { memberId_date: { memberId: m.id, date: addDays(today, i - p.days.length + 1) } }, create: { memberId: m.id, date: addDays(today, i - p.days.length + 1), check: goalCheck }, update: {} });
     }
   }
   // Στόχοι εβδομάδας (ψεύτικοι), με τα λόγια του μέλους.

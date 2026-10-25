@@ -41,7 +41,9 @@ export async function sinceLast(memberId: string, fromDate: string, untilDate: s
   const avg = (xs: number[]) => (xs.length ? Math.round((xs.reduce((a, b) => a + b, 0) / xs.length) * 10) / 10 : null);
   const top = journal.length ? journal.reduce((a, b) => (b.craving > a.craving ? b : a)) : null;
   const goal = { YES: 0, PARTLY: 0, NO: 0 } as Record<GoalCheck, number>;
-  for (const j of journal) if (j.goalCheck && j.goalCheck in GOAL_CHECK) goal[j.goalCheck as GoalCheck]++;
+  // Από 25/10 η συνέπεια είναι στο GoalCheckIn (πατιέται στην κάρτα του στόχου).
+  const checks = await prisma.goalCheckIn.findMany({ where: { memberId, date: { gt: fromDate, lt: untilDate } }, select: { check: true } });
+  for (const c of checks) if (c.check in GOAL_CHECK) goal[c.check as GoalCheck]++;
 
   return {
     from: first,

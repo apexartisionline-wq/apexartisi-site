@@ -1260,14 +1260,16 @@ p.motto { margin: 0 0 16px; display: block; }
 .member-env .linkrow.m-plan { border-color: var(--now-line); }
 .member-env .panel.m-now strong { font-size: 1.1rem; }
 /* Οι 7 μέρες του στόχου: γεμάτος = Ναι, μισός = Λίγο, άδειος = Όχι σήμερα, ανοιχτός = χωρίς απάντηση, διακεκομμένος = δεν ήρθε ακόμα. Χωρίς κόκκινο. */
-.goal-days { display: inline-flex; gap: 6px; margin-top: 8px; }
-.goal-days .gday { display: inline-flex; flex-direction: column; align-items: center; gap: 3px; width: 22px; font-size: .68rem; font-weight: 600; color: var(--muted); line-height: 1; }
-.goal-days .gday i { display: block; width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--line); box-sizing: border-box; background: var(--card); }
+.goal-days { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+/* 25/10 (υπεύθυνη: «να είναι πιο μεγάλο το σημείο που δείχνει τη συνέπεια»): κύκλοι 30px, γράμμα από κάτω πιο ευανάγνωστο. */
+.goal-days .gday { display: inline-flex; flex-direction: column; align-items: center; gap: 4px; width: 34px; font-size: .8rem; font-weight: 600; color: var(--muted); line-height: 1; }
+.goal-days .gday i { display: block; width: 30px; height: 30px; border-radius: 50%; border: 2.5px solid var(--line); box-sizing: border-box; background: var(--card); }
 .goal-days .gday.s-yes i { background: var(--accent); border-color: var(--accent); }
 .goal-days .gday.s-partly i { border-color: var(--accent); background: linear-gradient(90deg, var(--accent) 50%, var(--card) 50%); }
 .goal-days .gday.s-no i { border-color: var(--muted); }
 .goal-days .gday.s-future i { border-style: dashed; }
 .goal-days .gday.today { color: var(--accent-strong); }
+.goal-days .gday.today i { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
 html[data-theme="dark"] .goal-days .gday.today { color: var(--accent); }
 /* Κάτω μπάρα του μέλους (μόνο κινητό): Σήμερα · Ημερολόγιο · [Κόκκινο κουμπί] · Ραντεβού · Μενού. Στον υπολογιστή μένει το πάνω μενού και η κόκκινη μπάρα. */
 .m-tabs, .m-sheet, .m-sheet-backdrop { display: none; }
@@ -1711,3 +1713,17 @@ html[data-theme="dark"] .dl-badge { background: #f2f6f8; color: #0c1620; border-
 .ig-h { margin: 22px 0 0; font-size: 1.1rem; scroll-margin-top: 16px; }
 .ig-nudge .dl-badges { flex: 1 1 100%; }
 .ig-nudge .dl-badge { flex: 1 1 140px; min-width: 0; justify-content: center; }
+
+/* Συνέπεια με τον στόχο: τρία κουμπιά πάνω στην κάρτα (25/10). */
+.goal-card { display: grid; gap: 4px; }
+.goal-card .goal-head { display: flex; align-items: center; gap: 12px; color: inherit; text-decoration: none; }
+.goal-card .goal-head .grow { flex: 1; }
+.goal-check { margin-top: 10px; display: grid; gap: 8px; }
+.goal-q { font-weight: 600; }
+.goal-btns { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.gbtn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; padding: 8px 10px; border-radius: 14px; border: 1.5px solid var(--line); background: var(--card); color: var(--text); font-weight: 600; font-size: 1rem; cursor: pointer; }
+.gbtn i { width: 20px; height: 20px; border-radius: 50%; border: 2.5px solid var(--accent); box-sizing: border-box; flex: none; }
+.gbtn.g-yes i { background: var(--accent); }
+.gbtn.g-partly i { background: linear-gradient(90deg, var(--accent) 50%, transparent 50%); }
+.gbtn.g-no i { border-color: var(--muted); }
+.gbtn.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--card)); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent); }

@@ -101,6 +101,7 @@ model User {
   pairNotes     PairNote[]    @relation("PairNoteTherapist")
   attendances   Attendance[]
   journal       JournalEntry[]
+  goalChecks    GoalCheckIn[]
   formAnswers   FormAnswer[]
   teamMessages  TeamMessage[]
   helpRequests  HelpRequest[]      @relation("HelpMember")
@@ -267,7 +268,7 @@ model JournalEntry {
   selfHarm   SelfHarm
   used       Boolean
   note       String   @default("")
-  goalCheck  String? // YES | PARTLY | NO — συνέπεια με τον στόχο της εβδομάδας
+  goalCheck  String? // ΠΑΛΙΟ (ως 25/10): η συνέπεια πέρασε στο GoalCheckIn· δεν γράφεται πια
   goalNote   String   @default("") // κρυπτογραφημένο
   win        String   @default("") // «Μια νίκη σήμερα» — κρυπτογραφημένο
   // Οι υπόλοιπες ερωτήσεις του πραγματικού «Ημερολογίου της Ανάκαμψής μου» (τετράδιο v2, υπεύθυνη 22/10), ως ένα
@@ -275,6 +276,21 @@ model JournalEntry {
   answers    String   @default("")
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+
+  @@unique([memberId, date])
+}
+
+// Συνέπεια με τον στόχο της εβδομάδας (υπεύθυνη 25/10): το μέλος πατά Ναι / Λίγο / Όχι σήμερα πάνω στην κάρτα του στόχου,
+// χωρίς να χρειάζεται καταχώριση ημερολογίου. Μία ανά μέρα (ημερολογιακή)· αλλάζει όσες φορές θέλει. Κλινικός φάκελος.
+model GoalCheckIn {
+  id        String   @id @default(cuid())
+  memberId  String
+  member    User     @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  date      String // YYYY-MM-DD
+  check     String // YES | PARTLY | NO
+  note      String   @default("") // κρυπτογραφημένο
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([memberId, date])
 }

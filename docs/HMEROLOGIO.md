@@ -107,3 +107,9 @@
 - Αρχεία: components/InstallGuide.tsx, app/install/page.tsx, login/page.tsx, m/page.tsx, account/page.tsx, PushToggle.tsx, welcome-email.ts, globals.css, docs/apofaseis/03.
 - Μένει: διεύθυνση/φωτογραφίες του site και η εικόνα της εισόδου.
 - 25/10: κουμπιά «Κατέβασε για iPhone / Android» (όπως στις γνωστές εφαρμογές) στην είσοδο, στη σελίδα /install και στην κάρτα του «Σήμερα». Μένει: καταστήματα (Google Play, App Store) μετά τον κ. Φωτσινό· D-U-N-S της εταιρείας.
+
+## 25/10/2026 — στόχος εβδομάδας: συνέπεια με ένα πάτημα
+- Πρόβλημα: η ερώτηση συνέπειας ήταν κρυμμένη μέσα στο ημερολόγιο, οι κύκλοι έμεναν άδειοι και δεν φαινόταν πώς δουλεύει.
+- Τώρα: Ναι / Λίγο / Όχι σήμερα πάνω στην κάρτα του στόχου (Σήμερα + Ημερολόγιο), μεγαλύτεροι κύκλοι, οδηγία μίας γραμμής.
+- Αρχεία: schema + migration goal_checkin, lib/goals.ts, app/m/goal-actions.ts, components/GoalCheck.tsx, m/page.tsx, m/journal/page.tsx, picture.ts, picture-db.ts, since-last.ts, t/members/[id]/journal (+[date]), retention-db.ts, demo-journal.ts, guide.ts, globals.css.
+- Μένει: τίποτα για αυτό· να το δοκιμάσει η υπεύθυνη στο κινητό.

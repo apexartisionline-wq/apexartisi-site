@@ -10,6 +10,7 @@ import { notifyRole } from "@/lib/notify";
 import { journalDate } from "@/lib/member";
 import { GOAL_CHECK, goalWeek, setWeekGoal } from "@/lib/goals";
 import { GoalDays } from "@/components/GoalDays";
+import { GoalCheck } from "@/components/GoalCheck";
 import { getSettings } from "@/lib/settings";
 import { formatDate, localParts } from "@/lib/time";
 import { REACTION, SELF_CARE, SELF_HARM_CHOICES, VALUES, WAKE, parseAnswers, type JournalAnswers } from "@/lib/journal-questions";
@@ -37,8 +38,6 @@ const schema = z.object({
   tomorrow: text(),
   selfHarm: z.enum(["NO", "PASSING", "YES", "UNSURE"]),
   note: text(5000),
-  goalCheck: z.enum(["YES", "PARTLY", "NO"]).optional(),
-  goalNote: z.string().max(1000).default(""),
 });
 
 async function save(formData: FormData) {
@@ -75,8 +74,6 @@ async function save(formData: FormData) {
     selfHarm: d.selfHarm,
     note: enc(d.note),
     win: enc(d.win.trim()),
-    goalCheck: d.goalCheck ?? null,
-    goalNote: enc(d.goalNote),
     answers: enc(JSON.stringify(answers)),
   };
   const before = await prisma.journalEntry.findUnique({ where: { memberId_date: { memberId: user.id, date } }, select: { used: true } });
@@ -184,6 +181,7 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
           <>
             <div className="body-text" style={{ fontSize: "1.1rem", margin: "0 0 6px" }}>«{goal.text}»</div>
             {/* Οι 7 μέρες της εβδομάδας από τα βραδινά τσεκαρίσματα (21/10)· χωρίς ποσοστά. */}
+            <GoalCheck current={gw.days.find((d) => d.date === today)?.check ?? null} back="/m/journal" />
             <GoalDays days={gw.days} today={today} />
             <div className="hint" style={{ margin: "4px 0 8px" }}>● Ναι · ◐ Λίγο · ○ Όχι σήμερα</div>
             <details className="small">
@@ -309,17 +307,7 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
           <textarea id="tomorrow" name="tomorrow" maxLength={2000} defaultValue={a.tomorrow} />
         </div>
 
-        {goal && (
-          <fieldset className="field" style={{ border: 0, padding: 0 }}>
-            <legend><strong>Σήμερα ήμουν συνεπής με τον στόχο μου;</strong> <span className="muted small">«{goal.text}»</span></legend>
-            {Object.entries(GOAL_CHECK).map(([v, l]) => (
-              <label key={v} className="m-check">
-                <input type="radio" name="goalCheck" value={v} defaultChecked={entry?.goalCheck === v} /> {l}
-              </label>
-            ))}
-            <input name="goalNote" aria-label="Τι με βοήθησε / τι με δυσκόλεψε (προαιρετικό)" placeholder="τι με βοήθησε / τι με δυσκόλεψε (προαιρετικό)" defaultValue={dec(entry?.goalNote)} style={{ marginTop: 6 }} />
-          </fieldset>
-        )}
+        {/* Η συνέπεια με τον στόχο δεν ρωτιέται πια εδώ (25/10): πατιέται πάνω στην κάρτα του στόχου. */}
 
         <h3 className="jsec">Η ασφάλειά μου</h3>
         <fieldset className="field" style={{ border: 0, padding: 0 }}>

@@ -1,4 +1,5 @@
 import "server-only";
+import { goalChecksFor } from "./goals";
 import { dec } from "./crypto";
 import { prisma } from "./db";
 import { memberGroups } from "./group-presence";
@@ -95,6 +96,7 @@ export async function picturesFor(memberIds: string[], choice: PeriodChoice, now
     prisma.sobrietyChange.findMany({ where: { memberId: { in: memberIds } }, orderBy: { at: "desc" }, select: { memberId: true, previous: true, date: true, byId: true, at: true, note: true } }),
     minFrom <= groupsTo ? groupOccurrences(minFrom, groupsTo, s, now) : Promise.resolve([]),
   ]);
+  const goalChecks = await goalChecksFor(memberIds, minFrom, maxTo);
   const byIds = [...new Set([...history.map((h) => h.byId), ...soberChanges.map((c) => c.byId)])];
   const names = new Map((byIds.length ? await prisma.user.findMany({ where: { id: { in: byIds } }, select: { id: true, name: true } }) : []).map((u) => [u.id, u.name]));
 
@@ -125,9 +127,10 @@ export async function picturesFor(memberIds: string[], choice: PeriodChoice, now
     const g = memberGroups(occ.filter((o) => o.date >= period.from && o.date <= gTo), attendance.filter((a) => a.memberId === m.id), { now, joinDate: m.programStartDate });
     const groups = groupPicture(g.rows.map((r) => ({ date: r.date, time: r.time, startsAt: r.startsAt, state: r.state })), { target: choice.kind === "month" && cycle ? s.groupsPerCycle : null });
 
+    const myChecks = [...goalChecks.values()].filter((c) => c.memberId === m.id);
     const jp = journalPicture(
-      journal.filter((j) => j.memberId === m.id).map((j) => ({ date: j.date, mood: j.mood, craving: j.craving, sleep: j.sleepHours, confidence: j.confidence, used: j.used, selfHarm: j.selfHarm === "YES" || j.selfHarm === "UNSURE", goalCheck: j.goalCheck })),
-      { from: period.from, to: period.to, lastPossible, startDate: m.programStartDate },
+      journal.filter((j) => j.memberId === m.id).map((j) => ({ date: j.date, mood: j.mood, craving: j.craving, sleep: j.sleepHours, confidence: j.confidence, used: j.used, selfHarm: j.selfHarm === "YES" || j.selfHarm === "UNSURE", goalCheck: goalChecks.get(`${m.id}|${j.date}`)?.check ?? null })),
+      { from: period.from, to: period.to, lastPossible, startDate: m.programStartDate, goalChecks: myChecks },
     );
     const sc = soberChanges.find((c) => c.memberId === m.id && c.date === m.soberSince) ?? null;
     let why: string | null = null;

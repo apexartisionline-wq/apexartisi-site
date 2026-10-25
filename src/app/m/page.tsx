@@ -3,6 +3,7 @@ import { InstallNudge } from "@/components/InstallGuide";
 import Link from "next/link";
 import { Fragment, type ReactNode } from "react";
 import { GoalDays } from "@/components/GoalDays";
+import { GoalCheck } from "@/components/GoalCheck";
 import { Icon } from "@/components/Icon";
 import { PageHead, Panel, Pill } from "@/components/ui";
 import { memberConsents, requireMember } from "@/lib/intake";
@@ -334,16 +335,30 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
   );
   const goalLink = (
     <>
-          <Link href="/m/journal" className="linkrow panel">
-            <span className="iconbox"><Icon name="target" size={20} /></span>
-            <span className="grow">
-              <span className="hint">Ο στόχος μου αυτή την εβδομάδα</span>
-              <div style={{ fontSize: "1.05rem", marginTop: 2 }}>{goal ? `«${goal.text}»` : <span className="muted">Γράψε έναν μικρό στόχο για την εβδομάδα</span>}</div>
-              {/* Οι 7 μέρες της εβδομάδας από τα βραδινά τσεκαρίσματα (21/10) — μόνο όταν υπάρχει στόχος, χωρίς ποσοστά. */}
-              {goal && <GoalDays days={gw.days} today={today.date} />}
-            </span>
-            <span className="arrow"><Icon name="chevron" /></span>
-          </Link>
+          {goal ? (
+            // 25/10: η συνέπεια πατιέται εδώ, με ένα πάτημα (πριν ήταν κρυμμένη μέσα στο ημερολόγιο)· η κάρτα δεν είναι πια ολόκληρη σύνδεσμος.
+            <div className="panel goal-card">
+              <Link href="/m/journal" className="goal-head">
+                <span className="iconbox"><Icon name="target" size={20} /></span>
+                <span className="grow">
+                  <span className="hint">Ο στόχος μου αυτή την εβδομάδα</span>
+                  <div style={{ fontSize: "1.05rem", marginTop: 2 }}>«{goal.text}»</div>
+                </span>
+                <span className="arrow"><Icon name="chevron" /></span>
+              </Link>
+              <GoalCheck current={gw.days.find((d) => d.date === today.date)?.check ?? null} back="/m" />
+              <GoalDays days={gw.days} today={today.date} />
+            </div>
+          ) : (
+            <Link href="/m/journal" className="linkrow panel">
+              <span className="iconbox"><Icon name="target" size={20} /></span>
+              <span className="grow">
+                <span className="hint">Ο στόχος μου αυτή την εβδομάδα</span>
+                <div style={{ fontSize: "1.05rem", marginTop: 2 }}><span className="muted">Γράψε έναν μικρό στόχο για την εβδομάδα</span></div>
+              </span>
+              <span className="arrow"><Icon name="chevron" /></span>
+            </Link>
+          )}
     </>
   );
   const taskLink = (

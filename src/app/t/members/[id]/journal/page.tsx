@@ -6,7 +6,7 @@ import { logAccess } from "@/lib/audit";
 import { requireRole } from "@/lib/auth";
 import { dec } from "@/lib/crypto";
 import { prisma } from "@/lib/db";
-import { GOAL_CHECK, type GoalCheck } from "@/lib/goals";
+import { GOAL_CHECK, goalChecksFor, type GoalCheck } from "@/lib/goals";
 import { SELF_HARM } from "@/lib/journal-labels";
 import { PicturePanel } from "@/components/PicturePanel";
 import { memberPicture, parsePeriod, periodQuery } from "@/lib/picture-db";
@@ -36,8 +36,9 @@ export default async function MemberJournalPage({ params, searchParams }: { para
     where: { memberId: id, date: { gte: from, lte: to } },
     orderBy: { date: "desc" },
     // Οι θεραπευτές δεν παίρνουν καν τα κείμενα από τη βάση.
-    select: { date: true, mood: true, craving: true, sleepHours: true, confidence: true, used: true, selfHarm: true, goalCheck: true, ...(detail ? { note: true, win: true, goalNote: true } : {}) },
+    select: { date: true, mood: true, craving: true, sleepHours: true, confidence: true, used: true, selfHarm: true, ...(detail ? { note: true, win: true } : {}) },
   });
+  const gcs = await goalChecksFor([id], from, to);
   const byDate = new Map(rows.map((r) => [r.date, r]));
   const days = Array.from({ length: DAYS }, (_, i) => addDays(to, -i));
   const older = addDays(from, -1);
@@ -117,7 +118,9 @@ export default async function MemberJournalPage({ params, searchParams }: { para
           const j = byDate.get(d);
           if (!j) return <div key={d} className="card journal-day empty"><strong>{formatDate(d)}</strong> <span className="muted">· δεν έγραψε</span></div>;
           const flag = j.used || j.selfHarm === "YES" || j.selfHarm === "UNSURE";
-          const note = dec(j.note), win = dec(j.win), goalNote = dec(j.goalNote);
+          const note = dec(j.note), win = dec(j.win);
+          const gc = gcs.get(`${id}|${d}`);
+          const goalCheck = gc?.check ?? null, goalNote = gc?.note ?? "";
           return (
             <section key={d} className={`card journal-day${flag ? " flag" : ""}`}>
               <div className="row spread"><strong>{formatDate(d)}</strong>{flag && <span className="badge red">να το δεις</span>}</div>
@@ -130,7 +133,7 @@ export default async function MemberJournalPage({ params, searchParams }: { para
               <ul className="journal-ans">
                 <li>Χρήση: {j.used ? <strong className="warn-text">ναι</strong> : "όχι"}</li>
                 <li>Σκέψεις να κάνει κακό στον εαυτό του: {j.selfHarm === "YES" || j.selfHarm === "UNSURE" ? <strong className="warn-text">{SELF_HARM[j.selfHarm]}</strong> : SELF_HARM[j.selfHarm]}</li>
-                {j.goalCheck && <li>Συνεπής με τον στόχο: <strong>{GOAL_CHECK[j.goalCheck as GoalCheck] ?? j.goalCheck}</strong>{goalNote && <> — «{goalNote}»</>}</li>}
+                {goalCheck && <li>Συνεπής με τον στόχο: <strong>{GOAL_CHECK[goalCheck as GoalCheck] ?? goalCheck}</strong>{goalNote && <> — «{goalNote}»</>}</li>}
                 {win && <li>Μια νίκη σήμερα: «{win}»</li>}
               </ul>
               {note && <div className="body-text journal-note">{note}</div>}

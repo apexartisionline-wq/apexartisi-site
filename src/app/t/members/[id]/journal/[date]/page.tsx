@@ -6,7 +6,7 @@ import { logAccess } from "@/lib/audit";
 import { requireRole } from "@/lib/auth";
 import { dec } from "@/lib/crypto";
 import { prisma } from "@/lib/db";
-import { GOAL_CHECK, type GoalCheck } from "@/lib/goals";
+import { GOAL_CHECK, goalChecksFor, type GoalCheck } from "@/lib/goals";
 import { SELF_HARM } from "@/lib/journal-labels";
 import { TEXT_QUESTIONS, VALUES, parseAnswers } from "@/lib/journal-questions";
 import { addDays, formatDate, formatWhen } from "@/lib/time";
@@ -28,7 +28,9 @@ export default async function JournalDayPage({ params }: { params: Promise<{ id:
   const j = await prisma.journalEntry.findUnique({ where: { memberId_date: { memberId: id, date } } });
   await logAccess(user.id, id, `journal_day_view:${date}`);
   const flag = Boolean(j && (j.used || j.selfHarm === "YES" || j.selfHarm === "UNSURE"));
-  const note = dec(j?.note), win = dec(j?.win), goalNote = dec(j?.goalNote);
+  const note = dec(j?.note), win = dec(j?.win);
+  const gc = (await goalChecksFor([id], date, date)).get(`${id}|${date}`);
+  const goalCheck = gc?.check ?? null, goalNote = gc?.note ?? "";
   // Οι υπόλοιπες ερωτήσεις του τετραδίου (22/10)· σε παλιές καταχωρίσεις λείπουν και απλώς δεν φαίνονται.
   const a = parseAnswers(dec(j?.answers));
   const back = `/t/members/${id}/journal`;
@@ -59,7 +61,7 @@ export default async function JournalDayPage({ params }: { params: Promise<{ id:
             {a.selfCare && a.selfCare.length > 0 && <li>Καλό για τον εαυτό του: {a.selfCare.join(" · ")}</li>}
             {a.values && <li>Εναρμονισμένο με τις αξίες του: <strong>{VALUES[a.values]}</strong></li>}
             <li>Σκέψεις να κάνει κακό στον εαυτό του: {j.selfHarm === "YES" || j.selfHarm === "UNSURE" ? <strong className="warn-text">{SELF_HARM[j.selfHarm]}</strong> : SELF_HARM[j.selfHarm]}</li>
-            {j.goalCheck && <li>Συνεπής με τον στόχο: <strong>{GOAL_CHECK[j.goalCheck as GoalCheck] ?? j.goalCheck}</strong>{goalNote && <span className="wm"> — «{goalNote}»</span>}</li>}
+            {goalCheck && <li>Συνεπής με τον στόχο: <strong>{GOAL_CHECK[goalCheck as GoalCheck] ?? goalCheck}</strong>{goalNote && <span className="wm"> — «{goalNote}»</span>}</li>}
             <li>Μια νίκη σήμερα: {win ? <span className="wm">«{win}»</span> : <span className="muted">δεν έγραψε</span>}</li>
           </ul>
           {TEXT_QUESTIONS.filter((q) => a[q.key]).map((q) => (
