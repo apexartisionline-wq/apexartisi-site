@@ -1,4 +1,5 @@
 import { Announcements } from "@/components/Announcements";
+import { InstallNudge } from "@/components/InstallGuide";
 import Link from "next/link";
 import { Fragment, type ReactNode } from "react";
 import { GoalDays } from "@/components/GoalDays";
@@ -501,6 +502,7 @@ export default async function MemberHome({ searchParams }: { searchParams: Promi
           <p className="eko-motto">Μικρά βήματα,<br />μεγάλη πορεία</p>
         </section>
         {notices}
+        <InstallNudge />
         <div className="eko2-grid">
           <section className="eko2-day">
             <div className="eko2-dayhead">

@@ -1676,3 +1676,22 @@ html[data-theme="dark"] .member-env.live .m-legal svg { color: var(--red); }
 .has-side:has(.staff.live) > .sidenav { background: linear-gradient(180deg, color-mix(in srgb, var(--bar-accent) 14%, var(--canvas)) 0%, var(--canvas) 70%); }
 .badge.alumni { background: color-mix(in srgb, #8b6fe0 20%, var(--card)); color: var(--text); }
 .pill.alumni { background: color-mix(in srgb, #8b6fe0 20%, var(--card)); color: var(--text); }
+/* «Βάλε το Apex στο κινητό σου» (25/10): βήματα με εικόνα, iPhone/Android. */
+.install-page { min-height: 100vh; min-height: 100dvh; background: var(--surface, var(--bg)); padding: 32px 16px 48px; }
+.install-inner { max-width: 620px; margin: 0 auto; }
+.install-inner h1 { margin: 18px 0 6px; }
+.ig-tabs { display: inline-flex; gap: 4px; padding: 4px; border-radius: 999px; background: var(--soft); margin: 14px 0; }
+.ig-tabs button { border: 0; background: transparent; padding: 8px 22px; border-radius: 999px; font-weight: 600; color: var(--text); cursor: pointer; }
+.ig-tabs button.on { background: var(--card); box-shadow: 0 2px 8px rgba(12, 22, 32, 0.12); color: var(--accent-strong, var(--accent)); }
+.ig-quick { display: flex; width: 100%; justify-content: center; margin-bottom: 14px; }
+.ig-steps { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+.ig-steps li { display: grid; grid-template-columns: 28px 64px 1fr; gap: 12px; align-items: center; background: var(--card); border: 1px solid var(--card-line, var(--line)); border-radius: 16px; padding: 12px 14px; }
+.ig-num { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--accent); color: var(--accent-text, #fff); font-weight: 700; font-size: .9rem; }
+.ig-art { width: 64px; min-height: 64px; border-radius: 14px; display: grid; place-items: center; align-content: center; gap: 2px; background: color-mix(in srgb, var(--accent) 12%, var(--card)); color: var(--accent-strong, var(--accent)); }
+.ig-art span { font-size: .62rem; font-weight: 700; line-height: 1; }
+.ig-body { display: grid; gap: 2px; }
+.ig-body span { color: var(--muted, inherit); font-size: .92rem; }
+.ig-nudge { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.ig-nudge .grow { flex: 1 1 200px; display: grid; gap: 2px; }
+.ig-later { border: 0; background: none; color: var(--muted, inherit); text-decoration: underline; cursor: pointer; padding: 4px; }
+.login-install { display: inline-block; margin-top: 18px; font-weight: 600; }

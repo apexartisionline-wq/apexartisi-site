@@ -54,7 +54,8 @@ export function PushToggle({ vapidKey }: { vapidKey: string }) {
     return (
       <div className="notice small">
         Στο iPhone οι ειδοποιήσεις δουλεύουν μόνο αν προσθέσεις το Apex στην οθόνη Αφετηρίας: πάτα το κουμπί
-        «Κοινοποίηση» (τετράγωνο με βέλος) → «Προσθήκη στην οθόνη Αφετηρίας», άνοιξε το Apex από εκεί και έλα ξανά εδώ.
+        «Κοινοποίηση» (τετράγωνο με βέλος) → «Προσθήκη στην οθόνη Αφετηρίας», άνοιξε το Apex από εκεί και έλα ξανά εδώ.{" "}
+        <a href="/install">Δες τα βήματα ›</a>
       </div>
     );
   if (state === "unsupported") return <p className="muted small">Αυτός ο browser δεν υποστηρίζει ειδοποιήσεις.</p>;

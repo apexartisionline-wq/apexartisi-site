@@ -141,6 +141,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
         <h2>Ειδοποιήσεις</h2>
         <div className="card stack">
           <PushToggle vapidKey={vapidPublicKey()} />
+          <p className="small" style={{ margin: 0 }}><Link href="/install">Βάλε το Apex στο κινητό σου (βήματα για iPhone και Android) ›</Link></p>
           {!staff && (
             <form action={savePrefs} className="stack">
               {sp.okp && <div className="notice">Αποθηκεύτηκε ✓</div>}

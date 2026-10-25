@@ -29,6 +29,7 @@ const TEXT = {
     otpNeeded: "Για την ομάδα μας χρειάζεται και ο εξαψήφιος κωδικός από την εφαρμογή επαλήθευσης.",
     wrong: "Δεν ταιριάζουν το όνομα και ο κωδικός. Δοκίμασε ξανά ή ζήτα νέο από την ομάδα μας.",
     lang: "Γλώσσα",
+    install: "Βάλε το Apex στο κινητό σου ›",
   },
   en: {
     hello: "Welcome",
@@ -48,6 +49,7 @@ const TEXT = {
     otpNeeded: "Our team also needs the six-digit code from the authenticator app.",
     wrong: "The username and password don't match. Try again or ask our team for a new one.",
     lang: "Language",
+    install: "Put Apex on your phone (steps in Greek) ›",
   },
 } as const;
 
@@ -119,6 +121,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
               )}
             </div>
           </form>
+          <Link className="login-install" href="/install">{t.install}</Link>
         </div>
       </main>
       {/* Φωτογραφία ως φόντο CSS: στο κινητό είναι κρυφή και δεν κατεβαίνει καθόλου. Διακοσμητική — δεν διαβάζεται. */}
