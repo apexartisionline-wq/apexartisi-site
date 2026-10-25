@@ -1754,3 +1754,9 @@ html:not([data-theme="dark"]) .eko-hero .eko-art .a-sea { fill: #cfeaf1; fill-op
 html:not([data-theme="dark"]) .eko-hero .eko-art .a-stop.s1, html:not([data-theme="dark"]) .eko-hero .eko-art .a-stop.s3 { stroke: #ffffff; }
 html:not([data-theme="dark"]) .eko-hero .eko-art .a-stop.s2 { fill: #ffffff; }
 html:not([data-theme="dark"]) .staff.live main > .page-head .head-actions .btn:not(.primary) { background: var(--card); color: var(--text); border-color: var(--card-line, var(--line)); }
+/* 25/10 (υπεύθυνη: «σε όλα πιο ανοιχτόχρωμα»): και οι κάρτες «Τώρα» / «Επόμενο βήμα» του μέλους φωτεινές, όπως το καλωσόρισμα. */
+html:not([data-theme="dark"]) .eko-next { --bar: #eef8fb; --bar-hover: #dcf0f5; --bar-edge: #c4e4ec; --bar-text: #0c2532; --bar-accent: #0a8a98; --bar-accent-strong: #08707c; border: 1px solid #cfe7ee; }
+html:not([data-theme="dark"]) .eko-next-art .a-m3 { fill: #b5dde7; fill-opacity: .7; }
+html:not([data-theme="dark"]) .eko-next-art .a-m2 { fill: #9dd1de; fill-opacity: .6; }
+html:not([data-theme="dark"]) .eko-next .eko-date { box-shadow: 0 2px 10px rgba(12, 37, 50, .08); }
+html:not([data-theme="dark"]) .eko-next .btn.primary, html:not([data-theme="dark"]) .eko-next button.primary { background: var(--accent); color: var(--accent-text, #fff); border-color: var(--accent); }
