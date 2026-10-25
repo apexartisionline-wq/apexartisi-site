@@ -44,21 +44,52 @@ const STEPS: Record<Os, Step[]> = {
 
 type BIP = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> };
 
-export function InstallGuide() {
-  const [os, setOs] = useState<Os>("ios");
+// Δύο κουμπιά «Κατέβασε για iPhone / Android», όπως στις γνωστές εφαρμογές (υπεύθυνη 25/10: «όπως το Viber»).
+// Γενικό εικονίδιο κινητού — όχι λογότυπα Apple/Google: το Apex δεν είναι (ακόμα) στα καταστήματα.
+const phone = <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><g {...stroke}><rect x="6" y="2.5" width="12" height="19" rx="3" /><path d="M10.5 18.5h3" /></g></svg>;
+export function DownloadButtons({ onPick }: { onPick?: (os: Os) => void }) {
+  return (
+    <div className="dl-badges">
+      {(["ios", "android"] as const).map((k) => (
+        <a key={k} className="dl-badge" href={`/install?os=${k}`} onClick={onPick ? (e) => { e.preventDefault(); onPick(k); } : undefined}>
+          {phone}
+          <span><small>Κατέβασε για</small><strong>{k === "ios" ? "iPhone" : "Android"}</strong></span>
+        </a>
+      ))}
+    </div>
+  );
+}
+
+export function InstallGuide({ initialOs }: { initialOs?: Os }) {
+  const [os, setOs] = useState<Os>(initialOs ?? "ios");
   const [installed, setInstalled] = useState(false);
   const [prompt, setPrompt] = useState<BIP | null>(null);
   useEffect(() => {
-    if (/android/i.test(navigator.userAgent)) setOs("android");
+    if (!initialOs && /android/i.test(navigator.userAgent)) setOs("android");
     setInstalled(window.matchMedia("(display-mode: standalone)").matches || Boolean((navigator as { standalone?: boolean }).standalone));
     const onPrompt = (e: Event) => { e.preventDefault(); setPrompt(e as BIP); };
     window.addEventListener("beforeinstallprompt", onPrompt);
     return () => window.removeEventListener("beforeinstallprompt", onPrompt);
-  }, []);
+  }, [initialOs]);
+
+  const pick = async (k: Os) => {
+    setOs(k);
+    // Android με Chrome: εγκατάσταση με ένα πάτημα· αλλιώς δείχνουμε τα βήματα.
+    if (k === "android" && prompt) {
+      await prompt.prompt();
+      const r = await prompt.userChoice;
+      if (r.outcome === "accepted") setInstalled(true);
+      setPrompt(null);
+      return;
+    }
+    document.getElementById("ig-steps")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   if (installed) return <div className="notice">Το Apex είναι ήδη στο κινητό σου ✓ Μένει μόνο να ανοίξεις τις ειδοποιήσεις στον «Λογαριασμό».</div>;
   return (
     <div className="install-guide">
+      <DownloadButtons onPick={pick} />
+      <h2 id="ig-steps" className="ig-h">Τα βήματα</h2>
       <div className="ig-tabs" role="tablist" aria-label="Κινητό">
         {(["ios", "android"] as const).map((k) => (
           <button key={k} type="button" role="tab" aria-selected={os === k} className={os === k ? "on" : undefined} onClick={() => setOs(k)}>
@@ -66,11 +97,6 @@ export function InstallGuide() {
           </button>
         ))}
       </div>
-      {os === "android" && prompt && (
-        <button type="button" className="primary big ig-quick" onClick={async () => { await prompt.prompt(); const r = await prompt.userChoice; if (r.outcome === "accepted") setInstalled(true); setPrompt(null); }}>
-          Βάλ' το με ένα πάτημα
-        </button>
-      )}
       <ol className="ig-steps">
         {STEPS[os].map((s, i) => (
           <li key={s.title}>
@@ -98,7 +124,7 @@ export function InstallNudge() {
   return (
     <div className="panel ig-nudge">
       <span className="grow"><strong>Βάλε το Apex στο κινητό σου</strong><span className="hint">Σαν εφαρμογή, με υπενθυμίσεις για την ομάδα και την ατομική σου.</span></span>
-      <a className="btn primary" href="/install">Δείξε μου πώς</a>
+      <DownloadButtons />
       <button type="button" className="ig-later" onClick={() => { try { localStorage.setItem("apex-install-nudge", "no"); } catch {} setShow(false); }}>Όχι τώρα</button>
     </div>
   );

@@ -1694,4 +1694,20 @@ html[data-theme="dark"] .member-env.live .m-legal svg { color: var(--red); }
 .ig-nudge { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .ig-nudge .grow { flex: 1 1 200px; display: grid; gap: 2px; }
 .ig-later { border: 0; background: none; color: var(--muted, inherit); text-decoration: underline; cursor: pointer; padding: 4px; }
-.login-install { display: inline-block; margin-top: 18px; font-weight: 600; }
+.login-install { display: grid; gap: 8px; margin-top: 22px; }
+.login-install > span { font-size: .9rem; color: var(--muted, inherit); }
+/* Κουμπιά «Κατέβασε για iPhone / Android» (όπως στα καταστήματα εφαρμογών, χωρίς λογότυπα). */
+.dl-badges { display: flex; flex-wrap: wrap; gap: 10px; }
+.dl-badge { display: inline-flex; align-items: center; gap: 10px; padding: 9px 18px 9px 14px; min-width: 168px; border-radius: 12px; background: #0c1620; color: #fff; text-decoration: none; border: 1px solid #0c1620; }
+.dl-badge:hover, .dl-badge:focus-visible, .dl-badge:visited { color: #fff; text-decoration: none; }
+.dl-badge:hover { background: #18303f; }
+html[data-theme="dark"] .dl-badge:hover, html[data-theme="dark"] .dl-badge:visited { color: #0c1620; background: #dfe8ec; }
+.dl-badge span { display: grid; line-height: 1.15; }
+.dl-badge small { font-size: .72rem; opacity: .85; }
+.dl-badge strong { font-size: 1.15rem; }
+html[data-theme="dark"] .dl-badge { background: #f2f6f8; color: #0c1620; border-color: #f2f6f8; }
+.install-guide .dl-badges { margin: 6px 0 4px; }
+.install-guide .dl-badge { flex: 1 1 180px; justify-content: center; padding: 14px 18px; }
+.ig-h { margin: 22px 0 0; font-size: 1.1rem; scroll-margin-top: 16px; }
+.ig-nudge .dl-badges { flex: 1 1 100%; }
+.ig-nudge .dl-badge { flex: 1 1 140px; min-width: 0; justify-content: center; }

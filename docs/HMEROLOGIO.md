@@ -106,3 +106,4 @@
 - Ανεβαίνουν μαζί και οι υπενθυμίσεις 10′/5′.
 - Αρχεία: components/InstallGuide.tsx, app/install/page.tsx, login/page.tsx, m/page.tsx, account/page.tsx, PushToggle.tsx, welcome-email.ts, globals.css, docs/apofaseis/03.
 - Μένει: διεύθυνση/φωτογραφίες του site και η εικόνα της εισόδου.
+- 25/10: κουμπιά «Κατέβασε για iPhone / Android» (όπως στις γνωστές εφαρμογές) στην είσοδο, στη σελίδα /install και στην κάρτα του «Σήμερα». Μένει: καταστήματα (Google Play, App Store) μετά τον κ. Φωτσινό· D-U-N-S της εταιρείας.
